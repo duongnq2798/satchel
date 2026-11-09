@@ -62,10 +62,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
-- Contract CI installs cargo-near with retries and falls back to crates.io. GitHub's release
-  downloads sometimes answered the runners with a 504, `curl | sh` then installed nothing and passed,
-  and the build failed later with `no such command: near`. The install step now fails on its own if
-  neither source worked.
+- Contract CI downloads the cargo-near 0.22.0 release binary itself, with retries, and checks it
+  against the sha256 that cargo-near's own installer pins. GitHub's release downloads sometimes
+  answered the runners with a 504: `curl | sh` then installed nothing and passed, the installer's own
+  download does not retry, and building from crates.io needs libudev, which the runners lack. The
+  build then failed later with `no such command: near`; now the install step fails on its own.
 - The testnet scripts estimate gas for every Sepolia send from an address that can pay, instead of
   assuming 21000 for a plain one: sending to an address that has never been used now costs about
   205k (204,600 for the demo funding sends), and a 21000 limit reverted. `e2e-testnet.mjs send` and
