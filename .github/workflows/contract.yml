@@ -19,8 +19,16 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --tests -- -D warnings
       - run: cargo test
+      # GitHub's release downloads sometimes answer runners with a 504, and `curl | sh` then
+      # installs nothing and still passes. Retry, fall back to crates.io, and fail here if neither worked.
       - name: Install cargo-near 0.22.0
-        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh | sh
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf --retry 5 --retry-all-errors --retry-delay 10 \
+            -o "$RUNNER_TEMP/cargo-near-installer.sh" \
+            https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh \
+            && sh "$RUNNER_TEMP/cargo-near-installer.sh" \
+            || cargo install cargo-near --version 0.22.0 --locked
+          command -v cargo-near
       - name: Build the wasm
         run: cargo near build non-reproducible-wasm --locked
       - uses: actions/upload-artifact@v4
@@ -39,8 +47,16 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      # GitHub's release downloads sometimes answer runners with a 504, and `curl | sh` then
+      # installs nothing and still passes. Retry, fall back to crates.io, and fail here if neither worked.
       - name: Install cargo-near 0.22.0
-        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh | sh
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf --retry 5 --retry-all-errors --retry-delay 10 \
+            -o "$RUNNER_TEMP/cargo-near-installer.sh" \
+            https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh \
+            && sh "$RUNNER_TEMP/cargo-near-installer.sh" \
+            || cargo install cargo-near --version 0.22.0 --locked
+          command -v cargo-near
       - name: Build in the pinned Docker image
         run: cargo near build reproducible-wasm
       - name: Code hash
