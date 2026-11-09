@@ -1,0 +1,223 @@
+A marketplace, a wallet or a bot that shows satchels for sale should show each one's verdict next to
+its price, read live, not copied from the seller. This tutorial builds that feed with the
+`satchel-nft` library: the same approach as the CLI's `market` command, in a script you can extend.
+It reads only public data, so it needs no wallet and no key.
+
+## What you need
+
+- Node.js 22 or later.
+- An empty folder. Everything below runs in it.
+- About five minutes. A run takes a few seconds per three listings, most of it waiting on RPCs.
+
+## Build it
+
+<Steps>
+
+1. **Create the project.** The library is an ES module, so the project is one too. `tsx` runs
+   TypeScript without a build step.
+
+   ```bash
+   npm init -y
+   npm pkg set type=module
+   npm install --save-exact satchel-nft@0.1.0 tsx@4.23.15
+   ```
+
+2. **Write the script.** Save it as `feed.ts`:
+
+   ```ts title="feed.ts"
+   import { MAINNET, TESTNET, buildReport, contractFacts, formatNear, limiter, satchel } from "satchel-nft";
+
+   // The network to read: testnet unless you pass "mainnet".
+   const net = process.argv[2] === "mainnet" ? MAINNET : TESTNET;
+
+   // 1. Every listing. The contract returns at most 100 per call, so page until a short page.
+   const listings = [];
+   for (let from = 0; ; from += 100) {
+     const page = await satchel(net).listings(from, 100);
+     listings.push(...page);
+     if (page.length < 100) break;
+   }
+
+   // 2. One read of the contract's own facts, shared by every report.
+   const facts = contractFacts(net);
+
+   // 3. Three reports at a time, so a public RPC doesn't rate-limit you.
+   const limit = limiter(3);
+   const feed = await Promise.all(
+     listings.map(async ([tokenId, listing]) => {
+       const report = await limit(() => buildReport(net, tokenId, facts)).catch(() => null);
+       return {
+         id: tokenId,
+         price: formatNear(listing.price),
+         seller: listing.seller,
+         verdict: report?.verdict ?? "unknown",
+         record_version: listing.record_version,
+         // A buyer must name this version; it must equal the one the report read.
+         report_version: report?.recordVersion ?? null,
+       };
+     }),
+   );
+
+   // 4. Print it, cleanest first.
+   const order = { clean: 0, unknown: 1, "not-provable": 2 } as const;
+   feed.sort((a, b) => order[a.verdict] - order[b.verdict] || Number(a.id) - Number(b.id));
+   console.log(JSON.stringify({ network: net.id, contract: net.contract, listings: feed }, null, 2));
+   ```
+
+3. **Run it on testnet.**
+
+   ```bash
+   npx tsx feed.ts
+   ```
+
+   On 2026-11-09 it printed this in about 6 seconds. Satchel #4 never signed anything; satchel #6
+   had a raw payload signed, so its report can't read clean:
+
+   ```json
+   {
+     "network": "testnet",
+     "contract": "v1.satchel-nft.testnet",
+     "listings": [
+       {
+         "id": "4",
+         "price": "1",
+         "seller": "satchel-nft.testnet",
+         "verdict": "clean",
+         "record_version": "0",
+         "report_version": "0"
+       },
+       {
+         "id": "6",
+         "price": "1",
+         "seller": "satchel-nft.testnet",
+         "verdict": "not-provable",
+         "record_version": "1",
+         "report_version": "1"
+       }
+     ]
+   }
+   ```
+
+   Your output depends on what is listed when you run it. If someone has bought #4 or #6, it is gone
+   from the list.
+
+4. **Run it on mainnet.**
+
+   ```bash
+   npx tsx feed.ts mainnet
+   ```
+
+   On 2026-11-09 no mainnet satchel was listed, so `listings` was `[]`.
+
+</Steps>
+
+## How it works
+
+**Listings.** `satchel(net).listings(fromIndex, limit)` calls the contract's `listings` view, which
+returns `[token_id, Listing]` pairs: `seller`, `price` in yoctoNEAR, `record_version` and `listed_at`.
+It returns only listings whose seller still owns the token, at most 100 per call. Removing a listing
+moves the last one into its slot, so pages can shift between calls; read them close together.
+
+**Shared facts.** Check 1 of every report reads the same three facts about the contract: its access
+keys, its code hash and its MPC contract. `contractFacts(net)` reads them once; passing the promise
+as `buildReport`'s third argument shares that read across every report.
+
+**Reports.** `buildReport(net, tokenId, facts)` reads the token, derives its address through the MPC
+contract, and reads each EVM chain in its record at a finalized block. It never throws for a check it
+can't read: that check reads `"unknown"`. The `.catch(() => null)` covers what can throw, such as the
+NEAR RPC failing, and shows that listing as `"unknown"`, as the CLI does.
+
+**The limiter.** `limiter(3)` runs at most three reports at once and queues the rest. Each report
+makes several RPC calls, and public nodes rate-limit bursts.
+
+**Two versions.** `record_version` is the version the listing pinned when the seller listed;
+`report_version` is the version the report read. The contract's `buy` requires the version the buyer
+names to equal the listing's version and the record's current one. They normally match: signing is
+frozen while a satchel is listed, and listing again pins the new version. If they differ, the record
+changed between the two reads; read again before you offer that satchel.
+
+## Variations
+
+<Tabs labels={["Only clean listings", "Your own nodes", "Command line instead"]}>
+<Tab>
+
+Keep the listings a buyer can act on: clean, with a report that read the listing's own version.
+
+```ts
+const buyable = feed.filter((l) => l.verdict === "clean" && l.report_version === l.record_version);
+console.log(JSON.stringify(buyable, null, 2));
+```
+
+</Tab>
+<Tab>
+
+The report is only as honest as its RPCs. Point it at nodes you trust, before the first read, the way
+the CLI does with the same variables:
+
+```ts
+import { CHAINS, setNearRpc } from "satchel-nft";
+
+if (process.env.NEAR_RPC) setNearRpc(process.env.NEAR_RPC);
+for (const chain of CHAINS) {
+  const url = process.env[`RPC_${chain.id}`];
+  if (url) chain.rpc = url;
+}
+```
+
+```bash
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx tsx feed.ts
+```
+
+An EVM RPC that answers with another chain id is refused, so its checks read `"unknown"`, never
+`"pass"`.
+
+</Tab>
+<Tab>
+
+The CLI's `market` command is this script, built in:
+
+```bash
+npx -y satchel-nft@0.1.0 market --json
+```
+
+It prints `{ network, contract, listings }`, each listing with `tokenId`, `seller`, `price`,
+`record_version`, `listed_at`, `verdict` and `recordVersion`.
+
+</Tab>
+</Tabs>
+
+## Turning a row into a purchase
+
+A feed is a snapshot. Before you let anyone buy, read the report again, then build the transaction
+from that report, never from the feed:
+
+```ts
+import { TESTNET, buildReport, satchelTx } from "satchel-nft";
+
+const report = await buildReport(TESTNET, "4");
+if (!report?.listing || report.verdict !== "clean" || report.listing.record_version !== report.recordVersion) {
+  throw new Error("Not buyable right now");
+}
+const tx = satchelTx(TESTNET).buy(report.tokenId, report.recordVersion, BigInt(report.listing.price));
+// Have the buyer's NEAR wallet sign and send `tx`.
+```
+
+`buy` names the record version and the price. If the seller signs anything between this report and
+the purchase, the contract refuses it with `Satchel: the signing record changed since you checked it`,
+and the buyer keeps their NEAR.
+
+## If something goes wrong
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| `Top-level await is not supported with the "cjs" output format`, `ERR_REQUIRE_ESM` or `Cannot use import statement outside a module` | The project isn't an ES module | Run `npm pkg set type=module` |
+| Every verdict is `"unknown"` | An RPC is down or rate-limiting you, or a satchel sent recently and its block isn't final yet | Run it again in a few minutes, lower the limiter to 1 or 2, or use your own nodes |
+| `NEAR RPC query failed: HTTP 429` | The NEAR RPC rate-limited you | Lower the limiter, or set `NEAR_RPC` to your own node |
+| A satchel you expect is missing | It was bought, delisted or transferred; any transfer ends a listing | Check it with `npx -y satchel-nft@0.1.0 show <id>` |
+
+## Next steps
+
+- [TypeScript library reference](/docs/developers/library): every export used here, and the rest.
+- [The clean transfer report](/docs/concepts/clean-transfer-report): what each verdict means.
+- [RPCs, finality and rate limits](/docs/developers/rpc-and-finality): choosing nodes for production.
+- [Automate with the CLI](/docs/advanced/automation): the same feed from a shell script.

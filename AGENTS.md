@@ -129,7 +129,7 @@ npm run typecheck
 ```
 
 Each runs in both workspaces. You should see `Tests  111 passed (111)` for `satchel-nft`, then
-`Tests  3 passed (3)` for the app, then no type errors.
+`Tests  15 passed (15)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -232,3 +232,7 @@ The full list, with what stops each attack and what is left, is in
   keychain (`~/.near-credentials` unless `--keychain os`); neither reads a key. Never commit a key, a seed phrase or an RPC key.
 - **Docs:** keep [README.md](README.md), [CHANGELOG.md](CHANGELOG.md) (under Unreleased) and the
   package's [README](packages/satchel-nft/README.md), which npm shows, in step with the change. A claim the README makes should be checkable by a command, like the ones above.
+  The documentation at <https://satchelnft.xyz/docs> is `web/content/docs`, ordered by
+  `web/src/lib/docs/nav.ts`; a page that describes what you changed changes with it.
+  [`web/content/README.md`](web/content/README.md) says how, and `docs.test.ts` fails on a page
+  without a file or a link to a page or heading that doesn't exist.

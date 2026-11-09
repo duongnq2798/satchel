@@ -253,7 +253,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 3 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 15 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 59 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -909,6 +909,7 @@ all of this with the near CLI's key, checking each step
 
 | | |
 | --- | --- |
+| **Documentation center** | [satchelnft.xyz/docs](https://satchelnft.xyz/docs): a quickstart, the concepts, a guide for each thing the app does, tutorials, the library, CLI and contract reference, troubleshooting and a glossary. Its source is [`web/content/docs`](web/content/docs), and [`web/content/README.md`](web/content/README.md) says how to add a page |
 | **Checking the claims** | [AGENTS.md](AGENTS.md), for AI agents and humans: every claim with the command that checks it, and where each rule lives in the code |
 | **Security** | [Threat model](docs/THREAT_MODEL.md) (32 attacks, what stops each, what is left) · [Security policy](SECURITY.md) (private reporting, scope) |
 | **Evidence** | [Testnet deployment](deployments/testnet.json) · [Mainnet deployment](deployments/mainnet.json) · [End-to-end run](deployments/testnet-e2e.json) · [Sepolia send](deployments/testnet-sepolia-send.json) · [Demo satchels](deployments/testnet-gallery.json) · [CLI run](deployments/testnet-cli.json) |
@@ -928,7 +929,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 111 package tests, 3 app tests
+npm run typecheck && npm test              # both workspaces: 111 package tests, 15 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -956,7 +957,9 @@ The tests, as of 2026-11-10: 59 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 111 package tests in 12 files: `report.test.ts` 20,
 `near-cli.test.ts` 13, `history.test.ts` 13, `satchel.test.ts` 11, `cli-args.test.ts` 10, `evm.test.ts`
 10, `send.test.ts` 10, `approvals.test.ts` 8, `guard.test.ts` 7, `contents.test.ts` 4,
-`config.test.ts` 3 and `limit.test.ts` 2; and 3 app tests in `routes.test.ts`. Three rules have no
+`config.test.ts` 3 and `limit.test.ts` 2; and 15 app tests: 3 in
+`routes.test.ts`, and 12 in `docs.test.ts`, which compile every docs page and check its links and
+anchors. Three rules have no
 unit test: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, and the sale panel's use of the report's version and price was
 checked by hand on testnet. [AGENTS.md](AGENTS.md#where-each-rule-lives) lists them with the rest.

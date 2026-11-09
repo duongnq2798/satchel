@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A documentation center at `/docs` (satchelnft.xyz/docs): 36 pages in 8 sections, from a
+  quickstart and the concepts to a guide for each thing the app does, three tutorials, the library,
+  CLI, contract, events, errors and RPC reference, an advanced section, security, troubleshooting,
+  a FAQ and a glossary. AGENTS.md, the threat model, SECURITY.md and this changelog render there
+  from the repository files. Pages are MDX in `web/content/docs`, built at build time with Shiki
+  highlighting; the site has full-text search (Ctrl K), a table of contents per page, breadcrumbs,
+  previous and next links, a light and a dark theme, a page-feedback prompt, a sitemap, `robots.txt`,
+  `llms.txt` and structured data. `docs.test.ts` compiles every page and fails on a broken link or
+  anchor. Every page was checked against the contract, the package and the app's source.
 - What's inside a satchel, and its history. Above the report, a satchel's page now shows, beside the
   native balance on each of the network's 8 chains, its USDC, USDT and WETH where a deployment is
   listed: 22 on the mainnets, 11 on the testnets (`TOKENS` in `contents.ts`, each with its source).

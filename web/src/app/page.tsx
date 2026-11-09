@@ -5,7 +5,7 @@ import { SaleFlow } from "@/components/landing/sale-flow";
 import { TrickExplorer } from "@/components/landing/trick-explorer";
 import { LiveStats } from "@/components/live-stats";
 import { ReportProvider } from "@/components/report-checker";
-import { CHAINS, REPO_URL, TESTNET } from "satchel-nft";
+import { CHAINS, TESTNET } from "satchel-nft";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
 
 const USUAL_WAY = [
@@ -307,9 +307,9 @@ export default function Home() {
                 <li>satchel · signing_record · listing · listings</li>
                 <li>derivation_path · mpc_contract · evm_signing_hash</li>
               </ul>
-              <a href={`${REPO_URL}#readme`} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium text-leather hover:text-ink">
-                Read the README →
-              </a>
+              <Link href="/docs/developers" className="mt-4 inline-block text-sm font-medium text-leather hover:text-ink">
+                Read the developer docs →
+              </Link>
             </div>
           </div>
         </section>

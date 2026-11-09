@@ -1,0 +1,123 @@
+You don't need a wallet to read anything on satchelnft.xyz: every report, address and balance is
+public. You need a NEAR wallet to mint, send, list, delist, buy or transfer. You never need an EVM
+wallet: your NEAR wallet approves a call to the Satchel contract, and NEAR's MPC network signs the EVM
+transaction for the satchel's address.
+
+## What you need
+
+- A NEAR account on the network you want to use: a `.testnet` account for the pages at
+  [satchelnft.xyz](https://satchelnft.xyz), a mainnet account for the pages under
+  [satchelnft.xyz/mainnet](https://satchelnft.xyz/mainnet).
+- Enough NEAR in it for what you plan to do: 0.1 NEAR to mint, the price to buy, and gas for every call.
+- One of the wallets the app lists for that network, with the account's **full-access key** in it.
+  [Why a full-access key](#why-every-action-needs-a-full-access-key) explains why a login key isn't enough.
+
+## Wallets the app lists
+
+The app doesn't fetch the list of wallets at runtime. It pins it in the app's own code
+(`web/src/lib/wallet-manifest.json`), and each wallet's script loads from its publisher.
+
+| Network | Wallets |
+| --- | --- |
+| Testnet | Meteor, Intear, Nightly, Ledger, NEAR CLI |
+| Mainnet | Meteor, Intear, Nightly, Ledger, NEAR CLI, HOT, MyNearWallet |
+
+## Connect
+
+<Steps>
+
+1. **Open the side of the site for your network.** Pages under `/mainnet` work on NEAR mainnet and its
+   8 EVM mainnets; every other page works on NEAR testnet and the 8 testnets. The **Testnet** /
+   **Mainnet** switch in the header moves between them, and a banner under it says which one you are on:
+
+   ```text
+   NEAR testnet. Satchels here sign with the testnet MPC network: never send real funds to their addresses.
+   ```
+
+   ```text
+   NEAR mainnet. Satchels here hold real funds. Not audited: keep in one only what you can afford to lose.
+   ```
+
+2. **Click Connect wallet** in the header (or on [Your satchels](/satchels)), and pick a wallet.
+
+3. **Approve the connection in the wallet.** The header then shows your account id. Click it to
+   disconnect. Some wallets also sign out on the other network when you do.
+
+</Steps>
+
+## One session per network
+
+Each network keeps its own wallet session, under its own key in your browser's storage. Switching from
+testnet to mainnet loads the other side as a new page, so no wallet, account or report carries over.
+You can stay connected as `alice.testnet` on testnet and as `alice.near` on mainnet at the same time.
+
+The app refuses an account from the other network, out loud, because the page could never sign with it:
+
+```text
+alice.near is not a NEAR testnet account: switch to Mainnet to use it, or pick a testnet account
+```
+
+The rule is the account's name. On testnet, an account must end in `.testnet`; on mainnet, it must not.
+Implicit accounts (64 hex characters, or a `0x` address) exist on both networks and are accepted on both.
+
+## What the app asks your wallet to sign
+
+Every transaction goes to one receiver, the network's Satchel contract: `v1.satchel-nft.testnet` or
+`v1.satchel-nft.near`. Before your wallet opens, the app checks that the transaction is for that
+contract, from an account on that network, and that the contract passes
+[check 1 of the report](/docs/concepts/clean-transfer-report): no access keys, the reproducible build,
+and the canonical MPC contract. If any of these fails, the wallet never opens.
+
+| Action | Method | Deposit | Gas |
+| --- | --- | --- | --- |
+| [Mint](/docs/guides/mint-and-fund) | `mint` | 0.1 NEAR (any excess is refunded) | 50 TGas |
+| [Send](/docs/guides/send) | `sign_evm` | 1 yoctoNEAR | 300 TGas |
+| [List](/docs/guides/sell) | `list` | 1 yoctoNEAR | 30 TGas |
+| Delist | `delist` | 1 yoctoNEAR | 30 TGas |
+| [Buy](/docs/guides/buy) | `buy` | the price | 100 TGas |
+| [Transfer](/docs/guides/transfer) | `nft_transfer` | 1 yoctoNEAR | 30 TGas |
+
+**Read the prompt.** The wallet shows the method, its arguments and the deposit before you approve.
+For `sign_evm`, the arguments are the EVM transaction itself: `chain_id`, `nonce`, the fees,
+`gas_limit`, `to`, `value` and `data`. For `buy`, they are the token id, the record version and the
+price. This is what protects you if the hosted app were ever changed to build a different call than it
+shows ([threat model, row 21a](/docs/security/threat-model#the-report)).
+
+## Why every action needs a full-access key
+
+`sign_evm`, `list`, `delist` and `nft_transfer` require exactly 1 yoctoNEAR, `mint` 0.1 NEAR and `buy`
+the price. A function-call access key (the limited key a dapp may add when you log in) can't attach a
+deposit. So every one of these calls needs the owner's full-access key, which means a confirmation in
+your wallet each time. A dapp login key on your account can't sign, list or move your satchel.
+
+## Without a browser
+
+The `satchel-nft` CLI signs the same transactions with the
+[near CLI](https://github.com/near/near-cli-rs), using the key in its keychain. The package never reads
+a key: it has the near CLI sign, decodes what it signed, checks it against what it asked for, and shows it
+to you before it sends.
+
+```bash
+npx -y satchel-nft@0.1.0 mint --as alice.testnet
+npx -y satchel-nft@0.1.0 mint --as alice.testnet --keychain os
+```
+
+`--keychain legacy` (the default) uses `~/.near-credentials`; `--keychain os` uses the OS keychain. The
+[CLI reference](/docs/developers/cli) has every option.
+
+## If something goes wrong
+
+| You see | What it means | What to do |
+| --- | --- | --- |
+| `<account> is not a NEAR testnet account: switch to Mainnet to use it, or pick a testnet account` | You connected an account from the other network | Switch networks in the header, or connect an account of this one |
+| `Connect a NEAR testnet wallet first` | An action ran with no account connected | Click **Connect wallet** |
+| `This page signs only for v1.satchel-nft.testnet` | A transaction was built for another receiver | Nothing was signed. Reload the page; report it if it repeats |
+| `v1.satchel-nft.testnet doesn't pass the contract check: …` | The contract failed check 1 | Nothing is signed and no address is shown until it passes. Click **Check again**; if it persists, [report it](/docs/security/report-a-vulnerability) |
+| `Couldn't check v1.satchel-nft.testnet: …` | The NEAR RPC didn't answer | Try again in a moment |
+| The picker closes and nothing happens | You closed the picker or rejected the connection | Nothing to fix. The header's button stays quiet; the **Connect wallet** button on [My satchels](/satchels) may show the wallet's rejection message |
+
+## Next steps
+
+- [Mint and fund a satchel](/docs/guides/mint-and-fund)
+- [Buy a satchel](/docs/guides/buy)
+- [Networks and chains](/docs/concepts/networks-and-chains)
