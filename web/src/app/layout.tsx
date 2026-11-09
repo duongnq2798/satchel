@@ -12,6 +12,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://satchelnft.xyz"),
   title: { default: "Satchel: an NFT that is one wallet on 16 EVM chains", template: "%s · Satchel" },
   description:
     "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Sell the NFT and the keys move with it; a public signing record proves what the seller could have kept back.",
@@ -42,6 +43,9 @@ const FOOTER: { title: string; links: { href: string; label: string; external?: 
   {
     title: "Developers",
     links: [
+      { href: "/docs", label: "Documentation" },
+      { href: "/docs/quickstart", label: "Quickstart" },
+      { href: "/docs/developers/cli", label: "CLI reference" },
       { href: REPO_URL, label: "Source on GitHub", external: true },
       { href: `${REPO_URL}#readme`, label: "README", external: true },
       { href: `${REPO_URL}/blob/main/CHANGELOG.md`, label: "Changelog", external: true },
@@ -57,9 +61,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <WalletProvider>
             <NetworkBanner />
             <SiteHeader />
-            <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
+            <main className="mx-auto max-w-(--page-max) px-4 py-10">{children}</main>
             <footer className="mt-16 border-t border-line bg-paper-2">
-              <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+              <div className="mx-auto grid max-w-(--page-max) gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>
                   <NetLink href="/" follow className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
                     <img src="/icon.svg" alt="" className="size-7" />
