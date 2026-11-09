@@ -6,6 +6,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The web app is hosted at <https://satchelnft.xyz> (Vercel, built from `main`, NEAR testnet); the
+  README links it first.
 - Demo satchels on testnet for what the report passes and what it catches: #1 provably clean after
   four Sepolia sends, #5 with a 10,000 ETH send signed and never broadcast, #3 with a live USDC
   approval to satchel #2's address, #4 provably clean and listed for 1 NEAR. Built by

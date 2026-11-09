@@ -10,18 +10,22 @@ address on Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and Auror
 testnets. Give the NFT away, sell it or leave it to someone, and control of that address on every
 one of those chains moves with it in one NEAR transaction.
 
+**Try it: <https://satchelnft.xyz>** (NEAR testnet and Sepolia; reading needs no wallet).
+
 > **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract is live on
 > NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
-> access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app) mints,
-> sends through the MPC network, lists and buys, and computes the clean transfer report in your
-> browser; it runs locally and is not hosted yet. Four [demo satchels](#see-it-catch-a-dirty-wallet)
-> show what the report passes and what it catches. Not on mainnet yet, not audited. This section is
-> updated as each piece lands.
+> access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app), hosted
+> at [satchelnft.xyz](https://satchelnft.xyz), mints, sends through the MPC network, lists and buys,
+> and computes the clean transfer report in your browser. Four
+> [demo satchels](#see-it-catch-a-dirty-wallet) show what the report passes and what it catches.
+> Not on mainnet yet, not audited. This section is updated as each piece lands.
 
 ## See it catch a dirty wallet
 
-Four satchels on testnet show what the report catches. Read any of them with no wallet and no key
-(Node 22 or later):
+Four satchels on testnet show what the report catches. Open
+<https://satchelnft.xyz/#examples>: under "Three real satchels: one clean, two caught" each card
+runs the report in your browser and shows its verdict. Or read any of them from a terminal, with no
+wallet and no key (Node 22 or later):
 
 ```bash
 cd web
@@ -39,10 +43,10 @@ with exit code 1. Run it for each of the four:
 | #3 | Approved satchel #2's address, which the same seller owns, to spend its USDC without limit | `[FAIL] An approval is still live`, `NOT PROVABLE`, exit 1 |
 | #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, exit 0, and `listed by satchel-nft.testnet` |
 
-The [web app](#web-app)'s landing page shows the same four with their live verdicts, and satchel #4
-can be bought from its page with any testnet NEAR wallet. If someone has bought it by the time you
-look, it reads `PROVABLY CLEAN` without the listing line. For about 13 minutes after a satchel sends
-on Sepolia, its report says `COULD NOT CHECK EVERYTHING` until that block is final.
+Satchel #4 can be bought from [its page](https://satchelnft.xyz/satchel/4) with any testnet NEAR
+wallet. If someone has bought it by the time you look, it reads `PROVABLY CLEAN` without the
+listing line. For about 13 minutes after a satchel sends on Sepolia, its report says
+`COULD NOT CHECK EVERYTHING` until that block is final.
 [How they were built](#the-demo-satchels).
 
 ## The problem it solves
@@ -251,8 +255,9 @@ same `--out`, without minting or signing again.
 
 ## Web app
 
-[`web/`](web) is a Next.js app with no backend. Every read goes from your browser to a public NEAR
-RPC and to each EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
+[`web/`](web) is a Next.js app with no backend, hosted at <https://satchelnft.xyz> (Vercel, built
+from `main`, on NEAR testnet). Every read goes from your browser to a public NEAR RPC and to each
+EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
 
 | Page | What you can do there |
 |---|---|
@@ -283,7 +288,7 @@ fee while your wallet asks.
 **Wallets.** The app lists a pinned set of NEAR wallets. On testnet that is Meteor, Intear,
 Nightly, Ledger and NEAR CLI.
 
-To run it:
+To run it yourself:
 
 1. Install and start it. Node 22 or later.
 
@@ -295,8 +300,8 @@ To run it:
 
 2. Open <http://localhost:3000>. Under "Three real satchels: one clean, two caught" you should see
    #1 "Provably clean", #5 and #3 "Not provable", each caught one with the line of the report that
-   decided it, and #4 for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full report: all four
-   checks pass, for the reason [above](#end-to-end-run).
+   decided it, and #4 for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full
+   report: all four checks pass, for the reason [above](#end-to-end-run).
 
 3. Get the same report without a browser:
 
