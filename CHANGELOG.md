@@ -18,7 +18,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   - Views for everything a buyer checks: `satchel`, `signing_record`, `listing`, `listings`,
     `derivation_path`, `mpc_contract`, `evm_signing_hash`.
   - Events: NEP-171 `nft_mint` / `nft_transfer`, and `satchel` events for signing and sales.
-- Unit tests, with the EIP-1559 encoding checked against viem (`tools/evm-vectors`) and every
+- Unit tests, with the EIP-1559 encoding checked against viem (`tools/gen-vectors.mjs`) and every
   selector checked against the keccak of its signature.
 - CI: format, clippy, unit tests and the wasm build.
 

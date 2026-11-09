@@ -1,5 +1,5 @@
 // Prints EIP-1559 signing hashes computed by viem, the independent reference for
-// contracts/satchel/src/evm.rs. Run `npm run gen` after changing the cases.
+// contracts/satchel/src/evm.rs. Run `npm run gen-vectors` after changing the cases.
 import { keccak256, serializeTransaction } from "viem";
 
 const cases = [

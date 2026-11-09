@@ -130,7 +130,15 @@ enum StorageKey {
     Listings,
 }
 
-#[near(contract_state)]
+#[near(
+    contract_state,
+    contract_metadata(
+        standard(standard = "nep171", version = "1.2.0"),
+        standard(standard = "nep177", version = "2.0.0"),
+        standard(standard = "nep181", version = "1.0.0"),
+        standard(standard = "nep297", version = "1.0.0")
+    )
+)]
 #[derive(PanicOnDefault)]
 pub struct Contract {
     tokens: NonFungibleToken,

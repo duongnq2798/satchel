@@ -33,10 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # Full history: cargo-near reads the commit it builds and records it (NEP-330).
+      # cargo-near records the commit it builds as the source (NEP-330), so build the branch
+      # commit, which stays on GitHub, not the pull request's temporary merge commit.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install cargo-near 0.22.0
         run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh | sh
       - name: Build in the pinned Docker image

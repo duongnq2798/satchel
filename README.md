@@ -105,7 +105,7 @@ DLL against NEAR host functions, which MSVC refuses. CI builds with the ABI on L
 
 What the tests pin down:
 
-- **EIP-1559 encoding against an independent implementation.** `tools/evm-vectors/gen.mjs` uses
+- **EIP-1559 encoding against an independent implementation.** `tools/gen-vectors.mjs` uses
   [viem](https://viem.sh) to write `contracts/satchel/src/evm_vectors.json`; the test
   `evm_hash_and_rlp_match_viem_for_every_vector` compares the contract's RLP and hash for nonce 0,
   single-byte values, the 0x80 boundary, ERC-20 calldata, and maximum values with 600 bytes of data.
