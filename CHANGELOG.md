@@ -14,9 +14,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `tools/demo-gallery.mjs`, which records each step in `deployments/testnet-gallery.json`, a signed
   send before it broadcasts it, and resumes from there if a run stops partway. Satchel #2, the first
   pending example, was retired: its 0.01 ETH send could be pushed through by anyone who funded it.
-- The landing page shows the demo satchels ("Three real satchels: one clean, two caught"), each
-  with its verdict, read live in the browser, and the report line that caught it, plus what
-  satchel #4 costs and holds while it is for sale.
+- A new landing page. At the top, satchel #1's hand-over as a card, with its verdict checked live
+  in your browser, the one address it holds on every chain, and the transfer and refused
+  transactions. "Try to cheat the buyer" lets you pick one of six things a seller might do: four
+  open a demo satchel left that way, with its report run live and the failing check picked out;
+  two show a call the contract refused on chain. Then a sale step by step with the record beside
+  it, a comparison with seed phrases and token-bound accounts, the verify command with real
+  output, a link to every transaction behind a claim, a developers section, an FAQ and a footer.
+  Each satchel's report is read once and shared across the page; satchel #4 shows what it costs
+  and holds while it is for sale.
+- Satchel #6 and two refused calls as evidence, built by `tools/demo-gallery.mjs`: #6 was listed,
+  delisted, had a raw payload signed and was listed again, so it reads not provable; the owner of
+  #4 calling `sign_evm` while it is listed is refused ("signing is frozen while the token is
+  listed"), and a buyer calling `buy` on #6 with the record version from before the raw signature
+  is refused ("the signing record changed since you checked it").
 - `tools/lib.mjs`: the NEAR calls, MPC address derivation and `sign_evm` round trip shared by the
   testnet scripts.
 - Token 1's open nonce-0 signature from the end-to-end run is spent: its current owner sent a
@@ -62,6 +73,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- Contract CI downloads the cargo-near 0.22.0 release binary itself, with retries, and checks it
+  against the sha256 that cargo-near's own installer pins. GitHub's release downloads sometimes
+  answered the runners with a 504: `curl | sh` then installed nothing and passed, the installer's own
+  download does not retry, and building from crates.io needs libudev, which the runners lack. The
+  build then failed later with `no such command: near`; now the install step fails on its own.
 - The testnet scripts estimate gas for every Sepolia send from an address that can pay, instead of
   assuming 21000 for a plain one: sending to an address that has never been used now costs about
   205k (204,600 for the demo funding sends), and a 21000 limit reverted. `e2e-testnet.mjs send` and
