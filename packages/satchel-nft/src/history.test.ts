@@ -9,6 +9,7 @@ import type { SigningRecord } from "./near.js";
 const TXS = fixture.transactions as IndexedTx[];
 const SALE = "BcrTmMCqdYGdCXDHH4fZqUHCy8bYdnUXLx3JS94jKUHX";
 const DELIST = "2g9KsqmKVQGiSNSJMGkMo7WpdxakVji8BkRPg7ZnBBAL";
+const SIGN = "3u7kDzeB6zMSdC6Ddbvm55qoGwwoP1YxvMH3T9PvUYAL";
 
 const of = (hash: string) => TXS.find((t) => t.transaction.hash === hash) as IndexedTx;
 
@@ -30,6 +31,28 @@ describe("eventsIn", () => {
 
   it("shows a sale once, not also as the nft_transfer it logs", () => {
     expect(eventsIn(TESTNET, of(SALE), "7").map((e) => e.kind)).toEqual(["sale"]);
+  });
+
+  it("keeps a transfer that isn't the sale's own, in the same receipt or another", () => {
+    // A batch of buy, then nft_transfer to a friend: one receipt logs both transfers and the sale.
+    const tx = structuredClone(of(SALE));
+    const outcome = tx.receipts.find((r) => r.execution_outcome.outcome.logs.some((l) => l.includes('"sale"')))?.execution_outcome.outcome;
+    if (!outcome) throw new Error("the fixture's sale has no sale log");
+    outcome.logs.push(
+      'EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_transfer","data":[{"old_owner_id":"buyer.satchel-nft.testnet","new_owner_id":"friend.testnet","token_ids":["7"]}]}',
+    );
+    expect(eventsIn(TESTNET, tx, "7").map(describeEntry)).toEqual([
+      "satchel-nft.testnet sold it to buyer.satchel-nft.testnet for 0.5 NEAR",
+      "buyer.satchel-nft.testnet gave it to friend.testnet",
+    ]);
+  });
+
+  it("skips a receipt whose block or time the index got wrong", () => {
+    for (const bad of [{ block_timestamp: undefined }, { block_timestamp: "soon" }, { block_timestamp: 1e30 }, { block_height: Number.NaN }, { block_height: -1 }]) {
+      const tx = structuredClone(of(DELIST));
+      for (const r of tx.receipts) Object.assign(r.execution_outcome, bad);
+      expect(eventsIn(TESTNET, tx, "7"), JSON.stringify(bad)).toEqual([]);
+    }
   });
 
   it("keeps only another token's events out", () => {
@@ -108,6 +131,38 @@ describe("tokenHistory", () => {
     expect(history).toMatchObject({ scanned: 4, complete: false });
     index(5);
     expect(await tokenHistory(TESTNET, "7")).toMatchObject({ scanned: TXS.length, complete: false });
+  });
+
+  it("puts the older of two transactions in one block first", async () => {
+    // Two sends at nonces 0 and 1 in the same block; the index lists the newer one first.
+    const at = (hash: string, nonce: string) => {
+      const tx = structuredClone(of(SIGN));
+      tx.transaction.hash = hash;
+      for (const r of tx.receipts) {
+        r.execution_outcome.block_height = 100;
+        r.execution_outcome.outcome.logs = r.execution_outcome.outcome.logs.map((l) => l.replace('"nonce":"0"', `"nonce":"${nonce}"`));
+      }
+      return tx;
+    };
+    const txs = [at("Newer", "1"), at("Older", "0")];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        new URL(url).pathname === "/v0/account"
+          ? Response.json({ account_txs: txs.map((t) => ({ transaction_hash: t.transaction.hash })), txs_count: 2 })
+          : Response.json({ transactions: txs }),
+      ),
+    );
+    const history = await tokenHistory(TESTNET, "7");
+    expect(history.entries.map((e) => (e.kind === "sign_evm" ? e.nonce : e.kind))).toEqual(["0", "1"]);
+  });
+
+  it("stops reading an index whose resume token never moves", async () => {
+    const fetch = vi.fn(async () => Response.json({ account_txs: [{ transaction_hash: SIGN }], resume_token: "same", txs_count: 99 }));
+    vi.stubGlobal("fetch", fetch);
+    // Only the transactions request after the two pages: the second page added nothing new.
+    await expect(tokenHistory(TESTNET, "7")).resolves.toMatchObject({ scanned: 1, complete: false });
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it("fails loudly when the index does", async () => {

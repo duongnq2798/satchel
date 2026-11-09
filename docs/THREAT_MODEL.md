@@ -47,7 +47,8 @@ transaction on testnet that shows it working.
   page says so when the history counts a different number of signatures. Each line links its
   transaction, to check on an explorer.
 - **The token list, for what a satchel's page says it holds.** USDC, USDT and WETH are read at the
-  addresses that Circle, Tether, USDT0 or each chain lists, in `contents.ts`, with each source. A
+  addresses that Circle, Tether, USDT0 or each chain lists, and WETH on Sepolia at the one Uniswap's
+  deployment list names; `contents.ts` gives each source. A
   token at any other address, a look-alike included, isn't shown; each chain's explorer, linked
   from the page, shows everything. Nothing in the report depends on these balances.
 - **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**

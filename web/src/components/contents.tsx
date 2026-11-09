@@ -62,9 +62,9 @@ export function Contents({ address, refresh }: { address: Address; refresh: numb
         })}
       </div>
       <p className="mt-3 text-xs text-muted">
-        Read now from each chain: the native coin, and USDC, USDT and WETH where their issuer or the chain names a
-        deployment. Other tokens aren&apos;t read; each chain&apos;s explorer, a click away, shows them. None of this is in
-        the report, which checks only what the satchel has signed.
+        Read now from each chain: the native coin, and USDC, USDT and WETH at the addresses their issuers or the chains
+        list (Uniswap&apos;s, for WETH on Sepolia). Other tokens aren&apos;t read; each chain&apos;s explorer, a click away,
+        shows them. None of this is in the report, which checks only what the satchel has signed.
       </p>
     </div>
   );

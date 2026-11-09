@@ -74,28 +74,38 @@ export async function tokenHistory(net: Network, tokenId: string, maxTransaction
   const hashes = new Set<string>();
   let total = 0;
   let resume: string | undefined;
-  do {
+  // At most the pages `maxTransactions` needs, and no further than a page that adds nothing new:
+  // an index whose resume token never moves can't keep this reading forever.
+  for (let pages = Math.ceil(maxTransactions / PAGE) + 1; pages > 0; pages--) {
     const page = await txApi<{ account_txs?: { transaction_hash: string }[]; resume_token?: string; txs_count?: number }>(
       net,
       "/v0/account",
       { account_id: net.contract, limit: PAGE, ...(resume ? { resume_token: resume } : {}) },
     );
+    const before = hashes.size;
     for (const t of page.account_txs ?? []) hashes.add(t.transaction_hash);
     total = Math.max(total, page.txs_count ?? 0);
-    resume = page.account_txs?.length ? page.resume_token : undefined;
-  } while (resume && hashes.size < maxTransactions);
+    const next = page.account_txs?.length ? page.resume_token : undefined;
+    if (!next || next === resume || hashes.size === before || hashes.size >= maxTransactions) break;
+    resume = next;
+  }
 
+  // The index lists the newest first; a larger position is an older transaction.
   const list = [...hashes].slice(0, maxTransactions);
+  const position = new Map(list.map((hash, i) => [hash, i]));
   const limit = limiter(4);
   const batches: string[][] = [];
   for (let i = 0; i < list.length; i += BATCH) batches.push(list.slice(i, i + BATCH));
   const pages = await Promise.all(
     batches.map((tx_hashes) => limit(() => txApi<{ transactions?: (IndexedTx | null)[] }>(net, "/v0/transactions", { tx_hashes }))),
   );
+  // Oldest first: by block, then, within a block, the older transaction first. The sort is stable,
+  // so one transaction's events keep the order the contract logged them in.
+  const age = (hash: string) => position.get(hash) ?? 0;
   const entries = pages
     .flatMap((p) => p.transactions ?? [])
     .flatMap((tx) => (tx ? eventsIn(net, tx, tokenId) : []))
-    .sort((a, b) => a.block - b.block);
+    .sort((a, b) => a.block - b.block || age(b.tx) - age(a.tx));
   return { entries, scanned: list.length, complete: list.length >= total, source: net.txApi };
 }
 
@@ -114,6 +124,10 @@ export function eventsIn(net: Network, tx: IndexedTx, tokenId: string): HistoryE
     // Only the contract's own logs, from receipts that succeeded: any contract can log an
     // EVENT_JSON line, and a failed receipt's changes were rolled back.
     if (run.outcome.executor_id !== net.contract || !succeeded(run.outcome.status)) continue;
+    // A block or time the index got wrong would sort and date the entry wrongly, or not at all.
+    const at = Math.floor(Number(run.block_timestamp) / 1e6);
+    if (!Number.isSafeInteger(run.block_height) || run.block_height <= 0 || !(at > 0 && at <= 8.64e15)) continue;
+    const found: HistoryEntry[] = [];
     for (const log of run.outcome.logs) {
       if (!log.startsWith("EVENT_JSON:")) continue;
       let event: { standard?: unknown; event?: unknown; data?: unknown };
@@ -125,20 +139,18 @@ export function eventsIn(net: Network, tx: IndexedTx, tokenId: string): HistoryE
       if (!Array.isArray(event.data)) continue;
       for (const data of event.data) {
         const step = eventFrom(String(event.standard), String(event.event), data, tokenId);
-        if (step) {
-          entries.push({
-            ...step,
-            tx: tx.transaction.hash,
-            block: run.block_height,
-            at: Math.floor(run.block_timestamp / 1e6),
-            caller: receipt.predecessor_id,
-          });
-        }
+        if (step) found.push({ ...step, tx: tx.transaction.hash, block: run.block_height, at, caller: receipt.predecessor_id });
       }
     }
+    // A sale moves the token with an nft_transfer from the seller to the buyer in its own receipt.
+    // The sale says more, so that one transfer is left out; any other transfer stays.
+    for (const sale of found.filter((e) => e.kind === "sale")) {
+      const i = found.findIndex((e) => e.kind === "transfer" && e.from === sale.seller && e.to === sale.buyer);
+      if (i >= 0) found.splice(i, 1);
+    }
+    entries.push(...found);
   }
-  // A sale moves the token with an nft_transfer in the same receipt; the sale says more.
-  return entries.some((e) => e.kind === "sale") ? entries.filter((e) => e.kind !== "transfer") : entries;
+  return entries;
 }
 
 function eventFrom(standard: string, name: string, data: unknown, tokenId: string): HistoryEvent | null {

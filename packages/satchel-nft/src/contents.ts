@@ -21,7 +21,8 @@ const token = (kind: TokenInfo["kind"], address: Address, symbol: string = kind,
 
 /**
  * USDC, USDT and WETH on each chain, where the issuer or the chain names a deployment; a chain with
- * none for a token leaves it out. USDC is Circle's
+ * none for a token leaves it out. One exception: Sepolia names no WETH, so its WETH9 comes from
+ * Uniswap's deployment list. 22 deployments on the mainnets, 11 on the testnets. USDC is Circle's
  * (https://developers.circle.com/stablecoins/usdc-contract-addresses). USDT is Tether's
  * (https://tether.to/en/supported-protocols) or, where Tether moved it, USDT0's
  * (https://docs.usdt0.to/technical-documentation/deployments). WETH's source is on its line. On

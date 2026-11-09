@@ -112,7 +112,7 @@ async function show(net: Network, args: CliArgs): Promise<number> {
     const native = b.wei === null ? `${b.symbol} unavailable` : `${formatBalance(b.wei)} ${b.symbol}`;
     out(`${b.name.padEnd(width)}  ${[native, ...held].join(", ")}`);
   }
-  out(`\nUSDC, USDT and WETH are read where their issuer or the chain names a deployment; other tokens aren't.`);
+  out(`\nUSDC, USDT and WETH are read at the addresses their issuers or the chains list (Uniswap's, for WETH on Sepolia); other tokens aren't.`);
   out(`Before you buy it: satchel-nft verify${net.id === "mainnet" ? " --network mainnet" : ""} ${view.token_id}`);
   return 0;
 }

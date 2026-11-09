@@ -6,18 +6,21 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
-- What's inside a satchel, and its history. Above the report, a satchel's page now shows its USDC,
-  USDT and WETH beside the native balance on each of the network's 8 chains, read from 33 token
-  deployments that Circle, Tether, USDT0 or the chain lists (`TOKENS` in `contents.ts`, each with
-  its source). A token shows the symbol its contract reports: USD₮0, USDT0, USDt, WETH.e, and ETH
-  for Binance-Peg ETH on BNB Chain. `node scripts/check-tokens.mjs` reads every address's code,
-  symbol and decimals back from its chain. Below the report, a History card lists the mint,
+- What's inside a satchel, and its history. Above the report, a satchel's page now shows, beside the
+  native balance on each of the network's 8 chains, its USDC, USDT and WETH where a deployment is
+  listed: 22 on the mainnets, 11 on the testnets (`TOKENS` in `contents.ts`, each with its source).
+  They come from Circle, Tether, USDT0 or the chain, except WETH on Sepolia, from Uniswap's
+  deployment list. A token shows the symbol its contract reports: USD₮0, USDT0, USDt, WETH.e, and
+  ETH for Binance-Peg ETH on BNB Chain. After `npm run build -w satchel-nft`,
+  `node scripts/check-tokens.mjs` reads every address's code, symbol and decimals back from its
+  chain. Below the report, a History card lists the mint,
   transfers, signatures, listings, delistings and sales from FastNEAR's transaction index, each
   linked to its transaction. It keeps only the contract's own events from receipts that succeeded,
   and says when it read only part of the index or counts a different number of signatures than the
-  record. The report reads neither. In the CLI, `show` prints the tokens too, and `history <id>`
-  prints the timeline; neither is in 0.1.0. 13 new unit tests, 107 in all, with satchel #7's real
-  transactions as a fixture.
+  record. A sale shows once, without the transfer it logs; a failure in the card can't take the
+  report down with it. The report reads neither. In the CLI, `show` prints the tokens too, and
+  `history <id>` prints the timeline; neither is in 0.1.0. 17 new unit tests, 111 in all, with
+  satchel #7's real transactions as a fixture.
 - The npm package `satchel-nft` (`packages/satchel-nft`), published on npm as 0.1.0 on 2026-11-09
   by the owner, from commit `728ed74`. `npx -y satchel-nft@0.1.0 verify 1` runs the report with no
   clone. It holds the clean transfer report, the guards, the send flow and the contract's reads and
