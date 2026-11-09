@@ -27,3 +27,37 @@ jobs:
         with:
           name: satchel-wasm
           path: contracts/satchel/target/near/satchel.wasm
+
+  reproducible:
+    name: Reproducible build and code hash
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # cargo-near records the commit it builds as the source (NEP-330), so build the branch
+      # commit, which stays on GitHub, not the pull request's temporary merge commit.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install cargo-near 0.22.0
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh | sh
+      - name: Build in the pinned Docker image
+        run: cargo near build reproducible-wasm
+      - name: Code hash
+        working-directory: .
+        run: |
+          hash="$(node scripts/code-hash.mjs contracts/satchel/target/near/satchel.wasm)"
+          echo "$hash" > contracts/satchel/target/near/satchel.code-hash.txt
+          {
+            echo "### Satchel reproducible build"
+            echo "- commit: \`$GITHUB_SHA\`"
+            echo "- code hash: \`$hash\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: satchel-reproducible-wasm
+          path: |
+            contracts/satchel/target/near/satchel.wasm
+            contracts/satchel/target/near/satchel.code-hash.txt
+          if-no-files-found: error
+          retention-days: 90

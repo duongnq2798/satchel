@@ -10,9 +10,10 @@ address on Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and Auror
 testnets. Give the NFT away, sell it or leave it to someone, and control of that address on every
 one of those chains moves with it in one NEAR transaction.
 
-> **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract and its unit
-> tests are in this repository. Not deployed yet, no web app yet, not audited.
-> This section is updated as each piece lands.
+> **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract is live on
+> NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
+> access keys), and checked end to end against NEAR's MPC network. No web app yet, not on mainnet
+> yet, not audited. This section is updated as each piece lands.
 
 ## The problem it solves
 
@@ -89,6 +90,75 @@ Events: NEP-171 `nft_mint` and `nft_transfer`, plus NEP-297 events with standard
 `sign_evm` (with the call's class, decoded approval, selector and calldata hash), `sign_raw`,
 `list`, `delist`, `sale`.
 
+## Live on testnet
+
+| | |
+|---|---|
+| Contract | [`v1.satchel-nft.testnet`](https://testnet.nearblocks.io/address/v1.satchel-nft.testnet) |
+| MPC signer | `v1.signer-prod.testnet` (Chain Signatures) |
+| Source | commit [`87148c6`](https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53), recorded in the wasm's NEP-330 metadata |
+| Code hash | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`, the wasm from the [reproducible CI build](https://github.com/duongnq2798/satchel/actions/runs/42547394040) (artifact `satchel-reproducible-wasm`) |
+| Deploy and `new` | one transaction, so nobody could initialize it first: [`7pocx72c…`](https://testnet.nearblocks.io/txns/7pocx72c1bcDbNehTG32T18ukjR82byP3PfF9vmX44Uk) |
+| Locked | its only key deleted in [`6FYx6hV5…`](https://testnet.nearblocks.io/txns/6FYx6hV5PRCfaUd6t4VEkz1bfkknxN8ymyw4nSP6YgAK), before the first mint. No one can redeploy it or sign as it |
+
+The record is in [`deployments/testnet.json`](deployments/testnet.json). To check the first row of
+the [clean-transfer table](#when-is-a-transfer-provably-clean) yourself:
+
+1. List the contract's keys. You should see an empty table.
+
+   ```bash
+   near account list-keys v1.satchel-nft.testnet network-config testnet now
+   ```
+
+2. Read its source metadata. You should see the commit above and the pinned Docker image.
+
+   ```bash
+   near contract call-function as-read-only v1.satchel-nft.testnet contract_source_metadata json-args '{}' network-config testnet now
+   ```
+
+3. Compare code hashes. Download the artifact from the CI run, then run
+   `node scripts/code-hash.mjs satchel.wasm`; it should print the code hash above, and so should
+   the `code_hash` field of the account:
+
+   ```bash
+   curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"v1.satchel-nft.testnet"}}'
+   ```
+
+### End-to-end run
+
+[`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs) runs the whole path against the live contract and
+the real MPC network. Its last run (evidence in
+[`deployments/testnet-e2e.json`](deployments/testnet-e2e.json)):
+
+| Step | Result | Transaction |
+|---|---|---|
+| `mint` as `satchel-nft.testnet` | token `1`, path `satchel/1`, address `0x96DA1468E95Ab31A698891f0150095f86b5a282B` (from `derived_public_key` on the MPC contract) | [`3kBMVhva…`](https://testnet.nearblocks.io/txns/3kBMVhva8pagScLwGJDNwF6Bfbzno9LxAVN5JKENvPxo) |
+| `sign_evm`, Sepolia, nonce 0 | the contract's hash equals viem's; the MPC signature recovers to the token's address | [`EZLXcvf4…`](https://testnet.nearblocks.io/txns/EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo) |
+| `signing_record` | Sepolia `max_nonce` 0, version 1 | view |
+| `nft_transfer` to `buyer.satchel-nft.testnet` | | [`3sLuGS9p…`](https://testnet.nearblocks.io/txns/3sLuGS9pEnvURpha3QQBtumExxKC2f3GMJSRaccvNBwB) |
+| `sign_evm` by the previous owner | refused: "only the token's owner can do this" | [`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) |
+| `sign_evm` by the buyer | recovers to the same address | [`9GYTuZJo…`](https://testnet.nearblocks.io/txns/9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM) |
+| `new` from another account | refused: "Method new is private" | [`BeoXbii9…`](https://testnet.nearblocks.io/txns/BeoXbii9WeodnG2XZarxZidtvqS6RzzA9KNqJnZRLrWv) |
+
+**This run also shows the record catching what it exists for.** The first owner's nonce-0
+signature was never broadcast (the address held no Sepolia ETH), and the signed transaction is in
+the evidence file. Anyone holding it can still broadcast it once the address is funded, so token 1
+is **not** provably clean yet: Sepolia's nonce for the address is 0 and the record's `max_nonce` is
+0. It becomes clean on that check when the buyer lands a nonce-0 transaction of their own, which
+voids the old one.
+
+To run it yourself, put two testnet accounts in the legacy keychain (`~/.near-credentials`) and:
+
+```bash
+cd tools
+npm ci
+SATCHEL_OWNER=<your-account>.testnet SATCHEL_BUYER=<second-account>.testnet node e2e-testnet.mjs
+```
+
+You should see `E2E PASS`. To broadcast for real, fund the token's address on Sepolia, then run
+`node e2e-testnet.mjs send <token_id> <owner-account>`; it prints the Etherscan link. Set
+`NEAR_CLI` if `near` is not on your `PATH`.
+
 ## Build and test
 
 Rust 1.99.1 (pinned in `rust-toolchain.toml`) and cargo-near 0.22.0.
@@ -105,7 +175,7 @@ DLL against NEAR host functions, which MSVC refuses. CI builds with the ABI on L
 
 What the tests pin down:
 
-- **EIP-1559 encoding against an independent implementation.** `tools/evm-vectors/gen.mjs` uses
+- **EIP-1559 encoding against an independent implementation.** `tools/gen-vectors.mjs` uses
   [viem](https://viem.sh) to write `contracts/satchel/src/evm_vectors.json`; the test
   `evm_hash_and_rlp_match_viem_for_every_vector` compares the contract's RLP and hash for nonce 0,
   single-byte values, the 0x80 boundary, ERC-20 calldata, and maximum values with 600 bytes of data.

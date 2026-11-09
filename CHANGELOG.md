@@ -6,6 +6,10 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Deployed to NEAR testnet at `v1.satchel-nft.testnet` from the reproducible CI build of commit
+  `87148c6` (code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`), initialized in the deploy
+  transaction and locked by deleting its only key before the first mint. Record in
+  `deployments/testnet.json`; end-to-end evidence in `deployments/testnet-e2e.json`.
 - `contracts/satchel`: NEP-171 NFT contract where each token controls a secp256k1 key derived by
   NEAR's MPC network (Chain Signatures) from the contract's account and the path `satchel/<token_id>`.
   - `sign_evm` builds and hashes EIP-1559 transactions in the contract for 16 supported EVM chains,
@@ -18,9 +22,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   - Views for everything a buyer checks: `satchel`, `signing_record`, `listing`, `listings`,
     `derivation_path`, `mpc_contract`, `evm_signing_hash`.
   - Events: NEP-171 `nft_mint` / `nft_transfer`, and `satchel` events for signing and sales.
-- Unit tests, with the EIP-1559 encoding checked against viem (`tools/evm-vectors`) and every
+- Unit tests, with the EIP-1559 encoding checked against viem (`tools/gen-vectors.mjs`) and every
   selector checked against the keccak of its signature.
-- CI: format, clippy, unit tests and the wasm build.
+- CI: format, clippy, unit tests and the wasm build, plus a reproducible build in cargo-near's
+  pinned Docker image that publishes the wasm and its code hash. It builds the branch commit, so the
+  source commit the wasm records (NEP-330) stays on GitHub.
+- The contract declares NEP-171, NEP-177, NEP-181 and NEP-297 in its NEP-330 source metadata.
+- `tools/e2e-testnet.mjs`: an end-to-end check against the deployed contract and the real MPC
+  network (mint, derive the address, sign a Sepolia transaction, recover the signer, transfer the
+  NFT, refused calls), and a `send` mode that broadcasts a signed Sepolia transaction.
 
 ### Security
 
