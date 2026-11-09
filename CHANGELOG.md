@@ -9,8 +9,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 - The npm package `satchel-nft` (`packages/satchel-nft`), published on npm as 0.1.0 on 2026-11-09
   by the owner, from commit `728ed74`. `npx -y satchel-nft@0.1.0 verify 1` runs the report with no
   clone. It holds the clean transfer report, the guards, the send flow and the contract's reads and
-  transactions as a library (`import { buildReport } from "satchel-nft"`), and a command, `satchel-nft`. Read commands need
-  no keys: `verify`, `show`, `record`, `market`. Sign commands (`mint`, `list`, `delist`, `buy`,
+  transactions as a library (`import { buildReport } from "satchel-nft"`), and a command,
+  `satchel-nft`. Read commands need no keys: `verify`, `show`, `record`, `market`. Sign commands (`mint`, `list`, `delist`, `buy`,
   `transfer`, `send`) have the near CLI sign with the key in its keychain, so the package never
   reads one; it decodes the signed transaction, refuses it unless the signer, receiver, method,
   arguments, gas and deposit are the ones it asked for, shows it, and sends only after `yes` or
@@ -21,8 +21,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   are in `deployments/testnet-cli.json`. 94 unit tests.
 - CI: `package.yml` typechecks and tests the package, packs it, fails if the tarball holds anything
   but the launcher, `dist`, the README, LICENSE and `package.json`, installs the tarball in an empty
-  project and runs it on Node 22, then runs the 0.1.0 release from npm. `ci.yml`'s `verify` now needs the contract, web and package
-  workflows.
+  project and runs it on Node 22, then runs the 0.1.0 release from npm. `ci.yml`'s `verify` now
+  needs the contract, web and package workflows.
 - The first satchel on mainnet. Satchel #1's address, `0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9`,
   was funded with 0.00195 ETH on Base; the satchel was minted to `satchel-nft.near`, then sent
   0.0001 ETH from it on Base at satchelnft.xyz, with the owner approving `sign_evm` in a NEAR wallet.
@@ -144,7 +144,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   after installing only the package; testnet satchel #1 now reads record version 7, signed up to
   nonce 4. The threat model lists 32 attacks, and what to trust about the npm release.
 - The site's "check it from a terminal" boxes and each report's "run it yourself" line say
-  `npx satchel-nft verify <id>`, from npm, instead of `cd web && npm ci && npm run verify`.
+  `npx satchel-nft@0.1.0 verify <id>`, from npm, instead of `cd web && npm ci && npm run verify`.
+  The README's commands pin the same release.
 
 ### Fixed
 
@@ -152,7 +153,6 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   ships CRLF in five files, the end of its launcher's first line among them. npm strips that CR when
   it links the command on Linux and macOS, so `npx` runs it, and CI now checks that on Linux. The
   `.gitattributes` keeps the package's files LF in every checkout, so the next release won't.
-
 - `docs/assets/src/screenshots.mjs` left the headless browser running on Windows, where it relaunches
   itself under another process id, then crashed removing its profile. It now closes the browser over
   DevTools, takes only the shots you name, and waits for balances still loading. The README's

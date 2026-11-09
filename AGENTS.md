@@ -92,8 +92,10 @@ npm run build -w satchel-nft
 npx satchel-nft verify 1
 ```
 
-Without a clone, `npx -y satchel-nft@0.1.0 verify 1` in any folder runs the release on npm,
-published from commit `728ed74` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)).
+Outside a clone, `npx -y satchel-nft@0.1.0 verify 1` runs the release on npm, published from
+commit `728ed74` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside this
+repository, once `npm ci` has run, the same command runs the local build, whose version is also
+0.1.0.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
 that runs on it. Inside the repository, `npx satchel-nft` runs this checkout's build, never a

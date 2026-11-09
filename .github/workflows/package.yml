@@ -61,6 +61,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           # 0.1.0 was packed on Windows, so its launcher's first line ends in CRLF. npm strips the CR
-          # when it links the command on Linux and macOS; this checks that the release starts here.
+          # when it links the command on Linux and macOS; this checks that the release starts here. Its
+          # own cache, so setup-node's saved ~/.npm never hands it an install with the CR already gone.
           mkdir from-npm && cd from-npm
-          test "$(npx -y satchel-nft@0.1.0 --version)" = 0.1.0
+          test "$(npx --cache "$RUNNER_TEMP/npx-cache" -y satchel-nft@0.1.0 --version)" = 0.1.0
