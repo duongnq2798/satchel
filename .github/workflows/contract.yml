@@ -1,0 +1,29 @@
+name: Contract
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+defaults:
+  run:
+    working-directory: contracts/satchel
+
+jobs:
+  check:
+    name: Format, lint, unit tests, wasm build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain from rust-toolchain.toml
+        run: rustup show
+      - run: cargo fmt --check
+      - run: cargo clippy --tests -- -D warnings
+      - run: cargo test
+      - name: Install cargo-near 0.22.0
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-installer.sh | sh
+      - name: Build the wasm
+        run: cargo near build non-reproducible-wasm --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: satchel-wasm
+          path: contracts/satchel/target/near/satchel.wasm
