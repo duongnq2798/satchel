@@ -1,0 +1,73 @@
+import { describe, expect, it, vi } from "vitest";
+import outcome from "./__fixtures__/sign-evm-outcome.json";
+import { CHAINS } from "./config";
+import { type EvmTx, type MpcSignature, signingHash } from "./evm";
+import { outcomeValue } from "./near";
+import { type SendDeps, type SendRequest, sendFromSatchel } from "./send";
+
+// The real token 1 transaction and its MPC signature (evm.test.ts has the same vectors).
+const TX: EvmTx = {
+  chainId: 11155111,
+  nonce: 0,
+  maxPriorityFeePerGas: 2n,
+  maxFeePerGas: 20n,
+  gas: 21000n,
+  to: "0x000000000000000000000000000000000000dEaD",
+  value: 1n,
+  data: "0x",
+};
+const SIGNATURE = outcomeValue<MpcSignature>(outcome);
+const REQUEST: SendRequest = {
+  tokenId: "1",
+  from: "0x96DA1468E95Ab31A698891f0150095f86b5a282B",
+  chain: CHAINS.find((c) => c.id === 11155111) as SendRequest["chain"],
+  to: TX.to,
+  value: 1n,
+  data: "0x",
+};
+
+function deps(overrides: Partial<SendDeps> = {}): SendDeps {
+  return {
+    prepare: async () => TX,
+    balance: async () => 10n ** 18n,
+    contractHash: async (tx) => signingHash(tx).slice(2),
+    signWithWallet: vi.fn(async () => ({ hash: "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo", signature: SIGNATURE })),
+    broadcast: vi.fn(async () => "0xabc" as const),
+    confirm: async () => "success" as const,
+    ...overrides,
+  };
+}
+
+describe("sending from a satchel", () => {
+  it("signs through the wallet, recovers the token's address and broadcasts", async () => {
+    const d = deps();
+    const steps: string[] = [];
+    const result = await sendFromSatchel(REQUEST, d, (s) => steps.push(s));
+    expect(result).toEqual({ nearTx: "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo", evmTx: "0xabc", status: "success" });
+    expect(steps).toEqual(["build", "hash", "wallet", "recover", "broadcast", "confirm"]);
+    expect(d.broadcast).toHaveBeenCalledWith(11155111, expect.stringMatching(/^0x02f865/));
+  });
+
+  it("stops before the wallet when the satchel cannot pay for the transaction", async () => {
+    const d = deps({ balance: async () => 420_000n });
+    await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/Fund 0x96DA/);
+    expect(d.signWithWallet).not.toHaveBeenCalled();
+  });
+
+  it("stops before the wallet when the contract would hash something else", async () => {
+    const d = deps({ contractHash: async () => "00".repeat(32) });
+    await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/Nothing was signed/);
+    expect(d.signWithWallet).not.toHaveBeenCalled();
+  });
+
+  it("never broadcasts a signature from another key", async () => {
+    const d = deps({ prepare: async () => ({ ...TX, nonce: 1 }) });
+    await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/Nothing was broadcast/);
+    expect(d.broadcast).not.toHaveBeenCalled();
+  });
+
+  it("says signing again is safe when the wallet returns no signature", async () => {
+    const d = deps({ signWithWallet: async () => ({ hash: "h", signature: null }) });
+    await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/signing again is safe/);
+  });
+});
