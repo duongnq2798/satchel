@@ -93,7 +93,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Not yet. The contract runs on NEAR testnet, signing through the testnet MPC network, and it has not been audited. Never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet: never send real funds to a testnet satchel's address.",
   },
 ];
 
@@ -121,7 +121,7 @@ export default function Home() {
     <ReportProvider>
       <div className="space-y-24 sm:space-y-32">
         <section className="pt-2 sm:pt-8">
-          <p className="text-sm font-medium tracking-wide text-leather">NEAR Chain Signatures · NFT · live on testnet</p>
+          <p className="text-sm font-medium tracking-wide text-leather">NEAR Chain Signatures · NFT · live on testnet and mainnet</p>
           <h1 className="mt-4 font-display text-[3.2rem] leading-[0.98] font-semibold tracking-tight sm:text-7xl lg:text-[6.25rem]">
             Sell a wallet.
             <span className="block text-gold-deep">Prove nothing stayed behind.</span>
@@ -141,7 +141,13 @@ export default function Home() {
                   Mint a satchel
                 </Link>
               </div>
-              <p className="mt-5 text-sm text-muted">Testnet today, not audited. Reading a report needs no wallet.</p>
+              <p className="mt-5 text-sm text-muted">
+                These examples are on testnet; Satchel is also{" "}
+                <a href="/mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
+                  live on mainnet
+                </a>
+                . Not audited. Reading a report needs no wallet.
+              </p>
             </div>
             <HeroCard />
           </div>

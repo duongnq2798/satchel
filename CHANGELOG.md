@@ -19,7 +19,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   it as a new page. Every read, report, wallet connector and transaction takes its network
   explicitly, from the page's path, and each network remembers its own wallet. Each side sends only
   on its own chains, and connecting an account from the other network says so.
-  `npm run verify -- --network mainnet <id>` reads mainnet.
+  `npm run verify -- --network mainnet <id>` reads mainnet. The landing page and its FAQ say Satchel is live on mainnet, and that the
+  examples on the page are on testnet.
 - Documents for reviewers and AI agents:
   - `AGENTS.md`: how to check every claim, with commands and expected output, a map from each rule
     to its code and tests, and how to change the code.
