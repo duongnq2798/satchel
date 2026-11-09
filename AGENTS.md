@@ -167,6 +167,9 @@ The full list, with what stops each attack and what is left, is in
 
 - **Branches:** branch from `dev` (`feat/…`, `fix/…`, `docs/…`) and open a pull request into `dev`.
   `main` is production: Vercel builds <https://satchelnft.xyz> from it.
+- **CI:** every pull request runs [`ci.yml`](.github/workflows/ci.yml), which calls the contract and
+  web workflows. Its `verify` job passes only when both pass, and `main` and `dev` accept a merge only
+  then.
 - **Before pushing, run what CI runs:**
   - In `contracts/satchel`: `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`.
   - In `web`: `npm run typecheck`, `npm test`, `npm run build`.
