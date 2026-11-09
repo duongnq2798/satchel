@@ -8,6 +8,7 @@
 
 [![Contract CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/contract.yml?branch=main&style=flat-square&label=contract%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml)
 [![Web CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/web.yml?branch=main&style=flat-square&label=web%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/web.yml)
+[![npm: satchel-nft](https://img.shields.io/npm/v/satchel-nft?style=flat-square&label=npm%20satchel-nft)](https://www.npmjs.com/package/satchel-nft)
 [![Status: not audited](https://img.shields.io/badge/status-not%20audited-8a5a00?style=flat-square)](SECURITY.md)
 [![NEAR: testnet and mainnet](https://img.shields.io/badge/NEAR-testnet%20%2B%20mainnet-17140f?style=flat-square)](#on-chain-proof)
 [![Contract: locked, 0 access keys](https://img.shields.io/badge/contract-locked%2C%200%20access%20keys-2f6b3a?style=flat-square)](#on-chain-proof)
@@ -164,9 +165,19 @@ the record changed).
    [AGENTS.md](AGENTS.md#4-the-reproducible-build) has the steps). It was not run for this README.
 
 4. **Run the clean transfer report on the demo satchels.** The package
-   [`satchel-nft`](packages/satchel-nft) is the code the web app runs, and its command
+   [`satchel-nft`](packages/satchel-nft), [on npm](https://www.npmjs.com/package/satchel-nft), is the code the web app runs, and its command
    `satchel-nft verify` builds the same report ([`report.ts`](packages/satchel-nft/src/report.ts)) in your terminal.
-   Installing the package alone took 2 min 54 s here, building it 7 s, and each report 4 to 7 s.
+   It needs no clone. In an empty folder, with an empty npm cache, this fetched the release and
+   printed the report in 86 s here; each report after that took 4 to 7 s:
+
+   ```bash
+   npx -y satchel-nft@0.1.0 verify 1
+   ```
+
+   `-y` installs it without asking. The release was published from commit `728ed74`; the
+   [threat model](docs/THREAT_MODEL.md#what-satchel-trusts) says how to check that it is. To run
+   this checkout's code instead, at the repository root (installing took 2 min 54 s here, building
+   7 s):
 
    ```bash
    npm ci -w satchel-nft
@@ -174,7 +185,8 @@ the record changed).
    npx satchel-nft verify 1
    ```
 
-   Inside the repository, `npx satchel-nft` runs this checkout's build, never a download. It prints:
+   After that, inside the repository, `npx satchel-nft` runs this checkout's build, never a
+   download. Either way it prints:
 
    ```text
    Satchel #1 on v1.satchel-nft.testnet (testnet)
@@ -275,7 +287,7 @@ What exists at this commit, and what does not yet.
 | Claim checker | **Shipped**: 11 claims on testnet, 9 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
 | Mainnet deploy script | **Shipped**, and used for the mainnet deployment. It reads the chain before each step, stops if a name belongs to someone else or the code isn't the build, and asks before it deletes the last key | [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
 | The first satchel on mainnet: funded on Base, minted, one send from it in the app, its report clean | **Shipped** on 2026-11-09: satchel #1, 0.00195 ETH on Base, 0.0001 ETH sent from it at satchelnft.xyz, `PROVABLY CLEAN`. The owner signed every transaction | [`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json) |
-| npm package `satchel-nft`: the report as a library and a CLI (`npx satchel-nft verify 1`), with read commands and signing commands that use the near CLI's keychain | **Built, not on npm yet.** The web app runs on it. CI packs it, installs the tarball in an empty project and runs it. Every sign command ran on testnet, and an adversarial review of its signing found no way to make it send a transaction other than the one it shows. Publishing is the owner's step | [`packages/satchel-nft`](packages/satchel-nft), [`deployments/testnet-cli.json`](deployments/testnet-cli.json) |
+| npm package `satchel-nft`: the report as a library and a CLI (`npx satchel-nft verify 1`), with read commands and signing commands that use the near CLI's keychain | **Shipped** on npm as [`satchel-nft` 0.1.0](https://www.npmjs.com/package/satchel-nft), published by the owner on 2026-11-09 from commit `728ed74`, without npm provenance ([how to check it](docs/THREAT_MODEL.md#what-satchel-trusts)). The web app runs on the same code. `npx -y satchel-nft@0.1.0 verify 1` in an empty folder printed `PROVABLY CLEAN`. CI packs the package, installs the tarball in an empty project and runs it, then runs the release from npm on Linux. Every sign command ran on testnet, and an adversarial review of its signing found no way to make it send a transaction other than the one it shows | [`packages/satchel-nft`](packages/satchel-nft), [`deployments/testnet-cli.json`](deployments/testnet-cli.json) |
 | What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Planned**. Today a satchel's page shows its native balance on each of the network's 8 chains | |
 | Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
 
@@ -931,7 +943,7 @@ three workflows directly, each when its paths change.
 | Contract | Format, lint, unit tests, wasm build | `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`, then `cargo near build non-reproducible-wasm --locked`; uploads `satchel-wasm` | Every pull request, every push to `main` or `dev` |
 | Contract | Reproducible build and code hash | `cargo near build reproducible-wasm` in the pinned Docker image, then writes the commit and the code hash to the run's summary; uploads `satchel-reproducible-wasm`, kept 90 days. cargo-near's release binary is checked against the sha256 its own installer pins | The same |
 | Web | Typecheck, unit tests, build | `npm ci` at the root, then in `web` `npm run typecheck`, `npm test`, `npm run build`, on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/`, `packages/`, the root `package.json` or lockfile, or the workflow |
-| Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22 | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
+| Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.1.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 
 The tests, as of 2026-11-09: 59 Rust unit tests in

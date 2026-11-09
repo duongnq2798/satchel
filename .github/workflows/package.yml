@@ -57,3 +57,10 @@ jobs:
           code=$?
           set -e
           test "$code" -eq 2
+      - name: Run the release on npm
+        working-directory: ${{ runner.temp }}
+        run: |
+          # 0.1.0 was packed on Windows, so its launcher's first line ends in CRLF. npm strips the CR
+          # when it links the command on Linux and macOS; this checks that the release starts here.
+          mkdir from-npm && cd from-npm
+          test "$(npx -y satchel-nft@0.1.0 --version)" = 0.1.0

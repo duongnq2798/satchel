@@ -39,6 +39,14 @@ transaction on testnet that shows it working.
 - **The pinned build image.** The reproducible build runs in
   `sourcescan/cargo-near:0.22.0-rust-1.99.1`, pinned by digest.
 - **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.
+- **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**
+  Version 0.1.0 was published from the owner's npm account and a Windows checkout of commit
+  `728ed74`, which npm records as its `gitHead`, without npm provenance. Packing that commit on the
+  same machine gave the same shasum, `599980b6445558157e28f7bae7872b0756988150`
+  (`npm view satchel-nft@0.1.0 dist.shasum`). On another machine, compare files instead: unpack
+  `npm pack satchel-nft@0.1.0` and strip its Windows line endings, and `bin/`, `package.json`,
+  `README.md` and `LICENSE` are byte for byte the commit's. A later version holds whatever its
+  publisher put in it: pin `@0.1.0` to run this one.
 
 ## Attacks and what stops them
 
@@ -131,7 +139,9 @@ transaction on testnet that shows it working.
 10. No admin, so stuck NEAR and the chain list cannot be changed.
 11. A satchel's address read through one NEAR RPC, and, for a CLI send with `--yes`, the fee and the
     nonce read from one EVM RPC (rows 21e, 21f).
-12. Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
+12. The npm release, published without provenance: whoever holds the owner's npm account could
+    publish a version that lies (trusted, above; the README pins 0.1.0).
+13. Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
     version of the record, then two smaller gaps in the fix. All four are fixed and covered by tests.
     A third, of the `satchel-nft` CLI's signing, found no way to make it send another transaction
     than the one it shows. Of its findings on how it finds the near CLI, what it believes from an RPC

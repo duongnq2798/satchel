@@ -1,2 +1,6 @@
 # Shell scripts run in bash, which reads a CRLF line ending as part of the command.
 *.sh text eol=lf
+
+# The npm package keeps LF line endings in every checkout, so a pack on Windows ships what CI's pack
+# on Linux does. A CRLF at the end of the launcher's first line breaks it wherever npm doesn't strip it.
+packages/satchel-nft/** text=auto eol=lf

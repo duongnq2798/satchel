@@ -50,7 +50,7 @@ type Tone = "ok" | "warn" | "bad";
 const TONE_TEXT: Record<Tone, string> = { ok: "text-ok", warn: "text-warn", bad: "text-bad" };
 
 /** Real output, trimmed to the check titles and the pending line (2026-11-09). */
-const VERIFY_OUTPUT = `$ npm run verify -- 5
+const VERIFY_OUTPUT = `$ npx satchel-nft verify 5
 Satchel #5 on v1.satchel-nft.testnet (testnet)
 owner satchel-nft.testnet, address 0x81149BF1C907579A150e9AB882E951B648853dA3, record version 1
 
@@ -78,7 +78,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
     a: (
       <>
         You don't have to. It runs in your browser against public RPCs and names every one it read. In a terminal,{" "}
-        <code className="font-mono text-[0.9em]">npm run verify</code> does the same and takes your own nodes through{" "}
+        <code className="font-mono text-[0.9em]">npx satchel-nft verify</code> does the same and takes your own nodes through{" "}
         <code className="font-mono text-[0.9em]">NEAR_RPC</code> and <code className="font-mono text-[0.9em]">RPC_&lt;chain id&gt;</code>.
       </>
     ),
@@ -284,9 +284,11 @@ export default function Home() {
           <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
             <div className="rounded-2xl border border-line bg-card p-6">
               <h3 className="font-display text-xl font-semibold">From a terminal</h3>
-              <p className="mt-2 text-sm text-ink-2">The same report as the browser, with your own nodes if you want them.</p>
+              <p className="mt-2 text-sm text-ink-2">
+                The same report as the browser, from npm with Node 22 or later, and your own nodes if you want them.
+              </p>
               <div className="mt-4">
-                <Code>{"cd web && npm ci\nnpm run verify -- 6"}</Code>
+                <Code>{"npx satchel-nft verify 6"}</Code>
               </div>
             </div>
             <div className="rounded-2xl border border-line bg-card p-6">
