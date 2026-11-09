@@ -58,9 +58,14 @@
       "block": "12095049"
     },
     "listTx": "7Q9WxuJ4yfQcsRBgUzWJ37gQxrgZxjWJauz1r4QeXfe6",
-    "price": "1000000000000000000000000"
+    "price": "1000000000000000000000000",
+    "refusedSign": {
+      "tx": "5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8",
+      "signer": "satchel-nft.testnet",
+      "reason": "Satchel: signing is frozen while the token is listed"
+    }
   },
-  "ranAt": "2026-11-09T04:28:10.226Z",
+  "ranAt": "2026-11-09T05:08:47.647Z",
   "pending": {
     "tokenId": "5",
     "owner": "satchel-nft.testnet",
@@ -71,5 +76,24 @@
     "value": "10000000000000000000000",
     "signingHash": "0x6680bcedc09ae688ea14d6ace210029a53d1f6f3e0664adeb2dddcc1e598b7a1",
     "broadcast": false
+  },
+  "relisted": {
+    "tokenId": "6",
+    "owner": "satchel-nft.testnet",
+    "address": "0x12a0234f034e3c2f67e5586df93dc54aa6719e49",
+    "mintTx": "DEhXxjHy7sCte6tPM43rVJhH1eMACD4K1GYaygpr8HaL",
+    "listTx": "GoSfXxf7pgpb8fNCCbiFuxpT6gAYt5LW3Ve49R4oBL3z",
+    "delistTx": "8X7vStD8r1AwVqdJfDkhsfiKoj8v5KJubXrhBdtJ35M",
+    "rawTx": "4J8Y6WSPpW5d8pH6PpBGnC5NDVvuAKLzaDSYwRs1kwzB",
+    "relistTx": "6UNoo28pdrTjDJbnREPLe8k4JNW1xpGVHKwHyZeUzdxG",
+    "refusedBuy": {
+      "tx": "7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv",
+      "signer": "buyer.satchel-nft.testnet",
+      "reason": "Satchel: the signing record changed since you checked it"
+    },
+    "payload": "0x5a09ef563119212e7b1b6c44303b9512538f44d55e2e9f3a9aae15d18068376e",
+    "price": "1000000000000000000000000",
+    "checkedVersion": "0",
+    "listedVersion": "1"
   }
 }

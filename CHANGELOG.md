@@ -14,9 +14,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `tools/demo-gallery.mjs`, which records each step in `deployments/testnet-gallery.json`, a signed
   send before it broadcasts it, and resumes from there if a run stops partway. Satchel #2, the first
   pending example, was retired: its 0.01 ETH send could be pushed through by anyone who funded it.
-- The landing page shows the demo satchels ("Three real satchels: one clean, two caught"), each
-  with its verdict, read live in the browser, and the report line that caught it, plus what
-  satchel #4 costs and holds while it is for sale.
+- A new landing page. At the top, satchel #1's hand-over as a card, with its verdict checked live
+  in your browser, the one address it holds on every chain, and the transfer and refused
+  transactions. "Try to cheat the buyer" lets you pick one of six things a seller might do: four
+  open a demo satchel left that way, with its report run live and the failing check picked out;
+  two show a call the contract refused on chain. Then a sale step by step with the record beside
+  it, a comparison with seed phrases and token-bound accounts, the verify command with real
+  output, a link to every transaction behind a claim, a developers section, an FAQ and a footer.
+  Each satchel's report is read once and shared across the page; satchel #4 shows what it costs
+  and holds while it is for sale.
+- Satchel #6 and two refused calls as evidence, built by `tools/demo-gallery.mjs`: #6 was listed,
+  delisted, had a raw payload signed and was listed again, so it reads not provable; the owner of
+  #4 calling `sign_evm` while it is listed is refused ("signing is frozen while the token is
+  listed"), and a buyer calling `buy` on #6 with the record version from before the raw signature
+  is refused ("the signing record changed since you checked it").
 - `tools/lib.mjs`: the NEAR calls, MPC address derivation and `sign_evm` round trip shared by the
   testnet scripts.
 - Token 1's open nonce-0 signature from the end-to-end run is spent: its current owner sent a
