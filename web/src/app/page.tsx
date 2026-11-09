@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LiveStats } from "@/components/live-stats";
+import { VerdictGallery } from "@/components/verdict-gallery";
 import { CHAINS, NETWORK, REPO_URL } from "@/lib/config";
 import { CHECKS } from "@/lib/copy";
 
@@ -43,8 +44,8 @@ export default function Home() {
             <Link href="/satchels" className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:bg-leather">
               Mint a satchel
             </Link>
-            <Link href="/satchel/1" className="rounded-full border border-ink px-5 py-3 text-sm font-medium transition hover:bg-card">
-              Read satchel #1's report
+            <Link href="#examples" className="rounded-full border border-ink px-5 py-3 text-sm font-medium transition hover:bg-card">
+              See three real reports
             </Link>
           </div>
         </div>
@@ -63,6 +64,8 @@ export default function Home() {
       </section>
 
       <LiveStats />
+
+      <VerdictGallery />
 
       <section>
         <h2 className="font-display text-3xl font-semibold tracking-tight">Selling a wallet is easy to fake</h2>
