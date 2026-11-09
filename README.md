@@ -16,9 +16,15 @@ one of those chains moves with it in one NEAR transaction.
 > NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
 > access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app), hosted
 > at [satchelnft.xyz](https://satchelnft.xyz), mints, sends through the MPC network, lists and buys,
-> and computes the clean transfer report in your browser. Four
-> [demo satchels](#see-it-catch-a-dirty-wallet) show what the report passes and what it catches.
-> Not on mainnet yet, not audited. This section is updated as each piece lands.
+> and computes the clean transfer report in your browser. Five
+> [demo satchels](#see-it-catch-a-dirty-wallet) show what the report passes and what it catches,
+> and two refused calls show what the contract stops. Not on mainnet yet, not audited. This section
+> is updated as each piece lands.
+
+**Checking the claims?** Start with [AGENTS.md](AGENTS.md). `node scripts/check-claims.mjs` checks
+the deployment and its history against NEAR testnet in a few seconds, with no install and no
+wallet. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) lists each attack and what stops it;
+[SECURITY.md](SECURITY.md) says how to report one.
 
 ## See it catch a dirty wallet
 
@@ -144,8 +150,16 @@ Events: NEP-171 `nft_mint` and `nft_transfer`, plus NEP-297 events with standard
 | Deploy and `new` | one transaction, so nobody could initialize it first: [`7pocx72c…`](https://testnet.nearblocks.io/txns/7pocx72c1bcDbNehTG32T18ukjR82byP3PfF9vmX44Uk) |
 | Locked | its only key deleted in [`6FYx6hV5…`](https://testnet.nearblocks.io/txns/6FYx6hV5PRCfaUd6t4VEkz1bfkknxN8ymyw4nSP6YgAK), before the first mint. No one can redeploy it or sign as it |
 
-The record is in [`deployments/testnet.json`](deployments/testnet.json). To check the first row of
-the [clean-transfer table](#when-is-a-transfer-provably-clean) yourself:
+The record is in [`deployments/testnet.json`](deployments/testnet.json). To check all of this
+table, and the refused calls below, with nothing but Node 22:
+
+```bash
+node scripts/check-claims.mjs
+```
+
+You should see `11 of 11 claims hold` and exit code 0. [AGENTS.md](AGENTS.md#1-the-deployment-and-its-history-one-command)
+lists what each line reads. To check the first row of the
+[clean-transfer table](#when-is-a-transfer-provably-clean) with the near CLI instead:
 
 1. List the contract's keys. You should see an empty table.
 
@@ -401,6 +415,9 @@ What the tests pin down:
 - Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
   version of the record, then two smaller gaps in the fix; all four are fixed and covered by the
   tests above.
+
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) goes through each attack (the seller's, a buyer's, the
+deployer's, an RPC's), what stops it, the transaction on testnet that shows it, and what is left.
 
 ## Other project by the same builder
 
