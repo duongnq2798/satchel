@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import { type Liveness, type ReadAt, approvalLiveness } from "./approvals";
-import { type Network, chainInfo } from "./config";
+import { type Network, type NetworkId, chainInfo } from "./config";
 import { client, tokenAddress, verifiedClient } from "./evm";
 import {
   type AccountView,
@@ -30,6 +30,9 @@ export interface Check {
 export type Verdict = "clean" | "not-provable" | "unknown";
 
 export interface Report {
+  /** The network and contract the report read, so a page can't act on one from the other side. */
+  network: NetworkId;
+  contract: string;
   tokenId: string;
   owner: string;
   address: Address;
@@ -217,6 +220,8 @@ export function assemble(inputs: ReportInputs): Report {
     countersCheck(inputs.view.record),
   ];
   return {
+    network: inputs.net.id,
+    contract: inputs.net.contract,
     tokenId: inputs.view.token_id,
     owner: inputs.view.owner_id,
     address: inputs.address,

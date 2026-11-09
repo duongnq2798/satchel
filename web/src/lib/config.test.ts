@@ -33,8 +33,17 @@ describe("networks", () => {
     expect(sendChains(TESTNET).length + sendChains(MAINNET).length).toBe(CHAINS.length);
   });
 
-  it("runs the same reproducible build on both networks", () => {
-    expect(MAINNET.build).toEqual(TESTNET.build);
+  it("points each network at its own contract, signer and RPC", () => {
+    expect([MAINNET.contract, MAINNET.mpc, MAINNET.nearRpc]).toEqual([
+      "v1.satchel-nft.near",
+      "v1.signer",
+      "https://rpc.mainnet.fastnear.com",
+    ]);
+    expect([TESTNET.contract, TESTNET.mpc, TESTNET.nearRpc]).toEqual([
+      "v1.satchel-nft.testnet",
+      "v1.signer-prod.testnet",
+      "https://rpc.testnet.fastnear.com",
+    ]);
   });
 
   it("takes only accounts that can exist on the network", () => {

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MAINNET, TESTNET, appPath, switchPath } from "@/lib/config";
+import type { ReactNode } from "react";
+import { MAINNET, TESTNET, appPath, networkForPath, switchPath } from "@/lib/config";
 import { useNetwork } from "./network";
 import { ConnectButton } from "./wallet";
 
@@ -52,6 +53,38 @@ function NetworkSwitch() {
   );
 }
 
+/**
+ * A link that loads the page fresh when it goes to the other network, as the switch does, so no
+ * wallet or read from this side carries over. With `follow`, a testnet path goes to the same page
+ * on the network on screen.
+ */
+export function NetLink({
+  href: path,
+  follow = false,
+  className,
+  children,
+}: {
+  href: string;
+  follow?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const net = useNetwork();
+  const href = follow ? appPath(net, path) : path;
+  if (networkForPath(href.split("#")[0] || "/").id !== net.id) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 export function SiteHeader() {
   const net = useNetwork();
   return (
@@ -64,9 +97,9 @@ export function SiteHeader() {
           </Link>
           <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.perNetwork ? appPath(net, n.href) : n.href} className="hover:text-ink">
+              <NetLink key={n.href} href={n.perNetwork ? appPath(net, n.href) : n.href} className="hover:text-ink">
                 {n.label}
-              </Link>
+              </NetLink>
             ))}
           </nav>
         </div>

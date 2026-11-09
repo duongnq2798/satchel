@@ -4,24 +4,10 @@
 //
 // The report is only as honest as the RPCs it reads. To read from nodes you trust instead of the
 // public defaults, set NEAR_RPC=<url> and RPC_<chain id>=<url>, like RPC_11155111 for Sepolia.
-import { CHAINS, NETWORKS, type NetworkId } from "../src/lib/config";
-import { setNearRpc } from "../src/lib/near";
+import { CHAINS, NETWORKS } from "../src/lib/config";
+import { nearChainId, nearRpcUrl, setNearRpc } from "../src/lib/near";
 import { buildReport } from "../src/lib/report";
-
-const USAGE = "usage: npm run verify -- [--network testnet|mainnet] <token_id>";
-
-/** `[--network <id>] <token_id>`, or null when the arguments are anything else. */
-function parseArgs(args: string[]): { network: NetworkId; tokenId: string } | null {
-  let network: string = "testnet";
-  const rest = [...args];
-  const flag = rest.indexOf("--network");
-  if (flag !== -1) {
-    network = rest[flag + 1] ?? "";
-    rest.splice(flag, 2);
-  }
-  if (!(network in NETWORKS) || rest.length !== 1 || !/^\d{1,19}$/.test(rest[0])) return null;
-  return { network: network as NetworkId, tokenId: rest[0] };
-}
+import { VERIFY_USAGE, parseVerifyArgs } from "../src/lib/verify-args";
 
 const MARK = { pass: "PASS", fail: "FAIL", unknown: "????" } as const;
 
@@ -33,18 +19,25 @@ function applyRpcOverrides() {
   }
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
+// Exit codes go through process.exitCode: process.exit() with fetches still open aborts on Windows.
+async function main(): Promise<number> {
+  const args = parseVerifyArgs(process.argv.slice(2));
   if (args === null) {
-    console.error(USAGE);
-    process.exit(2);
+    console.error(VERIFY_USAGE);
+    return 2;
   }
   const net = NETWORKS[args.network];
   applyRpcOverrides();
+  // An RPC for the other network would answer every read, about the wrong chain.
+  const chain = await nearChainId(net);
+  if (chain !== net.id) {
+    console.error(`${nearRpcUrl(net)} serves NEAR ${chain}, not ${net.id}`);
+    return 2;
+  }
   const report = await buildReport(net, args.tokenId);
   if (report === null) {
     console.error(`No satchel #${args.tokenId} on ${net.contract}`);
-    process.exit(1);
+    return 1;
   }
   console.log(`Satchel #${report.tokenId} on ${net.contract} (${net.id})`);
   console.log(`owner ${report.owner}, address ${report.address}, record version ${report.recordVersion}`);
@@ -56,10 +49,15 @@ async function main() {
   const verdicts = { clean: "PROVABLY CLEAN", "not-provable": "NOT PROVABLE", unknown: "COULD NOT CHECK EVERYTHING" };
   console.log(`\n${verdicts[report.verdict]} (checked ${report.checkedAt})`);
   console.log(`read from ${report.sources?.join(", ")}`);
-  process.exit(report.verdict === "clean" ? 0 : 1);
+  return report.verdict === "clean" ? 0 : 1;
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err);
-  process.exit(2);
-});
+main().then(
+  (code) => {
+    process.exitCode = code;
+  },
+  (err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 2;
+  },
+);

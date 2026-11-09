@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { NetworkProvider } from "@/components/network";
-import { NetworkBanner, SiteHeader } from "@/components/site-header";
+import { NetLink, NetworkBanner, SiteHeader } from "@/components/site-header";
 import { WalletProvider } from "@/components/wallet";
 import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "@/lib/config";
 import "./globals.css";
@@ -19,13 +18,14 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg" },
 };
 
-const FOOTER: { title: string; links: { href: string; label: string; external?: boolean }[] }[] = [
+/** `follow` links go to the same page on the network on screen; the rest go where they say. */
+const FOOTER: { title: string; links: { href: string; label: string; external?: boolean; follow?: boolean }[] }[] = [
   {
     title: "Product",
     links: [
-      { href: "/market", label: "Market" },
-      { href: "/satchels", label: "Mint a satchel" },
-      { href: "/verify", label: "Verify a satchel" },
+      { href: "/market", label: "Market", follow: true },
+      { href: "/satchels", label: "Mint a satchel", follow: true },
+      { href: "/verify", label: "Verify a satchel", follow: true },
       { href: "/#examples", label: "Try to cheat a buyer" },
       { href: "/mainnet", label: "Satchel on mainnet" },
     ],
@@ -61,10 +61,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <footer className="mt-16 border-t border-line bg-paper-2">
               <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>
-                  <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+                  <NetLink href="/" follow className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
                     <img src="/icon.svg" alt="" className="size-7" />
                     Satchel
-                  </Link>
+                  </NetLink>
                   <p className="mt-3 max-w-xs text-sm text-ink-2">
                     An NFT that is a wallet on every EVM chain, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
                   </p>
@@ -81,9 +81,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                               {l.label}
                             </a>
                           ) : (
-                            <Link href={l.href} className="hover:text-ink">
+                            <NetLink href={l.href} follow={l.follow} className="hover:text-ink">
                               {l.label}
-                            </Link>
+                            </NetLink>
                           )}
                         </li>
                       ))}

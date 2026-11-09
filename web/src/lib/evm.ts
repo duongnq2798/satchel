@@ -162,7 +162,10 @@ export async function prepareTx(chain: ChainInfo, from: Address, to: Address, va
   const [nonce, block, priority, estimate] = await Promise.all([
     c.getTransactionCount({ address: from, blockTag: "pending" }),
     c.getBlock({ blockTag: "latest" }),
-    c.estimateMaxPriorityFeePerGas().catch(() => 1_000_000_000n),
+    // No guess: a tip below the chain's minimum (25 gwei on Polygon) is refused after the MPC signed.
+    c.estimateMaxPriorityFeePerGas().catch((err: unknown) => {
+      throw new Error(`Couldn't read ${chain.name}'s priority fee, so nothing was signed: ${shortError(err)}`);
+    }),
     c.estimateGas({ account: from, to, value, data }).catch((err: unknown) => {
       throw new Error(`${chain.name} says this transaction would fail, so nothing was signed: ${shortError(err)}`);
     }),

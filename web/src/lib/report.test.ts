@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TESTNET } from "./config";
+import { MAINNET, TESTNET } from "./config";
 import type { ApprovalRecord, SigningRecord } from "./near";
 import {
   type ChainNonce,
@@ -49,6 +49,15 @@ describe("contract check", () => {
     ["another signer", { ...LOCKED, mpcContract: "evil-signer.testnet" }],
   ])("fails with %s", (_, facts) => {
     expect(contractCheck(TESTNET, facts as ContractFacts).status).toBe("fail");
+  });
+
+  it("holds mainnet to mainnet's signer", () => {
+    const mainnet = { ...LOCKED, mpcContract: MAINNET.mpc };
+    expect(contractCheck(MAINNET, mainnet).status).toBe("pass");
+    // The testnet deployment, read as if it were mainnet's, fails on its signer.
+    const check = contractCheck(MAINNET, LOCKED);
+    expect(check.status).toBe("fail");
+    expect(check.lines).toContain("Signs through v1.signer-prod.testnet, not the canonical v1.signer");
   });
 
   it("passes global code pinned to the build's hash", () => {

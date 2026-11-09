@@ -45,40 +45,45 @@ const ReportContext = createContext<Reports | null>(null);
  * down, a block not final yet) is dropped, so the next reader reads again.
  */
 export function ReportProvider({ children }: { children: ReactNode }) {
+  const net = useNetwork();
   const check = useReportChecker();
   const pending = useRef(new Map<string, Promise<Report | null>>());
   const settled = useRef(new Map<string, Report | null>());
   const reports = useMemo<Reports>(() => {
-    const drop = (tokenId: string, read: Promise<Report | null>) => {
-      if (pending.current.get(tokenId) === read) pending.current.delete(tokenId);
-      settled.current.delete(tokenId);
+    // Keyed by network too, so a report read on one side is never served on the other.
+    const key = (tokenId: string) => `${net.id}:${tokenId}`;
+    const drop = (k: string, read: Promise<Report | null>) => {
+      if (pending.current.get(k) === read) pending.current.delete(k);
+      settled.current.delete(k);
     };
     return {
       check: (tokenId) => {
-        const cached = pending.current.get(tokenId);
+        const k = key(tokenId);
+        const cached = pending.current.get(k);
         if (cached) return cached;
         const read = check(tokenId);
         read.then(
           (report) => {
-            if (report?.verdict === "unknown") drop(tokenId, read);
-            else settled.current.set(tokenId, report);
+            if (report?.verdict === "unknown") drop(k, read);
+            else settled.current.set(k, report);
           },
-          () => drop(tokenId, read),
+          () => drop(k, read),
         );
-        pending.current.set(tokenId, read);
+        pending.current.set(k, read);
         return read;
       },
-      peek: (tokenId) => settled.current.get(tokenId),
+      peek: (tokenId) => settled.current.get(key(tokenId)),
     };
-  }, [check]);
+  }, [check, net]);
   return <ReportContext.Provider value={reports}>{children}</ReportContext.Provider>;
 }
 
 /** The report for `tokenId`, shared with every other reader under the same `ReportProvider`. */
 export function useReport(tokenId: string) {
   const reports = useContext(ReportContext);
+  const net = useNetwork();
   if (!reports) throw new Error("useReport needs a ReportProvider");
-  return useAsync(() => reports.check(tokenId), tokenId, reports.peek(tokenId));
+  return useAsync(() => reports.check(tokenId), `${net.id}:${tokenId}`, reports.peek(tokenId));
 }
 
 /** A report's verdict as a badge, with the reason on hover when it couldn't be read. */

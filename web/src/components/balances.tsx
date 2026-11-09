@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type Address, formatEther } from "viem";
 import { sendChains } from "@/lib/config";
 import { client } from "@/lib/evm";
@@ -16,7 +16,8 @@ export function formatBalance(wei: bigint): string {
 
 /** Native balances of one address on each chain the app sends on for this network. */
 export function Balances({ address, refresh }: { address: Address; refresh: number }) {
-  const chains = sendChains(useNetwork());
+  const net = useNetwork();
+  const chains = useMemo(() => sendChains(net), [net]);
   const [balances, setBalances] = useState<Record<number, bigint | null>>({});
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export function Balances({ address, refresh }: { address: Address; refresh: numb
     return () => {
       live = false;
     };
-  }, [address, refresh]);
+  }, [address, chains, refresh]);
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

@@ -6,6 +6,7 @@ import { tokenAddress } from "@/lib/evm";
 import { buildReport } from "@/lib/report";
 import { satchel } from "@/lib/satchel";
 import { Balances } from "./balances";
+import { DeploymentNote, useDeployment } from "./deployment";
 import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale } from "./sale-panel";
@@ -17,6 +18,7 @@ import { useWallet } from "./wallet";
 export function TokenView({ tokenId }: { tokenId: string }) {
   const { accountId } = useWallet();
   const net = useNetwork();
+  const deployment = useDeployment();
   const [refresh, setRefresh] = useState(0);
   const token = useAsync(
     async () => {
@@ -77,13 +79,21 @@ export function TokenView({ tokenId }: { tokenId: string }) {
 
       <Card>
         <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, controlled by whoever owns this NFT</p>
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <Mono className="text-lg">{address}</Mono>
-          <CopyButton value={address} />
-        </div>
-        <div className="mt-4">
-          <Balances address={address} refresh={refresh} />
-        </div>
+        {deployment.data ? (
+          <>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <Mono className="text-lg">{address}</Mono>
+              <CopyButton value={address} />
+            </div>
+            <div className="mt-4">
+              <Balances address={address} refresh={refresh} />
+            </div>
+          </>
+        ) : (
+          <div className="mt-3">
+            <DeploymentNote deployment={deployment} />
+          </div>
+        )}
       </Card>
 
       <ReportCard
@@ -99,7 +109,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
         </p>
       )}
       {view.listing && !isOwner && <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />}
-      {isOwner && !view.listing && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} />}
+      {isOwner && !view.listing && deployment.data && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} />}
       {isOwner && <OwnerSale token={view} onDone={reloadAll} />}
 
       <Card>

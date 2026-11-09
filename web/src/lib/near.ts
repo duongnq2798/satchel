@@ -90,6 +90,11 @@ export async function nearRpc<T>(net: Network, method: string, params: unknown):
   return body.result as T;
 }
 
+/** The chain the NEAR RPC for `net` serves, from its status: "testnet" or "mainnet" for the real ones. */
+export async function nearChainId(net: Network): Promise<string> {
+  return (await nearRpc<{ chain_id: string }>(net, "status", [])).chain_id;
+}
+
 function encodeArgs(args: unknown): string {
   const bytes = new TextEncoder().encode(JSON.stringify(args));
   let binary = "";

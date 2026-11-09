@@ -4,7 +4,7 @@ import outcome from "./__fixtures__/sign-evm-outcome.json";
 import { CHAINS, MAINNET, TESTNET } from "./config";
 import { type EvmTx, type MpcSignature, signingHash } from "./evm";
 import { outcomeValue } from "./near";
-import { type SendDeps, type SendRequest, sendFromSatchel } from "./send";
+import { type SendDeps, type SendRequest, liveSendDeps, sendFromSatchel } from "./send";
 
 // The real token 1 transaction and its MPC signature (evm.test.ts has the same vectors).
 const TX: EvmTx = {
@@ -104,5 +104,30 @@ describe("sending from a satchel", () => {
   it("says signing again is safe when the wallet returns no signature", async () => {
     const d = deps({ signWithWallet: async () => ({ hash: "h", signature: null }) });
     await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/signing again is safe/);
+  });
+});
+
+describe("liveSendDeps", () => {
+  it("asks the page's own contract for the signing hash", async () => {
+    const asked: Record<string, string>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: { body: string }) => {
+        asked.push({ url, ...(JSON.parse(init.body) as { params: Record<string, string> }).params });
+        return new Response(JSON.stringify({ result: { result: [...new TextEncoder().encode(JSON.stringify("ab"))] } }));
+      }),
+    );
+    try {
+      await liveSendDeps(MAINNET, vi.fn()).contractHash(TX);
+      expect(asked).toEqual([
+        expect.objectContaining({
+          url: "https://rpc.mainnet.fastnear.com",
+          account_id: "v1.satchel-nft.near",
+          method_name: "evm_signing_hash",
+        }),
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LiveStats } from "@/components/live-stats";
+import { NetLink } from "@/components/site-header";
 import { CHAINS, MAINNET, appPath } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Satchel on NEAR mainnet" };
@@ -18,10 +19,12 @@ export default function MainnetHome() {
         <p className="text-sm font-medium tracking-wide text-leather">NEAR mainnet</p>
         <h1 className="mt-3 font-display text-5xl leading-tight font-semibold tracking-tight">Satchels that hold real funds</h1>
         <p className="mt-4 text-lg text-ink-2">
-          The same contract as on testnet, from the same reproducible build, deployed at{" "}
-          <code className="font-mono text-[0.9em]">{MAINNET.contract}</code> and locked. It signs only through NEAR&apos;s
-          mainnet MPC network (<code className="font-mono text-[0.9em]">{MAINNET.mpc}</code>). Each satchel is one address on{" "}
-          {MAINNET_CHAINS.slice(0, -1).join(", ")} and {MAINNET_CHAINS.at(-1)}.
+          The same contract as on testnet, from the same reproducible build, at{" "}
+          <code className="font-mono text-[0.9em]">{MAINNET.contract}</code>, signing through NEAR&apos;s mainnet MPC network
+          (<code className="font-mono text-[0.9em]">{MAINNET.mpc}</code>). Each satchel is one address on{" "}
+          {MAINNET_CHAINS.slice(0, -1).join(", ")} and {MAINNET_CHAINS.at(-1)}. Before it signs anything or shows an
+          address, the app checks that the account runs that build, has no keys and signs only through {MAINNET.mpc}; the
+          numbers below are read live.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href={appPath(MAINNET, "/satchels")} className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper transition hover:bg-leather">
@@ -44,7 +47,8 @@ export default function MainnetHome() {
           <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-ink-2">
             <li>Satchel has not been audited. Keep in a satchel only what you can afford to lose.</li>
             <li>
-              The contract has no admin and no keys, so no one can pause it, upgrade it or return funds sent by mistake.
+              The contract has no admin, and once its keys are deleted no one can pause it, upgrade it or return funds sent
+              by mistake. The numbers above say whether they are.
             </li>
             <li>Before you buy one, read its report: the buy names the record version that report checked.</li>
           </ul>
@@ -60,9 +64,9 @@ export default function MainnetHome() {
 
       <p className="text-sm text-ink-2">
         New to satchels?{" "}
-        <Link href="/#how" className="font-medium text-leather hover:text-ink">
+        <NetLink href="/#how" className="font-medium text-leather hover:text-ink">
           See how they work, with testnet examples you can try
-        </Link>
+        </NetLink>
         .
       </p>
     </div>

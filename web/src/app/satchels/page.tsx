@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { DeploymentNote, useDeployment } from "@/components/deployment";
 import { Badge, Button, Card, ErrorNote, Mono } from "@/components/ui";
 import { useNetwork } from "@/components/network";
 import { useAsync } from "@/components/use-async";
@@ -15,6 +16,7 @@ import { satchel, satchelTx } from "@/lib/satchel";
 export default function YourSatchels() {
   const { accountId, ready, signIn, send } = useWallet();
   const net = useNetwork();
+  const deployment = useDeployment();
   const router = useRouter();
   const [minting, setMinting] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -50,13 +52,14 @@ export default function YourSatchels() {
           <h1 className="font-display text-4xl font-semibold tracking-tight">Your satchels</h1>
           <p className="mt-1 text-ink-2">Each one is an address on 16 EVM chains that moves with the NFT.</p>
         </div>
-        {accountId && (
+        {accountId && deployment.data && (
           <Button variant="primary" busy={minting} onClick={mint}>
             Mint a satchel · 0.1 NEAR
           </Button>
         )}
       </div>
       <ErrorNote error={error} />
+      <DeploymentNote deployment={deployment} />
 
       {ready && accountId === null && (
         <Card>
@@ -77,8 +80,9 @@ export default function YourSatchels() {
         <Card>
           <h2 className="font-display text-xl font-semibold">Mint your first satchel</h2>
           <p className="mt-1 text-sm text-muted">
-            You get an address derived for it by NEAR's MPC network. Fund it on any {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for
-            sale; whoever owns the NFT controls it.
+            You get an address derived for it by NEAR's MPC network. Fund it on any{" "}
+            {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for sale; whoever
+            owns the NFT controls it.
           </p>
         </Card>
       )}
@@ -92,7 +96,7 @@ export default function YourSatchels() {
                 <p className="font-display text-2xl font-semibold">#{t.token_id}</p>
                 <Badge>satchel/{t.token_id}</Badge>
               </div>
-              <Mono className="mt-3 block text-xs text-ink-2">{t.address}</Mono>
+              {deployment.data && <Mono className="mt-3 block text-xs text-ink-2">{t.address}</Mono>}
             </Card>
           </Link>
         ))}

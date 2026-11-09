@@ -2,9 +2,9 @@
 
 import { useRef, useState } from "react";
 import type { SatchelView } from "@/lib/near";
+import { assertReceiver } from "@/lib/guard";
 import type { Report } from "@/lib/report";
-import { accountOnNetwork } from "@/lib/config";
-import { formatNear, parseNear, satchelTx } from "@/lib/satchel";
+import { type WalletTx, formatNear, parseNear, satchelTx } from "@/lib/satchel";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote } from "./ui";
 import { useWallet } from "./wallet";
@@ -15,14 +15,14 @@ function useTx(onDone: (hash?: string) => void) {
   const running = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  async function run(build: () => Parameters<typeof send>[0]) {
+  async function run(build: () => WalletTx | Promise<WalletTx>) {
     if (running.current) return;
     running.current = true;
     setError(null);
     setBusy(true);
     let hash: string | undefined;
     try {
-      hash = (await send(build())).hash;
+      hash = (await send(await build())).hash;
     } catch (err) {
       setError(err);
     } finally {
@@ -86,10 +86,9 @@ export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash
             <Button
               busy={tx.busy}
               onClick={() =>
-                tx.run(() => {
-                  if (!/^[a-z0-9._-]{2,64}$/.test(receiver)) throw new Error("Enter the receiver's NEAR account, like friend.near");
-                  // An NFT sent to a name that can't exist on this network is lost.
-                  if (!accountOnNetwork(net, receiver)) throw new Error(`${receiver} is not a NEAR ${net.id} account`);
+                tx.run(async () => {
+                  // The contract takes any name, and an NFT sent to one that doesn't exist is lost.
+                  await assertReceiver(net, receiver);
                   return satchelTx(net).transfer(token.token_id, receiver);
                 })
               }
@@ -128,7 +127,12 @@ export function BuyPanel({
   if (!token.listing) return null;
 
   const checked =
-    report && report.tokenId === token.token_id && report.listing && report.listing.record_version === report.recordVersion
+    report &&
+    report.network === net.id &&
+    report.contract === net.contract &&
+    report.tokenId === token.token_id &&
+    report.listing &&
+    report.listing.record_version === report.recordVersion
       ? { report, listing: report.listing }
       : undefined;
   const listing = checked?.listing ?? token.listing;
