@@ -58,7 +58,8 @@ satchel-nft <command> [options]
 | Command | What it does |
 | --- | --- |
 | `verify <id>` | The clean transfer report. Exits 0 only when it reads `PROVABLY CLEAN` |
-| `show <id>` | Owner, address, listing, and balances on the network's EVM chains |
+| `show <id>` | Owner, address, listing, and what it holds on the network's EVM chains: the native coin, USDC, USDT and WETH |
+| `history <id>` | Its mint, owners, signatures, listings and sales, each with its NEAR transaction, from FastNEAR's transaction index. The report doesn't use it |
 | `record <id>` | The signing record, as the contract returns it |
 | `market` | Every listing, with its report's verdict |
 | `mint` | Mints a satchel for 0.1 NEAR |

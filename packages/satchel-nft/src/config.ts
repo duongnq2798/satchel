@@ -11,6 +11,11 @@ export interface Network {
   mpc: string;
   nearRpc: string;
   nearExplorer: string;
+  /**
+   * FastNEAR's transaction index, read only for a satchel's history. Nothing the report decides
+   * comes from it.
+   */
+  txApi: string;
   /** From the reproducible CI build the contract was deployed from (deployments/<id>.json). */
   build: { codeHash: string; commit: string; ciRun: string };
 }
@@ -28,6 +33,7 @@ export const TESTNET: Network = {
   mpc: "v1.signer-prod.testnet",
   nearRpc: "https://rpc.testnet.fastnear.com",
   nearExplorer: "https://testnet.nearblocks.io",
+  txApi: "https://tx.test.fastnear.com",
   build: BUILD,
 };
 
@@ -37,6 +43,7 @@ export const MAINNET: Network = {
   mpc: "v1.signer",
   nearRpc: "https://rpc.mainnet.fastnear.com",
   nearExplorer: "https://nearblocks.io",
+  txApi: "https://tx.main.fastnear.com",
   build: BUILD,
 };
 

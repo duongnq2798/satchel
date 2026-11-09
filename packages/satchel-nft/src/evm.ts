@@ -4,7 +4,7 @@ import {
   type PublicClient,
   type TransactionSerializableEIP1559,
   createPublicClient,
-  formatEther,
+  formatUnits,
   getAddress,
   http,
   keccak256,
@@ -219,11 +219,15 @@ export function maxCost(tx: EvmTx, extraFee = 0n): bigint {
   return tx.gas * tx.maxFeePerGas + tx.value + extraFee;
 }
 
-/** A native balance in whole units, to 5 decimals: "0.00184", "< 0.00001", "0". */
-export function formatBalance(wei: bigint): string {
-  if (wei === 0n) return "0";
-  const text = formatEther(wei);
-  const [whole, fraction = ""] = text.split(".");
+/** An amount in whole units, to 5 decimals: "0.00184", "< 0.00001", "0". */
+export function formatAmount(amount: bigint, decimals: number): string {
+  if (amount === 0n) return "0";
+  const [whole, fraction = ""] = formatUnits(amount, decimals).split(".");
   const short = fraction.slice(0, 5).replace(/0+$/, "");
   return short ? `${whole}.${short}` : whole === "0" ? "< 0.00001" : whole;
+}
+
+/** A native balance, 18 decimals on every chain Satchel signs for. */
+export function formatBalance(wei: bigint): string {
+  return formatAmount(wei, 18);
 }

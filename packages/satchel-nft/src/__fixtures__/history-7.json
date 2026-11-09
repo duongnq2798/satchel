@@ -1,0 +1,414 @@
+{
+ "source": "https://tx.test.fastnear.com/v0/transactions, read 2026-11-10; trimmed to the fields history.ts reads",
+ "transactions": [
+  {
+   "transaction": {
+    "hash": "7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "buyer.satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276876028,
+      "block_timestamp": 1794200928791890000,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "Failure": {
+         "ActionError": {
+          "index": 0,
+          "kind": {
+           "FunctionCallError": {
+            "ExecutionError": "Smart contract panicked: Satchel: the signing record changed since you checked it"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276876029,
+      "block_timestamp": 1794200929365087700,
+      "outcome": {
+       "executor_id": "buyer.satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276876029,
+      "block_timestamp": 1794200929365087700,
+      "outcome": {
+       "executor_id": "buyer.satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "transaction": {
+    "hash": "8TKVW1K3KwZ91PDJcjXmEQ8XA7vfq1AeH4B7FqHpsETH"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "buyer.satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276938043,
+      "block_timestamp": 1794237865449230800,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [
+        "EVENT_JSON:{\"standard\":\"nep171\",\"version\":\"1.0.0\",\"event\":\"nft_transfer\",\"data\":[{\"old_owner_id\":\"buyer.satchel-nft.testnet\",\"new_owner_id\":\"satchel-nft.testnet\",\"token_ids\":[\"7\"]}]}"
+       ],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276938044,
+      "block_timestamp": 1794237865981826600,
+      "outcome": {
+       "executor_id": "buyer.satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "transaction": {
+    "hash": "BcrTmMCqdYGdCXDHH4fZqUHCy8bYdnUXLx3JS94jKUHX"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "buyer.satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276938019,
+      "block_timestamp": 1794237851214968000,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [
+        "EVENT_JSON:{\"standard\":\"nep171\",\"version\":\"1.0.0\",\"event\":\"nft_transfer\",\"data\":[{\"old_owner_id\":\"satchel-nft.testnet\",\"new_owner_id\":\"buyer.satchel-nft.testnet\",\"token_ids\":[\"7\"]}]}",
+        "EVENT_JSON:{\"standard\":\"satchel\",\"version\":\"1.0.0\",\"event\":\"sale\",\"data\":[{\"token_id\":\"7\",\"seller\":\"satchel-nft.testnet\",\"buyer\":\"buyer.satchel-nft.testnet\",\"price\":\"500000000000000000000000\",\"record_version\":\"1\"}]}"
+       ],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276938020,
+      "block_timestamp": 1794237851638070300,
+      "outcome": {
+       "executor_id": "buyer.satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "v1.satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276938020,
+      "block_timestamp": 1794237851638070300,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276938021,
+      "block_timestamp": 1794237852129336800,
+      "outcome": {
+       "executor_id": "buyer.satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "transaction": {
+    "hash": "2g9KsqmKVQGiSNSJMGkMo7WpdxakVji8BkRPg7ZnBBAL"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276936221,
+      "block_timestamp": 1794236797824098000,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [
+        "EVENT_JSON:{\"standard\":\"satchel\",\"version\":\"1.0.0\",\"event\":\"delist\",\"data\":[{\"token_id\":\"7\"}]}"
+       ],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276936222,
+      "block_timestamp": 1794236798371137800,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "transaction": {
+    "hash": "3u7kDzeB6zMSdC6Ddbvm55qoGwwoP1YxvMH3T9PvUYAL"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276936151,
+      "block_timestamp": 1794236757851075800,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [
+        "EVENT_JSON:{\"standard\":\"satchel\",\"version\":\"1.0.0\",\"event\":\"sign_evm\",\"data\":[{\"token_id\":\"7\",\"chain_id\":\"11155111\",\"nonce\":\"0\",\"to\":\"0x000000000000000000000000000000000000dEaD\",\"value\":\"100000000000000\",\"class\":\"value_transfer\",\"approval\":null,\"selector\":null,\"data_hash\":\"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470\",\"payload\":\"cb12f136f2921dfe95f7619dfbbd3a99aadb1f000061f61902382d2468bc3649\",\"record_version\":\"1\"}]}"
+       ],
+       "status": {
+        "SuccessReceiptId": "GGSBcRN33Km2pciQuWoyoGtYp4dCfu8g9zpGKyn7gUBy"
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276936152,
+      "block_timestamp": 1794236758447248600,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "v1.satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276936152,
+      "block_timestamp": 1794236758447248600,
+      "outcome": {
+       "executor_id": "v1.signer-prod.testnet",
+       "logs": [
+        "sign: predecessor=AccountId(\"v1.satchel-nft.testnet\"), request=SignRequestArgs { path: \"satchel/7\", payload: Ecdsa(BoundedVec { inner: [203, 18, 241, 54, 242, 146, 29, 254, 149, 247, 97, 157, 251, 189, 58, 153, 170, 219, 31, 0, 0, 97, 246, 25, 2, 56, 45, 36, 104, 188, 54, 73], witness: NonEmpty(()) }), domain_id: DomainId(0) }"
+       ],
+       "status": {
+        "SuccessReceiptId": "GovjahGctBrJN8uUMe9r6FV2MC2WL32pDcP2XmWtRLd8"
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276936153,
+      "block_timestamp": 1794236759016052700,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "v1.signer-prod.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276936157,
+      "block_timestamp": 1794236761470687000,
+      "outcome": {
+       "executor_id": "v1.signer-prod.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": "eyJzY2hlbWUiOiJTZWNwMjU2azEiLCJiaWdfciI6eyJhZmZpbmVfcG9pbnQiOiIwMmMwNmI4ZjQ5YWQ1ZWU4NDBkMmQ2YTNjNWI5MDBhZDhlNjY2NzAwODlmYTU0OTMzNDllMjA4ZjVkMmIwY2MyNmMifSwicyI6eyJzY2FsYXIiOiIwMzcwN2ZkMjliMWViNDk5MjNlZDNlMmIyODdhNDY0YTlhMjJjYzI5MzU4N2RhYjE2NzFlOGQyMDRjNGRlZTE2In0sInJlY292ZXJ5X2lkIjoxfQ=="
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276936158,
+      "block_timestamp": 1794236762176937200,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "transaction": {
+    "hash": "AkqiPEQUVXjmaFdr8fKRVd4f7CyFrER6V6EkRd4ZgzMF"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276936204,
+      "block_timestamp": 1794236787643262200,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [
+        "EVENT_JSON:{\"standard\":\"satchel\",\"version\":\"1.0.0\",\"event\":\"list\",\"data\":[{\"token_id\":\"7\",\"price\":\"500000000000000000000000\",\"record_version\":\"1\"}]}"
+       ],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276936205,
+      "block_timestamp": 1794236788179491800,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "transaction": {
+    "hash": "FyT2ELA2jigMegAiVnMVAm3C4ESiVRiMSDJ6CQMBokTh"
+   },
+   "receipts": [
+    {
+     "receipt": {
+      "predecessor_id": "satchel-nft.testnet"
+     },
+     "execution_outcome": {
+      "block_height": 276936040,
+      "block_timestamp": 1794236690580410600,
+      "outcome": {
+       "executor_id": "v1.satchel-nft.testnet",
+       "logs": [
+        "EVENT_JSON:{\"standard\":\"nep171\",\"version\":\"1.0.0\",\"event\":\"nft_mint\",\"data\":[{\"owner_id\":\"satchel-nft.testnet\",\"token_ids\":[\"7\"]}]}"
+       ],
+       "status": {
+        "SuccessValue": "eyJ0b2tlbl9pZCI6IjciLCJvd25lcl9pZCI6InNhdGNoZWwtbmZ0LnRlc3RuZXQiLCJtZXRhZGF0YSI6eyJ0aXRsZSI6IlNhdGNoZWwgIzciLCJkZXNjcmlwdGlvbiI6IkEgd2FsbGV0IG9uIGV2ZXJ5IGNoYWluLiBXaG9ldmVyIG93bnMgdGhpcyBORlQgY29udHJvbHMgdGhlIGFkZHJlc3NlcyBpdHMga2V5cyBkZXJpdmUuIiwibWVkaWEiOm51bGwsIm1lZGlhX2hhc2giOm51bGwsImNvcGllcyI6MSwiaXNzdWVkX2F0IjoiMTc5NDIzNjY5MDU4MCIsImV4cGlyZXNfYXQiOm51bGwsInN0YXJ0c19hdCI6bnVsbCwidXBkYXRlZF9hdCI6bnVsbCwiZXh0cmEiOiJ7XCJwYXRoXCI6XCJzYXRjaGVsLzdcIn0iLCJyZWZlcmVuY2UiOm51bGwsInJlZmVyZW5jZV9oYXNoIjpudWxsfSwiYXBwcm92ZWRfYWNjb3VudF9pZHMiOm51bGx9"
+       }
+      }
+     }
+    },
+    {
+     "receipt": {
+      "predecessor_id": "system"
+     },
+     "execution_outcome": {
+      "block_height": 276936041,
+      "block_timestamp": 1794236691206894000,
+      "outcome": {
+       "executor_id": "satchel-nft.testnet",
+       "logs": [],
+       "status": {
+        "SuccessValue": ""
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
