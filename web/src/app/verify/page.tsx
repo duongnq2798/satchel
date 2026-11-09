@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { useNetwork } from "@/components/network";
 import { Button, Card } from "@/components/ui";
-import { appPath } from "@/lib/config";
+import { appPath } from "@/lib/routes";
 import { CHECKS } from "@/lib/copy";
 
 export default function Verify() {

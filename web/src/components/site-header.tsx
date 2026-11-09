@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { MAINNET, TESTNET, appPath, networkForPath, switchPath } from "@/lib/config";
+import { MAINNET, TESTNET } from "satchel-nft";
+import { appPath, networkForPath, switchPath } from "@/lib/routes";
 import { useNetwork } from "./network";
 import { ConnectButton } from "./wallet";
 

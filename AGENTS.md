@@ -15,7 +15,9 @@ Node 22 or later; the contract tests also need Rust.
   control of the address on every chain.
 - The contract builds every EVM transaction it signs and keeps a public signing record per token.
 - A buyer runs four checks on that record (the "clean transfer report") before paying, and `buy`
-  names the record version the buyer checked.
+  names the record version the buyer checked. The report and the transactions are one package,
+  `satchel-nft` in `packages/satchel-nft`: the web app runs on it, and it is also a library and a
+  CLI.
 
 [README.md](README.md) is the full description. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) lists
 the attacks and what stops each one. [SECURITY.md](SECURITY.md) says how to report a problem.
@@ -82,15 +84,18 @@ The last three read `deployments/mainnet-first-send.json`, satchel #1's first se
 
 ### 2. The clean transfer report for each demo satchel
 
+From the repository root:
+
 ```bash
-cd web
 npm ci
-npm run verify -- 1
-cd ..
+npm run build -w satchel-nft
+npx satchel-nft verify 1
 ```
 
-`npm run verify -- <id>` prints the four checks, the verdict and the RPCs it read. It exits 0 only
-when the satchel is provably clean.
+`npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
+that runs on it. Inside the repository, `npx satchel-nft` runs this checkout's build, never a
+download. `satchel-nft verify <id>` prints the four checks, the verdict and the RPCs it read. It
+exits 0 only when the satchel is provably clean.
 
 | Id | You should see | Exit |
 |---|---|---|
@@ -111,16 +116,15 @@ The same reports run in the browser at <https://satchelnft.xyz/#examples>.
 
 ### 3. The tests
 
-The web tests use the packages step 2 installed:
+The package and app tests use what step 2 installed. From the repository root:
 
 ```bash
-cd web
 npm test
 npm run typecheck
-cd ..
 ```
 
-You should see `Tests  83 passed (83)`, then no type errors.
+Each runs in both workspaces. You should see `Tests  94 passed (94)` for `satchel-nft`, then
+`Tests  3 passed (3)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -167,16 +171,23 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | `buy` pins the record version and price | `buy` | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
 | Any transfer ends the listing, a bounced `nft_transfer_call` too | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
 | Only 16 chain ids can be signed for | `SUPPORTED_CHAINS` in `contracts/satchel/src/evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
-| Check 1: the contract can't sign behind the record | `contractCheck`, `contractFacts` in `web/src/lib/report.ts` | `web/src/lib/report.test.ts` |
+| Check 1: the contract can't sign behind the record | `contractCheck`, `contractFacts` in `packages/satchel-nft/src/report.ts` | `packages/satchel-nft/src/report.test.ts` |
 | Check 2: no signed transaction is still pending (nonce at a finalized block) | `pendingCheck`, `finalizedAt` in `report.ts` | `report.test.ts` (`pendingCheck`; `finalizedAt` reads live chains and has no unit test) |
-| Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `web/src/lib/approvals.ts` | `approvals.test.ts` |
+| Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `packages/satchel-nft/src/approvals.ts` | `approvals.test.ts` |
 | Check 4: nothing the record can't explain | `countersCheck` in `report.ts` | `report.test.ts` |
-| Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `web/src/lib/evm.ts` | none yet |
-| The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `web/src/lib/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
+| Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `packages/satchel-nft/src/evm.ts` | none yet |
+| The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `packages/satchel-nft/src/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
 | The wallet signs only for this network's contract, from an account on this network | `assertTxFor` in `guard.ts` | `guard.test.ts` |
 | A transfer refuses a receiver that doesn't exist on the network, the contract and the MPC contract | `assertReceiver` in `guard.ts` | `guard.test.ts` |
 | A purchase takes its record version and price from the report the buyer read, read on the same network | `web/src/components/sale-panel.tsx` | manual, on testnet |
-| A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `web/src/lib/send.ts` | `send.test.ts` |
+| A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
+| The CLI sends only the transaction it asked the near CLI to sign: one function call, from the `--as` account, to this network's contract, with the method, arguments, gas and deposit it asked for | `decodeSignedTx`, `assertSignedAsAsked`, `signAndSend` in `packages/satchel-nft/src/near-cli.ts` | `near-cli.test.ts` |
+| The CLI runs the near CLI by its absolute path, found in PATH's absolute folders, never in the current folder | `resolveNearCli` in `near-cli.ts` | `near-cli.test.ts` |
+| Nothing is built from a token view about another token, and a transaction counts as done only once its status is final | `satchel(net).get` in `satchel.ts`, `finished` in `near.ts` | `satchel.test.ts` |
+| A transaction the CLI sent but couldn't read back exits 3 with its hash, not as a failure that invites a retry | `OutcomeUnknown` in `near-cli.ts`, `submit` and `send` in `cli.ts` | none: it needs an RPC that fails after the send |
+| The CLI asks before it sends, and refuses to sign without a terminal unless given `--yes` | `submit`, `confirm` in `packages/satchel-nft/src/cli.ts` | manual, on testnet ([`deployments/testnet-cli.json`](deployments/testnet-cli.json)) |
+| The CLI buys only a satchel whose report reads `PROVABLY CLEAN` (unless `--accept-not-clean`), naming the record version and price that report read | `buy` in `cli.ts` | manual, on testnet |
+| Every CLI option belongs to one command, so an option meant for another is an error | `parseCli` in `packages/satchel-nft/src/cli-args.ts` | `cli-args.test.ts` |
 
 ## What Satchel does not claim
 
@@ -185,7 +196,7 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 - **The report proves only what the token's key signed.** It says nothing about powers built into
   an asset itself: an upgradable token, a blacklist, an issuer's clawback.
 - **The report trusts its RPCs**: one NEAR node and one node per EVM chain. It names them, and
-  `npm run verify` can read from your own nodes, but it does not compare nodes or check storage
+  `satchel-nft verify` can read from your own nodes, but it does not compare nodes or check storage
   proofs.
 - **The MPC network is trusted.** If enough MPC nodes colluded, they could sign with any derived key.
 
@@ -197,18 +208,20 @@ The full list, with what stops each attack and what is left, is in
 
 - **Branches:** branch from `dev` (`feat/…`, `fix/…`, `docs/…`) and open a pull request into `dev`.
   `main` is production: Vercel builds <https://satchelnft.xyz> from it.
-- **CI:** every pull request runs [`ci.yml`](.github/workflows/ci.yml), which calls the contract and
-  web workflows. Its `verify` job passes only when both pass, and `main` and `dev` accept a merge only
-  then.
+- **CI:** every pull request runs [`ci.yml`](.github/workflows/ci.yml), which calls the contract,
+  web and package workflows. Its `verify` job passes only when all three pass, and `main` and `dev`
+  accept a merge only then.
 - **Before pushing, run what CI runs:**
   - In `contracts/satchel`: `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`.
-  - In `web`: `npm run typecheck`, `npm test`, `npm run build`.
+  - At the repository root: `npm run typecheck`, `npm test` (both workspaces); then in
+    `web`, `npm run build`.
+  - For the package: `npm pack -w satchel-nft --dry-run` lists what npm would publish.
 - **The deployed contract is locked**, with no keys and no admin. A contract change ships only as a
   new account (for example `v2.satchel-nft.testnet`) with a new code hash. Deploy that from the CI
   reproducible artifact (`tools/deploy-mainnet.sh` shows the steps on mainnet), then update
-  `TESTNET` or `MAINNET` in `web/src/lib/config.ts`, the files in `deployments/`, the
+  `TESTNET` or `MAINNET` in `packages/satchel-nft/src/config.ts`, the files in `deployments/`, the
   transaction hashes in `scripts/check-claims.mjs` and the README.
-- **Keys:** the testnet scripts in `tools/` sign with the near CLI's legacy keychain
-  (`~/.near-credentials`). Never commit a key, a seed phrase or an RPC key.
-- **Docs:** keep [README.md](README.md) and [CHANGELOG.md](CHANGELOG.md) (under Unreleased) in step
-  with the change. A claim the README makes should be checkable by a command, like the ones above.
+- **Keys:** the testnet scripts in `tools/` and the CLI's sign commands sign with the near CLI's
+  keychain (`~/.near-credentials` unless `--keychain os`); neither reads a key. Never commit a key, a seed phrase or an RPC key.
+- **Docs:** keep [README.md](README.md), [CHANGELOG.md](CHANGELOG.md) (under Unreleased) and the
+  package's [README](packages/satchel-nft/README.md), which npm shows, in step with the change. A claim the README makes should be checkable by a command, like the ones above.

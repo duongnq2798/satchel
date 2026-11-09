@@ -1,7 +1,7 @@
 import type { Address } from "viem";
-import { type Liveness, type ReadAt, approvalLiveness } from "./approvals";
-import { type Network, type NetworkId, chainInfo } from "./config";
-import { client, tokenAddress, verifiedClient } from "./evm";
+import { type Liveness, type ReadAt, approvalLiveness } from "./approvals.js";
+import { type Network, type NetworkId, chainInfo } from "./config.js";
+import { client, tokenAddress, verifiedClient } from "./evm.js";
 import {
   type AccountView,
   type ApprovalRecord,
@@ -10,8 +10,8 @@ import {
   nearRpcUrl,
   view,
   viewAccount,
-} from "./near";
-import { satchel } from "./satchel";
+} from "./near.js";
+import { satchel } from "./satchel.js";
 
 /**
  * The clean-transfer report: whether a buyer can rule out everything the seller could have kept

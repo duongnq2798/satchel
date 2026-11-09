@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MAINNET, TESTNET } from "./config";
-import type { ApprovalRecord, SigningRecord } from "./near";
+import { MAINNET, TESTNET } from "./config.js";
+import type { ApprovalRecord, SigningRecord } from "./near.js";
 import {
   type ChainNonce,
   type ContractFacts,
@@ -9,7 +9,7 @@ import {
   countersCheck,
   pendingCheck,
   verdict,
-} from "./report";
+} from "./report.js";
 
 const LOCKED: ContractFacts = {
   accessKeys: 0,

@@ -1,10 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { SatchelView } from "@/lib/near";
-import { assertReceiver } from "@/lib/guard";
-import type { Report } from "@/lib/report";
-import { type WalletTx, formatNear, parseNear, satchelTx } from "@/lib/satchel";
+import { type Report, type SatchelView, type WalletTx, assertReceiver, formatNear, parseNear, satchelTx } from "satchel-nft";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote } from "./ui";
 import { useWallet } from "./wallet";
