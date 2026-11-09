@@ -12,7 +12,7 @@ export function LiveStats() {
       accessKeyCount(net, net.contract),
       viewAccount(net, net.contract),
       satchel(net).totalSupply(),
-      satchel(net).listings(0, 100),
+      satchel(net).allListings(),
       satchel(net).mpcContract(),
     ]);
     return {

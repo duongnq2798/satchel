@@ -132,12 +132,7 @@ async function record(net: Network, args: CliArgs): Promise<number> {
 }
 
 async function market(net: Network, args: CliArgs): Promise<number> {
-  const listings: [string, NonNullable<SatchelView["listing"]>][] = [];
-  for (let from = 0; ; from += 100) {
-    const page = await satchel(net).listings(from, 100);
-    listings.push(...page);
-    if (page.length < 100) break;
-  }
+  const listings = await satchel(net).allListings();
   // One read of the contract's own facts for every report, and three reports at a time.
   const facts = contractFacts(net);
   const limit = limiter(3);
