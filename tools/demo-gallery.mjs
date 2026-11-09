@@ -10,6 +10,12 @@
 //             an approval is still live.
 //   forSale   OWNER mints it, FUNDER sends it 0.002 ETH, OWNER lists it for 1 NEAR. Nothing was
 //             ever signed for it, so the report reads PROVABLY CLEAN and anyone can buy it.
+//   frozen    OWNER asks `sign_evm` for the listed forSale satchel. The contract refuses: signing
+//             is frozen while a token is listed.
+//   relisted  OWNER mints it and lists it clean at record version 0, then delists, has a raw
+//             payload signed with `sign_raw` and lists it again at version 1. BUYER, who checked
+//             version 0, calls `buy` with it and is refused, its NEAR refunded. The report: NOT
+//             PROVABLE, the record can't explain a raw signature.
 //
 // FUNDER (default satchel #1, owned by BUYER) pays from its own address through `sign_evm`, so
 // it stays provably clean: every send it signs is broadcast.
@@ -21,8 +27,8 @@
 // Usage (near CLI on PATH, or NEAR_CLI=/path/to/near):
 //   node demo-gallery.mjs [--out ../deployments/testnet-gallery.json]
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { encodeFunctionData, maxUint256, parseAbi, parseEther } from "viem";
-import { BUYER, CONTRACT, DEAD, OWNER, addressOf, arg, broadcast, call, log, sepoliaClient, sepoliaTx, signAndRecover, signSend, view } from "./lib.mjs";
+import { encodeFunctionData, keccak256, maxUint256, parseAbi, parseEther, toHex } from "viem";
+import { BUYER, CONTRACT, DEAD, OWNER, addressOf, arg, broadcast, call, contractTx, log, sepoliaClient, sepoliaTx, signAndRecover, signSend, view } from "./lib.mjs";
 
 /** Circle's USDC on Sepolia. */
 const USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
@@ -34,6 +40,10 @@ const FUNDER = process.env.SATCHEL_FUNDER ?? "1";
 const GAS_MONEY = parseEther("0.002");
 const WITHDRAWAL = parseEther("10000");
 const PRICE = "1000000000000000000000000"; // 1 NEAR
+// The hash of a sentence, not of any transaction, so the signature over it can't move funds.
+const RAW_PAYLOAD = keccak256(toHex("Satchel demo: a raw payload the record cannot explain"));
+const FROZEN = "Satchel: signing is frozen while the token is listed";
+const CHANGED = "Satchel: the signing record changed since you checked it";
 const OUT = arg("--out");
 
 const state = OUT && existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : { network: "testnet", contract: CONTRACT, funder: FUNDER };
@@ -56,6 +66,24 @@ async function minted(key) {
     save(`${key}: minted`, state[key]);
   }
   return state[key];
+}
+
+/** Runs `call(...)` once into `satchel[key]`, which must succeed. */
+async function step(satchel, key, signer, method, args, opts) {
+  if (satchel[key]) return;
+  const res = await call(signer, method, args, opts);
+  if (!res.ok) throw new Error(`${method} failed: ${res.error}`);
+  satchel[key] = res.hash;
+  save(`satchel #${satchel.tokenId}: ${key}`, res.hash);
+}
+
+/** Runs `call(...)` once into `satchel[key]`, which the contract must refuse with `reason`. */
+async function refused(satchel, key, signer, method, args, opts, reason) {
+  if (satchel[key]) return;
+  const res = await call(signer, method, args, opts);
+  if (res.ok || !res.error.includes(reason)) throw new Error(`${method} was not refused with "${reason}": ${JSON.stringify(res)}`);
+  satchel[key] = { tx: res.hash, signer, reason };
+  save(`satchel #${satchel.tokenId}: ${key}`, satchel[key]);
 }
 
 /** Sends from satchel `tokenId` into `satchel[key]`, saving the signed send before broadcasting it. */
@@ -99,6 +127,24 @@ async function main() {
     if (!listed.ok) throw new Error(`list failed: ${listed.error}`);
     Object.assign(forSale, { listTx: listed.hash, price: PRICE });
     save("forSale: listed", forSale);
+  }
+  // Any well-formed transaction will do: the contract refuses before it reads it.
+  const frozenTx = contractTx(await sepoliaTx(forSale.address, { gas: 21000n }));
+  await refused(forSale, "refusedSign", OWNER, "sign_evm", { token_id: forSale.tokenId, tx: frozenTx }, { deposit: "1 yoctoNEAR" }, FROZEN);
+
+  const relisted = await minted("relisted");
+  const listArgs = { token_id: relisted.tokenId, price: PRICE };
+  await step(relisted, "listTx", OWNER, "list", listArgs, { deposit: "1 yoctoNEAR", gas: "30 Tgas" });
+  await step(relisted, "delistTx", OWNER, "delist", { token_id: relisted.tokenId }, { deposit: "1 yoctoNEAR", gas: "30 Tgas" });
+  await step(relisted, "rawTx", OWNER, "sign_raw", { token_id: relisted.tokenId, payload: RAW_PAYLOAD }, { deposit: "1 yoctoNEAR" });
+  await step(relisted, "relistTx", OWNER, "list", listArgs, { deposit: "1 yoctoNEAR", gas: "30 Tgas" });
+  const now = await view(CONTRACT, "satchel", { token_id: relisted.tokenId });
+  if (now.listing?.record_version !== "1" || now.record.opaque_signatures !== 1) throw new Error(`unexpected state: ${JSON.stringify(now)}`);
+  const buyArgs = { token_id: relisted.tokenId, record_version: "0", price: PRICE };
+  await refused(relisted, "refusedBuy", BUYER, "buy", buyArgs, { deposit: "1 NEAR", gas: "30 Tgas" }, CHANGED);
+  if (!relisted.payload) {
+    Object.assign(relisted, { payload: RAW_PAYLOAD, price: PRICE, checkedVersion: "0", listedVersion: "1" });
+    save("relisted: done", relisted);
   }
   console.log("\nGALLERY PASS");
 }

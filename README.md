@@ -22,10 +22,11 @@ one of those chains moves with it in one NEAR transaction.
 
 ## See it catch a dirty wallet
 
-Four satchels on testnet show what the report catches. Open
-<https://satchelnft.xyz/#examples>: under "Three real satchels: one clean, two caught" each card
-runs the report in your browser and shows its verdict. Or read any of them from a terminal, with no
-wallet and no key (Node 22 or later):
+Five satchels on testnet show what the report catches and what the contract refuses. Open
+<https://satchelnft.xyz/#examples>: under "Try to cheat the buyer", pick what the seller does. Four
+of the six moves open a satchel left that way, with its report run in your browser; the other two
+show a call the contract refused on chain. Or read any of them from a terminal, with no wallet and
+no key (Node 22 or later):
 
 ```bash
 cd web
@@ -34,14 +35,22 @@ npm run verify -- 5
 ```
 
 You should see `[FAIL] A signed transaction may still be pending` and the verdict `NOT PROVABLE`,
-with exit code 1. Run it for each of the four:
+with exit code 1. Run it for each of the five:
 
 | Satchel | What its owner did | `npm run verify -- <id>` prints |
 |---|---|---|
 | #1 | Sent four transactions on Sepolia from it, all on chain (one reverted, which still spends its nonce) | `PROVABLY CLEAN`, exit 0 |
 | #5 | Had a 10,000 ETH send signed for it and never broadcast it | `[FAIL] A signed transaction may still be pending`, `NOT PROVABLE`, exit 1 |
 | #3 | Approved satchel #2's address, which the same seller owns, to spend its USDC without limit | `[FAIL] An approval is still live`, `NOT PROVABLE`, exit 1 |
+| #6 | Listed, delisted, had a raw 32-byte payload signed, then listed again | `[FAIL] The record can't explain everything signed`, `NOT PROVABLE`, exit 1 |
 | #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, exit 0, and `listed by satchel-nft.testnet` |
+
+The contract refused two moves outright, and both refusals are on chain:
+
+| Move | Call | The contract's answer |
+|---|---|---|
+| Sign while it's listed | the owner of #4 calls `sign_evm` | [`Satchel: signing is frozen while the token is listed`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
+| Change it after the buyer checked | a buyer calls `buy` on #6 naming record version 0, the version before the raw signature | [`Satchel: the signing record changed since you checked it`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv), and the buyer keeps the 1 NEAR |
 
 Satchel #4 can be bought from [its page](https://satchelnft.xyz/satchel/4) with any testnet NEAR
 wallet. If someone has bought it by the time you look, it reads `PROVABLY CLEAN` without the
@@ -209,7 +218,7 @@ You should see `E2E PASS`. To broadcast for real, fund the token's address on Se
 
 ### The demo satchels
 
-[`tools/demo-gallery.mjs`](tools/demo-gallery.mjs) built satchels #2 to #5, with satchel #1
+[`tools/demo-gallery.mjs`](tools/demo-gallery.mjs) built satchels #2 to #6, with satchel #1
 paying for gas from its own address through `sign_evm` (evidence in
 [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json)):
 
@@ -225,6 +234,13 @@ paying for gas from its own address through `sign_evm` (evidence in
 | #4 | `mint` | [`5C2zzM8K…`](https://testnet.nearblocks.io/txns/5C2zzM8KCP5o5RZNtPmXbAiZJ57pGR8KCAHjq7PqQW2c) |
 | #4 | satchel #1 sends it 0.002 ETH | [`5VibfT9k…`](https://testnet.nearblocks.io/txns/5VibfT9ktSxgdau9gw4nJHtjZhUxvS9RMAsEj6zNjFLV), [`0x62b36999…`](https://sepolia.etherscan.io/tx/0x62b36999636a2fc63931f2fa57b997d2a51c4b165d2e64d15c75243b19e64380) |
 | #4 | `list` for 1 NEAR | [`7Q9WxuJ4…`](https://testnet.nearblocks.io/txns/7Q9WxuJ4yfQcsRBgUzWJ37gQxrgZxjWJauz1r4QeXfe6) |
+| #4 | `sign_evm` while listed, refused | [`5ZaKqJUx…`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
+| #6 | `mint` | [`DEhXxjHy…`](https://testnet.nearblocks.io/txns/DEhXxjHy7sCte6tPM43rVJhH1eMACD4K1GYaygpr8HaL) |
+| #6 | `list` for 1 NEAR at record version 0 | [`GoSfXxf7…`](https://testnet.nearblocks.io/txns/GoSfXxf7pgpb8fNCCbiFuxpT6gAYt5LW3Ve49R4oBL3z) |
+| #6 | `delist` | [`8X7vStD8…`](https://testnet.nearblocks.io/txns/8X7vStD8r1AwVqdJfDkhsfiKoj8v5KJubXrhBdtJ35M) |
+| #6 | `sign_raw`: a 32-byte hash, `0x5a09ef56…` | [`4J8Y6WSP…`](https://testnet.nearblocks.io/txns/4J8Y6WSPpW5d8pH6PpBGnC5NDVvuAKLzaDSYwRs1kwzB) |
+| #6 | `list` again for 1 NEAR, now at record version 1 | [`6UNoo28p…`](https://testnet.nearblocks.io/txns/6UNoo28pdrTjDJbnREPLe8k4JNW1xpGVHKwHyZeUzdxG) |
+| #6 | `buy` naming record version 0, refused | [`7HQPu9qe…`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv) |
 
 One send went wrong and stays in the record. The first run gave satchel #1's send to #3 a gas limit
 of 21000, and it [reverted](https://sepolia.etherscan.io/tx/0x362be7cbacc888a7fa9ef121db57163828b298ff5910a193a88ee06178ef073f):
@@ -238,7 +254,10 @@ Satchel #2 was the first pending example and still reads `NOT PROVABLE`, but it 
 gallery: its signed send is only 0.01 ETH, so anyone who sends its address about 0.0101 ETH can
 broadcast that signature and make it clean. Satchel #5's 10,000 ETH send stays open. Two entries in
 the evidence file were written by hand from the run log, `retiredPending` and #3's
-`revertedFunding`; the script records every other step itself.
+`revertedFunding`; the script records every other step itself. One more call failed and is not in
+the file: the first `sign_raw` for #6 passed the payload without its `0x` prefix, the contract
+refused it (`Satchel: payload must start with 0x`) and nothing changed, so the script retried with
+the prefix.
 
 To build your own set, with the two accounts from the end-to-end run in your keychain and the
 second one owning a satchel with Sepolia ETH (`SATCHEL_FUNDER=<its id>`):
@@ -249,7 +268,7 @@ npm ci
 SATCHEL_OWNER=<your-account>.testnet SATCHEL_BUYER=<second-account>.testnet SATCHEL_FUNDER=<id> node demo-gallery.mjs --out gallery.json
 ```
 
-You should see `GALLERY PASS` and three new token ids. The script writes each step to `--out` as it
+You should see `GALLERY PASS` and four new token ids. The script writes each step to `--out` as it
 goes, a signed send before it broadcasts it, so a run that stops partway resumes from there with the
 same `--out`, without minting or signing again.
 
@@ -261,7 +280,7 @@ EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
 
 | Page | What you can do there |
 |---|---|
-| `/` | What Satchel is, live facts about the deployment (contract keys, code hash, MPC signer, supply), and the [demo satchels](#see-it-catch-a-dirty-wallet), each with its report run in your browser |
+| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the [demo satchels](#see-it-catch-a-dirty-wallet) and the refused calls, a sale step by step, a comparison with seed phrases and token-bound accounts, and a link to every transaction behind a claim |
 | `/satchels` | Connect a NEAR wallet, mint a satchel for 0.1 NEAR, see the ones you own |
 | `/satchel/<id>` | The token's address, its balance on the 8 testnets, the clean transfer report; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy |
 | `/market` | The listed satchels, each with its price and the verdict of its report |
@@ -298,9 +317,11 @@ To run it yourself:
    npm run dev
    ```
 
-2. Open <http://localhost:3000>. Under "Three real satchels: one clean, two caught" you should see
-   #1 "Provably clean", #5 and #3 "Not provable", each caught one with the line of the report that
-   decided it, and #4 for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full
+2. Open <http://localhost:3000>. The card at the top should read "Provably clean" for satchel #1.
+   Under "Try to cheat the buyer", "Play fair" shows #1 with all four checks passing; "Keep a signed
+   withdrawal", "Leave an approval behind" and "Sign a raw payload" show #5, #3 and #6 "Not
+   provable", each with the failing check picked out; the last two moves show the contract's refusal.
+   Below them, #4 is for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full
    report: all four checks pass, for the reason [above](#end-to-end-run).
 
 3. Get the same report without a browser:

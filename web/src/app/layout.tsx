@@ -18,9 +18,39 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
+  { href: "/#how", label: "How it works" },
   { href: "/market", label: "Market" },
   { href: "/satchels", label: "Your satchels" },
   { href: "/verify", label: "Verify" },
+  { href: "/#developers", label: "Developers" },
+];
+
+const FOOTER: { title: string; links: { href: string; label: string; external?: boolean }[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { href: "/market", label: "Market" },
+      { href: "/satchels", label: "Mint a satchel" },
+      { href: "/verify", label: "Verify a satchel" },
+      { href: "/#examples", label: "Try to cheat a buyer" },
+    ],
+  },
+  {
+    title: "Proof",
+    links: [
+      { href: nearAccountUrl(NETWORK.contract), label: "The contract on NearBlocks", external: true },
+      { href: NETWORK.build.ciRun, label: "Reproducible build", external: true },
+      { href: `${REPO_URL}/tree/main/deployments`, label: "Evidence files", external: true },
+    ],
+  },
+  {
+    title: "Developers",
+    links: [
+      { href: REPO_URL, label: "Source on GitHub", external: true },
+      { href: `${REPO_URL}#readme`, label: "README", external: true },
+      { href: `${REPO_URL}/blob/main/CHANGELOG.md`, label: "Changelog", external: true },
+    ],
+  },
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -31,14 +61,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="bg-ink px-4 py-1.5 text-center text-xs text-paper/80">
             NEAR testnet. Satchels here sign with the testnet MPC network: never send real funds to their addresses.
           </div>
-          <header className="border-b border-line">
+          <header className="z-40 border-b border-line bg-paper/90 backdrop-blur md:sticky md:top-0">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
                   <img src="/icon.svg" alt="" className="size-7" />
                   Satchel
                 </Link>
-                <nav className="flex gap-4 text-sm text-ink-2">
+                <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
                   {NAV.map((n) => (
                     <Link key={n.href} href={n.href} className="hover:text-ink">
                       {n.label}
@@ -50,17 +80,38 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
           <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
-          <footer className="border-t border-line">
-            <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-4 py-6 text-sm text-muted">
-              <span>Built on NEAR Chain Signatures for the NEAR Hackathon 2026. Not audited.</span>
-              <span className="flex gap-4">
-                <a href={nearAccountUrl(NETWORK.contract)} target="_blank" rel="noreferrer" className="hover:text-ink">
-                  {NETWORK.contract}
-                </a>
-                <a href={REPO_URL} target="_blank" rel="noreferrer" className="hover:text-ink">
-                  Source
-                </a>
-              </span>
+          <footer className="mt-16 border-t border-line bg-paper-2">
+            <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+              <div>
+                <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+                  <img src="/icon.svg" alt="" className="size-7" />
+                  Satchel
+                </Link>
+                <p className="mt-3 max-w-xs text-sm text-ink-2">
+                  An NFT that is a wallet on every EVM chain, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
+                </p>
+                <p className="mt-3 text-sm text-muted">NEAR testnet. Not audited.</p>
+              </div>
+              {FOOTER.map((col) => (
+                <div key={col.title}>
+                  <p className="text-sm font-medium">{col.title}</p>
+                  <ul className="mt-3 space-y-2 text-sm text-ink-2">
+                    {col.links.map((l) => (
+                      <li key={l.href}>
+                        {l.external ? (
+                          <a href={l.href} target="_blank" rel="noreferrer" className="hover:text-ink">
+                            {l.label}
+                          </a>
+                        ) : (
+                          <Link href={l.href} className="hover:text-ink">
+                            {l.label}
+                          </Link>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </footer>
         </WalletProvider>
