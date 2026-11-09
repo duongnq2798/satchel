@@ -30,10 +30,15 @@ Satchel keeps a public, on-chain **signing record** for every token, so a buyer 
    chain, written *before* the signature is requested.
 2. **It classifies every call.** Each `sign_evm` call is exactly one of:
    - a **value transfer** (empty calldata);
-   - an **asset transfer** (ERC-20 `transfer`/`transferFrom`, ERC-721 and ERC-1155
-     `safeTransferFrom`, `safeBatchTransferFrom`, WETH `deposit`/`withdraw`);
+   - an **asset transfer**: ERC-20 `transfer`/`transferFrom`, ERC-721 `transferFrom` and
+     `safeTransferFrom` with no data, ERC-1155 `safeTransferFrom` with a non-zero amount and no
+     data, WETH `deposit`/`withdraw`. A safe transfer *with* data runs the receiver's hook with data
+     the signer chose, so it is not counted as plain;
    - an **approval**, decoded and itemized: ERC-20 `approve` and `increaseAllowance`, ERC-721
      `approve` (each token id its own row), `setApprovalForAll`, Permit2 `approve`;
+   - a **revocation** that grants nothing (`setApprovalForAll(x, false)`, `increaseAllowance(x, 0)`,
+     Permit2 `approve` of 0), logged but not itemized, so cleaning up before a sale never fills the
+     approval list;
    - **anything else** (a multicall, a swap, `transferOwnership`…), counted in
      `unclassified_calls`. Satchel cannot see what such a call left behind, so it does not pretend to.
 3. **Raw signatures are allowed but counted.** `sign_raw` signs any 32-byte payload (a Bitcoin
@@ -51,11 +56,17 @@ these hold:
 |---|---|
 | The contract account cannot sign behind the record | No access keys on the account; code hash equals the reproducible build; not a global contract referenced by account ID; `mpc_contract()` is the canonical signer (`v1.signer` / `v1.signer-prod.testnet`) |
 | No pending signed transaction | For every chain in `record.evm`, the address's nonce at a **finalized** block is above `max_nonce` |
-| No approval left behind | Every row in `record.approvals` is revoked on chain (allowance 0, `getApproved` cleared, operator off, Permit2 allowance 0) |
+| No approval left behind | Every row in `record.approvals` is revoked on chain: allowance 0, operator off, Permit2 allowance 0. An `Approve` row can be ERC-20 or ERC-721; ask the contract (ERC-165) and check `allowance` or `getApproved(arg)` |
 | Nothing the record cannot explain | `opaque_signatures`, `approvals_not_itemized` and `unclassified_calls` are all 0 |
 
 If any of them fails, the honest answer is "not provable", with the reason. Many wallets will be
 used for swaps and DeFi and will not be provably clean; the record says so instead of hiding it.
+
+**What the record cannot cover:** powers built into an asset itself, which need no signature from
+the wallet. A token the seller deployed or can upgrade, a token with a blacklist or clawback, an ENS
+name whose registry controller is still the seller, an ERC-4907 `user`. The record proves what the
+token's key signed; it says nothing about what the assets inside allow their issuers to do. Value
+the assets as you would anywhere else.
 
 ## Contract interface
 
@@ -100,26 +111,32 @@ What the tests pin down:
   single-byte values, the 0x80 boundary, ERC-20 calldata, and maximum values with 600 bytes of data.
 - **Every selector is the keccak of its signature**, computed in the test, so a typo cannot hide.
 - **The attacks the record exists for:** ERC-721 approvals of two token ids stay two rows; a
-  `multicall` is counted as unclassified; a seller who delists, signs and relists cannot complete a
+  `multicall` is counted as unclassified; a safe transfer with data, an ERC-1155 transfer of 0 and
+  a batch transfer are unclassified; revocations never take an approval slot; a seller who delists, signs and relists cannot complete a
   sale against the version the buyer checked; a bounced `nft_transfer_call` voids the listing the
   receiver made while holding the token; a previous owner cannot sign after a transfer.
 
 ## Limits, stated plainly
 
 - **Calls are classified by selector**, assuming the called contract gives that selector its
-  standard meaning. A call can only change state in the contract it calls, so a non-standard
-  contract can only misuse what the wallet holds in that contract.
+  standard meaning. A call runs with the wallet as sender only in the contract it calls; anything
+  that contract calls next sees the contract as sender, and can use only rights the wallet gave it,
+  which the approval check covers. Safe-transfer hooks are the exception, which is why a safe
+  transfer only counts as plain with empty data.
 - **secp256k1 only** (MPC domain 0): EVM chains through `sign_evm`, Bitcoin and anything else only
   through `sign_raw`, which is opaque. No Ed25519 chains (Solana, NEAR) yet.
 - **The MPC network signs**; Satchel cannot sign without it. If a request fails, the record still
   shows the nonce, which makes the record stricter, never looser.
 - **Per-token limits are permanent.** 32 approvals are itemized; more are only counted. Any owner can
   make a token unprovable for every later owner, and the record shows it.
+- **The chain list is fixed.** There is no admin, so `SUPPORTED_CHAINS` cannot gain a new chain or
+  drop a testnet that shuts down. A new chain needs a new contract.
 - **The seller's payment can fail** if the seller deletes their account before it lands; the NEAR then
   stays in the contract, which has no admin to return it.
 - `listings` pages can shift between calls, because removing a listing moves the last one into its slot.
-- Not audited. An internal adversarial review found two ways to slip an approval past the first
-  version of the record; both are fixed and covered by tests above.
+- Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
+  version of the record, then two smaller gaps in the fix; all four are fixed and covered by the
+  tests above.
 
 ## Other project by the same builder
 

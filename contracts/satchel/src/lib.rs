@@ -252,6 +252,7 @@ impl Contract {
         let (class_name, approval, selector) = match &class {
             CallClass::ValueTransfer => ("value_transfer", None, None),
             CallClass::AssetTransfer => ("asset_transfer", None, None),
+            CallClass::Revocation => ("revocation", None, None),
             CallClass::Approval(a) => (
                 "approval",
                 Some(ApprovalRecord {

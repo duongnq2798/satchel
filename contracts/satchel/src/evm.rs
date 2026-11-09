@@ -107,18 +107,23 @@ pub struct DecodedApproval {
 }
 
 /// Calls that move assets out now and leave no standing right behind, by their standard meaning:
-/// ERC-20 `transfer` / `transferFrom`, ERC-721 `safeTransferFrom` (both forms), ERC-1155
-/// `safeTransferFrom` / `safeBatchTransferFrom`, and WETH `deposit` / `withdraw`.
-pub const ASSET_TRANSFER_SELECTORS: [[u8; 4]; 8] = [
+/// ERC-20 `transfer` / `transferFrom` (`transferFrom` is also ERC-721's), ERC-721
+/// `safeTransferFrom(address,address,uint256)`, and WETH `deposit` / `withdraw`.
+pub const ASSET_TRANSFER_SELECTORS: [[u8; 4]; 5] = [
     [0xa9, 0x05, 0x9c, 0xbb],
     [0x23, 0xb8, 0x72, 0xdd],
     [0x42, 0x84, 0x2e, 0x0e],
-    [0xb8, 0x8d, 0x4f, 0xde],
-    [0xf2, 0x42, 0x43, 0x2a],
-    [0x2e, 0xb2, 0xc2, 0xd6],
     [0xd0, 0xe3, 0x0d, 0xb0],
     [0x2e, 0x1a, 0x7d, 0x4d],
 ];
+
+/// ERC-721 `safeTransferFrom(address,address,uint256,bytes)`. The receiver's hook runs with
+/// `from` = the wallet and data the signer chose, so only an empty `bytes` counts as a plain
+/// asset transfer.
+pub const SELECTOR_ERC721_SAFE_TRANSFER_WITH_DATA: [u8; 4] = [0xb8, 0x8d, 0x4f, 0xde];
+/// ERC-1155 `safeTransferFrom(address,address,uint256,uint256,bytes)`: a plain asset transfer only
+/// with a non-zero amount and empty `bytes`. Batch transfers are never classified.
+pub const SELECTOR_ERC1155_SAFE_TRANSFER: [u8; 4] = [0xf2, 0x42, 0x43, 0x2a];
 
 /// What a transaction does, as far as a buyer's clean-transfer check is concerned. Every call
 /// falls in exactly one class; anything Satchel cannot classify is counted, never ignored.
@@ -126,10 +131,15 @@ pub const ASSET_TRANSFER_SELECTORS: [[u8; 4]; 8] = [
 pub enum CallClass {
     /// Empty calldata: sends `value` and nothing else.
     ValueTransfer,
-    /// One of `ASSET_TRANSFER_SELECTORS`.
+    /// One of `ASSET_TRANSFER_SELECTORS`, or a safe transfer with empty `bytes` (and, for
+    /// ERC-1155, a non-zero amount).
     AssetTransfer,
     /// One of the four approval calls, decoded so the buyer can check it was revoked.
     Approval(DecodedApproval),
+    /// An approval call that grants nothing: `setApprovalForAll(x, false)`, `increaseAllowance(x, 0)`
+    /// or a Permit2 `approve` of 0. Not itemized, so cleaning up never fills the approval list.
+    /// (`approve(x, 0)` is still itemized: on an ERC-721 contract it approves token id 0.)
+    Revocation,
     /// Anything else (a multicall, a swap, `transferOwnership`…). It may leave a standing right
     /// Satchel cannot see, so the record counts it.
     Unclassified([u8; 4]),
@@ -176,6 +186,20 @@ impl Eip1559Tx {
         if ASSET_TRANSFER_SELECTORS.contains(&selector) {
             return CallClass::AssetTransfer;
         }
+        let args = &data[4..];
+        let plain = match selector {
+            SELECTOR_ERC721_SAFE_TRANSFER_WITH_DATA => Some(bytes_arg_is_empty(args, 3)),
+            SELECTOR_ERC1155_SAFE_TRANSFER => Some(
+                bytes_arg_is_empty(args, 4)
+                    && args.get(96..128).is_some_and(|w| w.iter().any(|b| *b != 0)),
+            ),
+            _ => None,
+        };
+        match plain {
+            Some(true) => return CallClass::AssetTransfer,
+            Some(false) => return CallClass::Unclassified(selector),
+            None => {}
+        }
         let kind = match selector {
             SELECTOR_APPROVE => ApprovalKind::Approve,
             SELECTOR_INCREASE_ALLOWANCE => ApprovalKind::IncreaseAllowance,
@@ -189,6 +213,16 @@ impl Eip1559Tx {
                 .unwrap_or_else(|| env::panic_str("Satchel: approval calldata is too short"))
         };
         let address = |w: [u8; 32]| -> [u8; 20] { w[12..].try_into().unwrap() };
+        let grants_nothing = match kind {
+            ApprovalKind::Approve => false,
+            ApprovalKind::IncreaseAllowance | ApprovalKind::SetApprovalForAll => word(1) == [0; 32],
+            ApprovalKind::Permit2Approve => word(2) == [0; 32],
+        };
+        if grants_nothing {
+            // Still decode the spender words, so short calldata is refused the same way.
+            let _ = (word(0), word(1));
+            return CallClass::Revocation;
+        }
         CallClass::Approval(match kind {
             ApprovalKind::Permit2Approve => DecodedApproval {
                 kind,
@@ -209,6 +243,21 @@ impl Eip1559Tx {
     pub fn data_hash(&self) -> [u8; 32] {
         env::keccak256_array(decode_hex(&self.data, "data"))
     }
+}
+
+/// True when the ABI `bytes` argument whose offset is word `i` of `args` is empty. Malformed or
+/// out-of-range offsets return false, which leaves the call unclassified.
+fn bytes_arg_is_empty(args: &[u8], i: usize) -> bool {
+    let word_as_usize = |at: usize| -> Option<usize> {
+        let w = args.get(at..at.checked_add(32)?)?;
+        if w[..24].iter().any(|b| *b != 0) {
+            return None;
+        }
+        usize::try_from(u64::from_be_bytes(w[24..].try_into().ok()?)).ok()
+    };
+    word_as_usize(32 * i)
+        .and_then(word_as_usize)
+        .is_some_and(|len| len == 0)
 }
 
 fn rlp_uint(out: &mut Vec<u8>, value: u128) {

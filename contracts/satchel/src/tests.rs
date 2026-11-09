@@ -792,15 +792,157 @@ fn asset_transfer_selectors_are_the_keccak_of_their_signatures() {
         "transfer(address,uint256)",
         "transferFrom(address,address,uint256)",
         "safeTransferFrom(address,address,uint256)",
-        "safeTransferFrom(address,address,uint256,bytes)",
-        "safeTransferFrom(address,address,uint256,uint256,bytes)",
-        "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)",
         "deposit()",
         "withdraw(uint256)",
     ];
+    assert_eq!(sigs.len(), evm::ASSET_TRANSFER_SELECTORS.len());
     for (sig, sel) in sigs.iter().zip(evm::ASSET_TRANSFER_SELECTORS) {
         assert_eq!(env::keccak256_array(sig.as_bytes())[..4], sel, "{sig}");
     }
+    for (sig, sel) in [
+        (
+            "safeTransferFrom(address,address,uint256,bytes)",
+            evm::SELECTOR_ERC721_SAFE_TRANSFER_WITH_DATA,
+        ),
+        (
+            "safeTransferFrom(address,address,uint256,uint256,bytes)",
+            evm::SELECTOR_ERC1155_SAFE_TRANSFER,
+        ),
+    ] {
+        assert_eq!(env::keccak256_array(sig.as_bytes())[..4], sel, "{sig}");
+    }
+}
+
+/// The class `sign_evm` logged for `data` sent to `to`, and the token's record afterwards.
+fn class_of(c: &mut Contract, to: &str, data: String) -> String {
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), call(to, data));
+    let event: Value =
+        serde_json::from_str(&get_logs().pop().unwrap()["EVENT_JSON:".len()..]).unwrap();
+    event["data"][0]["class"].as_str().unwrap().to_string()
+}
+
+fn abi_bytes(content: &[u8]) -> String {
+    let mut padded = content.to_vec();
+    padded.resize(content.len().div_ceil(32) * 32, 0);
+    format!("{:064x}{}", content.len(), evm::encode_hex(&padded))
+}
+
+const COLLECTION: &str = "0x3333333333333333333333333333333333333333";
+
+#[test]
+fn erc721_safe_transfer_with_data_is_plain_only_when_the_data_is_empty() {
+    let mut c = setup();
+    let head = format!(
+        "0xb88d4fde{}{}{:064x}{:064x}",
+        word_address(0xaa),
+        word_address(0xbb),
+        7,
+        0x80
+    );
+    assert_eq!(
+        class_of(&mut c, COLLECTION, format!("{head}{}", abi_bytes(b""))),
+        "asset_transfer"
+    );
+    // Non-empty data reaches the receiver's hook with from = the wallet.
+    assert_eq!(
+        class_of(&mut c, COLLECTION, format!("{head}{}", abi_bytes(b"\x01"))),
+        "unclassified"
+    );
+    // An offset pointing past the calldata cannot be read: unclassified, not plain.
+    let bad = format!(
+        "0xb88d4fde{}{}{:064x}{:064x}",
+        word_address(0xaa),
+        word_address(0xbb),
+        7,
+        0x4000
+    );
+    assert_eq!(class_of(&mut c, COLLECTION, bad), "unclassified");
+    assert_eq!(c.signing_record("1".to_string()).unclassified_calls, 2);
+}
+
+#[test]
+fn erc1155_safe_transfer_is_plain_only_with_an_amount_and_no_data() {
+    let mut c = setup();
+    let head = |amount: u64| {
+        format!(
+            "0xf242432a{}{}{:064x}{amount:064x}{:064x}",
+            word_address(0xaa),
+            word_address(0xbb),
+            7,
+            0xa0
+        )
+    };
+    assert_eq!(
+        class_of(&mut c, COLLECTION, format!("{}{}", head(3), abi_bytes(b""))),
+        "asset_transfer"
+    );
+    assert_eq!(
+        class_of(&mut c, COLLECTION, format!("{}{}", head(0), abi_bytes(b""))),
+        "unclassified"
+    );
+    assert_eq!(
+        class_of(
+            &mut c,
+            COLLECTION,
+            format!("{}{}", head(3), abi_bytes(b"hi"))
+        ),
+        "unclassified"
+    );
+    // safeBatchTransferFrom is never classified.
+    let batch = format!("0x2eb2c2d6{}", "00".repeat(160));
+    assert_eq!(class_of(&mut c, COLLECTION, batch), "unclassified");
+}
+
+#[test]
+fn revocations_are_logged_but_never_take_an_approval_slot() {
+    let mut c = setup();
+    let off = format!("{:064x}", 0);
+    assert_eq!(
+        class_of(
+            &mut c,
+            COLLECTION,
+            format!("0xa22cb465{}{off}", word_address(0xcd))
+        ),
+        "revocation"
+    );
+    assert_eq!(
+        class_of(
+            &mut c,
+            USDC,
+            format!("0x39509351{}{off}", word_address(0xcd))
+        ),
+        "revocation"
+    );
+    let permit2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+    let zero = format!(
+        "0x87517c45{}{}{off}{:064x}",
+        word_address(0x01),
+        word_address(0xef),
+        1
+    );
+    assert_eq!(class_of(&mut c, permit2, zero), "revocation");
+    // approve(x, 0) stays itemized: on an ERC-721 contract it approves token id 0.
+    assert_eq!(
+        class_of(
+            &mut c,
+            COLLECTION,
+            format!("0x095ea7b3{}{off}", word_address(0xcd))
+        ),
+        "approval"
+    );
+    let r = c.signing_record("1".to_string());
+    assert_eq!(r.approvals.len(), 1);
+    assert_eq!(r.approvals_not_itemized, 0);
+    assert_eq!(r.unclassified_calls, 0);
+}
+
+#[test]
+#[should_panic(expected = "Satchel: approval calldata is too short")]
+fn a_short_revocation_is_refused_like_a_short_approval() {
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), call(COLLECTION, "0xa22cb465".to_string()));
 }
 
 #[test]
