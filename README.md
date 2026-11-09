@@ -144,12 +144,24 @@ the real MPC network. Its last run (evidence in
 
 **This run also shows the record catching what it exists for.** The first owner's nonce-0
 signature was never broadcast (the address held no Sepolia ETH), and the signed transaction is in
-the evidence file. Anyone holding it can still broadcast it once the address is funded, so token 1
-is **not** provably clean yet: Sepolia's nonce for the address is 0 and the record's `max_nonce` is
-0. It passes that check once any transaction at nonce 0 is final on Sepolia, the old one included.
-A buyer cannot count on voiding it with a transaction of their own: the old signature is public in
-the NEAR receipt, so the seller can broadcast it the moment the address is funded. That is why the
-check has to pass before a sale, not after.
+the evidence file. While it was open, anyone holding it could broadcast it once the address was
+funded, so the report for token 1 said **not provable**: Sepolia's nonce for the address was 0 and
+the record's `max_nonce` was 0. A buyer cannot count on voiding such a signature with a transaction
+of their own: it is public in the NEAR receipt, so a seller can broadcast it the moment the address
+is funded. That is why the check has to pass before a sale, not after.
+
+Then the address was funded, and its current owner sent a transaction at nonce 0 through
+`sign_evm` (evidence in [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json)):
+
+| Step | Result | Transaction |
+|---|---|---|
+| `sign_evm` by `buyer.satchel-nft.testnet`, Sepolia, nonce 0 | record version 3, `max_nonce` still 0 | [`27myw3U1…`](https://testnet.nearblocks.io/txns/27myw3U1iMmPvvGajeao1mqPaoqKu3C6SJQt7VL6FRCd) |
+| broadcast on Sepolia | 1 wei to `0x…dEaD`, success, block 12094728 | [`0x43c37e67…`](https://sepolia.etherscan.io/tx/0x43c37e67eed3c849acfc4b3f525a762d9c862c9fec017b0391c49ee2f89d6965) |
+
+Right after the broadcast the report said "could not confirm": the nonce was spent, but only in a
+block Sepolia had not finalized. Once that block was final, the address's nonce (1) was above every
+nonce ever signed for it (0), so every earlier signature was spent or void, and token 1 reads
+**provably clean**.
 
 To run it yourself, put two testnet accounts in the legacy keychain (`~/.near-credentials`) and:
 
@@ -208,8 +220,8 @@ To run it:
    ```
 
 2. Open <http://localhost:3000/satchel/1>. You should see satchel #1's address, its testnet
-   balances and its report: three checks pass and "No signed transaction is still pending" fails,
-   for the reason [above](#end-to-end-run).
+   balances and its report: all four checks pass and the verdict is "Provably clean", for the
+   reason [above](#end-to-end-run).
 
 3. Get the same report without a browser:
 
@@ -217,7 +229,7 @@ To run it:
    npm run verify -- 1
    ```
 
-   It prints each check, the verdict (`NOT PROVABLE` for token 1) and the RPCs it read from, and
+   It prints each check, the verdict (`PROVABLY CLEAN` for token 1) and the RPCs it read from, and
    exits 0 only when the satchel is provably clean.
 
 4. Read from nodes you trust. The report is only as honest as its RPCs: one that lies about a
