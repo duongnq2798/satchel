@@ -4,7 +4,8 @@ name: Web
 on:
   push:
     branches: [main, dev]
-    paths: ["web/**", ".github/workflows/web.yml"]
+    # The app runs on packages/satchel-nft, so a change there rebuilds it too.
+    paths: ["web/**", "packages/**", "package.json", "package-lock.json", ".github/workflows/web.yml"]
   workflow_call:
 
 defaults:
@@ -22,8 +23,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: package-lock.json
+      # One lockfile at the root installs both workspaces: the app and the package it runs on.
       - run: npm ci
+        working-directory: .
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

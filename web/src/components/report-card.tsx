@@ -1,7 +1,6 @@
 "use client";
 
-import { REPO_URL } from "@/lib/config";
-import type { Report } from "@/lib/report";
+import { REPO_URL, type Report } from "satchel-nft";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, StatusIcon, VERDICT } from "./ui";
 

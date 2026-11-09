@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CHAINS, TESTNET } from "@/lib/config";
+import { CHAINS, type Report, TESTNET } from "satchel-nft";
 import { HANDOVER } from "@/lib/copy";
-import type { Report } from "@/lib/report";
 import { useReport } from "../report-checker";
 import { VERDICT } from "../ui";
 

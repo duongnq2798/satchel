@@ -1,7 +1,7 @@
-import { type Network, type NetworkId, accountOnNetwork } from "./config";
-import { viewAccount } from "./near";
-import { type Check, contractCheck, contractFacts } from "./report";
-import type { WalletTx } from "./satchel";
+import { type Network, type NetworkId, accountOnNetwork, isAccountId } from "./config.js";
+import { viewAccount } from "./near.js";
+import { type Check, contractCheck, contractFacts } from "./report.js";
+import type { WalletTx } from "./satchel.js";
 
 /**
  * Refuses a transaction the page should never sign: no account, an account from the other network,
@@ -56,9 +56,6 @@ export async function assertDeployment(net: Network): Promise<void> {
   if (check.status !== "pass") throw new Error(`${net.contract} doesn't pass the contract check: ${check.lines.join(". ")}`);
 }
 
-/** A NEAR account id: lowercase letters, digits, `-` and `_` between them, parts joined by dots. */
-const ACCOUNT_ID = /^(?:[a-z\d]+[-_])*[a-z\d]+(?:\.(?:[a-z\d]+[-_])*[a-z\d]+)*$/;
-
 /**
  * Refuses a transfer receiver that would lose the NFT: a malformed name, an account that doesn't
  * exist on `net` (anyone could register it later, or no one ever can), or an account that can never
@@ -66,7 +63,7 @@ const ACCOUNT_ID = /^(?:[a-z\d]+[-_])*[a-z\d]+(?:\.(?:[a-z\d]+[-_])*[a-z\d]+)*$/
  */
 export async function assertReceiver(net: Network, receiver: string): Promise<void> {
   const example = net.id === "testnet" ? "friend.testnet" : "friend.near";
-  if (receiver.length < 2 || receiver.length > 64 || !ACCOUNT_ID.test(receiver)) {
+  if (!isAccountId(receiver)) {
     throw new Error(`Enter the receiver's NEAR account, like ${example}`);
   }
   if (receiver === net.contract || receiver === net.mpc) throw new Error(`${receiver} can never transfer a satchel out`);

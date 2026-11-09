@@ -1,0 +1,59 @@
+name: Package
+
+# Pull requests run this through ci.yml, on every pull request, whatever it touches.
+on:
+  push:
+    branches: [main, dev]
+    paths: ["packages/**", "package.json", "package-lock.json", ".github/workflows/package.yml"]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck, unit tests, pack and run the tarball
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The oldest Node the package's engines field allows.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run typecheck -w satchel-nft
+      - run: npm test -w satchel-nft
+      - name: Pack what npm publish would publish
+        run: |
+          npm pack -w satchel-nft --pack-destination "$RUNNER_TEMP"
+          tar -tzf "$RUNNER_TEMP"/satchel-nft-*.tgz | sort | tee "$RUNNER_TEMP/files.txt"
+          # Only the command's launcher, the built package, its README, LICENSE and package.json:
+          # no tests, no sources.
+          if grep -vE '^package/(bin/satchel-nft\.js|dist/[a-z0-9-]+\.(js|d\.ts)|README\.md|LICENSE|package\.json)$' "$RUNNER_TEMP/files.txt"; then
+            echo "::error::The tarball holds files it should not"
+            exit 1
+          fi
+      - name: Install the tarball in an empty project and run it
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir clean && cd clean
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund ../satchel-nft-*.tgz
+          npx satchel-nft --version
+          npx satchel-nft --help | head -1
+          node --input-type=module -e "
+            const m = await import('satchel-nft');
+            for (const name of ['buildReport', 'satchel', 'satchelTx', 'tokenAddress', 'sendFromSatchel']) {
+              if (typeof m[name] !== 'function') throw new Error('satchel-nft does not export ' + name);
+            }
+            console.log('exports ok');
+          "
+          # Bad input exits 2 before any read, so this needs no network.
+          set +e
+          npx satchel-nft verify not-a-number
+          code=$?
+          set -e
+          test "$code" -eq 2

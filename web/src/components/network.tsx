@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { type ReactNode, createContext, useContext } from "react";
-import { type Network, TESTNET, networkForPath } from "@/lib/config";
+import { type Network, TESTNET } from "satchel-nft";
+import { networkForPath } from "@/lib/routes";
 
 const NetworkContext = createContext<Network>(TESTNET);
 

@@ -2,8 +2,8 @@
 
 What Satchel protects, who might attack it, what stops each attack, and what is left. It covers the
 contract (commit `87148c6`) deployed at `v1.satchel-nft.testnet` and at `v1.satchel-nft.near` on
-mainnet, the clean transfer report (in the web app and `npm run verify`) and the hosted app at
-<https://satchelnft.xyz>. Every defense names the code that enforces it and, where one exists, the
+mainnet, the clean transfer report and the transactions in the package `satchel-nft` (which the
+web app runs on, and which is also a CLI), and the hosted app at <https://satchelnft.xyz>. Every defense names the code that enforces it and, where one exists, the
 transaction on testnet that shows it working.
 [AGENTS.md](../AGENTS.md) has the commands to check them.
 
@@ -38,7 +38,7 @@ transaction on testnet that shows it working.
   go back.
 - **The pinned build image.** The reproducible build runs in
   `sourcescan/cargo-near:0.22.0-rust-1.99.1`, pinned by digest.
-- **The RPCs the reader picks.** The report names them; `npm run verify` can use your own.
+- **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.
 
 ## Attacks and what stops them
 
@@ -68,8 +68,8 @@ transaction on testnet that shows it working.
 | # | Attack | What stops it | Shown on testnet | What is left |
 |---|---|---|---|---|
 | 11 | Redeploy different code, or sign as the contract account | The account's only key was deleted before the first mint, so no one can sign as it. Check 1 requires 0 access keys | `6FYx6hV5…` deleted the key; on mainnet `Dw29Zbe…`, with `nft_total_supply()` 0 at that block | |
-| 11a | Register the contract's name before it is deployed, or deploy other code there before it is locked, so the app hands out addresses that someone else's code signs for | The app signs nothing for a network's contract and shows no address derived from it until check 1 passes there: the account exists, runs the build, has no keys and signs through the canonical MPC contract (`assertDeployment` in `web/src/lib/guard.ts`). `tools/deploy-mainnet.sh` stops if a name exists without its key in the deployer's keychain | `node scripts/check-claims.mjs --network mainnet` | A new contract name (a `v2`) has the same window until it is locked; the app's check covers it |
-| 12 | Deploy code other than the published source | Check 1 requires the code hash to equal the one pinned in `web/src/lib/config.ts`, which comes from the reproducible CI build of `87148c6`. A global contract passes only if it is referenced by that same hash; one referenced by account is refused, since its owner could replace it. `check-claims.mjs` also checks that the NEP-330 metadata names that commit and the pinned image | `node scripts/check-claims.mjs`, and with `--network mainnet` | Trust in the pinned Docker image |
+| 11a | Register the contract's name before it is deployed, or deploy other code there before it is locked, so the app hands out addresses that someone else's code signs for | The app signs nothing for a network's contract and shows no address derived from it until check 1 passes there: the account exists, runs the build, has no keys and signs through the canonical MPC contract (`assertDeployment` in `packages/satchel-nft/src/guard.ts`; the `satchel-nft` CLI runs it too). `tools/deploy-mainnet.sh` stops if a name exists without its key in the deployer's keychain | `node scripts/check-claims.mjs --network mainnet` | A new contract name (a `v2`) has the same window until it is locked; the app's check covers it |
+| 12 | Deploy code other than the published source | Check 1 requires the code hash to equal the one pinned in `packages/satchel-nft/src/config.ts`, which comes from the reproducible CI build of `87148c6`. A global contract passes only if it is referenced by that same hash; one referenced by account is refused, since its owner could replace it. `check-claims.mjs` also checks that the NEP-330 metadata names that commit and the pinned image | `node scripts/check-claims.mjs`, and with `--network mainnet` | Trust in the pinned Docker image |
 | 13 | Initialize the contract first, with a fake MPC contract | `new` is `#[private]` and ran in the same transaction as the deploy. Check 1 requires `mpc_contract()` to be the canonical signer | `BeoXbii9…` refused: `Method new is private` | |
 | 14 | Add an admin later | There is no admin and no upgrade method | | The chain list cannot change either: a new chain needs a new contract |
 
@@ -80,19 +80,22 @@ transaction on testnet that shows it working.
 | 15 | Two buyers race for the same satchel | The first `buy` removes the listing. The second panics with `token is not listed`, and NEAR refunds its deposit | |
 | 16 | Underpay, or the seller buys their own listing | `buy` requires a deposit of at least the price and refuses the seller; any excess is refunded | |
 | 17 | The seller's payment fails | The NFT moves in the same receipt; the payment is a transfer receipt. If the seller deleted their account, the transfer fails | The NEAR then stays in the contract, which has no admin to return it |
-| 17a | An owner transfers the NFT to a mistyped or unregistered name, which anyone could register later, or to a name no one can ever own | The app refuses a receiver that doesn't exist on the network, and the contract and MPC contract themselves (`assertReceiver` in `web/src/lib/guard.ts`). The contract takes any name | A transfer made outside the app, with the CLI or another wallet, gets no such check |
+| 17a | An owner transfers the NFT to a mistyped or unregistered name, which anyone could register later, or to a name no one can ever own | The app refuses a receiver that doesn't exist on the network, and the contract and MPC contract themselves (`assertReceiver` in `packages/satchel-nft/src/guard.ts`), and so does `satchel-nft transfer`. The contract takes any name | A transfer made another way, with the near CLI or another wallet, gets no such check |
 
 ### The report
 
 | # | Attack | What stops it | What is left |
 |---|---|---|---|
-| 18 | An EVM RPC lies about a nonce or an allowance | Reads are pinned to a finalized block; every EVM RPC must answer with the chain id it is configured for; the report names every RPC it used; `npm run verify` takes `NEAR_RPC` and `RPC_<chain id>` | No comparison of several RPCs and no storage proofs yet. A lying RPC you chose can make a satchel look clean |
+| 18 | An EVM RPC lies about a nonce or an allowance | Reads are pinned to a finalized block; every EVM RPC must answer with the chain id it is configured for; the report names every RPC it used; the `satchel-nft` CLI takes `NEAR_RPC` and `RPC_<chain id>` | No comparison of several RPCs and no storage proofs yet. A lying RPC you chose can make a satchel look clean |
 | 19 | An RPC is down, or a chain is not configured | That check reads "unknown", never "pass", and the verdict becomes "could not check everything" | A satchel with history on a testnet that shuts down can never be provably clean again |
 | 20 | A chain reorganizes after the nonce was read | Nonces and allowances are read at the chain's finalized block | |
-| 21 | The hosted web app is changed to show a false report | Running the report from source with `npm run verify`, against RPCs you pick. The wallet shows the `buy` call and its deposit before you sign, so the price cannot change unseen. The record-version pin does not help here: the app chooses the version it passes | A buyer who trusts only the hosted page trusts whoever deploys it |
+| 21 | The hosted web app is changed to show a false report | Running the report from source with `satchel-nft verify`, against RPCs you pick. The wallet shows the `buy` call and its deposit before you sign, so the price cannot change unseen. The record-version pin does not help here: the app chooses the version it passes | A buyer who trusts only the hosted page trusts whoever deploys it |
 | 21a | The hosted web app builds a different call than it shows: another `sign_evm` transaction, another `nft_transfer` receiver | The wallet shows the method, its arguments and the deposit before the owner signs. The app is open source and built by Vercel from `main` | Owners who don't read the wallet's prompt trust the deployment. Wallet scripts load from their publishers' URLs (`wallet-manifest.json`), so a publisher can change them |
 | 21b | A chain splits and both sides keep the same chain id | Nothing: an EIP-1559 signature is valid on any network with the chain id it names, and the report reads one RPC per chain id | A signature could be replayed on a fork the report does not read |
-| 21c | The app mixes networks: signs with an account, a report or a contract from the other network | The network comes from the page's path and is passed to every read and transaction. Wallet sessions and reports are kept per network; the wallet refuses an account from the other network and any receiver but that network's contract; `buy` refuses a report read on the other network; a link to the other network loads a new page | `assertTxFor` in `guard.ts`, tests in `guard.test.ts` and `config.test.ts` |
+| 21c | The app mixes networks: signs with an account, a report or a contract from the other network | The network comes from the page's path and is passed to every read and transaction. Wallet sessions and reports are kept per network; the wallet refuses an account from the other network and any receiver but that network's contract; `buy` refuses a report read on the other network; a link to the other network loads a new page | `assertTxFor` in `guard.ts`, tests in `guard.test.ts` and `web/src/lib/routes.test.ts` |
+| 21d | The near CLI that `satchel-nft` signs with signs a different transaction than the one asked for, or a program planted as `near` runs instead | `satchel-nft` runs the near CLI by its absolute path: `--near-cli`, `$NEAR_CLI`, or `near` found in PATH's absolute folders only (given a bare name, Windows would run a `near.exe` from the current folder first), and names that path before you agree. It asks the near CLI only to sign (`display`), decodes the signed transaction, and compares its signer, receiver, method, arguments, gas and deposit with what it asked for. A difference, a second action, a V1 transaction, a byte order mark or trailing bytes stops it before anything is sent. It then shows the transaction and sends only after you type `yes`, or with `--yes`; input that ends before an answer is a no (`resolveNearCli`, `decodeSignedTx`, `assertSignedAsAsked` in `packages/satchel-nft/src/near-cli.ts`, tests in `near-cli.test.ts`) | A malicious `near` binary in a folder on your PATH has your key and can send anything by itself. The check catches a mismatched or mistaken one, not a hostile one |
+| 21e | A NEAR RPC answers about another token, or reports a transaction as done before it is | The token view must name the id asked for and the path `satchel/<id>`, or nothing is built from it (`satchel(net).get`). An outcome counts only once its status is final, `SuccessValue` or `Failure` (`finished` in `near.ts`). A transaction the CLI sent but couldn't read back exits 3 with its hash, so a script doesn't send it twice (`OutcomeUnknown`) | A satchel's EVM address comes from the MPC contract's `derived_public_key` view, through that one NEAR RPC: a lying RPC could show another address after a mint, or one with a clean history in a report. Deriving it locally from the MPC network's root key is not done yet |
+| 21f | An EVM RPC inflates the fee or the nonce of a send from the CLI | Before you agree, the CLI shows the most the fees can reach and the nonce the contract will record; the balance must cover the value and those fees. A broadcast that may have gone through exits 3, with its hash and the nonce whose signature is now public | With `--yes`, nothing caps the fee or checks the nonce against the record, so a lying RPC can spend the balance on fees. Use your own node with `RPC_<chain id>`, or leave out `--yes` |
 
 ### Storage and spam
 
@@ -126,5 +129,10 @@ transaction on testnet that shows it working.
 9. A seller's payment lost if they delete their account before it lands, and an NFT sent outside
    the app to a name that doesn't exist (row 17a).
 10. No admin, so stuck NEAR and the chain list cannot be changed.
-11. Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
+11. A satchel's address read through one NEAR RPC, and, for a CLI send with `--yes`, the fee and the
+    nonce read from one EVM RPC (rows 21e, 21f).
+12. Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
     version of the record, then two smaller gaps in the fix. All four are fixed and covered by tests.
+    A third, of the `satchel-nft` CLI's signing, found no way to make it send another transaction
+    than the one it shows. Of its findings on how it finds the near CLI, what it believes from an RPC
+    and how it ends when an outcome is unknown, those not fixed are rows 21e and 21f.

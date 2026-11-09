@@ -1,6 +1,6 @@
 "use client";
 
-import { assertDeployment } from "@/lib/guard";
+import { assertDeployment } from "satchel-nft";
 import { useNetwork } from "./network";
 import { Button, errorMessage } from "./ui";
 import { useAsync } from "./use-async";

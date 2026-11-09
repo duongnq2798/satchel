@@ -1,8 +1,6 @@
 "use client";
 
-import { CHAINS, nearAccountUrl } from "@/lib/config";
-import { accessKeyCount, viewAccount } from "@/lib/near";
-import { satchel } from "@/lib/satchel";
+import { CHAINS, accessKeyCount, nearAccountUrl, satchel, viewAccount } from "satchel-nft";
 import { useNetwork } from "./network";
 import { useAsync } from "./use-async";
 

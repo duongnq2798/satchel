@@ -4,6 +4,7 @@ import {
   type PublicClient,
   type TransactionSerializableEIP1559,
   createPublicClient,
+  formatEther,
   getAddress,
   http,
   keccak256,
@@ -11,8 +12,8 @@ import {
   serializeTransaction,
   toHex,
 } from "viem";
-import { type ChainInfo, type Network, chainInfo } from "./config";
-import { view } from "./near";
+import { type ChainInfo, type Network, chainInfo } from "./config.js";
+import { view } from "./near.js";
 
 const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
@@ -216,4 +217,13 @@ export async function l1Fee(tx: EvmTx): Promise<bigint> {
 /** Most the transaction can cost the sender: gas at the fee cap, plus the value, plus any L1 fee. */
 export function maxCost(tx: EvmTx, extraFee = 0n): bigint {
   return tx.gas * tx.maxFeePerGas + tx.value + extraFee;
+}
+
+/** A native balance in whole units, to 5 decimals: "0.00184", "< 0.00001", "0". */
+export function formatBalance(wei: bigint): string {
+  if (wei === 0n) return "0";
+  const text = formatEther(wei);
+  const [whole, fraction = ""] = text.split(".");
+  const short = fraction.slice(0, 5).replace(/0+$/, "");
+  return short ? `${whole}.${short}` : whole === "0" ? "< 0.00001" : whole;
 }

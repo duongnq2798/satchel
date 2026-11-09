@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { NetworkProvider } from "@/components/network";
 import { NetLink, NetworkBanner, SiteHeader } from "@/components/site-header";
 import { WalletProvider } from "@/components/wallet";
-import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "@/lib/config";
+import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "satchel-nft";
 import "./globals.css";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"] });

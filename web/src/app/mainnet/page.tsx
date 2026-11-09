@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LiveStats } from "@/components/live-stats";
 import { NetLink } from "@/components/site-header";
-import { CHAINS, MAINNET, appPath } from "@/lib/config";
+import { CHAINS, MAINNET } from "satchel-nft";
+import { appPath } from "@/lib/routes";
 
 export const metadata: Metadata = { title: "Satchel on NEAR mainnet" };
 

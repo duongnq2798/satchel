@@ -1,7 +1,7 @@
 import type { PublicClient } from "viem";
 import { describe, expect, it } from "vitest";
-import { approvalLiveness } from "./approvals";
-import type { ApprovalRecord } from "./near";
+import { approvalLiveness } from "./approvals.js";
+import type { ApprovalRecord } from "./near.js";
 
 const WALLET = "0x96DA1468E95Ab31A698891f0150095f86b5a282B";
 const SPENDER = "0x000000000022D473030F116dDEE9F6B43aC78BA3";

@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CHAINS, chainInfo, nearAccountUrl, nearTxUrl } from "@/lib/config";
-import { tokenAddress } from "@/lib/evm";
-import { buildReport } from "@/lib/report";
-import { satchel } from "@/lib/satchel";
+import { CHAINS, buildReport, chainInfo, nearAccountUrl, nearTxUrl, satchel, tokenAddress } from "satchel-nft";
 import { Balances } from "./balances";
 import { DeploymentNote, useDeployment } from "./deployment";
 import { useNetwork } from "./network";

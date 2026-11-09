@@ -1,8 +1,7 @@
 "use client";
 
 import { type ReactNode, createContext, useContext, useMemo, useRef } from "react";
-import { limiter } from "@/lib/limit";
-import { type ContractFacts, type Report, buildReport, contractFacts } from "@/lib/report";
+import { type ContractFacts, type Report, buildReport, contractFacts, limiter } from "satchel-nft";
 import { useNetwork } from "./network";
 import { Badge, VERDICT, errorMessage } from "./ui";
 import { useAsync } from "./use-async";

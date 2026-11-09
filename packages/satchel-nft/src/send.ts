@@ -1,5 +1,5 @@
 import { type Address, type Hex, getAddress, keccak256 } from "viem";
-import { type ChainInfo, type Network, sendChains } from "./config";
+import { type ChainInfo, type Network, sendChains } from "./config.js";
 import {
   type EvmTx,
   type MpcSignature,
@@ -13,8 +13,8 @@ import {
   toContractTx,
   toEvmSignature,
   verifiedClient,
-} from "./evm";
-import { satchel, satchelTx, type WalletTx } from "./satchel";
+} from "./evm.js";
+import { satchel, satchelTx, type WalletTx } from "./satchel.js";
 
 export type SendStep = "build" | "hash" | "wallet" | "recover" | "broadcast" | "confirm";
 

@@ -5,7 +5,7 @@ import { SaleFlow } from "@/components/landing/sale-flow";
 import { TrickExplorer } from "@/components/landing/trick-explorer";
 import { LiveStats } from "@/components/live-stats";
 import { ReportProvider } from "@/components/report-checker";
-import { CHAINS, REPO_URL, TESTNET } from "@/lib/config";
+import { CHAINS, REPO_URL, TESTNET } from "satchel-nft";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
 
 const USUAL_WAY = [

@@ -1,6 +1,12 @@
-import { type Network, type NetworkId, accountOnNetwork } from "./config";
-import { type ExecutionOutcome, finalOutcome, outcomeValue } from "./near";
-import type { WalletTx } from "./satchel";
+import {
+  type ExecutionOutcome,
+  type Network,
+  type NetworkId,
+  type WalletTx,
+  accountOnNetwork,
+  finalOutcome,
+  outcomeValue,
+} from "satchel-nft";
 import manifest from "./wallet-manifest.json";
 
 /**

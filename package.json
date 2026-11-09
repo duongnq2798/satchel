@@ -1,0 +1,13 @@
+{
+  "name": "satchel",
+  "private": true,
+  "description": "The npm package satchel-nft and the web app that runs on it. The contract and tools/ build on their own.",
+  "workspaces": [
+    "packages/satchel-nft",
+    "web"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  }
+}
