@@ -14,8 +14,35 @@ one of those chains moves with it in one NEAR transaction.
 > NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
 > access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app) mints,
 > sends through the MPC network, lists and buys, and computes the clean transfer report in your
-> browser; it runs locally and is not hosted yet. Not on mainnet yet, not audited. This section is
-> updated as each piece lands.
+> browser; it runs locally and is not hosted yet. Four [demo satchels](#see-it-catch-a-dirty-wallet)
+> show each verdict. Not on mainnet yet, not audited. This section is updated as each piece lands.
+
+## See it catch a dirty wallet
+
+Four satchels on testnet show what the report catches. Read any of them with no wallet and no key
+(Node 22 or later):
+
+```bash
+cd web
+npm ci
+npm run verify -- 2
+```
+
+You should see `[FAIL] A signed transaction may still be pending` and the verdict `NOT PROVABLE`,
+with exit code 1. Run it for each of the four:
+
+| Satchel | What its owner did | `npm run verify -- <id>` prints |
+|---|---|---|
+| #1 | Sent four transactions on Sepolia from it, all on chain | `PROVABLY CLEAN`, exit 0 |
+| #2 | Had a 0.01 ETH send signed for it and never broadcast it | `[FAIL] A signed transaction may still be pending`, `NOT PROVABLE` |
+| #3 | Approved satchel #2's address, which the same seller owns, to spend its USDC without limit | `[FAIL] An approval is still live`, `NOT PROVABLE` |
+| #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, exit 0, and `listed by satchel-nft.testnet` |
+
+The [web app](#web-app)'s landing page shows the same four with their live verdicts, and satchel #4
+can be bought from its page with any testnet NEAR wallet. If someone has bought it by the time you
+look, it reads `PROVABLY CLEAN` without the listing line. For about 13 minutes after a satchel sends
+on Sepolia, its report says `COULD NOT CHECK EVERYTHING` until that block is final.
+[How they were built](#the-demo-satchels).
 
 ## The problem it solves
 
@@ -175,6 +202,40 @@ You should see `E2E PASS`. To broadcast for real, fund the token's address on Se
 `node e2e-testnet.mjs send <token_id> <owner-account>`; it prints the Etherscan link. Set
 `NEAR_CLI` if `near` is not on your `PATH`.
 
+### The demo satchels
+
+[`tools/demo-gallery.mjs`](tools/demo-gallery.mjs) built satchels #2, #3 and #4, with satchel #1
+paying for gas from its own address through `sign_evm` (evidence in
+[`deployments/testnet-gallery.json`](deployments/testnet-gallery.json)):
+
+| Satchel | Step | Transaction |
+|---|---|---|
+| #2 | `mint` | [`8UH5zpRj…`](https://testnet.nearblocks.io/txns/8UH5zpRjnpCYriKEGoyaPtt3vgqZh943uTma372dEBtT) |
+| #2 | `sign_evm`: 0.01 ETH to `0x…dEaD` at nonce 0, never broadcast | [`DSqPLcxY…`](https://testnet.nearblocks.io/txns/DSqPLcxYVGq83S84L9HndBtCm2iMaQ92V6DVXHzWj384) |
+| #3 | `mint` | [`DfQFCpaX…`](https://testnet.nearblocks.io/txns/DfQFCpaXZmPhJu4fr5J6Ltbg42f97wtTLActAWaVSMhw) |
+| #3 | satchel #1 sends it 0.002 ETH | [`8UgtBF6o…`](https://testnet.nearblocks.io/txns/8UgtBF6ohTDPRXpArSNkYZhpYf8v79adJpFdbThuwfyw), [`0xa30cd13c…`](https://sepolia.etherscan.io/tx/0xa30cd13cfb833fad2c4bcb6898a50405047e86a32af66c2348af0dfced6c6a51) |
+| #3 | USDC `approve(satchel #2's address, max)`, on chain | [`VCULtPKm…`](https://testnet.nearblocks.io/txns/VCULtPKmd1TpD4Bu9N87dMVwXecxjUsBG6CnG5kdW4C), [`0x56b2735c…`](https://sepolia.etherscan.io/tx/0x56b2735c807429a1f6fc9bb35b63736500bc716accd1fbb213be8b3d17b94169) |
+| #4 | `mint` | [`5C2zzM8K…`](https://testnet.nearblocks.io/txns/5C2zzM8KCP5o5RZNtPmXbAiZJ57pGR8KCAHjq7PqQW2c) |
+| #4 | satchel #1 sends it 0.002 ETH | [`5VibfT9k…`](https://testnet.nearblocks.io/txns/5VibfT9ktSxgdau9gw4nJHtjZhUxvS9RMAsEj6zNjFLV), [`0x62b36999…`](https://sepolia.etherscan.io/tx/0x62b36999636a2fc63931f2fa57b997d2a51c4b165d2e64d15c75243b19e64380) |
+| #4 | `list` for 1 NEAR | [`7Q9WxuJ4…`](https://testnet.nearblocks.io/txns/7Q9WxuJ4yfQcsRBgUzWJ37gQxrgZxjWJauz1r4QeXfe6) |
+
+One send went wrong and stays in the record. The first run gave satchel #1's send to #3 a gas limit
+of 21000, and it [reverted](https://sepolia.etherscan.io/tx/0x362be7cbacc888a7fa9ef121db57163828b298ff5910a193a88ee06178ef073f):
+Sepolia now charges about 207k gas to send to an address that has never been used. A reverted
+transaction still spends its nonce, so satchel #1 stayed provably clean. The scripts now estimate
+gas for every send, as the web app always has.
+
+To build your own set, with the two accounts from the end-to-end run in your keychain and the
+second one owning a satchel with Sepolia ETH (`SATCHEL_FUNDER=<its id>`):
+
+```bash
+cd tools
+SATCHEL_OWNER=<your-account>.testnet SATCHEL_BUYER=<second-account>.testnet SATCHEL_FUNDER=<id> node demo-gallery.mjs --out gallery.json
+```
+
+You should see `GALLERY PASS` and three new token ids. The script writes each step to `--out` as it
+goes, so a run that stops partway resumes from there with the same `--out`, without minting again.
+
 ## Web app
 
 [`web/`](web) is a Next.js app with no backend. Every read goes from your browser to a public NEAR
@@ -182,7 +243,7 @@ RPC and to each EVM chain's public RPC; every write is a transaction your NEAR w
 
 | Page | What you can do there |
 |---|---|
-| `/` | What Satchel is, and live facts about the deployment: contract keys, code hash, MPC signer, supply |
+| `/` | What Satchel is, live facts about the deployment (contract keys, code hash, MPC signer, supply), and the [demo satchels](#see-it-catch-a-dirty-wallet), each with its report run in your browser |
 | `/satchels` | Connect a NEAR wallet, mint a satchel for 0.1 NEAR, see the ones you own |
 | `/satchel/<id>` | The token's address, its balance on the 8 testnets, the clean transfer report; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy |
 | `/market` | The listed satchels, each with its price and the verdict of its report |
@@ -219,9 +280,10 @@ To run it:
    npm run dev
    ```
 
-2. Open <http://localhost:3000/satchel/1>. You should see satchel #1's address, its testnet
-   balances and its report: all four checks pass and the verdict is "Provably clean", for the
-   reason [above](#end-to-end-run).
+2. Open <http://localhost:3000>. Under "Three real satchels, three verdicts" you should see #1
+   "Provably clean", #2 and #3 "Not provable", each with the line of the report that decided it,
+   and #4 for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full report: all four
+   checks pass, for the reason [above](#end-to-end-run).
 
 3. Get the same report without a browser:
 

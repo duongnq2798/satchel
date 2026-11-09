@@ -17,3 +17,31 @@ export const CHECKS = [
     body: "Raw signatures, calls the contract can't classify (multicalls, swaps, ownership transfers) and approvals over the cap are counted. Any one of them makes a satchel unprovable, and the report says so instead of guessing.",
   },
 ] as const;
+
+/**
+ * The satchels the landing page shows, built on testnet by tools/demo-gallery.mjs. Each badge is
+ * read live; `check` names the line of the report the story is about.
+ */
+export const GALLERY = {
+  examples: [
+    {
+      tokenId: "1",
+      check: null,
+      title: "Used, then handed on",
+      body: "Its owner has sent from it on Sepolia. Every transaction it ever signed is on chain, so none can be replayed, and it never signed an approval.",
+    },
+    {
+      tokenId: "2",
+      check: "pending",
+      title: "A signed withdrawal is waiting",
+      body: "The seller had a 0.01 ETH send signed for it and never broadcast it. The signature is public, so anyone can send it once the address holds the ETH.",
+    },
+    {
+      tokenId: "3",
+      check: "approvals",
+      title: "An approval was left behind",
+      body: "The seller let satchel #2's address, which they also control, spend this satchel's USDC without limit. That right is still live.",
+    },
+  ],
+  forSale: "4",
+} as const;

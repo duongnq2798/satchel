@@ -5,7 +5,7 @@ import { type Address, formatEther } from "viem";
 import { SEND_CHAINS } from "@/lib/config";
 import { client } from "@/lib/evm";
 
-function format(wei: bigint): string {
+export function formatBalance(wei: bigint): string {
   if (wei === 0n) return "0";
   const text = formatEther(wei);
   const [whole, fraction = ""] = text.split(".");
@@ -47,7 +47,7 @@ export function Balances({ address, refresh }: { address: Address; refresh: numb
           >
             <p className="text-xs text-muted">{chain.name}</p>
             <p className="text-sm">
-              {wei === undefined ? "…" : wei === null ? "unavailable" : `${format(wei)} ${chain.symbol}`}
+              {wei === undefined ? "…" : wei === null ? "unavailable" : `${formatBalance(wei)} ${chain.symbol}`}
             </p>
           </a>
         );

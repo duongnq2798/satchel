@@ -1,0 +1,63 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "funder": "1",
+  "pending": {
+    "tokenId": "2",
+    "owner": "satchel-nft.testnet",
+    "address": "0xac30961c59543fe2d8258b8c71c75320feb7c235",
+    "mintTx": "8UH5zpRjnpCYriKEGoyaPtt3vgqZh943uTma372dEBtT",
+    "signTx": "DSqPLcxYVGq83S84L9HndBtCm2iMaQ92V6DVXHzWj384",
+    "nonce": 0,
+    "signingHash": "0x5cff622500f873410a0aa1d5874deab403cae0b94634cf7c0ba65c44f2226d4b",
+    "broadcast": false
+  },
+  "approval": {
+    "tokenId": "3",
+    "owner": "satchel-nft.testnet",
+    "address": "0x2bd9f7f9418a4747c4e1919cac43aeef0efa078b",
+    "mintTx": "DfQFCpaXZmPhJu4fr5J6Ltbg42f97wtTLActAWaVSMhw",
+    "revertedFunding": {
+      "note": "The first run gave this send a 21000 gas limit. Sepolia charges about 207k gas to send to an address that has never been used, so it reverted; satchel #1's nonce 1 was spent on it. The script now estimates gas for every send.",
+      "nearTx": "3ThuSf3qpnV8MJTS4TpLM8pMFJqGHDh7z3z9224igJqZ",
+      "sepoliaTx": "0x362be7cbacc888a7fa9ef121db57163828b298ff5910a193a88ee06178ef073f",
+      "block": "12095030",
+      "status": "reverted"
+    },
+    "funded": {
+      "tokenId": "1",
+      "address": "0x96da1468e95ab31a698891f0150095f86b5a282b",
+      "nearTx": "8UgtBF6ohTDPRXpArSNkYZhpYf8v79adJpFdbThuwfyw",
+      "sepoliaTx": "0xa30cd13cfb833fad2c4bcb6898a50405047e86a32af66c2348af0dfced6c6a51",
+      "nonce": 2,
+      "block": "12095045"
+    },
+    "approved": {
+      "tokenId": "3",
+      "address": "0x2bd9f7f9418a4747c4e1919cac43aeef0efa078b",
+      "nearTx": "VCULtPKmd1TpD4Bu9N87dMVwXecxjUsBG6CnG5kdW4C",
+      "sepoliaTx": "0x56b2735c807429a1f6fc9bb35b63736500bc716accd1fbb213be8b3d17b94169",
+      "nonce": 0,
+      "block": "12095047",
+      "token": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "spender": "0xac30961c59543fe2d8258b8c71c75320feb7c235"
+    }
+  },
+  "forSale": {
+    "tokenId": "4",
+    "owner": "satchel-nft.testnet",
+    "address": "0xb1d9f87b909823aebd6046406709102d871a813b",
+    "mintTx": "5C2zzM8KCP5o5RZNtPmXbAiZJ57pGR8KCAHjq7PqQW2c",
+    "funded": {
+      "tokenId": "1",
+      "address": "0x96da1468e95ab31a698891f0150095f86b5a282b",
+      "nearTx": "5VibfT9ktSxgdau9gw4nJHtjZhUxvS9RMAsEj6zNjFLV",
+      "sepoliaTx": "0x62b36999636a2fc63931f2fa57b997d2a51c4b165d2e64d15c75243b19e64380",
+      "nonce": 3,
+      "block": "12095049"
+    },
+    "listTx": "7Q9WxuJ4yfQcsRBgUzWJ37gQxrgZxjWJauz1r4QeXfe6",
+    "price": "1000000000000000000000000"
+  },
+  "ranAt": "2026-11-09T04:10:05.981Z"
+}
