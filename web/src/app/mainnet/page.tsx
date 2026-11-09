@@ -58,7 +58,7 @@ export default function MainnetHome() {
           <h2 className="font-display text-2xl font-semibold">Check it from a terminal</h2>
           <p className="mt-2 text-sm text-ink-2">The same report, read from mainnet RPCs you can replace with your own.</p>
           <div className="mt-4">
-            <Code>{"cd web && npm ci\nnpm run verify -- --network mainnet 1"}</Code>
+            <Code>{"npx satchel-nft@0.1.0 verify --network mainnet 1"}</Code>
           </div>
         </div>
       </section>

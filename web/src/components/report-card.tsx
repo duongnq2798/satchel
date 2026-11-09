@@ -1,6 +1,6 @@
 "use client";
 
-import { REPO_URL, type Report } from "satchel-nft";
+import type { Report } from "satchel-nft";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, StatusIcon, VERDICT } from "./ui";
 
@@ -57,8 +57,8 @@ export function ReportCard({
       {report && (
         <p className="mt-4 border-t border-line pt-3 text-xs text-muted">
           Record version {report.recordVersion}, checked {new Date(report.checkedAt).toLocaleString()}. Run it yourself,
-          no wallet needed: <code className="font-mono">npm run verify -- {net.id === "mainnet" ? "--network mainnet " : ""}{report.tokenId}</code> in{" "}
-          <ExternalLink href={`${REPO_URL}/tree/main/web`}>web/</ExternalLink>. The code hash
+          no wallet needed: <code className="font-mono">npx satchel-nft@0.1.0 verify {net.id === "mainnet" ? "--network mainnet " : ""}{report.tokenId}</code>, with Node 22 or later (
+          <ExternalLink href="https://www.npmjs.com/package/satchel-nft">satchel-nft on npm</ExternalLink>). The code hash
           it expects comes from the <ExternalLink href={net.build.ciRun}>reproducible CI build</ExternalLink>.
           {report.sources && (
             <>
