@@ -20,6 +20,8 @@ describe("parseCli", () => {
     expect(run(["verify", "--network", "mainnet", "1"])).toMatchObject({ network: "mainnet", tokenId: "1" });
     expect(run(["show", "7", "--network=mainnet", "--json"])).toMatchObject({ command: "show", network: "mainnet", json: true });
     expect(run(["market"])).toMatchObject({ command: "market" });
+    expect(run(["history", "7", "--json"])).toMatchObject({ command: "history", tokenId: "7", json: true });
+    expect(error(["history"])).toBe("usage: satchel-nft history <id>");
   });
 
   it("shows help or the version, and help with no command", () => {
