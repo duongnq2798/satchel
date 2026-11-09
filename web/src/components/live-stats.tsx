@@ -43,9 +43,9 @@ export function LiveStats() {
     { value: "1", label: "NEAR transaction moves the NFT and every address with it" },
   ];
   const facts = [
-    { ok: s?.reproducible, text: s ? (s.reproducible ? "Code is the reproducible build" : "Code is not the reproducible build") : "Reading the code hash" },
-    { ok: s?.canonical, text: s ? (s.canonical ? `Signs only through ${net.mpc}` : "Signer is not the canonical MPC contract") : "Reading the signer" },
-    { ok: undefined, text: s ? `${s.supply} satchels minted, ${s.listed} listed now` : "Reading the supply" },
+    { ok: s?.reproducible, text: s ? (s.reproducible ? "Code is the reproducible build" : "Code is not the reproducible build") : stats.error ? "Couldn't read the code hash" : "Reading the code hash" },
+    { ok: s?.canonical, text: s ? (s.canonical ? `Signs only through ${net.mpc}` : "Signer is not the canonical MPC contract") : stats.error ? "Couldn't read the signer" : "Reading the signer" },
+    { ok: undefined, text: s ? `${s.supply} satchels minted, ${s.listed} listed now` : stats.error ? "Couldn't read the supply" : "Reading the supply" },
   ];
 
   return (

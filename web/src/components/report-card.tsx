@@ -58,7 +58,7 @@ export function ReportCard({
       {report && (
         <p className="mt-4 border-t border-line pt-3 text-xs text-muted">
           Record version {report.recordVersion}, checked {new Date(report.checkedAt).toLocaleString()}. Run it yourself,
-          no wallet needed: <code className="font-mono">npm run verify -- {report.tokenId}</code> in{" "}
+          no wallet needed: <code className="font-mono">npm run verify -- {net.id === "mainnet" ? "--network mainnet " : ""}{report.tokenId}</code> in{" "}
           <ExternalLink href={`${REPO_URL}/tree/main/web`}>web/</ExternalLink>. The code hash
           it expects comes from the <ExternalLink href={net.build.ciRun}>reproducible CI build</ExternalLink>.
           {report.sources && (
