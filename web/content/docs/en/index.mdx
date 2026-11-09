@@ -24,7 +24,7 @@ hands safely. Satchel makes each of them checkable, or impossible:
 | The seller tries to | What happens with a satchel |
 | --- | --- |
 | Keep a copy of the key | There is no key to copy. NEAR's MPC network holds it in shares and signs only when the Satchel contract asks, and the contract asks only for the NFT's current owner |
-| Keep a signed withdrawal | The contract builds every EVM transaction it signs and records its nonce first. The report fails until every nonce ever signed is spent at a finalized block |
+| Keep a signed withdrawal | The contract builds every EVM transaction it signs and records its nonce first. The report can't read clean until every nonce ever signed is spent at a finalized block |
 | Leave an approval behind | The contract decodes and records every approval it signs. The report reads each one on chain and fails while any is live |
 | Sign something the record can't describe | It is counted. The report says "not provable" rather than guess |
 | Sign more between your check and your purchase | Listing freezes signing, and `buy` names the record version you checked. Any change makes the purchase fail, and you keep your NEAR |

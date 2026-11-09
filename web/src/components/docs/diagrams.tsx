@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
  * with a screen reader. Every name and number in them is the deployed contract's.
  */
 
-function Box({ title, sub, children, tone = "card" }: { title: string; sub?: string; children?: ReactNode; tone?: "card" | "ink" | "gold" }) {
+function Box({ title, sub, children, tone = "card" }: { title: string; sub?: ReactNode; children?: ReactNode; tone?: "card" | "ink" | "gold" }) {
   const toneClass = {
     card: "border-line bg-card",
     ink: "border-ink bg-ink text-paper [&_.sub]:text-paper/70 [&_li]:text-paper/85",
@@ -20,16 +20,16 @@ function Box({ title, sub, children, tone = "card" }: { title: string; sub?: str
   );
 }
 
-/** An arrow with a label: down on a phone, right from md up when `across`. */
+/** An arrow with a label: down in a narrow column, right when the diagram is wide enough and `across`. */
 function Arrow({ label, across = true }: { label: string; across?: boolean }) {
   return (
-    <div className={`flex items-center justify-center gap-2 py-1 text-xs text-ink-2 ${across ? "md:flex-col md:px-1 md:py-0" : ""}`}>
-      <span aria-hidden="true" className={`text-gold-deep ${across ? "md:hidden" : ""}`}>
+    <div className={`flex items-center justify-center gap-2 py-1 text-xs text-ink-2 ${across ? "@3xl:flex-col @3xl:px-1 @3xl:py-0" : ""}`}>
+      <span aria-hidden="true" className={`text-gold-deep ${across ? "@3xl:hidden" : ""}`}>
         ↓
       </span>
       <span className="max-w-[11rem] text-center font-mono leading-tight">{label}</span>
       {across && (
-        <span aria-hidden="true" className="hidden text-gold-deep md:inline">
+        <span aria-hidden="true" className="hidden text-gold-deep @3xl:inline">
           →
         </span>
       )}
@@ -39,7 +39,7 @@ function Arrow({ label, across = true }: { label: string; across?: boolean }) {
 
 function DiagramFrame({ caption, children }: { caption: string; children: ReactNode }) {
   return (
-    <figure className="not-prose my-8 rounded-2xl border border-line bg-paper-2/60 p-4 sm:p-5">
+    <figure className="@container not-prose my-8 rounded-2xl border border-line bg-paper-2/60 p-4 sm:p-5">
       {children}
       <figcaption className="mt-4 text-center text-sm text-muted">{caption}</figcaption>
     </figure>
@@ -49,7 +49,7 @@ function DiagramFrame({ caption, children }: { caption: string; children: ReactN
 export function ArchitectureDiagram() {
   return (
     <DiagramFrame caption="One signature, end to end. The record is saved in the sign_evm receipt, before the MPC network is asked; the contract never holds the signature, it is the call's result.">
-      <ol className="grid items-center gap-1 md:grid-cols-[1fr_auto_1.35fr_auto_1fr]">
+      <ol className="grid items-center gap-1 @3xl:grid-cols-[1fr_auto_1.35fr_auto_1fr]">
         <li>
           <Box title="Owner" sub="a NEAR account">
             Asks the contract to sign an EVM transaction for token <span className="font-mono">N</span>, from a NEAR wallet or the CLI.
@@ -59,7 +59,7 @@ export function ArchitectureDiagram() {
           <Arrow label="sign_evm(N, tx) · 1 yoctoNEAR" />
         </li>
         <li>
-          <Box title="Satchel contract" sub="v1.satchel-nft.near" tone="ink">
+          <Box title="Satchel contract" sub={<>v1.satchel-nft.near<br />v1.satchel-nft.testnet</>} tone="ink">
             <ul className="list-none space-y-0.5">
               <li>1. checks the caller owns N and it isn't listed</li>
               <li>2. RLP-encodes and hashes the EIP-1559 tx</li>
@@ -72,12 +72,12 @@ export function ArchitectureDiagram() {
           <Arrow label="sign(satchel/N, hash)" />
         </li>
         <li>
-          <Box title="MPC network" sub="v1.signer">
+          <Box title="MPC network" sub={<>v1.signer<br />v1.signer-prod.testnet</>}>
             Derives the key from the contract&apos;s account and the path <span className="font-mono">satchel/N</span>, and signs. No one holds the key.
           </Box>
         </li>
       </ol>
-      <div className="mt-3 grid items-center gap-1 md:grid-cols-[1fr_auto_1fr]">
+      <div className="mt-3 grid items-center gap-1 @3xl:grid-cols-[1fr_auto_1fr]">
         <Box title="The signature returns as sign_evm's result" sub="big_r, s, recovery_id">
           The app or the CLI checks it recovers to the satchel&apos;s address, then broadcasts it.
         </Box>
@@ -101,8 +101,8 @@ const SALE = [
 
 export function SaleDiagram() {
   return (
-    <DiagramFrame caption="A sale from mint to hand-over. Steps 3 to 5 are what make it safe to pay: nothing can be signed between the check and the purchase.">
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <DiagramFrame caption="A sale from mint to hand-over. Steps 3 to 5 are what make it safe to pay: anything signed between the check and the purchase makes buy fail.">
+      <ol className="grid gap-3 @md:grid-cols-2 @2xl:grid-cols-3">
         {SALE.map((s, i) => (
           <li key={s.step} className="relative rounded-xl border border-line bg-card p-3.5">
             <span className="flex items-center gap-2">
@@ -128,8 +128,8 @@ const CHECKS = [
 export function ChecksDiagram() {
   return (
     <DiagramFrame caption="Each check passes, fails, or could not be read. The verdict is clean only when all four pass; one failure makes it not provable; otherwise, anything unread makes it couldn't check everything.">
-      <div className="grid gap-3 md:grid-cols-[1fr_auto_15rem] md:items-center">
-        <ol className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3 @3xl:grid-cols-[1fr_auto_15rem] @3xl:items-center">
+        <ol className="grid gap-2 @md:grid-cols-2">
           {CHECKS.map((c) => (
             <li key={c.n} className="rounded-xl border border-line bg-card p-3">
               <span className="font-mono text-xs text-gold-deep">Check {c.n}</span>
@@ -147,7 +147,7 @@ export function ChecksDiagram() {
             <span className="font-semibold">Not provable</span>: any check fails
           </li>
           <li className="rounded-xl bg-paper px-3 py-2 text-ink-2 ring-1 ring-line">
-            <span className="font-semibold">Couldn&apos;t check everything</span>: none fails, one couldn&apos;t be read
+            <span className="font-semibold">Couldn&apos;t check everything</span>: none fails, at least one couldn&apos;t be read
           </li>
         </ul>
       </div>

@@ -1,1 +1,125 @@
-Draft: this page is being written.
+A report is only worth something if nothing changes between the moment you read it and the moment you pay.
+Satchel's sale is built for that gap. Listing a satchel freezes its signing, and a purchase names the exact
+record version and price the buyer checked: if either changed, the contract refuses the sale and the buyer
+keeps their NEAR. The sale happens on NEAR, in one transaction, in NEAR.
+
+<SaleDiagram />
+
+## Listing
+
+`list(token_id, price)` puts a satchel on sale. Only its owner can call it, with exactly 1 yoctoNEAR attached.
+The price is in yoctoNEAR (1 NEAR is 10^24 yoctoNEAR) and must be above 0. The contract stores a `Listing`:
+
+| Field | What it holds |
+| --- | --- |
+| `seller` | The owner who listed it |
+| `price` | The price in yoctoNEAR, as a string |
+| `record_version` | The [signing record](/docs/concepts/signing-record)'s version at the moment of listing |
+| `listed_at` | Block time of the listing, in nanoseconds |
+
+Listing again replaces the listing, with the record's version at that moment. `delist(token_id)` removes it
+(owner only, 1 yoctoNEAR), and fails with `Satchel: token is not listed` if there is none. Each logs a `list` or
+`delist` event ([Events](/docs/developers/events)).
+
+### Signing freezes
+
+While a satchel is listed, `sign_evm` and `sign_raw` are refused with
+`Satchel: signing is frozen while the token is listed`. The record can't change, so the report a buyer reads
+stays true until the listing ends. This refusal is on testnet: the owner of satchel #4, listed for 1 NEAR, asked
+`sign_evm` to sign and the contract refused
+([`5ZaKqJUx…`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8)).
+
+To sign again, the owner delists first. That is allowed, and it is why the purchase pins the version.
+
+## Buying
+
+`buy(token_id, record_version, price)` can be called by anyone but the seller, with at least `price` yoctoNEAR
+attached. The contract checks, in this order:
+
+| Check | Refused with |
+| --- | --- |
+| There is an active listing | `Satchel: token is not listed` |
+| `price` equals the listing's price | `Satchel: the price changed` |
+| `record_version` equals both the record's current version and the listing's | `Satchel: the signing record changed since you checked it` |
+| The buyer is not the seller | `Satchel: the seller cannot buy` |
+| The deposit is at least the price | `Satchel: attach at least the price` |
+
+When every check passes, in the same receipt the contract removes the listing, moves the NFT to the buyer and logs
+a `sale` event. It then creates two transfer receipts: the price to the seller, and anything attached above the
+price back to the buyer.
+
+A refused `buy` changes nothing, and NEAR returns the attached deposit to the buyer. That too is on testnet: the
+owner of satchel #6 listed it at record version 0, delisted, had a raw payload signed (version 1), and listed it
+again. A buyer naming version 0 was refused, and a system receipt refunded the 1 NEAR
+([`7HQPu9qe…`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv)).
+
+### Why the version and the price
+
+The buyer's check happens off chain, before the purchase. Between the two, a seller could delist, sign a
+withdrawal, relist at the same price, or raise the price. Every signature raises the record version, and nothing
+lowers it: not a transfer, not a relist. So naming the version you read pins exactly the record you checked, and
+naming the price pins what you agreed to pay. The wallet also shows the `buy` call and its deposit before you sign.
+
+The app and the CLI take both values from the report the buyer read, not from the rest of the page. The CLI
+also refuses before signing when the listing's version and the report's differ, or when the report isn't
+`PROVABLY CLEAN` (unless you pass `--accept-not-clean`). In the library, use the report's `recordVersion`:
+
+```ts
+import { TESTNET, buildReport, satchelTx } from "satchel-nft";
+
+const report = await buildReport(TESTNET, "4");
+if (report?.listing && report.verdict === "clean" && report.listing.record_version === report.recordVersion) {
+  // A wallet transaction for near-connect or wallet-selector: buy at the version and price this report read.
+  const tx = satchelTx(TESTNET).buy(report.tokenId, report.recordVersion, BigInt(report.listing.price));
+}
+```
+
+### The seller's payment
+
+The NFT moves in the `buy` receipt; the payment is a separate transfer receipt it creates. If the seller deleted
+their NEAR account before that receipt runs, the transfer fails, and the NEAR stays in the contract. The contract
+has no admin, so no one can return it. The buyer still has the satchel.
+
+## What ends a listing
+
+Every way a satchel can move ends its listing:
+
+- `buy` removes it before moving the token.
+- `nft_transfer` and `nft_transfer_call` remove it before the transfer.
+- If an `nft_transfer_call` receiver hands the token back, `nft_resolve_transfer` removes any listing the receiver
+  made while it held the token.
+
+As a second lock, a listing whose seller no longer owns the token is ignored everywhere (`active_listing`): the
+`listing` and `satchel` views don't return it, `listings` skips it, and `buy` treats the token as not listed. The
+contract doesn't offer NEP-178 approvals, so only the owner can move a satchel.
+
+## Two buyers at once
+
+The first `buy` to run removes the listing. The second fails with `Satchel: token is not listed`, and NEAR
+refunds its deposit. No one can pay twice for one satchel, and no one gets one without paying.
+
+## Deposits and keys
+
+`list`, `delist`, `sign_evm`, `sign_raw` and `nft_transfer` each require exactly 1 yoctoNEAR; `mint` requires 0.1
+NEAR and `buy` the price. A function-call access key, the kind a dapp gets when you log in, can't attach a deposit.
+So each of these calls needs a full-access key: your wallet asks you to confirm every one.
+
+## Reading the market
+
+The `listings(from_index, limit)` view returns active listings as `[token_id, Listing]` pairs, 50 by default and
+at most 100 per call. When a listing is removed, the last one moves into its slot, so a page can shift between two
+calls: read again rather than assuming a stable order. `satchel-nft market` prints every listing with its report's
+verdict:
+
+```bash
+npx -y satchel-nft@0.1.0 market
+```
+
+The [market page](https://satchelnft.xyz/market) shows the same, with each listing's price and verdict.
+
+## Related
+
+- [Buy a satchel](/docs/guides/buy) and [Sell a satchel](/docs/guides/sell): the same rules, step by step in the app.
+- [The clean transfer report](/docs/concepts/clean-transfer-report): what the buyer checks before `buy`.
+- [Contract reference](/docs/developers/contract): every method's arguments, deposit and gas.
+- [Threat model](/docs/security/threat-model#a-seller-changes-the-deal-after-the-buyer-checked): the attacks on a sale.

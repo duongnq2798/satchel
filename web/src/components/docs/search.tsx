@@ -131,7 +131,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search: verify, exit code 3, approval, finality…"
-            className="h-14 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-muted"
+            className="h-14 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-muted focus-visible:outline-none"
             role="combobox"
             aria-expanded="true"
             aria-controls="docs-search-results"

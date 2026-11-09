@@ -9,9 +9,15 @@ import { DOCS, docHref } from "@/lib/docs/nav";
 export function DocsNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const current = useRef<HTMLAnchorElement>(null);
-  // Keep the current page in view when the sidebar is taller than the screen.
+  // Keep the current page in view when the sidebar is taller than the screen. Only the sidebar
+  // scrolls: scrollIntoView would move the whole page too.
   useEffect(() => {
-    current.current?.scrollIntoView({ block: "nearest" });
+    const link = current.current;
+    const box = link?.closest<HTMLElement>("[data-docs-scroll]");
+    if (!link || !box) return;
+    const l = link.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    if (l.top < b.top || l.bottom > b.bottom) box.scrollTop += l.top - b.top - b.height / 3;
   }, [pathname]);
   return (
     <nav aria-label="Documentation" className="text-sm">
@@ -96,7 +102,7 @@ export function MobileNav() {
                 Close
               </button>
             </div>
-            <div className="overflow-y-auto px-3 py-4">
+            <div data-docs-scroll className="overflow-y-auto px-3 py-4">
               <DocsNav onNavigate={() => setOpen(false)} />
             </div>
           </div>

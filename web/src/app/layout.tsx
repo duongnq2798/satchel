@@ -55,7 +55,8 @@ const FOOTER: { title: string; links: { href: string; label: string; external?: 
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`}>
+    // The docs set data-theme on <html> before React loads (components/docs/theme.tsx).
+    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body className="min-h-screen">
         <NetworkProvider>
           <WalletProvider>

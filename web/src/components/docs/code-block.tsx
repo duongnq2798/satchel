@@ -61,7 +61,8 @@ export async function CodeBlock({ code, lang, title }: { code: string; lang: str
 
 /** One line of a command's output, with the report's [PASS], [FAIL] and verdict picked out. */
 function OutputLine({ line }: { line: string }) {
-  const tag = /^(\s*)(\[PASS\]|\[FAIL\]|\[UNKNOWN\])(.*)$/.exec(line);
+  // The CLI marks a check it couldn't read [????].
+  const tag = /^(\s*)(\[PASS\]|\[FAIL\]|\[\?\?\?\?\])(.*)$/.exec(line);
   if (tag) {
     const tone = tag[2] === "[PASS]" ? "text-ok" : tag[2] === "[FAIL]" ? "text-warn" : "text-muted";
     return (

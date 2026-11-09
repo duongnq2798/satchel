@@ -1,1 +1,629 @@
-Draft: this page is being written.
+`satchel-nft` is the command line half of the npm package of the same name. Its read commands need
+no wallet and no key: they read NEAR and each EVM chain over public RPCs and print what they found.
+Its sign commands have the [near CLI](https://github.com/near/near-cli-rs) sign with the key it
+already keeps, then check what it signed before anything is sent. The web app at
+[satchelnft.xyz](https://satchelnft.xyz) runs the same code, so the CLI and the app give the same
+answers.
+
+## Install and run
+
+You need Node.js 22 or later. The sign commands also need near-cli-rs; the read commands don't.
+
+Run a pinned release without installing it. `-y` lets `npx` fetch it without asking:
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1
+```
+
+Or install it once and call it by name:
+
+```bash
+npm install -g satchel-nft@0.1.0
+satchel-nft --version    # 0.1.0
+```
+
+Pin the version. A later release holds whatever its publisher put in it, and 0.1.0 was published
+without npm provenance; the [threat model](/docs/security/threat-model#what-satchel-trusts) says how
+to check that the release matches commit `728ed74`.
+
+To run the code of a checkout instead, build the package at the repository root:
+
+```bash
+npm ci
+npm run build -w satchel-nft
+node packages/satchel-nft/bin/satchel-nft.js verify 1
+```
+
+`satchel-nft --help` prints every command and option; `satchel-nft --version` prints the version.
+
+## Commands at a glance
+
+| Command | Signs? | What it does |
+| --- | --- | --- |
+| [`verify <id>`](#verify) | No | The clean transfer report. Exits 0 only when it reads `PROVABLY CLEAN` |
+| [`show <id>`](#show) | No | Owner, path, address, listing, and the native balance on each of the network's 8 EVM chains |
+| [`record <id>`](#record) | No | The signing record, as the contract returns it |
+| [`market`](#market) | No | Every listing, with its report's verdict |
+| [`mint`](#mint) | Yes | Mints a satchel for 0.1 NEAR |
+| [`list <id> <price>`](#list-and-delist) | Yes | Lists it for `<price>` NEAR. It can't sign until it is sold, delisted or transferred |
+| [`delist <id>`](#list-and-delist) | Yes | Takes it off the market |
+| [`buy <id>`](#buy) | Yes | Buys it at its listed price, only if its report reads `PROVABLY CLEAN` |
+| [`transfer <id> <account>`](#transfer) | Yes | Gives it to another NEAR account |
+| [`send <id> --chain … --to … --value …`](#send) | Yes | Sends from its address on one of the network's EVM chains |
+
+Every command reads NEAR testnet unless you pass `--network mainnet`. A token id is a whole number
+up to the `u64` maximum, like `1` (leading zeros are dropped, so `007` is `7`); anything else stops
+the command with exit code 2 before it reads anything.
+
+## Read commands
+
+### verify
+
+```text
+satchel-nft verify <id> [--network testnet|mainnet] [--json]
+```
+
+Builds the [clean transfer report](/docs/concepts/clean-transfer-report): it reads the satchel and
+the contract's own facts from NEAR, then, for every chain the satchel's record lists, the address's
+nonce and every recorded approval at that chain's finalized block.
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1
+```
+
+```text
+Satchel #1 on v1.satchel-nft.testnet (testnet)
+owner buyer.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, record version 7
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer-prod.testnet
+
+[PASS] No signed transaction is still pending
+       Sepolia: signed up to nonce 4, finalized nonce is 5
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[PASS] Nothing the record can't explain
+       0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+PROVABLY CLEAN (checked 2026-11-09T17:04:17.227Z)
+read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+```
+
+A check that passes prints `[PASS]`, one that fails `[FAIL]`, and one it could not read `[????]`.
+The verdict line is `PROVABLY CLEAN`, `NOT PROVABLE` or `COULD NOT CHECK EVERYTHING`. A listed
+satchel also prints `listed by <seller> at record version <n>` under its owner line. The last line
+names every RPC the report read.
+
+The same report on mainnet:
+
+```bash
+npx -y satchel-nft@0.1.0 verify --network mainnet 1
+```
+
+```text
+Satchel #1 on v1.satchel-nft.near (mainnet)
+owner satchel-nft.near, address 0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9, record version 1
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer
+
+[PASS] No signed transaction is still pending
+       Base: signed up to nonce 0, finalized nonce is 1
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[PASS] Nothing the record can't explain
+       0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+PROVABLY CLEAN (checked 2026-11-09T17:05:38.974Z)
+read from https://rpc.mainnet.fastnear.com, https://base-rpc.publicnode.com
+```
+
+With `--json` it prints the library's `Report` object. This is satchel #5, which hides a signed send:
+
+```bash
+npx -y satchel-nft@0.1.0 verify 5 --json
+```
+
+```json
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "tokenId": "5",
+  "owner": "satchel-nft.testnet",
+  "address": "0x81149BF1C907579A150e9AB882E951B648853dA3",
+  "recordVersion": "1",
+  "listing": null,
+  "checks": [
+    {
+      "id": "contract",
+      "status": "pass",
+      "title": "The contract can't sign behind the record",
+      "lines": [
+        "No access keys, so no one can redeploy it or sign as it",
+        "Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6",
+        "Signs only through v1.signer-prod.testnet"
+      ]
+    },
+    {
+      "id": "pending",
+      "status": "fail",
+      "title": "A signed transaction may still be pending",
+      "lines": [
+        "Sepolia: signed up to nonce 0, finalized nonce is 0. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce 0 is final"
+      ]
+    },
+    {
+      "id": "approvals",
+      "status": "pass",
+      "title": "No approval left behind",
+      "lines": ["No approval was ever signed for this token"]
+    },
+    {
+      "id": "counters",
+      "status": "pass",
+      "title": "Nothing the record can't explain",
+      "lines": ["0 raw signatures, 0 unclassified calls, 0 approvals over the cap"]
+    }
+  ],
+  "verdict": "not-provable",
+  "checkedAt": "2026-11-09T17:05:32.860Z",
+  "sources": ["https://rpc.testnet.fastnear.com", "https://ethereum-sepolia-rpc.publicnode.com"]
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `network`, `contract` | string | The network and contract the report read |
+| `tokenId`, `owner`, `address` | string | The satchel, its owner on NEAR, and its EVM address |
+| `recordVersion` | string | The record's version. A purchase must name it |
+| `listing` | object or `null` | `seller`, `price` (yoctoNEAR), `record_version`, `listed_at` (nanoseconds) |
+| `checks[].id` | `"contract"`, `"pending"`, `"approvals"`, `"counters"` | Checks 1 to 4, in order |
+| `checks[].status` | `"pass"`, `"fail"`, `"unknown"` | `unknown` means it could not be read, never a pass |
+| `verdict` | `"clean"`, `"not-provable"`, `"unknown"` | `clean` only when all four pass |
+| `checkedAt` | ISO 8601 string | When the report was built |
+| `sources` | string[] | Every RPC the report read |
+
+Exit code: 0 when the verdict is `clean`, 1 for `not-provable`, `unknown` or no such satchel.
+
+### show
+
+```text
+satchel-nft show <id> [--network testnet|mainnet] [--json]
+```
+
+Prints the satchel's owner, MPC path, record version, address and listing, and the native balance
+of its address on each chain its network sends on. It shows no address until the contract passes
+check 1, as the app does.
+
+```bash
+npx -y satchel-nft@0.1.0 show 1
+```
+
+```text
+Satchel #1 on v1.satchel-nft.testnet (testnet)
+owner buyer.satchel-nft.testnet, path satchel/1, record version 7
+address 0x96DA1468E95Ab31A698891f0150095f86b5a282B
+not listed
+
+Sepolia           0.04399 ETH
+Base Sepolia      0 ETH
+Arbitrum Sepolia  0 ETH
+OP Sepolia        0 ETH
+Polygon Amoy      0 POL
+BNB testnet       0 tBNB
+Avalanche Fuji    0 AVAX
+Aurora testnet    0 ETH
+
+Before you buy it: satchel-nft verify 1
+```
+
+A balance it could not read prints `unavailable`. With `--json`:
+
+```json
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "tokenId": "1",
+  "owner": "buyer.satchel-nft.testnet",
+  "path": "satchel/1",
+  "address": "0x96DA1468E95Ab31A698891f0150095f86b5a282B",
+  "recordVersion": "7",
+  "listing": null,
+  "balances": [
+    { "chainId": 11155111, "name": "Sepolia", "symbol": "ETH", "wei": "43999999555298599" },
+    { "chainId": 84532, "name": "Base Sepolia", "symbol": "ETH", "wei": "0" }
+  ]
+}
+```
+
+(Six more `balances` entries are left out above.) `wei` is a decimal string, or `null` when that
+chain could not be read.
+
+### record
+
+```text
+satchel-nft record <id> [--network testnet|mainnet] [--json]
+```
+
+Prints the [signing record](/docs/concepts/signing-record) as the contract returns it, without
+reading any EVM chain.
+
+```bash
+npx -y satchel-nft@0.1.0 record 6
+```
+
+```text
+Satchel #6's signing record on v1.satchel-nft.testnet (testnet), version 1
+
+Signed through sign_evm: nothing
+
+Approvals signed: none
+
+0 approval(s) over the cap, 0 unclassified call(s), 1 raw signature(s), the last at 2026-11-09T05:08:34.752Z
+```
+
+With `--json`, `record` is the contract's `SigningRecord`. Satchel #3, which left a USDC approval
+behind:
+
+```bash
+npx -y satchel-nft@0.1.0 record 3 --json
+```
+
+```json
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "tokenId": "3",
+  "owner": "satchel-nft.testnet",
+  "record": {
+    "evm": [{ "chain_id": "11155111", "max_nonce": "0", "signatures": 1 }],
+    "approvals": [
+      {
+        "chain_id": "11155111",
+        "contract": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "kind": "Approve",
+        "spender": "0xac30961c59543fe2d8258b8c71c75320feb7c235",
+        "token": null,
+        "arg": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    ],
+    "approvals_not_itemized": 0,
+    "unclassified_calls": 0,
+    "opaque_signatures": 0,
+    "last_opaque_at": "0",
+    "version": "1"
+  }
+}
+```
+
+The [contract reference](/docs/developers/contract#json-types) explains every field.
+
+### market
+
+```text
+satchel-nft market [--network testnet|mainnet] [--json]
+```
+
+Reads every listing, 100 at a time, and builds each listed satchel's report, three at a time,
+sharing one read of the contract's own facts. A report that fails to build counts as `unknown`.
+
+```bash
+npx -y satchel-nft@0.1.0 market
+```
+
+```text
+2 satchel(s) for sale on v1.satchel-nft.testnet (testnet)
+  #4  1 NEAR  by satchel-nft.testnet  record version 0  PROVABLY CLEAN
+  #6  1 NEAR  by satchel-nft.testnet  record version 1  NOT PROVABLE
+```
+
+With `--json`, each listing carries the contract's listing fields plus `verdict` and the
+`recordVersion` its report read (`null` if the report failed):
+
+```json
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "listings": [
+    {
+      "tokenId": "4",
+      "seller": "satchel-nft.testnet",
+      "price": "1000000000000000000000000",
+      "record_version": "0",
+      "listed_at": "1794197407046137608",
+      "verdict": "clean",
+      "recordVersion": "0"
+    }
+  ]
+}
+```
+
+`market` exits 0 whatever the verdicts are. Satchels #4 and #6 are for sale on testnet as these
+docs are written; if someone buys one, it leaves this list.
+
+## Sign commands
+
+### What you need
+
+- **near-cli-rs**, installed and findable (see [Finding the near CLI](#finding-the-near-cli)).
+- **The signing account's key in its keychain**: `~/.near-credentials` by default
+  (`--keychain legacy`), or the OS keychain with `--keychain os`. `satchel-nft` never reads the key.
+- **`--as <account>`** on every sign command: the NEAR account that signs. It must belong to the
+  network you chose: a `.testnet` account on testnet, any other name on mainnet.
+- **A terminal to answer in**, or `--yes`.
+
+### How a sign command signs
+
+<Steps>
+
+1. **It checks what it can before signing.** The account is on this network, the transaction is for
+   this network's Satchel contract, and the contract passes its own check (no keys, the reproducible
+   build, the canonical MPC contract). Each command adds its own checks, listed below.
+
+2. **The near CLI signs, without sending.** `satchel-nft` runs it by its absolute path as
+   `near contract call-function as-transaction <contract> <method> json-args <args> prepaid-gas <n> Tgas attached-deposit <n> yoctoNEAR sign-as <account> network-config <network> sign-with-legacy-keychain display`
+   (`sign-with-keychain` with `--keychain os`). `display` makes it print the signed transaction instead of sending it.
+
+3. **It decodes what the near CLI signed** and compares the signer, receiver, method, arguments,
+   gas and deposit with what it asked for. A difference, a second action, a V1 transaction or
+   trailing bytes stops it, and nothing is sent.
+
+4. **It shows you the transaction and asks.** The description goes to stderr:
+
+   ```text
+   The near CLI (C:\Users\<you>\.cargo\bin\near.exe) signed, on NEAR testnet, as satchel-nft.testnet (key ed25519:FqmLsnuhrwC7jFqzHCiNzUcZ6qQ1a23y4jasFJwRpS8w):
+     v1.satchel-nft.testnet.list({"price":"500000000000000000000000","token_id":"7"})
+     deposit 1 yoctoNEAR, gas 30 Tgas
+     Lists satchel #7 for 0.5 NEAR at record version 1.
+     It can't sign anything until it is sold, delisted or transferred.
+   ```
+
+   Then it asks `Send it? Type yes to send:`. Only `yes` sends it. Anything else, or input that ends before an answer, prints `Not sent.` and
+   exits 1. `--yes` skips the question. On mainnet the description adds a line saying it is real NEAR.
+
+5. **It sends it over RPC** (`send_tx`) and waits until every receipt is final, then prints the
+   result with a NearBlocks link:
+
+   ```text
+   Sending 6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc…
+   Listed satchel #7 for 0.5 NEAR: https://testnet.nearblocks.io/txns/6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc
+   ```
+
+</Steps>
+
+That output is from the run recorded in
+[`deployments/testnet-cli.json`](https://github.com/duongnq2798/satchel/blob/main/deployments/testnet-cli.json),
+with the home folder shortened; that run passed `--yes`, so it wasn't asked. If the contract refuses the call, the command prints its reason (for
+example `Satchel: the signing record changed since you checked it`) and exits 1. If the transaction
+was sent but its outcome can't be read, it exits 3 with the hash: see [Exit codes](#exit-codes).
+
+### mint
+
+```text
+satchel-nft mint --as <account> [--network …] [--yes] [--json] [--keychain …] [--near-cli …]
+```
+
+Calls `mint` with 0.1 NEAR and 50 Tgas, minting to the `--as` account. Prints the token id and its
+address on every EVM chain:
+
+```text
+Minted satchel #<id> to <account>: https://testnet.nearblocks.io/txns/<hash>
+Its address on every EVM chain: 0x…
+```
+
+The prompt reminds you that anyone can mint the next id: fund the address only after this mint.
+JSON: `tokenId`, `owner`, `address`, `nearTx`.
+
+### list and delist
+
+```text
+satchel-nft list <id> <price> --as <account> [options]
+satchel-nft delist <id> --as <account> [options]
+```
+
+`<price>` is in NEAR, a positive decimal with at most 24 places, like `0.5`. `list` calls the
+contract's `list` with the price in yoctoNEAR, 1 yoctoNEAR and 30 Tgas, and the prompt names the
+record version the listing will pin. `delist` refuses a satchel that isn't listed. Both refuse an
+`--as` account that doesn't own the satchel, before signing.
+
+JSON: `list` prints `tokenId`, `price` (yoctoNEAR), `nearTx`; `delist` prints `tokenId`, `nearTx`.
+
+### buy
+
+```text
+satchel-nft buy <id> --as <account> [--accept-not-clean] [options]
+```
+
+Builds the satchel's report first and prints it (unless `--json`). It refuses, before signing:
+
+- a satchel that isn't listed, or whose seller is the `--as` account;
+- a listing whose record version is not the record's current version (the contract would refuse it);
+- a report that doesn't read `PROVABLY CLEAN`, unless you pass `--accept-not-clean`.
+
+Then it calls `buy` with the record version **this report read** and the listed price, attaching the
+price and 100 Tgas. If anything is signed for the satchel in between, the contract refuses the sale
+and you keep your NEAR. JSON: `tokenId`, `price`, `recordVersion`, `verdict`, `nearTx`.
+
+### transfer
+
+```text
+satchel-nft transfer <id> <account> --as <account> [options]
+```
+
+Calls `nft_transfer` with 1 yoctoNEAR and 30 Tgas. Before signing it refuses a receiver that isn't
+a valid account id, the Satchel contract or the MPC contract (neither can ever move it out), or an
+account that doesn't exist on the network. The contract itself takes any name, so this check is the
+CLI's. JSON: `tokenId`, `receiver`, `nearTx`.
+
+### send
+
+```text
+satchel-nft send <id> --chain <chain> --to <0x address> --value <amount> [--data <0x calldata>] --as <account> [options]
+```
+
+| Option | Accepts |
+| --- | --- |
+| `--chain` | One of the network's 8 chains, by id or name, case-insensitive: `11155111`, `sepolia`, `"Base Sepolia"`. Testnet satchels send on testnets, mainnet satchels on mainnets |
+| `--to` | A `0x` address, checksummed if it mixes upper and lower case |
+| `--value` | An amount of the chain's coin, at most 18 decimals, like `0.01` |
+| `--data` | Calldata, `0x` and whole bytes. Default `0x` |
+
+It runs the [send flow](/docs/developers/library) with each check before the step it guards:
+
+```text
+Building the transaction and checking the balance…
+Checking the contract hashes it the same way…
+Signing sign_evm with the near CLI…
+Checking the MPC signature recovers to the satchel's address…
+Broadcasting 0x…
+Waiting for the receipt 0x…
+```
+
+1. It reads the nonce (`pending`), the priority fee and a gas estimate from the chain. The fee cap is
+   twice the latest base fee plus the priority fee; gas is the estimate plus 20% (21000 when the
+   estimate is 21000 or less). It refuses if the address can't pay the value plus the most the fees
+   can reach, the OP Stack's L1 data fee included on OP Mainnet, Base and their Sepolia testnets.
+2. It asks the contract's `evm_signing_hash` for the same transaction and refuses if it differs from
+   viem's hash.
+3. The near CLI signs `sign_evm` (1 yoctoNEAR, 300 Tgas). The prompt shows the value, the recipient,
+   the most the fees can reach, and the nonce the contract will record.
+4. It checks that the MPC signature recovers to the satchel's address, then broadcasts and waits up
+   to 180 seconds for the receipt.
+
+It prints `Sent …` or `Reverted: …` with the explorer link, and `Signed in` with the NEAR transaction.
+A reverted transaction exits 1. JSON: `tokenId`, `chainId`, `from`, `to`, `value` (wei), `nearTx`,
+`evmTx`, `status` (`"success"` or `"reverted"`).
+
+<Callout type="warning" title="Once the contract signs, anyone can broadcast">
+The MPC signature is public in the NEAR receipt. If the broadcast or its receipt fails, `send` exits 3
+with the transaction's hash and nonce. Check the explorer before you send again, or you may pay
+twice. Until a transaction at that nonce is final, the satchel's report can't read `PROVABLY CLEAN`.
+</Callout>
+
+## Options
+
+| Option | Commands | Meaning |
+| --- | --- | --- |
+| `--network testnet\|mainnet` | all | The NEAR network. Default `testnet` |
+| `--json` | all | Prints JSON on stdout, for scripts and bots. Errors print `{"error": "…"}` |
+| `--as <account>` | sign | The NEAR account that signs. Required |
+| `--yes` | sign | Signs without asking. Needed when there is no terminal to ask in |
+| `--keychain legacy\|os` | sign | `legacy` (default): `~/.near-credentials`. `os`: the OS keychain |
+| `--near-cli <path>` | sign | The near CLI to sign with |
+| `--accept-not-clean` | `buy` | Lets `buy` go ahead when the report doesn't read `PROVABLY CLEAN` |
+| `--chain`, `--to`, `--value`, `--data` | `send` | See [send](#send) |
+| `--help`, `-h` / `--version`, `-v` | none | Prints the usage or the version |
+
+A command refuses options that belong to another one: `satchel-nft buy 4 --value 1` stops with
+`buy does not take --value` and exit code 2, before it reads anything.
+
+## Finding the near CLI
+
+`satchel-nft` runs the near CLI by an absolute path, which the prompt shows you. It takes the first
+of:
+
+1. `--near-cli <path>`;
+2. the `NEAR_CLI` environment variable;
+3. `near` looked up only in the **absolute** folders of your `PATH`, never the current folder.
+
+A value with a slash (or, on Windows, a backslash) is used as a path; a bare name is looked up as
+above. The third rule is a safeguard: given a bare name, Windows runs a `near.exe` from the current
+folder first, so a folder you run the command in could hand your key to a program it planted.
+
+On Windows, give the path of `near.exe` itself. npm's `near.cmd` is a script that can't run without a
+shell, and `satchel-nft` refuses `.cmd`, `.bat` and `.ps1` files:
+
+```powershell
+npx -y satchel-nft@0.1.0 list 7 0.5 --as satchel-nft.testnet --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
+```
+
+If none is found, the command stops with
+`No near in PATH's absolute folders. Install near-cli-rs, or pass --near-cli <path to it>`
+(`near.exe` on Windows) and exit code 2.
+
+Git Bash's own window (mintty) can give Node no terminal. If a sign command says there is none to ask
+in, run it from PowerShell or cmd, or pass `--yes`.
+
+## Environment variables
+
+| Variable | Effect |
+| --- | --- |
+| `NEAR_RPC` | The NEAR RPC every read and `send_tx` goes to, instead of FastNEAR's public node. If it serves the other network, the command stops with exit code 2 before reading anything |
+| `RPC_<chain id>` | The RPC for one EVM chain, like `RPC_8453` for Base or `RPC_11155111` for Sepolia. Works for all 16 chains |
+| `NEAR_CLI` | The near CLI to sign with, when `--near-cli` isn't given |
+
+```bash
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+```
+
+[RPCs, finality and rate limits](/docs/developers/rpc-and-finality) has the default nodes and how
+each read is pinned.
+
+## Exit codes
+
+| Code | Meaning | Examples |
+| --- | --- | --- |
+| `0` | Done. For `verify`, the report reads `PROVABLY CLEAN` | A clean report; a sign command that succeeded |
+| `1` | The answer is no | A report that isn't clean; no such satchel; you don't own it; you answered anything but `yes`; the contract refused the call; a send that reverted |
+| `2` | It could not run | Bad arguments or options; an RPC for the wrong network; no near CLI; no terminal to ask in; the contract didn't pass its check; an RPC error |
+| `3` | It sent a transaction but couldn't read what happened to it | The NEAR transaction's outcome couldn't be read; an EVM broadcast that may have gone through |
+
+On exit code 3, check the transaction before you run the command again. With `--json`, the error
+object names it:
+
+```json
+{ "error": "Sent <hash>, but its outcome couldn't be read: …", "status": "unknown", "nearTx": "<hash>" }
+```
+
+For a `send` that was broadcast, the object holds `status`, `chainId`, `evmTx` and `nonce` instead.
+[Automate with the CLI](/docs/advanced/automation#handle-exit-code-3) shows how a script should
+handle it.
+
+## Refusals before signing
+
+Each of these stops the command before anything reaches NEAR. All but the last stop it before the
+near CLI signs; the last comes after the near CLI signs and before the transaction is sent.
+
+| Message | Exit | Cause |
+| --- | --- | --- |
+| `<cmd> signs: name the NEAR account with --as <account>` | 2 | A sign command without `--as` |
+| `--as takes a NEAR account id, like alice.testnet, not …` | 2 | `--as` isn't a valid account id |
+| `<account> is not a NEAR testnet account` | 1 or 2 | An account from the other network (`send` exits 1) |
+| `No satchel #<id> on <contract>` | 1 | No such token on this network |
+| `<owner> owns satchel #<id>, not <account>` | 1 | `list`, `delist`, `transfer` or `send` by someone other than the owner |
+| `Satchel #<id> is not listed` | 1 | `delist` or `buy` of a satchel that isn't for sale |
+| `<account> is the seller` | 1 | Buying your own listing |
+| `Satchel #<id> was listed at record version … and is now at …; the contract refuses that sale` | 1 | The listing's version doesn't match the record. Signing is frozen while a satchel is listed, so this shouldn't happen; the CLI checks anyway, because the contract would refuse this `buy` |
+| `Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.` | 1 | The report isn't clean |
+| `Enter an amount in NEAR, like 2.5` / `The price must be above 0` | 2 | A bad `list` price |
+| `<account> doesn't exist on NEAR testnet, so a satchel sent there could be lost. Ask for an account that exists.` | 1 | `transfer` to an account that doesn't exist |
+| `<account> can never transfer a satchel out` | 1 | `transfer` to the Satchel or MPC contract |
+| `A testnet satchel sends on Sepolia (11155111), …; not …` | 2 | `send --chain` names a chain of the other network or an unknown one |
+| `--to is a 0x address, checksummed if it mixes cases; not …` | 2 | A bad `--to` |
+| `--value is an amount of ETH, like 0.01; not …` | 2 | A bad `--value` (the coin is the chain's) |
+| `--data is 0x followed by whole bytes` | 2 | Bad calldata |
+| `This satchel holds … wei on … and the transaction can cost up to …. Fund 0x… first.` | 1 | The address can't pay the value and the fees |
+| `… says this transaction would fail, so nothing was signed: …` | 1 | The chain's gas estimate failed |
+| `The contract would sign 0x…, not 0x…. Nothing was signed.` | 1 | The contract's hash differs from viem's |
+| `There is no terminal to ask in, or stderr is redirected. …` | 2 | No terminal and no `--yes` |
+| `<contract> doesn't pass the contract check: …` | 2 | The deployment failed check 1 |
+| `The near CLI signed something else, so nothing was sent: …` | 2 | What the near CLI signed differs from what was asked |
+
+After signing and before broadcasting, a send also stops with
+`The signature recovers to 0x…, not this satchel's 0x…. Nothing was broadcast.` (exit 1).
+[Errors and exit codes](/docs/developers/errors) lists the contract's own errors.
+
+## Related
+
+- [Automate with the CLI](/docs/advanced/automation): scripts, CI and bots.
+- [A full sale on testnet, from the terminal](/docs/tutorials/sale-on-testnet): every sign command, in order.
+- [TypeScript library reference](/docs/developers/library): the same code, as functions.
+- [Contract reference](/docs/developers/contract): what each command calls.

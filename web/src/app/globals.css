@@ -75,9 +75,12 @@ body {
   background: var(--color-gold-soft);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 2px;
+/* In the base layer, so an element that shows focus its own way (the docs' search box) can say so. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
 }
 
 html {

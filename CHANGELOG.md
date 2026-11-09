@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A documentation center at `/docs` (satchelnft.xyz/docs): 36 pages in 8 sections, from a
+  quickstart and the concepts to a guide for each thing the app does, three tutorials, the library,
+  CLI, contract, events, errors and RPC reference, an advanced section, security, troubleshooting,
+  a FAQ and a glossary. AGENTS.md, the threat model, SECURITY.md and this changelog render there
+  from the repository files. Pages are MDX in `web/content/docs`, built at build time with Shiki
+  highlighting; the site has full-text search (Ctrl K), a table of contents per page, breadcrumbs,
+  previous and next links, a light and a dark theme, a page-feedback prompt, a sitemap, `robots.txt`,
+  `llms.txt` and structured data. `docs.test.ts` compiles every page and fails on a broken link or
+  anchor. Every page was checked against the contract, the package and the app's source.
 - The npm package `satchel-nft` (`packages/satchel-nft`), published on npm as 0.1.0 on 2026-11-09
   by the owner, from commit `728ed74`. `npx -y satchel-nft@0.1.0 verify 1` runs the report with no
   clone. It holds the clean transfer report, the guards, the send flow and the contract's reads and

@@ -1,1 +1,112 @@
-Draft: this page is being written.
+Satchel has four moving parts: a Rust contract on NEAR, NEAR's MPC network (Chain Signatures), the EVM
+chains a satchel's address lives on, and a report anyone can run against all of them. The contract is
+the only one that can ask the MPC network to sign for a satchel, and it asks only for the satchel's
+owner, after writing down what it is about to sign. Everything a buyer needs to trust follows from that
+order.
+
+## The parts
+
+| Part | Where it runs | What it does |
+| --- | --- | --- |
+| **Satchel contract** | `v1.satchel-nft.near` on mainnet, `v1.satchel-nft.testnet` on testnet | A NEP-171 NFT contract. Mints satchels, builds and hashes every EVM transaction it signs, keeps each token's signing record, runs the sale. It has no access keys and no admin |
+| **MPC network** | the MPC contract `v1.signer` on mainnet, `v1.signer-prod.testnet` on testnet | Holds the keys in shares across its nodes. Derives a key from the account that asks and a path, and signs with it only when that account asks |
+| **EVM chains** | 16 chains: 8 mainnets and a testnet of each | Where a satchel's address holds funds and where its signed transactions run |
+| **The report** | your browser at [satchelnft.xyz](https://satchelnft.xyz), or your terminal with `satchel-nft verify` | Reads the record from NEAR and each chain at a finalized block, and says whether anything the seller could have kept back is left |
+
+## A signature, end to end
+
+<ArchitectureDiagram />
+
+When the owner of satchel `N` wants to send from its address, they call the contract's `sign_evm` with
+the fields of an EIP-1559 transaction: `chain_id`, `nonce`, the two fee caps, `gas_limit`, `to`, `value`
+and `data`. In one receipt, the contract:
+
+1. **checks the caller may sign:** exactly 1 yoctoNEAR attached, the caller owns `N`, `N` isn't listed,
+   and at least 50 TGas prepaid;
+2. **checks the chain** is one of the 16 in `SUPPORTED_CHAINS`;
+3. **RLP-encodes and hashes the transaction itself**, so it knows exactly what will be signed. The hash
+   is the same one viem computes, and the contract's `evm_signing_hash` view returns it for any
+   transaction, so a client can compare before it spends a signature;
+4. **classifies the call** as a value transfer, an asset transfer, an approval, a revocation or
+   unclassified;
+5. **updates the record:** the highest nonce for that chain, the approval row if there is one, the
+   unclassified count if it couldn't classify the call, and the version, which goes up by one;
+6. **logs a `satchel` event** with the call's class;
+7. **asks the MPC contract to sign** the hash, with the path `satchel/N` and domain 0 (secp256k1).
+
+The MPC contract's `sign` call runs in a later receipt. Whatever happens to it, a timeout or a failure,
+cannot undo the record, which was saved in the first. A signature that never arrives still leaves its
+nonce on record: the record can only get stricter.
+
+The MPC network's answer is the transaction's result (`big_r`, `s`, `recovery_id`). The contract never
+holds it. The web app or the CLI turns it into a signed EVM transaction, checks that it recovers to the
+satchel's address, and broadcasts it. Anything else the owner wants signed, a Bitcoin sighash or a
+message hash, goes through `sign_raw`, which signs any 32 bytes and counts them as opaque.
+
+## Where the key comes from
+
+No one holds a satchel's key. NEAR's MPC network derives it from two things: the account that asks,
+`v1.satchel-nft.near` (`v1.satchel-nft.testnet` on testnet), and the path `satchel/<token_id>`. Both are fixed for the token's life, so the
+key, and the address it controls, never change, whoever owns the token. You can read the public key
+from the MPC contract's `derived_public_key` view; the address is the last 20 bytes of its keccak hash,
+the same on every EVM chain.
+
+Only the Satchel contract can ask for a signature from that key, and its code allows it only for the
+token's current owner. Transferring the NFT is therefore transferring the address, on all 16 chains at
+once. [Satchels and their addresses](/docs/concepts/satchels-and-addresses) goes into the derivation.
+
+## The record
+
+Every token has a public [signing record](/docs/concepts/signing-record), and it only grows:
+
+| Field | What it holds |
+| --- | --- |
+| `evm` | For each chain signed on: the highest nonce signed and how many signatures |
+| `approvals` | Up to 32 distinct approvals, each decoded: the chain, the contract, the kind, the spender, the token and the amount or id |
+| `approvals_not_itemized` | Approvals signed after the list was full |
+| `unclassified_calls` | Calls the contract could not classify: a multicall, a swap, `transferOwnership` |
+| `opaque_signatures` | Signatures through `sign_raw` |
+| `version` | Goes up with every signature |
+
+## The report
+
+<ChecksDiagram />
+
+A buyer, or anyone, reads the record and checks it against the chains. Each EVM read is pinned to the
+chain's finalized block, so a reorganization can't undo what was read. A check that can't be read, an
+RPC down or serving the wrong chain, is never a pass. [The clean transfer
+report](/docs/concepts/clean-transfer-report) explains each check and what it can't see.
+
+## The sale
+
+<SaleDiagram />
+
+Listing a satchel freezes signing and pins the record's version to the listing. `buy` names the version
+and the price the buyer checked, and fails if either changed: if the seller delisted, signed and listed
+again, the purchase fails and the buyer keeps their NEAR. Otherwise the NFT moves to the buyer in the
+same receipt, and the seller is paid. From then on the seller's `sign_evm` is refused. [Listings and
+sales](/docs/concepts/listings-and-sales) has the details, including what ends a listing.
+
+## What you trust, at a glance
+
+| You don't need to trust | Because |
+| --- | --- |
+| The seller | The record, not their word, says what the key signed, and the chains say whether it is spent or revoked |
+| The deployer | The contract has no access keys and no admin, and its code is the reproducible build of commit `87148c6`. Check 1 verifies both on every report |
+| The hosted app | The same report runs from `satchel-nft verify`, against RPCs you pick. Your wallet shows each call before you sign |
+
+| You do trust | What's left |
+| --- | --- |
+| NEAR's MPC network | If enough MPC nodes colluded, they could sign with any derived key |
+| The RPCs the report reads | One node per chain. A lying node you chose could make a satchel look clean |
+| The assets inside | The record proves what the key signed, not what a token's issuer can do: an upgradable token, a blacklist, a clawback |
+
+The [security model](/docs/security) and the [threat model](/docs/security/threat-model) go through every
+attack and what stops it.
+
+## Related
+
+- [Quickstart](/docs/quickstart): run the report on a real satchel in two minutes.
+- [The signing record](/docs/concepts/signing-record): every field, and how each call is classified.
+- [Contract reference](/docs/developers/contract): every method, deposit and view.
+- [Use cases](/docs/use-cases): what this is for, and when it's the wrong tool.

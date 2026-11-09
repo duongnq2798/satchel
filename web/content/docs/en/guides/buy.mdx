@@ -1,1 +1,151 @@
-Draft: this page is being written.
+Buying a satchel buys an address on 16 EVM chains and whatever it holds. The risk is what the seller could
+have kept back: a signed withdrawal, an approval, a copy of the key. Satchel rules out the last by
+construction and makes the others checkable, so the whole purchase comes down to reading one report and
+buying at the version you read.
+
+<Callout type="danger" title="Real funds on mainnet">
+On `/mainnet` pages you pay real NEAR for an address that may hold real funds. Satchel is not audited.
+</Callout>
+
+## What you need
+
+- A NEAR wallet connected to the satchel's network, with the price plus gas
+  ([Connect a NEAR wallet](/docs/guides/wallets)). You need no EVM wallet.
+- A few minutes to read the report. You can read it without a wallet, here or in a terminal.
+
+## Buy
+
+<Steps>
+
+1. **Find a satchel for sale.** The [Market](/market) (`/mainnet/market` on mainnet) lists every satchel for
+   sale, with its price, its seller, the record version it was listed at, and its verdict, each read in your
+   browser. Click one to open its page.
+
+2. **Read its clean transfer report.** On the satchel's page, the report runs four checks against NEAR and
+   against every chain in the satchel's record, each chain at a finalized block. Read every line, not just
+   the verdict:
+
+   | Verdict | Means |
+   | --- | --- |
+   | <Verdict v="clean" /> | All four checks pass: nothing the satchel's key ever signed lets anyone but its owner move what it holds, as far as the RPCs it read report (see [what a clean report doesn't say](/docs/concepts/clean-transfer-report#what-a-clean-report-doesnt-say)) |
+   | <Verdict v="not-provable" /> | A check failed. Its lines say which nonce, approval or counter, and why |
+   | <Verdict v="unknown" /> | No check failed, but one couldn't be read: an RPC down, or a block not final yet. Click **Check again** later |
+
+   [The clean transfer report](/docs/concepts/clean-transfer-report) explains each check.
+
+3. **Check its balances.** Under the address, the page shows the native balance on each of the network's 8
+   chains, each linked to its explorer. Tokens such as USDC aren't listed in the app yet: look them up on the
+   explorer.
+
+4. **Click Buy for … NEAR** in the **For sale** card, and approve `buy` in your wallet. Its arguments are the
+   token id, the record version and the price; its deposit is the price; gas is 100 TGas. If you aren't
+   connected, the button reads **Connect to buy**.
+
+5. **Done.** When the purchase is final, the page reads again: **Owned by you**, and a link to the
+   transaction. The address on every chain is now yours to sign for.
+
+</Steps>
+
+## Why the version in your purchase matters
+
+The purchase names the record version and the price **from the report you read**, never from the rest of
+the page. The contract refuses the sale if either changed since, and you keep your NEAR:
+
+- While a satchel is listed, its owner can't sign anything, so the record can't change.
+- If the seller delists, signs, and lists again, the record version goes up, and a `buy` that names the old
+  version fails with `Satchel: the signing record changed since you checked it`. On testnet,
+  [`7HQPu9qe…`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv) shows this
+  for satchel #6, with the buyer's 1 NEAR refunded.
+- If the seller relists at another price, the `buy` fails with `Satchel: the price changed`.
+
+The **For sale** card guards the same way before your wallet opens:
+
+| The card says | Why | What to do |
+| --- | --- | --- |
+| `Waiting for the report on this listing…` | The report hasn't finished, or it read a different listing | Wait. The buy button won't proceed until the report is in |
+| `The record changed while this page loaded. Check again before you buy.` | The page and the report read different record versions | Click **Check again** on the report and read it again |
+| `Tick the box above to buy a satchel that is not provably clean` | The verdict isn't clean and you haven't accepted it | Read the report. Tick the box only if you accept the risk |
+
+## Buying a satchel that isn't provably clean
+
+You can. The card shows a checkbox:
+
+```text
+This satchel is not provably clean (see the report). I accept that the seller may still be able to move what it holds.
+```
+
+Your acceptance holds for the record version you read: if the version changes, the box asks again. Many
+satchels that were used for swaps or DeFi will never read clean, and that can be fine if you price the risk.
+Read the failing lines: a pending nonce on a chain where the address holds nothing is not the same risk as a
+live unlimited approval on the address's USDC.
+
+## If the purchase fails
+
+A failed `buy` changes nothing: the NFT doesn't move, NEAR refunds your deposit, and the listing stays.
+
+| Error | Cause |
+| --- | --- |
+| `Satchel: the signing record changed since you checked it` | The seller signed after the version you read. Read the new report |
+| `Satchel: the price changed` | The listing's price isn't the one you named |
+| `Satchel: token is not listed` | It was delisted, transferred, or someone else bought it first |
+| `Satchel: the seller cannot buy` | You are the seller |
+| `Satchel: attach at least the price` | The deposit was below the price |
+
+## After you buy
+
+- **You control the address on every chain.** Only the token's owner can have the contract sign, so the
+  seller's next `sign_evm` is refused with `Satchel: only the token's owner can do this`
+  ([`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) on testnet).
+- **The record comes with it.** It only grows. Whatever the satchel's report read when you bought it is
+  where your own report starts.
+- **Any excess deposit is refunded**, and the seller is paid from your deposit.
+
+## What the report can't see
+
+The report proves what the satchel's key signed. It says nothing about powers built into the assets the
+address holds, which need no signature from the wallet: a token the seller deployed or can upgrade, a token
+with a blacklist or a clawback, an ENS name whose controller is still the seller, an ERC-4907 `user`. Value
+those assets as you would anywhere else.
+
+It is also only as honest as the RPCs it reads. The report names them under its checks. For a large
+purchase, run it yourself against nodes you trust:
+
+```bash
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 4
+```
+
+`RPC_<chain id>` works for each of the 16 chains. [RPCs, finality and rate limits](/docs/developers/rpc-and-finality)
+has the details.
+
+## In a terminal
+
+`satchel-nft buy` runs the report first and buys only when it reads `PROVABLY CLEAN`, naming the record
+version that report read:
+
+```bash
+npx -y satchel-nft@0.1.0 buy 4 --as alice.testnet
+```
+
+Replace `alice.testnet` with your own account, one the near CLI can sign for.
+
+Before anything is signed, it refuses a satchel that isn't listed, a purchase by the seller, a listing whose
+version no longer matches the record, and a report that isn't clean:
+
+```text
+Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.
+```
+
+Then it shows the transaction and asks before sending:
+
+```text
+Buys satchel #4 from satchel-nft.testnet for 1 NEAR.
+Names record version 0, the one this report read: if anything is signed before the sale, the contract refuses it and refunds you.
+```
+
+`--accept-not-clean` lets it buy anyway. The [CLI reference](/docs/developers/cli) has every option.
+
+## Next steps
+
+- [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer), to see each failing check on a real satchel
+- [Listings and sales](/docs/concepts/listings-and-sales)
+- [Send from a satchel](/docs/guides/send), once it is yours

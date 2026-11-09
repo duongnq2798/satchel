@@ -1,1 +1,127 @@
-Draft: this page is being written.
+Satchel does one thing: it lets control of an EVM address change hands, on 16 chains at once, with a
+public record that shows what the address's key signed before the sale. The uses below follow from
+that. Each says who it is for, how it works with what exists today, and where to read next. The last
+section says when Satchel is the wrong tool.
+
+## Sell a funded wallet, or an address with a history
+
+**Who:** anyone who holds assets, a position or an address with a past in a satchel and wants to sell
+it whole, rather than move each asset one by one.
+
+**How:** the owner keeps the assets at the satchel's address, which is the same on every chain. Before
+selling, they make sure every nonce they had signed is spent and every approval is revoked, then list
+the satchel for a price in NEAR. The buyer reads the [clean transfer
+report](/docs/concepts/clean-transfer-report), and buys only if it reads <Verdict v="clean" />. `buy`
+names the record version the buyer checked, so anything signed between the check and the purchase
+makes the purchase fail. One NEAR transaction moves the NFT, and with it the address on every chain.
+
+**Why it is safer than a seed phrase:** a seed phrase handed over is still in the seller's hands. A
+satchel's key is in no one's: the MPC network signs only when the contract asks, and the contract asks
+only for the current owner.
+
+**Read next:** [Sell a satchel](/docs/guides/sell), [Buy a satchel](/docs/guides/buy).
+
+## List satchels in a marketplace, with their verdicts
+
+**Who:** a marketplace, a wallet or a portfolio app that wants to show satchels for sale.
+
+**How:** the contract's `listings` view returns the active listings, up to 100 per call, each with its price and the record
+version it pinned. The `satchel-nft` library's `buildReport` runs the four checks for one satchel, and
+`contractFacts` reads the deployment's own facts once for a whole page of reports. Show each listing
+with its verdict, and build the purchase from the report the buyer looked at: its `recordVersion` and
+the listing's price. satchelnft.xyz's [market](https://satchelnft.xyz/market) does exactly this, and so
+does the CLI's `market` command:
+
+```bash
+npx -y satchel-nft@0.1.0 market
+```
+
+```text
+2 satchel(s) for sale on v1.satchel-nft.testnet (testnet)
+  #4  1 NEAR  by satchel-nft.testnet  record version 0  PROVABLY CLEAN
+  #6  1 NEAR  by satchel-nft.testnet  record version 1  NOT PROVABLE
+```
+
+That was the testnet market on 2026-11-09; anyone with testnet NEAR can buy either.
+
+**Read next:** [Build a feed of clean listings](/docs/tutorials/clean-listings-feed),
+[TypeScript library reference](/docs/developers/library).
+
+## Hand control of an address to someone else
+
+**Who:** a team, a project or a person who needs to pass control of one address on many chains to
+another NEAR account: a new maintainer, a buyer outside any market, a second account of your own.
+
+**How:** `nft_transfer` moves the satchel to another NEAR account in one transaction. From that moment,
+only the new owner can have the contract sign, on every chain the address lives on, and any listing
+ends. The previous owner's next `sign_evm` is refused on chain, as testnet transaction
+[`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) shows.
+satchelnft.xyz and `satchel-nft transfer` both refuse a receiver that doesn't exist on the network,
+since an NFT sent to a name no one owns is lost.
+
+**Read next:** [Transfer a satchel](/docs/guides/transfer),
+[Satchels and their addresses](/docs/concepts/satchels-and-addresses).
+
+## Let a bot or an agent check before it acts
+
+**Who:** a trading bot, an escrow script, an AI agent, a CI job: anything that must decide on its own
+whether a satchel is safe to accept.
+
+**How:** `satchel-nft verify <id>` exits `0` only when the report reads `PROVABLY CLEAN`, and `--json`
+prints the whole report for parsing. A script needs no wallet and no key to read. For actions, the CLI's
+sign commands have the [near CLI](https://github.com/near/near-cli-rs) sign with a key in its keychain,
+check what was signed, and exit `3` when it sent a transaction but couldn't read the outcome, so a
+script never sends twice blindly. `buy` goes ahead only when the report is clean, naming the version it
+read.
+
+```bash
+if npx -y satchel-nft@0.1.0 verify 4 --json > report.json; then
+  echo "satchel #4 is provably clean"
+fi
+```
+
+**Read next:** [Automate with the CLI](/docs/advanced/automation),
+[Errors and exit codes](/docs/developers/errors).
+
+## Check a deployment before you build on it
+
+**Who:** an evaluator, an auditor, a partner deciding whether to integrate.
+
+**How:** every claim about the deployments has a command that checks it against the chain, with Node.js
+and no install: the contract has no access keys, its code is the reproducible build, it signs only
+through the canonical MPC contract, and the calls it should refuse were refused on chain.
+
+```bash
+git clone https://github.com/duongnq2798/satchel.git
+cd satchel
+node scripts/check-claims.mjs
+```
+
+**Read next:** [Check every claim](/docs/security/check-every-claim), [Security model](/docs/security).
+
+## When Satchel is the wrong tool
+
+Satchel proves what a key signed, and only for some kinds of signatures. Be clear about these before
+you build on it or put value in it.
+
+| If you need | Satchel today |
+| --- | --- |
+| **A wallet you use for DeFi and still sell as clean** | Any call the contract can't classify, a swap, a multicall, a router call, is counted, and the report says <Verdict v="not-provable" /> forever. Many active wallets will never read clean. That is the record being honest, not a bug |
+| **Protection from the assets themselves** | The record says nothing about powers built into an asset: an upgradable token, a blacklist, an issuer's clawback, an ENS name whose controller is still the seller. Value those as you would anywhere else |
+| **Solana, NEAR or another Ed25519 chain** | Not supported. Satchel uses secp256k1 (MPC domain 0) only. The contract builds EVM transactions; anything else, Bitcoin included, goes through `sign_raw` and makes the satchel unprovable |
+| **Off-chain signatures: permits, EIP-712 orders, messages** | Only through `sign_raw`, which is counted as opaque. One raw signature means the satchel can never read clean again |
+| **A new chain** | The 16 chain ids are fixed for the life of the contract. There is no admin to add one; it would take a new contract |
+| **More than 32 distinct approvals** | They are counted, not itemized, and the report fails. The limit is per token and permanent |
+| **An audited system** | Satchel is not audited. It is live on mainnet, where a satchel's address holds real funds: keep in one only what you can afford to lose |
+
+<Callout type="danger" title="Testnet satchels and real funds">
+A testnet satchel's address is a valid address on mainnet chains too, but NEAR's testnet MPC network
+signs for it. Never send real funds to a testnet satchel's address.
+</Callout>
+
+## Related
+
+- [How Satchel works](/docs/how-it-works): the parts, and a signature end to end.
+- [Security model](/docs/security): what Satchel trusts, and what it doesn't claim.
+- [Production checklist](/docs/advanced/production-checklist): before you hold real funds or build a product.
+- [FAQ](/docs/faq): short answers to common questions.

@@ -1,1 +1,182 @@
-Draft: this page is being written.
+Everything Satchel does happens in one NEAR contract, and everything a buyer needs to check is
+public: the contract's views, NEAR's RPC and each EVM chain's RPC. You don't need an API key, a
+backend or an account to read any of it. You only need a NEAR signer when you change something:
+mint, sign, list, delist, buy or transfer.
+
+## Three ways to integrate
+
+| | `satchel-nft` library | `satchel-nft` CLI | The contract directly |
+| --- | --- | --- | --- |
+| **What you get** | The clean transfer report, the contract's reads, ready-made wallet transactions, the send flow with every check, and the guards the app runs before signing | The same code as commands: `verify`, `show`, `record`, `market`, and `mint`, `list`, `delist`, `buy`, `transfer`, `send` | Every method and view, with nothing in between |
+| **What it needs** | Node 22 or later, or a browser bundle; an ES module project | Node 22 or later. Sign commands also need the [near CLI](https://github.com/near/near-cli-rs) with a key in its keychain | Any NEAR client: near-cli-rs, near-api-js, a wallet, raw JSON-RPC |
+| **Who holds keys** | Your wallet. The library builds transactions; it never signs | The near CLI. The package never reads a key | Your client |
+| **Use it when** | You build a marketplace, a wallet view, a bot or a backend job that must show a verdict or act on one | You script, test, run CI, or want an answer in a terminal | You need a call the package doesn't wrap, or you work in another language |
+
+The web app at [satchelnft.xyz](https://satchelnft.xyz) runs on the library, and the CLI is the
+library's own command. All three produce the same report, because it is the same code:
+[`report.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/report.ts).
+
+## How an integration fits together
+
+- **Reads need nothing.** A report reads the contract's views and account over NEAR JSON-RPC, then
+  each EVM chain the satchel's record lists, pinned to a finalized block. The defaults are public
+  nodes: FastNEAR for NEAR and one public node per EVM chain. You can replace each of them; see
+  [RPCs, finality and rate limits](/docs/developers/rpc-and-finality).
+- **Writes need a NEAR signer.** `satchelTx(net)` returns transactions in the near-connect and
+  wallet-selector format (`receiverId` plus `FunctionCall` actions), with the gas and deposit the
+  contract checks. Your wallet signs and sends them. The CLI hands them to the near CLI instead.
+- **Every write needs a full-access key.** `sign_evm`, `sign_raw`, `list`, `delist` and
+  `nft_transfer` attach 1 yoctoNEAR, `mint` 0.1 NEAR and `buy` the price. A function-call access key,
+  such as a dapp's login key, can't attach a deposit, so each of these is a wallet confirmation.
+- **EVM sends are two transactions.** `sign_evm` on NEAR returns the MPC signature; you then
+  broadcast the signed EVM transaction on its chain. `sendFromSatchel` does both, with a check before
+  each step that could spend anything.
+
+## Install
+
+<Tabs labels={["Library", "CLI, no install", "CLI, installed"]}>
+<Tab>
+
+```bash
+npm install satchel-nft@0.1.0
+```
+
+The package is an ES module with types, for Node 22 or later. Its one dependency is
+[viem](https://viem.sh).
+
+</Tab>
+<Tab>
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1
+```
+
+`-y` lets npx install it without asking. Pin `@0.1.0`: a later version holds whatever its publisher
+put in it, and the [threat model](/docs/security/threat-model#what-satchel-trusts) says how to check
+that 0.1.0 is commit `728ed74`.
+
+</Tab>
+<Tab>
+
+```bash
+npm install --global satchel-nft@0.1.0
+satchel-nft --version
+```
+
+</Tab>
+</Tabs>
+
+## The deployments
+
+The library exports both deployments as `TESTNET` and `MAINNET`. Every value a buyer's check depends
+on is pinned in [`config.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/config.ts),
+so the report never trusts the contract to describe itself.
+
+| Field | `TESTNET` | `MAINNET` |
+| --- | --- | --- |
+| `contract` | `v1.satchel-nft.testnet` | `v1.satchel-nft.near` |
+| `mpc` | `v1.signer-prod.testnet` | `v1.signer` |
+| `nearRpc` | `https://rpc.testnet.fastnear.com` | `https://rpc.mainnet.fastnear.com` |
+| `nearExplorer` | `https://testnet.nearblocks.io` | `https://nearblocks.io` |
+| `build.codeHash` | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` | the same |
+| `build.commit` | `87148c6b6f97f3121cac13c93e22d7d153453b53` | the same |
+
+`CHAINS` lists the 16 EVM chains the contract can sign for, each with its chain id, coin, default
+RPC and explorer. A testnet satchel sends on the 8 testnets and a mainnet satchel on the 8 mainnets
+(`sendChains(net)`). [Networks and chains](/docs/concepts/networks-and-chains) has the full list.
+
+## One task, three ways
+
+Read satchel #7's verdict on testnet.
+
+<Tabs labels={["Library", "CLI", "Contract"]}>
+<Tab>
+
+```ts title="verdict.ts"
+import { TESTNET, buildReport } from "satchel-nft";
+
+const report = await buildReport(TESTNET, "7");
+if (report === null) throw new Error("No satchel #7");
+console.log(report.verdict, report.recordVersion);
+for (const check of report.checks) console.log(check.status, check.title);
+```
+
+`buildReport` returns `null` when the token doesn't exist, and a `Report` otherwise. Its `verdict`
+is `"clean"`, `"not-provable"` or `"unknown"`.
+
+</Tab>
+<Tab>
+
+```bash
+npx -y satchel-nft@0.1.0 verify 7 --json
+```
+
+The exit code is the answer: `0` only when the report reads `PROVABLY CLEAN`, `1` when it doesn't,
+`2` when it couldn't run. `--json` prints the same `Report` object the library returns.
+
+</Tab>
+<Tab>
+
+The contract gives you the record, not the verdict: the verdict needs each EVM chain's state too.
+Read the record with any NEAR client. With JSON-RPC, the arguments are base64 JSON:
+
+```bash
+curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"v1.satchel-nft.testnet","method_name":"satchel","args_base64":"eyJ0b2tlbl9pZCI6IjcifQ=="}}'
+```
+
+The result's `result` field is the JSON as bytes. Decoded, on 2026-11-10:
+
+```json
+{
+  "token_id": "7",
+  "owner_id": "satchel-nft.testnet",
+  "path": "satchel/7",
+  "record": {
+    "evm": [{ "chain_id": "11155111", "max_nonce": "0", "signatures": 1 }],
+    "approvals": [],
+    "approvals_not_itemized": 0,
+    "unclassified_calls": 0,
+    "opaque_signatures": 0,
+    "last_opaque_at": "0",
+    "version": "1"
+  },
+  "listing": null
+}
+```
+
+To finish the report yourself, read the satchel's address from the MPC contract's
+`derived_public_key` view, then its Sepolia nonce at a finalized block, and compare it with
+`max_nonce`. The [clean transfer report](/docs/concepts/clean-transfer-report) explains each check.
+
+</Tab>
+</Tabs>
+
+## What to read next
+
+<Cards>
+  <Card href="/docs/developers/library" eyebrow="Reference" title="TypeScript library">
+    Every export, its signature, what it returns and what it throws.
+  </Card>
+  <Card href="/docs/developers/cli" eyebrow="Reference" title="CLI">
+    Every command and option, the JSON output and the exit codes.
+  </Card>
+  <Card href="/docs/developers/contract" eyebrow="Reference" title="Contract">
+    Methods, views, deposits, gas and JSON types, with near CLI calls.
+  </Card>
+  <Card href="/docs/developers/events" eyebrow="Reference" title="Events">
+    The NEP-297 events to index sales, signatures and listings.
+  </Card>
+  <Card href="/docs/developers/errors" eyebrow="Reference" title="Errors and exit codes">
+    Every contract error and CLI exit code, and what to do about each.
+  </Card>
+  <Card href="/docs/tutorials/clean-listings-feed" eyebrow="Tutorial" title="Build a feed of clean listings">
+    A runnable script that lists every satchel for sale with its verdict.
+  </Card>
+</Cards>
+
+## Related
+
+- [How Satchel works](/docs/how-it-works): the pieces an integration talks to.
+- [Automate with the CLI](/docs/advanced/automation): scripts, CI and bots.
+- [Production checklist](/docs/advanced/production-checklist): what to pin and check before real funds.
+- [Security model](/docs/security): what the report proves, and what it trusts.

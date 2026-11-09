@@ -37,7 +37,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
       </div>
       <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
         <aside className="hidden lg:block">
-          <div className="sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain py-8 pr-2">
+          <div data-docs-scroll className="sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto overscroll-contain py-8 pr-2">
             <DocsNav />
           </div>
         </aside>

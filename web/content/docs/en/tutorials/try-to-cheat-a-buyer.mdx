@@ -1,1 +1,278 @@
-Draft: this page is being written.
+A seller who wants to cheat a buyer has a few moves: keep a signed withdrawal, leave an approval behind,
+have something signed the record can't describe, or sign more after the buyer checked. Satchel's demo
+satchels on NEAR testnet each made one of those moves, on chain, on purpose. In this tutorial you read
+each one's report and see which check catches it, and why. You need nothing but a browser or Node.js.
+
+## What you need
+
+- A browser, for the first path. No wallet: reading a report needs no account.
+- Node.js 22 or later, for the second path. No clone and no key: `npx` fetches the
+  [`satchel-nft`](https://www.npmjs.com/package/satchel-nft) package, which reads public NEAR and
+  Sepolia nodes.
+- About ten minutes.
+
+Every satchel here is on testnet, where nothing is worth money. The tricks work the same way on
+mainnet, and so do the checks.
+
+## The demo satchels
+
+| Satchel | The seller's move | What the record shows | The check that catches it |
+| --- | --- | --- | --- |
+| #1 | Played fair: sent from it on Sepolia, every signed nonce spent | Sepolia up to nonce 4 | none: <Verdict v="clean" /> |
+| #5 | Had a 10,000 ETH send signed, never broadcast | Sepolia up to nonce 0, nonce 0 not spent | 2, no signed transaction still pending |
+| #3 | Approved an address of their own to spend its USDC without limit | One `Approve` row on Sepolia USDC | 3, no approval left behind |
+| #6 | Had a raw 32-byte payload signed | One raw signature | 4, nothing the record can't explain |
+| #4 | Nothing: never signed, listed for 1 NEAR | An empty record | none: <Verdict v="clean" /> |
+
+Satchel #2 was the first pending example. It was retired: its signed send was only 0.01 ETH, so anyone
+who funded its address with about 0.0101 Sepolia ETH could broadcast that signature and make it clean.
+
+## Path 1: in your browser
+
+<Steps>
+
+1. **Open the examples.** Go to [satchelnft.xyz/#examples](https://satchelnft.xyz/#examples). The
+   section is titled "Try to cheat the buyer." On its left are six moves: **Play fair**, **Keep a
+   signed withdrawal**, **Leave an approval behind**, **Sign a raw payload**, **Sign while it's
+   listed** and **Change it after the buyer checked**.
+
+2. **Pick Keep a signed withdrawal.** Your browser runs satchel #5's clean transfer report against
+   NEAR testnet and Sepolia. While it runs you see "Running the report in your browser, against NEAR
+   and Sepolia…". Then the badge reads **Not provable**, and the failing check, "A signed transaction
+   may still be pending", is picked out with its first line.
+
+   <Figure src="/docs/app-try-to-cheat.png" alt="The Try to cheat the buyer section of satchelnft.xyz with Keep a signed withdrawal picked. Satchel #5's report reads Not provable: a signed transaction may still be pending, Sepolia signed up to nonce 0, finalized nonce is 0." caption="Keep a signed withdrawal: satchel #5's report, read live in the browser." />
+
+3. **Pick each of the other report moves.** Play fair shows #1 with all four checks passing. Leave an
+   approval behind shows #3 failing check 3. Sign a raw payload shows #6 failing check 4.
+
+4. **Pick the two refused moves.** Sign while it's listed and Change it after the buyer checked show
+   a call the contract refused on chain, with the caller, the call and the contract's answer, and
+   links to each transaction.
+
+5. **Open a full report.** Under each report move, **Open its full report →** goes to the satchel's
+   page, for example [/satchel/5](/satchel/5), with every line of every check and the RPCs it read.
+
+</Steps>
+
+## Path 2: in your terminal
+
+The CLI runs the same report code as the browser. Each command exits `0` only when the satchel reads
+`PROVABLY CLEAN`. The outputs below are from 2026-11-09 (UTC). The first run downloads the package,
+which can take a minute or more; each report after that takes a few seconds.
+
+### Satchel #1: played fair
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1
+```
+
+```text
+Satchel #1 on v1.satchel-nft.testnet (testnet)
+owner buyer.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, record version 7
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer-prod.testnet
+
+[PASS] No signed transaction is still pending
+       Sepolia: signed up to nonce 4, finalized nonce is 5
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[PASS] Nothing the record can't explain
+       0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+PROVABLY CLEAN (checked 2026-11-09T17:04:05.270Z)
+read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+```
+
+Satchel #1 has had seven Sepolia transactions signed, at nonces 0 to 4. Five were broadcast; one of
+them reverted, which still spends its nonce. The other two were at nonce 0, which another
+transaction took first, so they can never be valid. Sepolia's nonce for its address at a finalized
+block is 5, above every nonce the contract ever signed, so no signature the seller might hold can
+still land. That is what check 2 proves.
+
+### Satchel #5: keep a signed withdrawal
+
+```bash
+npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"
+```
+
+```text
+Satchel #5 on v1.satchel-nft.testnet (testnet)
+owner satchel-nft.testnet, address 0x81149BF1C907579A150e9AB882E951B648853dA3, record version 1
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer-prod.testnet
+
+[FAIL] A signed transaction may still be pending
+       Sepolia: signed up to nonce 0, finalized nonce is 0. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce 0 is final
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[PASS] Nothing the record can't explain
+       0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+NOT PROVABLE (checked 2026-11-09T17:04:18.602Z)
+read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+exit 1
+```
+
+**The move.** The owner called `sign_evm` for a 10,000 ETH send to `0x…dEaD` at nonce 0 and never
+broadcast it ([`G66SfkVz…`](https://testnet.nearblocks.io/txns/G66SfkVz9dbf4AeJam5jiLnZNmZGAAYpaLgDWPCa5Ga7)).
+The address holds nothing, so the send can't go through yet. Sold like this, it would go through the
+moment a buyer funded the address with 10,000 ETH.
+
+**Why the record caught it.** The contract built that transaction itself and wrote nonce 0 into the
+record before it asked the MPC network to sign. Sepolia's finalized nonce for the address is still 0,
+so the transaction at nonce 0 is still possible. A buyer can't void it after buying, either: the
+signature is public in the NEAR receipt, so the seller could broadcast it first.
+
+### Satchel #3: leave an approval behind
+
+```bash
+npx -y satchel-nft@0.1.0 verify 3
+```
+
+```text
+[PASS] No signed transaction is still pending
+       Sepolia: signed up to nonce 0, finalized nonce is 1
+
+[FAIL] An approval is still live
+       Sepolia: Approve on 0x1c7d…7238 for 0xac30…c235: allowance of 115792089237316195423570985008687907853269984665640564039457584007913129639935 still granted
+
+NOT PROVABLE (checked 2026-11-09T17:04:30.808Z)
+```
+
+(The satchel's own two lines, checks 1 and 4, which pass, and the RPC line are left out.)
+
+**The move.** The owner signed `approve(satchel #2's address, max)` on Sepolia USDC,
+`0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`, and broadcast it
+([`VCULtPKm…`](https://testnet.nearblocks.io/txns/VCULtPKmd1TpD4Bu9N87dMVwXecxjUsBG6CnG5kdW4C),
+[`0x56b2735c…`](https://sepolia.etherscan.io/tx/0x56b2735c807429a1f6fc9bb35b63736500bc716accd1fbb213be8b3d17b94169)).
+The same seller owns satchel #2, so after a sale they could pull out any USDC the buyer put in.
+
+**Why the record caught it.** Check 2 passes: the approval's nonce is spent. But `sign_evm` decoded
+the call as an ERC-20 `approve` and itemized it in the record. Check 3 reads `allowance(owner,
+spender)` on that contract at a finalized block, and it is still the maximum `uint256`. To make #3
+clean, the seller would have to sign a revocation, `approve(spender, 0)`, and wait for it to be final.
+
+### Satchel #6: sign a raw payload
+
+```bash
+npx -y satchel-nft@0.1.0 verify 6
+```
+
+```text
+Satchel #6 on v1.satchel-nft.testnet (testnet)
+owner satchel-nft.testnet, address 0x12A0234F034E3c2F67E5586DF93DC54aa6719E49, record version 1
+listed by satchel-nft.testnet at record version 1
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer-prod.testnet
+
+[PASS] No signed transaction is still pending
+       Nothing was ever signed for this token through sign_evm
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[FAIL] The record can't explain everything signed
+       1 raw signature(s) over payloads the contract did not build. No one can rule out what these left behind
+
+NOT PROVABLE (checked 2026-11-09T17:04:44.592Z)
+read from https://rpc.testnet.fastnear.com
+```
+
+**The move.** The owner called `sign_raw` with a 32-byte hash, `0x5a09ef56…`
+([`4J8Y6WSP…`](https://testnet.nearblocks.io/txns/4J8Y6WSPpW5d8pH6PpBGnC5NDVvuAKLzaDSYwRs1kwzB)). It
+could be a Bitcoin sighash, a permit, an order or a message: from 32 bytes no one can tell.
+
+**Why the record caught it.** `sign_raw` is allowed, but it counts every signature in
+`opaque_signatures`. Check 4 fails on any count above 0, and it will fail for this satchel forever,
+whoever owns it. A seller can make a satchel unprovable; they can't make it look clean. Satchel #6 is
+also listed, at record version 1, so you can see what a buyer would see before paying.
+
+### Satchel #4: for sale, and clean
+
+```bash
+npx -y satchel-nft@0.1.0 verify 4
+```
+
+```text
+Satchel #4 on v1.satchel-nft.testnet (testnet)
+owner satchel-nft.testnet, address 0xB1d9F87B909823aEbD6046406709102d871a813b, record version 0
+listed by satchel-nft.testnet at record version 0
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer-prod.testnet
+
+[PASS] No signed transaction is still pending
+       Nothing was ever signed for this token through sign_evm
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[PASS] Nothing the record can't explain
+       0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+PROVABLY CLEAN (checked 2026-11-09T17:04:55.653Z)
+read from https://rpc.testnet.fastnear.com
+```
+
+Satchel #4 holds 0.002 Sepolia ETH, sent to it from satchel #1, and has never signed anything. Its
+listing pins record version 0. Anyone with a testnet NEAR wallet can buy it for 1 NEAR from
+[its page](/satchel/4).
+
+<Callout type="note" title="Your output can differ">
+Satchels #4 and #6 are for sale. If someone has bought one, its "listed by" line is gone, and a new
+owner can sign with it, which changes its record and maybe its verdict. For about 13 minutes after a
+satchel sends on Sepolia, its report reads `COULD NOT CHECK EVERYTHING` until that block is final.
+</Callout>
+
+## The two moves the contract refuses
+
+The last two moves don't need a report: the contract refused them on chain. Each refusal is a NEAR
+transaction you can open.
+
+| The seller tries to | The call | The contract's answer | Transaction |
+| --- | --- | --- | --- |
+| Sign while satchel #4 is listed | `sign_evm({ token_id: "4", tx: … })`, by its owner | `Satchel: signing is frozen while the token is listed` | [`5ZaKqJUx…`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
+| Change satchel #6 after a buyer checked it | `buy({ token_id: "6", record_version: "0", price: 1 NEAR })`, by a buyer | `Satchel: the signing record changed since you checked it` | [`7HQPu9qe…`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv) |
+
+The second one is the whole sale in four transactions. Satchel #6 was
+[listed](https://testnet.nearblocks.io/txns/GoSfXxf7pgpb8fNCCbiFuxpT6gAYt5LW3Ve49R4oBL3z) clean at
+record version 0. The seller [delisted](https://testnet.nearblocks.io/txns/8X7vStD8r1AwVqdJfDkhsfiKoj8v5KJubXrhBdtJ35M)
+it, had the raw payload signed, and [listed it again](https://testnet.nearblocks.io/txns/6UNoo28pdrTjDJbnREPLe8k4JNW1xpGVHKwHyZeUzdxG)
+at version 1. A buyer who had checked version 0 called `buy` naming version 0. The contract refused,
+and NEAR refunded the buyer's 1 NEAR. A buyer's check is part of the purchase: if anything is signed
+between the check and the `buy`, there is no sale.
+
+## What you learned
+
+- **Nothing a satchel signs is hidden.** The contract builds every EVM transaction it signs and
+  records it before the MPC network signs. Anything else it signs is counted.
+- **The report reads the chains, not the seller.** Check 2 reads each chain's nonce, and check 3 each
+  approval, at a finalized block.
+- **Unknown is never clean.** A raw signature or a call the contract can't classify makes a satchel
+  not provable, for good. An RPC that can't answer makes it "could not check everything", never a pass.
+- **The purchase names what you checked.** Listing freezes signing, and `buy` fails if the record
+  version or the price changed.
+
+## Next steps
+
+- [The clean transfer report](/docs/concepts/clean-transfer-report): each check in detail.
+- [Buy a satchel](/docs/guides/buy): buy satchel #4 on testnet.
+- [A full sale on testnet, from the terminal](/docs/tutorials/sale-on-testnet): make your own moves
+  with two testnet accounts.
+- [Threat model](/docs/security/threat-model): every other move a seller could try, and what stops it.

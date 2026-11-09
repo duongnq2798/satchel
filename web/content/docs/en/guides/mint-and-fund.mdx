@@ -1,1 +1,151 @@
-Draft: this page is being written.
+A satchel's address exists the moment its token does. NEAR's MPC network derives the key from the Satchel
+contract's account and the token's path, `satchel/<id>`, so the address never changes, whoever owns the
+token. Minting takes one NEAR transaction; funding is an ordinary transfer on an EVM chain, from any wallet
+or exchange.
+
+<Callout type="danger" title="Real funds on mainnet only">
+Satchel is not audited. On mainnet, keep in a satchel only what you can afford to lose. A testnet
+satchel's address is also a valid address on Ethereum and every other mainnet chain, but NEAR's testnet
+MPC network signs for it: never send real funds to a testnet satchel.
+</Callout>
+
+## What you need
+
+- A NEAR wallet connected to the network you want ([Connect a NEAR wallet](/docs/guides/wallets)), with at
+  least 0.1 NEAR plus gas.
+- For funding: coins on a chain of the same network. A testnet satchel sends from the 8 testnets
+  (Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, BNB testnet, Avalanche Fuji,
+  Aurora testnet); a mainnet satchel from the 8 mainnets (Ethereum, Base, Arbitrum One, OP Mainnet,
+  Polygon, BNB Chain, Avalanche, Aurora).
+
+## Mint a satchel
+
+<Steps>
+
+1. **Open Your satchels**: [satchelnft.xyz/satchels](https://satchelnft.xyz/satchels) on testnet, or
+   [satchelnft.xyz/mainnet/satchels](https://satchelnft.xyz/mainnet/satchels) on mainnet, and connect your
+   wallet.
+
+2. **Wait for the contract check.** Until the network's contract passes check 1 (no access keys, the
+   reproducible build, the canonical MPC contract), the page says
+   `Checking the contract before showing an address…` and offers no mint button. It shows no address and
+   signs nothing for a contract it hasn't checked.
+
+3. **Click Mint a satchel · 0.1 NEAR** and approve `mint` in your wallet: 0.1 NEAR deposit, 50 TGas. The
+   0.1 NEAR pays for the token's storage and its signing record; the contract refunds anything above it.
+
+4. **Open the new satchel.** When the mint is final, the app takes you to the satchel's page,
+   `/satchel/<id>` (`/mainnet/satchel/<id>` on mainnet). Your satchels also lists every token you own, each
+   with its path and address.
+
+</Steps>
+
+<Tabs labels={["In the app", "In a terminal"]}>
+<Tab>
+
+The satchel's page shows its number, `Owned by you`, its path (`satchel/<id>`) and its record version
+(0 for a new satchel), then a card headed **One address on 16 EVM chains, controlled by whoever owns this
+NFT**, with the address and a **Copy** button.
+
+</Tab>
+<Tab>
+
+With the account's key in the near CLI's keychain, `mint` prints the transaction, asks
+`Send it? Type yes to send:`, then prints the new token and its address:
+
+```bash
+npx -y satchel-nft@0.1.0 mint --as alice.testnet
+```
+
+Before you agree, it reminds you of the rule below:
+
+```text
+Mints a satchel to alice.testnet for 0.1 NEAR.
+Its address is known before it exists, but anyone can mint the next id: fund it only after this mint.
+```
+
+</Tab>
+</Tabs>
+
+## Fund it
+
+<Steps>
+
+1. **Copy the address** from the satchel's page. It is the same `0x` address on all 16 chains.
+
+2. **Send coins to it on one chain of the right network**, from any wallet or exchange that sends on that
+   chain. A testnet satchel: Sepolia ETH, Base Sepolia ETH, Polygon Amoy POL and so on. A mainnet satchel:
+   real ETH, POL, BNB or AVAX.
+
+3. **Check the balance.** Under the address, the page shows the native balance on each of the network's 8
+   chains. Each balance links to the address on that chain's explorer, and reads `unavailable` when the
+   chain's RPC doesn't answer. Click **Check again** on the report to read everything again.
+
+</Steps>
+
+From a terminal, `show` prints the same balances. This is satchel #4 on testnet:
+
+```bash
+npx -y satchel-nft@0.1.0 show 4
+```
+
+```text
+Satchel #4 on v1.satchel-nft.testnet (testnet)
+owner satchel-nft.testnet, path satchel/4, record version 0
+address 0xB1d9F87B909823aEbD6046406709102d871a813b
+listed for 1 NEAR by satchel-nft.testnet at record version 0
+
+Sepolia           0.002 ETH
+Base Sepolia      0 ETH
+Arbitrum Sepolia  0 ETH
+OP Sepolia        0 ETH
+Polygon Amoy      0 POL
+BNB testnet       0 tBNB
+Avalanche Fuji    0 AVAX
+Aurora testnet    0 ETH
+
+Before you buy it: satchel-nft verify 4
+```
+
+The page and `show` list native coins only. Tokens such as USDC sent to the address are there, and your
+explorer shows them, but the app doesn't list them yet.
+
+## Mint first, then fund
+
+A satchel's address is fixed by its id before the token exists, so you can compute the next satchel's
+address in advance. Don't fund it in advance. `mint` is open to anyone, and the next id goes to whoever
+mints first: if someone else mints it between your funding and your mint, they own the address and what
+you sent to it.
+
+This is not hypothetical. On mainnet, satchel #1's address was funded with 0.00195 ETH on Base 92 seconds
+before it was minted. Its owner minted it in time; anyone who had minted #1 in between would have owned
+that ETH. Always fund the address your wallet shows on a satchel you already own.
+
+## Fees on a new address
+
+Your satchel pays for its own EVM transactions from its own balance, so fund it with enough for the value
+you plan to send plus gas. When the app sends from a satchel, it estimates gas for that exact transaction
+and adds 20%, and sets the fee cap at twice the latest base fee plus the priority fee, since the MPC
+signature takes a few NEAR blocks to arrive. Before your wallet opens, it checks that the balance covers
+the value plus the most the fees can reach, including the L1 data fee on OP Mainnet, Base and their Sepolia
+testnets. [Send from a satchel](/docs/guides/send#the-checks-before-anything-is-signed) has the details.
+
+Sending to an address that has never been used can cost far more gas than a plain 21,000-gas transfer. When
+the demo satchels were funded on Sepolia, each send to a new address used 204,600 gas. The app estimates
+gas, so you never set it by hand, but fund enough for it.
+
+## Common mistakes
+
+- **Funding before minting.** See [above](#mint-first-then-fund).
+- **Funding a testnet satchel with real coins.** The address is valid on mainnet chains, but only the
+  testnet MPC network signs for it. The app never sends mainnet coins from a testnet satchel.
+- **Funding the wrong network's chain.** A mainnet satchel's app sends only on the 8 mainnets. Coins on a
+  testnet sit at the same address, but you can't send them from `/mainnet` pages.
+- **Expecting a transfer to reset the address.** It doesn't: the address and the
+  [signing record](/docs/concepts/signing-record) stay with the token for life.
+
+## Next steps
+
+- [Send from a satchel](/docs/guides/send)
+- [Sell a satchel](/docs/guides/sell)
+- [Satchels and their addresses](/docs/concepts/satchels-and-addresses)

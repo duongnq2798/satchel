@@ -30,6 +30,12 @@ export function terms(query: string): string[] {
     .slice(0, 8);
 }
 
+/** An English word without its plural or tense ending, for a second try when the word itself isn't found. */
+export function stem(term: string): string {
+  if (term.length < 5) return term;
+  return term.replace(/(ing|ed|es|s)$/, "");
+}
+
 /** How well `term` matches `text`: 3 a whole word, 2 the start of a word, 1 anywhere, 0 not at all. */
 function fit(text: string, term: string): number {
   let at = text.indexOf(term);
@@ -56,7 +62,10 @@ export function search(index: SearchEntry[], query: string, limit = 12): SearchH
     let score = 0;
     let all = true;
     for (const term of want) {
-      const s = fit(page, term) * 10 + fit(heading, term) * 6 + Math.min(fit(text, term), 3);
+      let s = fit(page, term) * 10 + fit(heading, term) * 6 + fit(text, term);
+      // "revoked" finds "revoke", "approvals" finds "approval", at a lower score.
+      const root = stem(term);
+      if (s === 0 && root !== term) s = (fit(page, root) * 10 + fit(heading, root) * 6 + fit(text, root)) / 2;
       if (s === 0) {
         all = false;
         break;

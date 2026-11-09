@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { loadDoc, sourceFile } from "./load";
 import { resolveRepoLink, slugger, textOf } from "./markdown";
 import { DOCS, PAGES, findPage, neighbours } from "./nav";
-import { highlight, search, terms } from "./search";
+import { highlight, search, stem, terms } from "./search";
 
 /** Paths of the app outside the docs that a docs page may link to. */
 const APP_ROUTES = [/^\/$/, /^\/(mainnet\/?)?$/, /^\/(mainnet\/)?(market|satchels|verify)$/, /^\/(mainnet\/)?satchel\/\d+$/, /^\/llms\.txt$/];
@@ -126,6 +126,13 @@ describe("search", () => {
   it("matches the start of a word and keeps commands whole", () => {
     expect(terms("satchel-nft verify")).toEqual(["satchel-nft", "verify"]);
     expect(search(index, "refer")[0].entry.href).toBe("/docs/developers/cli");
+  });
+
+  it("finds a word through its stem when the word itself isn't there", () => {
+    expect(stem("revoked")).toBe("revok");
+    expect(stem("approvals")).toBe("approval");
+    expect(stem("uses")).toBe("uses");
+    expect(search(index, "outcomes")[0].entry.href).toBe("/docs/developers/cli#exit-codes");
   });
 
   it("marks the matching parts of a snippet", () => {

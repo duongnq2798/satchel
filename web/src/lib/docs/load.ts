@@ -12,8 +12,10 @@ import { DEFAULT_LOCALE, type Locale, type PlacedPage, findPage } from "./nav";
 const WEB_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(WEB_ROOT, "..");
 
+// Every docs page and the search index are prerendered, so nothing reads these files at run time:
+// the ignore comments keep the build from tracing the whole repository into the server bundle.
 export function sourceFile(page: PlacedPage, locale: Locale = DEFAULT_LOCALE): string {
-  if (page.repoFile) return path.join(REPO_ROOT, page.repoFile);
+  if (page.repoFile) return path.join(/*turbopackIgnore: true*/ REPO_ROOT, page.repoFile);
   return path.join(WEB_ROOT, "content", "docs", locale, `${page.slug === "" ? "index" : page.slug}.mdx`);
 }
 
@@ -30,7 +32,7 @@ export interface LoadedDoc extends Collected {
 export const loadDoc = cache(async (slug: string, locale: Locale = DEFAULT_LOCALE): Promise<LoadedDoc | null> => {
   const page = findPage(slug);
   if (!page) return null;
-  let source = await readFile(sourceFile(page, locale), "utf8");
+  let source = await readFile(/*turbopackIgnore: true*/ sourceFile(page, locale), "utf8");
   // A repository file opens with its own # title; the page shows the nav's title instead.
   if (page.repoFile) source = source.replace(/^﻿?#\s[^\n]*\n/, "");
   const collected = emptyCollected();

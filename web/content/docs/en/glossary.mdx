@@ -1,1 +1,186 @@
-Draft: this page is being written.
+The words these docs use, in alphabetical order, each with a link to the page that explains it.
+Contract fields and methods are in `code`, as they appear in the contract and the library.
+
+## A
+
+**Access key.** A key that can sign for a NEAR account. The Satchel contract account has none, so
+no one can redeploy it or sign as it. See [Check every claim](/docs/security/check-every-claim).
+
+**Approval.** A call that lets another address move the satchel's tokens: ERC-20 `approve` and
+`increaseAllowance`, ERC-721 `approve`, `setApprovalForAll` and Permit2 `approve`. The contract
+itemizes each one in the record, and check 3 reads whether it is still live. See
+[The signing record](/docs/concepts/signing-record).
+
+**Approval row.** One itemized approval in the record: the chain, the token contract, the kind,
+the spender and the argument. The record holds up to 32; repeats are merged.
+
+**`approvals_not_itemized`.** The count of approvals signed after the 32 rows were full. Any count
+above 0 fails check 4, for good.
+
+**Archival node.** A NEAR RPC node that keeps old blocks and transactions. The claims script reads
+old state from FastNEAR's archival node, so its answers don't change.
+See [RPCs, finality and rate limits](/docs/developers/rpc-and-finality).
+
+## B
+
+**`buy`.** The contract method that buys a listed satchel. It names the token, the record version
+the buyer checked and the price, and attaches at least the price. If either changed, it fails and
+refunds. See [Listings and sales](/docs/concepts/listings-and-sales).
+
+## C
+
+**Chain Signatures.** NEAR's service in which an MPC network signs for keys derived from a NEAR
+account and a path. Satchel's keys are secp256k1 keys of this kind.
+See [How it works](/docs/how-it-works).
+
+**Check 1 to 4.** The clean transfer report's checks: the contract can't sign behind the record;
+no signed transaction is still pending; no approval left behind; nothing the record can't explain.
+
+**Clean transfer report.** The four checks a buyer runs on a satchel's record before paying, and
+the verdict they give. See [The clean transfer report](/docs/concepts/clean-transfer-report).
+
+**Code hash.** The hash of a NEAR account's deployed code. The Satchel contracts' code hash is
+`94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`, the reproducible build of commit `87148c6`.
+
+**COULD NOT CHECK EVERYTHING.** The verdict when no check fails but one couldn't be read, usually
+because a block isn't final yet. <Verdict v="unknown" />. See [Troubleshooting](/docs/troubleshooting).
+
+**Counters.** The record's three numbers that only grow: `opaque_signatures`, `unclassified_calls`
+and `approvals_not_itemized`. Check 4 passes only when all three are 0.
+
+## D
+
+**`delist`.** The contract method that ends the owner's listing and unfreezes signing.
+
+**Derivation path.** The string the MPC network derives a key from, together with the contract's
+account. For a satchel it is `satchel/<token_id>`.
+See [Satchels and addresses](/docs/concepts/satchels-and-addresses).
+
+## E
+
+**EIP-1559.** The Ethereum transaction type the contract builds, hashes and has signed for every
+`sign_evm` call.
+
+**`evm_signing_hash`.** A view that returns the hash the contract would have signed for a given
+transaction. The app compares it with viem's hash before it asks for a signature.
+See [Contract reference](/docs/developers/contract).
+
+**Event.** A NEP-297 log line, `EVENT_JSON:` and a JSON object, that the contract writes for each
+signature, listing, delisting, sale, mint and transfer. See [Events](/docs/developers/events).
+
+## F
+
+**Finalized block.** A block the chain will not reorganize. The report pins every EVM read to a
+finalized block, and on Aurora to 10 blocks before it.
+See [The clean transfer report](/docs/concepts/clean-transfer-report).
+
+**Full-access key.** A NEAR key that can do anything for its account, including attach a deposit.
+Every Satchel action attaches one, so every action needs it. See [Wallets](/docs/guides/wallets).
+
+## L
+
+**Listing.** An offer to sell a satchel at a price, pinned to the record version at the moment of
+listing. While it lasts, signing is frozen. Any transfer ends it.
+See [Listings and sales](/docs/concepts/listings-and-sales).
+
+**Locked contract.** A contract whose account has no access keys. Its code can never change; a new
+version ships as a new account.
+
+## M
+
+**Mainnet.** NEAR's production network. Satchel's mainnet contract is `v1.satchel-nft.near`, live
+since 9 November 2026. See [Networks and chains](/docs/concepts/networks-and-chains).
+
+**`max_nonce`.** For each chain in the record, the highest nonce the contract has signed. Check 2
+passes when the address's nonce at a finalized block is above it.
+
+**MPC contract.** The NEAR contract the Satchel contract asks for signatures:
+`v1.signer-prod.testnet` on testnet, `v1.signer` on mainnet. The `mpc_contract` view returns it.
+
+**MPC network.** The nodes that hold Chain Signatures keys in shares and sign together. No single
+node has a satchel's key. Satchel trusts that enough of them don't collude.
+See [Threat model](/docs/security/threat-model).
+
+## N
+
+**NEP-171.** NEAR's NFT standard. A satchel is a NEP-171 token.
+
+**NEP-297.** NEAR's standard for event logs. See [Events](/docs/developers/events).
+
+**NEP-330.** NEAR's standard for contract source metadata. Satchel's names the commit it was built
+from and the Docker image that built it.
+
+**Nonce.** An EVM address's transaction counter. A signed transaction can be broadcast only while
+its nonce is unspent, which is why check 2 waits for every signed nonce to be spent at a finalized
+block.
+
+**NOT PROVABLE.** The verdict when any check fails. <Verdict v="not-provable" />.
+
+## O
+
+**Opaque signature.** A signature over a 32-byte payload the contract didn't build, made through
+`sign_raw`. Counted in `opaque_signatures`. Any count above 0 fails check 4, for good.
+
+## P
+
+**Pending nonce.** A nonce the contract signed that no finalized block has spent. Its signature is
+public in the NEAR receipt, so anyone can still broadcast it. See [Send from a satchel](/docs/guides/send).
+
+**Permit2.** Uniswap's shared approval contract. The record itemizes Permit2 `approve` calls, and
+check 3 reads the allowance and its expiration.
+
+**PROVABLY CLEAN.** The verdict when all four checks pass. <Verdict v="clean" />.
+
+## R
+
+**Record version.** A number in the record that goes up with every signature. A listing pins it,
+and `buy` names it, so a purchase fails if the seller signed after the buyer checked.
+
+**Reproducible build.** A build in a pinned Docker image that gives the same code hash for the same
+commit. CI builds Satchel's this way. See [Check every claim](/docs/security/check-every-claim).
+
+**Revocation.** A call that takes a right back: `setApprovalForAll(x, false)`,
+`increaseAllowance(x, 0)` and Permit2 `approve` with amount 0. Logged but never itemized, so it
+uses no slot. ERC-20 `approve(x, 0)` is still an approval row, one that reads as not live.
+
+## S
+
+**Satchel.** A NEP-171 token on the Satchel contract that controls one address on 16 EVM chains.
+
+**`satchel-nft`.** The npm package: the library the web app runs on, and a CLI.
+See [Library](/docs/developers/library) and [CLI reference](/docs/developers/cli).
+
+**`sign_evm`.** The contract method that builds, records and has signed an EIP-1559 transaction for
+a satchel. Only the owner can call it, and not while the satchel is listed.
+
+**`sign_raw`.** The contract method that has any 32-byte payload signed. It counts as an opaque
+signature. The app and the CLI don't call it.
+
+**Signing freeze.** While a satchel is listed, `sign_evm` and `sign_raw` refuse with
+`Satchel: signing is frozen while the token is listed`.
+
+**Signing record.** The public, per-token record the contract writes before every signature: for
+each chain the highest nonce and the count of signatures, the approval rows, the counters and the
+version. See [The signing record](/docs/concepts/signing-record).
+
+## T
+
+**Testnet.** NEAR's test network. Satchel's testnet contract is `v1.satchel-nft.testnet`, and the
+demo satchels live there. The app and the CLI send a testnet satchel only on EVM testnets.
+
+## U
+
+**Unclassified call.** A call the contract can't recognize as a transfer, an asset transfer, an
+approval or a revocation, such as a swap or a multicall. It is signed and counted in
+`unclassified_calls`. Any count above 0 fails check 4, for good.
+
+## Y
+
+**yoctoNEAR.** The smallest unit of NEAR, 10⁻²⁴ NEAR. Satchel's sign, list, delist and
+transfer calls attach exactly 1 to require a full-access key.
+
+## Related
+
+- [FAQ](/docs/faq): short answers that use these terms.
+- [How it works](/docs/how-it-works): the design end to end.
+- [The signing record](/docs/concepts/signing-record): the fields in full.

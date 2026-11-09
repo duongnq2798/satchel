@@ -1,1 +1,236 @@
-Draft: this page is being written.
+Every state change on the Satchel contract writes a log line in the NEAR receipt that made it. An
+indexer, a bot or a wallet can follow mints, signatures, listings and sales from these lines
+without polling every token. They follow [NEP-297](https://nomicon.io/Standards/EventsFormat): the
+NFT standard's own `nft_mint` and `nft_transfer`, and five events of Satchel's own under the standard
+name `satchel`.
+
+<Callout type="warning" title="Events tell you what happened, the views tell you what is true">
+Use events to know when to look again, not as the record itself. Before you show a verdict, price a
+listing or let anyone buy, read the token with the `satchel` view or run the
+[clean transfer report](/docs/concepts/clean-transfer-report). Some changes have no event of their
+own: a transfer ends a listing without a `delist` event, for example.
+</Callout>
+
+## The log format
+
+Each event is one log line: the prefix `EVENT_JSON:` followed by a JSON object. Satchel's own events
+come from `emit` in `contracts/satchel/src/lib.rs`:
+
+```json title="EVENT_JSON: payload"
+{
+  "standard": "satchel",
+  "version": "1.0.0",
+  "event": "sign_evm",
+  "data": [{ "token_id": "1", "...": "..." }]
+}
+```
+
+| Field | Value |
+| --- | --- |
+| `standard` | `"satchel"` for Satchel's events, `"nep171"` for the NFT standard's |
+| `version` | `"1.0.0"` for both |
+| `event` | The event's name, below |
+| `data` | An array. Satchel's events always hold exactly one object |
+
+Numbers that don't fit in a JavaScript number (`u64`, `u128`) arrive as decimal strings: token ids,
+chain ids, nonces, values, prices in yoctoNEAR and record versions.
+
+The events are logged by the contract account, `v1.satchel-nft.testnet` on testnet and
+`v1.satchel-nft.near` on mainnet. Read only logs whose receipt that account executed: anyone can
+write a log line that looks like these from their own contract.
+
+## Satchel's events
+
+### sign_evm
+
+Logged by `sign_evm`, after the contract has built and hashed the transaction and saved the record,
+and before it asks the MPC network to sign. It means the record now counts this signature, whether
+or not the MPC network's answer arrives.
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `token_id` | string | The satchel |
+| `chain_id` | string | The EVM chain id, one of the [16 supported chains](/docs/concepts/networks-and-chains) |
+| `nonce` | string | The transaction's nonce on that chain |
+| `to` | string | The `to` address exactly as the caller sent it (its case is kept) |
+| `value` | string | The value in wei |
+| `class` | string | How the contract classified the call: `value_transfer`, `asset_transfer`, `approval`, `revocation` or `unclassified` |
+| `approval` | object or `null` | The decoded approval when `class` is `approval`, else `null`. Its fields are below |
+| `selector` | string or `null` | The call's 4-byte selector, `0x`-prefixed, when `class` is `unclassified`, else `null` |
+| `data_hash` | string | keccak256 of the calldata, 64 hex digits without `0x`. The calldata itself can be up to 8 KiB, so the event carries its hash |
+| `payload` | string | The EIP-1559 signing hash the MPC network is asked to sign, 64 hex digits without `0x` |
+| `record_version` | string | The token's record version after this signature |
+
+The `approval` object has the same shape as a row of the record's `approvals`:
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `chain_id` | string | The chain the approval was signed for |
+| `contract` | string | The token contract the call went to, lowercase, `0x`-prefixed |
+| `kind` | string | `Approve`, `IncreaseAllowance`, `SetApprovalForAll` or `Permit2Approve` |
+| `spender` | string | The address granted the right, lowercase, `0x`-prefixed |
+| `token` | string or `null` | For `Permit2Approve`, the ERC-20 token the allowance is for; else `null` |
+| `arg` | string | The 32-byte argument, `0x`-prefixed: the amount, the ERC-721 token id, or for `SetApprovalForAll` the boolean as a word |
+
+A `sign_evm` event with an `approval` does not always add a row to the record. An approval identical
+to a row already there is not listed twice, and once a token has 32 rows, every new approval only
+increases `approvals_not_itemized`. Read the record to know which.
+
+### sign_raw
+
+Logged by `sign_raw` before the MPC request. The record's `opaque_signatures` has gone up by one.
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `token_id` | string | The satchel |
+| `payload` | string | The 32 bytes to be signed, 64 hex digits without `0x` |
+| `record_version` | string | The record version after this signature |
+
+### list
+
+Logged by `list`. Signing is frozen for this token from here on, until it is sold, delisted or
+transferred.
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `token_id` | string | The satchel |
+| `price` | string | The price in yoctoNEAR (10^24 yoctoNEAR is 1 NEAR) |
+| `record_version` | string | The record version the listing pins. A `buy` must name it |
+
+Listing a token that is already listed replaces the listing and logs `list` again.
+
+### delist
+
+Logged by `delist`.
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `token_id` | string | The satchel |
+
+### sale
+
+Logged by `buy`, right after the standard `nft_transfer` event for the same token, in the same
+receipt.
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `token_id` | string | The satchel |
+| `seller` | string | The NEAR account that listed it and is paid |
+| `buyer` | string | The NEAR account that bought it and now owns it |
+| `price` | string | The price paid, in yoctoNEAR |
+| `record_version` | string | The record version the buyer named, which the contract checked |
+
+## The NFT standard's events
+
+These come from [NEP-171](https://nomicon.io/Standards/Tokens/NonFungibleToken/Core) with standard
+`nep171` and version `1.0.0`, so any NEAR NFT indexer already reads them.
+
+| Event | When | `data[0]` fields |
+| --- | --- | --- |
+| `nft_mint` | `mint`. The contract logs it itself, since the minting helper it uses doesn't | `owner_id`, `token_ids` (one id) |
+| `nft_transfer` | `nft_transfer`, `nft_transfer_call`, and `buy`. If an `nft_transfer_call` receiver returns the token, a second `nft_transfer` moves it back | `old_owner_id`, `new_owner_id`, `token_ids`, and `memo` when the caller passed one |
+
+A mint event does not carry the satchel's address. Derive it with `tokenAddress` from the
+[library](/docs/developers/library), or the MPC contract's `derived_public_key` view, from the path
+`satchel/<token_id>`.
+
+## Real events from testnet
+
+These are the log lines of transactions in the repository's evidence files, read back from NEAR
+testnet's archival node.
+
+```text title="EZLXcvf4… sign_evm on satchel #1 (Sepolia, nonce 0)"
+EVENT_JSON:{"standard":"satchel","version":"1.0.0","event":"sign_evm","data":[{"token_id":"1","chain_id":"11155111","nonce":"0","to":"0x000000000000000000000000000000000000dEaD","value":"1","class":"value_transfer","approval":null,"selector":null,"data_hash":"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","payload":"db23d1f97d37db73f8043be1db8d96ec494e5711fc845fab444b8f91e0601154","record_version":"1"}]}
+```
+
+`data_hash` here is the keccak256 of empty calldata: a plain value transfer. The receipt after it,
+executed by `v1.signer-prod.testnet`, logs the MPC request for path `satchel/1`; that line is the MPC
+contract's own and is not an event.
+
+```text title="VCULtPKm… sign_evm on satchel #3: an unlimited USDC approval"
+EVENT_JSON:{"standard":"satchel","version":"1.0.0","event":"sign_evm","data":[{"token_id":"3","chain_id":"11155111","nonce":"0","to":"0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238","value":"0","class":"approval","approval":{"chain_id":"11155111","contract":"0x1c7d4b196cb0c7b01d743fbc6116a902379c7238","kind":"Approve","spender":"0xac30961c59543fe2d8258b8c71c75320feb7c235","token":null,"arg":"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},"selector":null,"data_hash":"fda1d3c4d4352482620c6082069aa872985ec523ca5e0560d4d381dbfbae3b9b","payload":"f192de2ddbc41c362d5159e76103a8e6d243d5cc61fb1e0746913cf25368c55b","record_version":"1"}]}
+```
+
+```text title="4J8Y6WSP… sign_raw on satchel #6"
+EVENT_JSON:{"standard":"satchel","version":"1.0.0","event":"sign_raw","data":[{"token_id":"6","payload":"5a09ef563119212e7b1b6c44303b9512538f44d55e2e9f3a9aae15d18068376e","record_version":"1"}]}
+```
+
+```text title="Satchel #7, minted, listed, delisted and sold with the CLI"
+EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_mint","data":[{"owner_id":"satchel-nft.testnet","token_ids":["7"]}]}
+EVENT_JSON:{"standard":"satchel","version":"1.0.0","event":"list","data":[{"token_id":"7","price":"500000000000000000000000","record_version":"1"}]}
+EVENT_JSON:{"standard":"satchel","version":"1.0.0","event":"delist","data":[{"token_id":"7"}]}
+EVENT_JSON:{"standard":"nep171","version":"1.0.0","event":"nft_transfer","data":[{"old_owner_id":"satchel-nft.testnet","new_owner_id":"buyer.satchel-nft.testnet","token_ids":["7"]}]}
+EVENT_JSON:{"standard":"satchel","version":"1.0.0","event":"sale","data":[{"token_id":"7","seller":"satchel-nft.testnet","buyer":"buyer.satchel-nft.testnet","price":"500000000000000000000000","record_version":"1"}]}
+```
+
+The last two lines are one transaction, `BcrTmMCq…`: the `buy` of satchel #7 for 0.5 NEAR.
+
+### Read them yourself
+
+Save this as `events.mjs` and run it with Node 22 or later. It asks NEAR testnet's archival node for
+a transaction and prints every event the Satchel contract logged in it. No key or install needed.
+
+```js title="events.mjs"
+const RPC = "https://archival-rpc.testnet.fastnear.com";
+const CONTRACT = "v1.satchel-nft.testnet";
+const [hash = "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo", sender = "satchel-nft.testnet"] = process.argv.slice(2);
+
+const res = await fetch(RPC, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tx", params: { tx_hash: hash, sender_account_id: sender, wait_until: "NONE" } }),
+});
+const { result, error } = await res.json();
+if (error) throw new Error(JSON.stringify(error));
+
+for (const receipt of result.receipts_outcome) {
+  // Only the Satchel contract's own receipts: anyone can log a line that looks like an event.
+  if (receipt.outcome.executor_id !== CONTRACT) continue;
+  for (const log of receipt.outcome.logs) {
+    if (!log.startsWith("EVENT_JSON:")) continue;
+    const event = JSON.parse(log.slice("EVENT_JSON:".length));
+    console.log(event.standard, event.event, JSON.stringify(event.data[0]));
+  }
+}
+```
+
+```bash
+node events.mjs BcrTmMCqdYGdCXDHH4fZqUHCy8bYdnUXLx3JS94jKUHX buyer.satchel-nft.testnet
+```
+
+```text
+nep171 nft_transfer {"old_owner_id":"satchel-nft.testnet","new_owner_id":"buyer.satchel-nft.testnet","token_ids":["7"]}
+satchel sale {"token_id":"7","seller":"satchel-nft.testnet","buyer":"buyer.satchel-nft.testnet","price":"500000000000000000000000","record_version":"1"}
+```
+
+The `tx` method needs the transaction's sender as well as its hash. On mainnet, use
+`https://archival-rpc.mainnet.fastnear.com` and `v1.satchel-nft.near`.
+
+## Building an indexer
+
+| You want to | Follow | And remember |
+| --- | --- | --- |
+| Know when a token's record changed | `sign_evm`, `sign_raw` | `record_version` goes up by exactly 1 per signature. A gap means you missed an event: read the `satchel` view |
+| Keep a list of open listings | `list`, `delist`, `sale`, and every `nft_transfer` | Any transfer ends a listing with no `delist` event. A listing whose seller no longer owns the token is void; the `listings` view skips it |
+| Flag approvals a buyer will want revoked | `sign_evm` with `class: "approval"` | Whether it is still live is on the EVM chain, not in the event. The report reads it at a finalized block |
+| Warn that a satchel can't be clean any more | `sign_raw`, and `sign_evm` with `class: "unclassified"` | Both are permanent: the counters never go down |
+| Match a signature to calldata you hold | `data_hash`, `payload` | keccak256 your calldata and compare with `data_hash`; `payload` is the hash `evm_signing_hash` returns for the same fields |
+| Show new satchels | `nft_mint` | Derive the address from `satchel/<token_id>`; it is the same on all 16 chains |
+
+Two rules keep an indexer honest:
+
+- **Count an event only from a receipt that succeeded**, executed by the Satchel contract's account.
+  A `sign_evm` receipt that succeeded saved the record even if the MPC request after it failed or
+  timed out, so the event stands.
+- **Don't decide anything a buyer relies on from events alone.** Read the record and the listing
+  with the views, and the chains with the report, at the moment it matters. That is what the app
+  and `satchel-nft verify` do.
+
+## Related
+
+- [The signing record](/docs/concepts/signing-record): what each field the events change means.
+- [Contract reference](/docs/developers/contract): the methods that log these events, and the views
+  that are the source of truth.
+- [TypeScript library reference](/docs/developers/library): read tokens, listings and reports
+  without writing RPC calls.
+- [Errors and exit codes](/docs/developers/errors): what a call that logs nothing returned instead.

@@ -1,1 +1,237 @@
-Draft: this page is being written.
+The report answers one question for a buyer: can anyone but the next owner still move what this satchel
+holds, through something its key already signed? It reads the satchel's [signing record](/docs/concepts/signing-record)
+on NEAR, then reads each chain the record names, and compares the two. It runs the same code everywhere: in
+your browser on the satchel's page and at [satchelnft.xyz/verify](https://satchelnft.xyz/verify), in your terminal
+as `satchel-nft verify`, and in your own code as `buildReport` from the
+[library](/docs/developers/library).
+
+<ChecksDiagram />
+
+The app shows the verdict as <Verdict v="clean" />, <Verdict v="not-provable" /> or <Verdict v="unknown" />. The CLI
+prints `PROVABLY CLEAN`, `NOT PROVABLE` or `COULD NOT CHECK EVERYTHING`, and exits 0 only for the first.
+
+## A report, line by line
+
+Satchel #1 on testnet, which signed seven Sepolia transactions and reads clean:
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1
+```
+
+```text
+Satchel #1 on v1.satchel-nft.testnet (testnet)
+owner buyer.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, record version 7
+
+[PASS] The contract can't sign behind the record
+       No access keys, so no one can redeploy it or sign as it
+       Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+       Signs only through v1.signer-prod.testnet
+
+[PASS] No signed transaction is still pending
+       Sepolia: signed up to nonce 4, finalized nonce is 5
+
+[PASS] No approval left behind
+       No approval was ever signed for this token
+
+[PASS] Nothing the record can't explain
+       0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+PROVABLY CLEAN (checked 2026-11-09T15:38:48.914Z)
+read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+```
+
+- The first two lines say which satchel, on which contract and network, who owns it, its EVM address and the
+  record version the report read. A listed satchel gets a third line: `listed by <seller> at record version <v>`.
+- Each check prints `[PASS]`, `[FAIL]` or `[????]` (could not be read), its title, and the facts behind it.
+- The verdict line carries the time the report was built. The last line names every RPC it read: the report is
+  only as honest as they are.
+
+## Check 1: the contract can't sign behind the record
+
+If the contract account itself could sign or change its code, nothing in the record would mean anything. This
+check reads three facts from NEAR, through `contractFacts`:
+
+| Reads | Passes when | Line on a pass |
+| --- | --- | --- |
+| `view_access_key_list` for the contract | 0 access keys | `No access keys, so no one can redeploy it or sign as it` |
+| `view_account`: `code_hash`, and any global contract fields | Its code hash equals the reproducible build pinned in the package (`94x4MmZK…`), and it is not a global contract referenced by account id | `Code hash <hash> is the reproducible build of commit 87148c6` |
+| The contract's `mpc_contract()` view | It returns the canonical Chain Signatures contract: `v1.signer-prod.testnet` on testnet, `v1.signer` on mainnet | `Signs only through <mpc>` |
+
+On a failure the title becomes `The contract could sign behind the record`, with lines like
+`<n> access key(s) on <contract>: whoever holds one can sign around the record`, or
+`Code hash <hash> is not the reproducible build (<expected>)`. A global contract referenced by account fails
+because its owner could replace the code; one referenced by the same hash passes.
+
+The values it compares against are pinned in the package's `config.ts`, not read from the contract, so the
+report never trusts the contract to describe itself. The app runs this same check before it shows any address or
+signs anything ([Security model](/docs/security#layers)).
+
+## Check 2: no signed transaction is still pending
+
+A signature for nonce N can be broadcast by anyone who has it, and every MPC signature is public in its NEAR
+receipt. It stops being usable only when some transaction at nonce N is final on that chain. So for every row in
+`record.evm`, the report reads the satchel address's nonce (its transaction count) at the chain's finalized block,
+and compares it with `max_nonce`.
+
+| What it reads | Status | Line |
+| --- | --- | --- |
+| Finalized nonce above `max_nonce` | pass | `Sepolia: signed up to nonce 4, finalized nonce is 5` |
+| Finalized nonce at or below `max_nonce`, latest nonce above it | unknown | `…signed up to nonce N; a transaction at that nonce is in a recent block that is not finalized yet. Check again once it is` |
+| Finalized and latest nonce at or below `max_nonce` | fail | `…signed up to nonce N, finalized nonce is M. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce N is final` |
+| The chain couldn't be read at a finalized block | unknown | `<chain>: could not read the nonce at a finalized block` |
+| No `evm` rows | pass | `Nothing was ever signed for this token through sign_evm` |
+
+The titles are `No signed transaction is still pending`, `A signed transaction may still be pending` and
+`Could not confirm every signed nonce is spent`. Satchel #5 shows the failure: a 10,000 ETH send signed at
+nonce 0 and never broadcast.
+
+```text
+[FAIL] A signed transaction may still be pending
+       Sepolia: signed up to nonce 0, finalized nonce is 0. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce 0 is final
+```
+
+A nonce spent by a transaction that reverted still counts: a reverted transaction spends its nonce too. The only
+way to pass is for the chain to move past every nonce ever signed, so a buyer can't fix this after the sale; it has
+to pass before.
+
+## Check 3: no approval left behind
+
+For every row in `record.approvals`, the report reads, at the chain's finalized block, whether the right it
+granted is still there (`approvalLiveness` in `approvals.ts`):
+
+| Row kind | What it reads | Live when |
+| --- | --- | --- |
+| `Approve` | ERC-20 `allowance(wallet, spender)` and ERC-721 `getApproved(arg)`. The record can't tell which standard the contract follows, so it reads both | The allowance is above 0, or `getApproved` returns the spender |
+| `IncreaseAllowance` | ERC-20 `allowance(wallet, spender)` | The allowance is above 0 |
+| `SetApprovalForAll` | `isApprovedForAll(wallet, spender)` | It returns true |
+| `Permit2Approve` | Permit2 `allowance(wallet, token, spender)`: amount and expiration | The amount is above 0 and the expiration is at or after the block's timestamp |
+
+A row granted to the zero address is never live: no one can send from it, and `approve(0x0, id)` is how an
+ERC-721 approval is cleared. A read that fails makes the row unknown, never revoked (for an `Approve` row, when
+both of its reads fail).
+
+The titles are `No approval left behind`, `An approval is still live` and `Could not read every approval`. Each row
+prints its chain, kind, contract and spender, then what was found: `allowance is 0`, `getApproved cleared`,
+`operator off`, `Permit2 allowance expired`, or, on satchel #3:
+
+```text
+[FAIL] An approval is still live
+       Sepolia: Approve on 0x1c7d…7238 for 0xac30…c235: allowance of 115792089237316195423570985008687907853269984665640564039457584007913129639935 still granted
+```
+
+## Check 4: nothing the record can't explain
+
+Three counters in the record stand for signatures whose effect no one can check. This check reads them from NEAR
+and needs all three at 0.
+
+| Counter | Line when it is above 0 |
+| --- | --- |
+| `opaque_signatures` | `<n> raw signature(s) over payloads the contract did not build. No one can rule out what these left behind` |
+| `unclassified_calls` | `<n> call(s) the contract could not classify. No one can rule out what these left behind` |
+| `approvals_not_itemized` | `<n> approval(s) signed after the list was full. No one can rule out what these left behind` |
+
+On a pass it prints `0 raw signatures, 0 unclassified calls, 0 approvals over the cap`. The title is
+`Nothing the record can't explain` or `The record can't explain everything signed`. This check is never unknown:
+the counters only grow, so a satchel that fails it fails for good.
+
+## The verdict
+
+The verdict follows from the four statuses, in this order:
+
+1. Any check failed: **not provable**. The report says which, and why.
+2. Otherwise, any check couldn't be read: **couldn't check everything**. Nothing failed, but nothing proves the
+   unread part either.
+3. All four passed: **provably clean**.
+
+"Unknown" is never a pass. An RPC that is down, a chain the package doesn't know, an RPC that answers for another
+chain id: each makes its check unknown, and the satchel can't read clean until it is read.
+
+## Finality: why reads wait
+
+Every nonce and every approval is read at the chain's **finalized** block, not its latest one. A transaction in a
+recent block can still be reorganized away, which would bring a spent nonce back to life. So after a satchel
+sends, its report reads "couldn't check everything" until the block holding that transaction is finalized.
+
+- On Sepolia that takes about 13 minutes.
+- On Base, satchel #1's first mainnet send read clean 21 minutes after it was sent.
+- Aurora's RPC calls its latest block finalized, so on Aurora and Aurora testnet the report reads 10 blocks
+  further back.
+
+Each chain's RPC must also say it serves the chain id it is configured for, or every read from it is unknown.
+[RPCs, finality and rate limits](/docs/developers/rpc-and-finality) has the details.
+
+## The report as data
+
+`buildReport(net, id)` from the library, and `satchel-nft verify <id> --json`, return a `Report`:
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `network` | `"testnet" \| "mainnet"` | The network the report read |
+| `contract` | string | The Satchel contract it read |
+| `tokenId` | string | The satchel's id |
+| `owner` | string | Its owner when read |
+| `address` | `0x…` string | Its EVM address, from the MPC contract's `derived_public_key` |
+| `recordVersion` | string | The record version the checks were run against. A purchase must name this |
+| `listing` | object or `null` | `seller`, `price` (yoctoNEAR), `record_version`, `listed_at` |
+| `checks` | four `{ id, status, title, lines }` | `id` is `contract`, `pending`, `approvals` or `counters`; `status` is `pass`, `fail` or `unknown` |
+| `verdict` | `"clean" \| "not-provable" \| "unknown"` | As above |
+| `checkedAt` | ISO 8601 string | When the report was built |
+| `sources` | string list | Every RPC it read: the NEAR RPC, then one per chain in the record |
+
+Satchel #4, listed and never used, as `verify 4 --json` returned it (the checks are trimmed to their ids and
+statuses here):
+
+```json
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "tokenId": "4",
+  "owner": "satchel-nft.testnet",
+  "address": "0xB1d9F87B909823aEbD6046406709102d871a813b",
+  "recordVersion": "0",
+  "listing": {
+    "seller": "satchel-nft.testnet",
+    "price": "1000000000000000000000000",
+    "record_version": "0",
+    "listed_at": "1794197407046137608"
+  },
+  "checks": [
+    { "id": "contract", "status": "pass" },
+    { "id": "pending", "status": "pass" },
+    { "id": "approvals", "status": "pass" },
+    { "id": "counters", "status": "pass" }
+  ],
+  "verdict": "clean",
+  "checkedAt": "2026-11-09T17:05:59.982Z",
+  "sources": ["https://rpc.testnet.fastnear.com"]
+}
+```
+
+## Who and what you trust
+
+The report trusts the RPCs it reads: one NEAR RPC and one per EVM chain. A node that lies about a nonce or an
+allowance can make a satchel look clean. The report names each one, pins every read to a finalized block, and
+refuses an EVM RPC that answers for the wrong chain. It does not compare several nodes or check storage proofs. To
+read from nodes you trust, set `NEAR_RPC` and `RPC_<chain id>`:
+
+```bash
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+```
+
+A satchel's address also comes through the NEAR RPC, from the MPC contract's `derived_public_key` view.
+
+## What a clean report doesn't say
+
+- **It proves only what the token's key signed.** An upgradable token, a blacklist, an issuer's clawback, an ENS
+  name whose controller is still the seller: those powers need no signature from the wallet. Value the assets
+  inside as you would anywhere else.
+- **It is a snapshot.** It holds at the record version it read. A listing freezes signing and `buy` names that
+  version, which is what carries it to the purchase ([Listings and sales](/docs/concepts/listings-and-sales)).
+- **It trusts the MPC network** not to sign with a derived key on its own.
+
+## Related
+
+- [The signing record](/docs/concepts/signing-record): what each check reads on NEAR.
+- [Buy a satchel](/docs/guides/buy): reading a report before you pay.
+- [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer): each check failing on a real satchel.
+- [Threat model](/docs/security/threat-model#the-report): the attacks on the report and what is left.

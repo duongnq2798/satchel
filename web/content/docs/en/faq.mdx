@@ -1,1 +1,171 @@
-Draft: this page is being written.
+Short answers, each with a link to the page that explains it in full. If something is going wrong
+right now, [Troubleshooting](/docs/troubleshooting) is faster.
+
+## Basics
+
+### What is a satchel?
+
+An NFT on NEAR that controls one address on 16 EVM chains. Only the NFT's owner can have the
+contract sign with that address's key, so whoever holds the NFT controls the address everywhere.
+[How it works](/docs/how-it-works) walks through it.
+
+### Who holds a satchel's key?
+
+No one. NEAR's MPC network holds it in shares and signs with it only when the Satchel contract asks,
+and the contract asks only for the token's current owner. The contract account has no access keys,
+so no one can change that rule.
+
+### Is the address the same on every chain?
+
+Yes. The key is derived from the contract's account and the path `satchel/<token_id>`, so satchel
+#1 has one `0x` address on all 16 chains. A testnet satchel and a mainnet satchel with the same
+number have different addresses, because the contracts are different accounts.
+[Satchels and addresses](/docs/concepts/satchels-and-addresses) has the derivation.
+
+### Do I need an EVM wallet?
+
+No. Your NEAR wallet signs the request to the contract. The app builds the EVM transaction, checks
+that the contract hashes it the same way, checks the MPC signature recovers to the satchel's
+address, and broadcasts it. [Send from a satchel](/docs/guides/send) shows each step.
+
+### Which chains does it work on?
+
+Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain, Avalanche and Aurora, and each one's
+testnet: Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, BNB testnet,
+Avalanche Fuji and Aurora testnet. The list is fixed in the contract.
+[Networks and chains](/docs/concepts/networks-and-chains) has the chain ids.
+
+### Can it sign for Bitcoin or other chains?
+
+The contract's `sign_raw` signs any 32-byte payload, such as a Bitcoin sighash. The app and the CLI
+don't offer it. A raw signature is counted as opaque in the record, and that makes the satchel not
+provably clean for every later owner, because no one can tell what it signed.
+
+## Buying and selling
+
+### What does the clean transfer report prove?
+
+That the satchel's key left nothing behind: the contract can't sign outside the record, no signed
+transaction is still waiting to be broadcast, no approval is still live, and nothing was signed that
+the record can't explain. It says nothing about the assets themselves.
+[The clean transfer report](/docs/concepts/clean-transfer-report) explains each check.
+
+### Can the seller empty the satchel after I check it?
+
+Not through the satchel's key. Listing freezes signing, and `buy` names the record version you
+checked. If the seller delists and signs anything, the version goes up and your purchase fails,
+with your NEAR refunded. Testnet transaction `7HQPu9qe…` shows it.
+[Listings and sales](/docs/concepts/listings-and-sales) covers the rules.
+
+### Can the previous owner still sign after a sale?
+
+No. The contract signs only for the current owner, so the moment the NFT moves, the old owner's
+requests fail with `Satchel: only the token's owner can do this`. Testnet transaction `GqFsnmFL…`
+is a previous owner trying.
+
+### Can I buy a satchel that isn't provably clean?
+
+Yes, but you have to say so: tick the box in the app, or pass `--accept-not-clean` to
+`satchel-nft buy`. Read the failing lines first. Some, like a pending nonce, the seller can fix;
+the counters in check 4 never go back to 0. [Buy a satchel](/docs/guides/buy) has the details.
+
+### How does the seller get paid?
+
+In the same transaction as the purchase: `buy` moves the NFT to you and sends the price to the
+seller. If you attached more than the price, the rest comes back to you. The contract takes no
+fee. [Sell a satchel](/docs/guides/sell) is the seller's side.
+
+### What happens if two people buy at once?
+
+The first `buy` to run wins. The second fails with `Satchel: token is not listed`, and its deposit
+is refunded.
+
+### Does transferring a satchel end its listing?
+
+Yes. Any transfer ends the listing, including one through `nft_transfer_call` that bounces back.
+[Transfer a satchel](/docs/guides/transfer) covers transfers.
+
+## Safety and trust
+
+### Why should I trust the report?
+
+You don't have to. It runs in your browser against public RPCs and names every one it read. In a
+terminal, `npx satchel-nft verify <id>` does the same, and reads your own nodes if you set
+`NEAR_RPC` and `RPC_<chain id>`. [Check every claim](/docs/security/check-every-claim) checks the
+deployment itself.
+
+### Has Satchel been audited?
+
+No. It is live on mainnet, where satchels hold real funds. It has had internal reviews only (two of
+the contract, one of them adversarial), and the contract's tests cover every fix. Keep in a mainnet satchel only what you can afford to
+lose.
+
+### What can't the report see?
+
+Powers built into an asset: a token the issuer can upgrade, blacklist or claw back needs no signature
+from the satchel's key. The report also trusts the RPCs it reads and the MPC network.
+[Threat model](/docs/security/threat-model) lists every limit.
+
+### Can anyone change the contract?
+
+No. The contract account's only key was deleted before the first mint, so no one can redeploy it,
+not even its author. A new version ships as a new account with a new code hash.
+
+### What if I sign a swap or another call Satchel can't classify?
+
+It is signed, and the record counts it as an unclassified call. That count never goes down, so the
+satchel can't read as provably clean again, for you or any later owner.
+[The signing record](/docs/concepts/signing-record) lists what the contract can classify.
+
+## Fees and costs
+
+### What does it cost?
+
+Minting takes 0.1 NEAR, which pays for the token's storage. Each signature costs NEAR gas and
+1 yoctoNEAR. A purchase costs the price plus gas. Transactions the satchel sends on an EVM chain pay
+that chain's gas from the satchel's own address, in the chain's coin.
+
+### Why does every action attach 1 yoctoNEAR?
+
+A deposit can only come from a full-access key, so every action needs your wallet's confirmation. A
+key that a website keeps for you can't sign, list or transfer a satchel.
+[Wallets](/docs/guides/wallets) explains it.
+
+## Networks
+
+### Is Satchel on mainnet?
+
+Yes, since 9 November 2026, at `v1.satchel-nft.near`. It is the same reproducible build as
+testnet, signs through `v1.signer`, and was locked before any satchel was minted. Its app pages are
+under [/mainnet](/mainnet).
+
+### What's the difference between testnet and mainnet satchels?
+
+They are different contracts, so they have different tokens and different addresses. The app and
+the CLI send a testnet satchel's transactions only on the eight testnets, and a mainnet satchel's
+only on the eight mainnets. Never send real funds to a testnet satchel's address.
+
+## Developers
+
+### Is there a library or an API?
+
+The `satchel-nft` package on npm is the library and the CLI the web app runs on. It reads
+satchels, runs the report and builds every transaction. [Library](/docs/developers/library) and
+[CLI reference](/docs/developers/cli) cover them; the contract's methods are in the
+[contract reference](/docs/developers/contract).
+
+### How do I follow what happens on the contract?
+
+Read its NEP-297 events: one for each signature, listing, delisting and sale, plus the NFT
+standard's mint and transfer events. [Events](/docs/developers/events) has the formats and a script
+that reads them.
+
+### Can I run the app myself?
+
+Yes. It is a Next.js app in `web/`. [Run the app](/docs/advanced/run-the-app) has the steps.
+
+## Related
+
+- [Troubleshooting](/docs/troubleshooting): what to do when something fails.
+- [Glossary](/docs/glossary): every term these docs use.
+- [How it works](/docs/how-it-works): the whole design in one page.

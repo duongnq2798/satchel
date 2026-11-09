@@ -1,1 +1,160 @@
-Draft: this page is being written.
+You sell a satchel on NEAR, for NEAR. A buyer pays the price into the Satchel contract, the NFT moves to
+them in the same receipt, and with it control of the address on all 16 chains. What makes a buyer willing
+to pay is the satchel's [clean transfer report](/docs/concepts/clean-transfer-report): get it to read
+<Verdict v="clean" /> before you list.
+
+## What you need
+
+- A satchel you own, on the page `/satchel/<id>` (or `/mainnet/satchel/<id>`), with your NEAR wallet
+  connected ([Connect a NEAR wallet](/docs/guides/wallets)).
+- If its report doesn't read <Verdict v="clean" /> yet, its address funded on the chains where you need to
+  clean up, for gas.
+
+## Get the report to read clean
+
+Open the satchel's page and read its report. Each failing check has its own fix, and one has none.
+
+| Check | What makes it fail | How to make it pass |
+| --- | --- | --- |
+| 1. The contract can't sign behind the record | Something wrong with the deployment itself | Nothing you can do. It passes for `v1.satchel-nft.testnet` and `v1.satchel-nft.near` |
+| 2. No signed transaction is still pending | A nonce was signed that isn't spent at a finalized block: a send you never broadcast, or one still in a recent block | [Spend the nonce](#spend-every-signed-nonce), then wait for finality |
+| 3. No approval left behind | An approval the satchel signed still grants a right on chain | [Revoke it](#revoke-every-approval), then wait for finality |
+| 4. Nothing the record can't explain | A raw signature (`sign_raw`), a call the contract couldn't classify, or an approval past the 32nd | **No fix.** These counters only grow. The satchel can never read clean again, for you or any later owner |
+
+<Callout type="warning" title="Check 4 is permanent">
+The record only grows, and no owner can clear it. A single raw signature, multicall, swap or other call the
+contract can't classify makes the satchel <Verdict v="not-provable" /> forever. If you plan to sell, send
+only plain transfers, plain asset transfers, approvals you will revoke, and revocations.
+</Callout>
+
+### Spend every signed nonce
+
+For every chain in the record, the report compares the address's nonce at a finalized block with the
+highest nonce the contract ever signed there. It passes once the finalized nonce is above it: every
+transaction the satchel ever signed has either landed or can never land.
+
+If a signed transaction was never broadcast, send any transaction from the app on that chain. The app
+uses the address's next unspent nonce, which is the open one, so your new transaction takes its slot and
+the old signature can never be used. A send to yourself of a tiny amount is enough. Then wait until its
+block is finalized (about 13 minutes on Sepolia) and click **Check again**.
+
+### Revoke every approval
+
+Check 3 reads each approval row in the record on chain, at a finalized block. To revoke, call the token
+contract from the satchel's send panel: **To** is the contract the approval row names (the token
+contract, or Permit2 for a Permit2 approval), **Amount** is empty, and **Calldata (advanced)** is the
+revoking call.
+
+| What was granted | Revoke with | How the record treats it |
+| --- | --- | --- |
+| ERC-20 `approve(spender, amount)` or `increaseAllowance` | `approve(spender, 0)` | A new approval row, which reads `allowance is 0`. It takes one of the 32 slots |
+| ERC-721 `approve(spender, tokenId)` | `approve(0x0000000000000000000000000000000000000000, tokenId)` | A new row granted to the zero address, which reads as no right |
+| `setApprovalForAll(operator, true)` | `setApprovalForAll(operator, false)` | A revocation: logged, never itemized, so it takes no slot |
+| Permit2 `approve(token, spender, amount, expiration)` | Permit2 `approve(token, spender, 0, expiration)` | A revocation: logged, never itemized. A Permit2 allowance that has expired also reads as revoked |
+
+`increaseAllowance(spender, 0)` is also logged as a revocation, but it changes nothing on chain: it doesn't
+clear an allowance. Use `approve(spender, 0)`.
+
+ERC-20 `approve(spender, 0)` as calldata is the selector `0x095ea7b3`, then the spender's address padded to
+32 bytes, then 32 zero bytes. For a spender `0x1111111111111111111111111111111111111111`:
+
+```text
+0x095ea7b300000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000
+```
+
+From a terminal, `satchel-nft send` takes the same calldata as `--data`, with
+`--value 0`.
+
+## List it
+
+<Steps>
+
+1. **Read the report one last time.** Click **Check again** on the satchel's page. Listing pins the record's
+   current version, so what a buyer checks is what you see now.
+
+2. **Enter a price in NEAR** under **Sell or transfer** (the field reads `Price in NEAR, like 5`), and click
+   **List for sale**. Up to 24 decimal places; it must be above 0.
+
+3. **Approve `list` in your wallet**: 1 yoctoNEAR, 30 TGas. The card then reads:
+
+   ```text
+   Listed for 5 NEAR at record version 3. Signing is frozen until you delist or it sells.
+   ```
+
+</Steps>
+
+While it is listed, the contract refuses every `sign_evm` and `sign_raw`, from you or anyone:
+
+```text
+Satchel: signing is frozen while the token is listed
+```
+
+That refusal is on chain for satchel #4 on testnet:
+[`5ZaKqJUx…`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8).
+
+## What buyers see
+
+Your satchel appears on the [Market](/market) (`/mainnet/market` on mainnet), with its price, your account,
+the record version it was listed at, and its verdict, read in each visitor's browser. On its page, a buyer
+sees **For sale: 5 NEAR** with the full report above it. From a terminal:
+
+```bash
+npx -y satchel-nft@0.1.0 market
+```
+
+```text
+2 satchel(s) for sale on v1.satchel-nft.testnet (testnet)
+  #4  1 NEAR  by satchel-nft.testnet  record version 0  PROVABLY CLEAN
+  #6  1 NEAR  by satchel-nft.testnet  record version 1  NOT PROVABLE
+```
+
+A satchel that isn't provably clean can still be bought, but only after the buyer ticks a box that says so,
+and the CLI refuses it unless the buyer passes `--accept-not-clean`. Expect fewer buyers.
+
+## Delist
+
+To change the price or sign again, click **Delist** on the satchel's page and approve `delist` in your
+wallet (1 yoctoNEAR, 30 TGas). Signing unfreezes. To list again, list at the new price: the new listing pins
+the record's version at that moment.
+
+If you delist, sign anything, and list again, the record version goes up. A buyer who checked the old
+version can't complete the purchase: the contract refuses it with
+`Satchel: the signing record changed since you checked it`, and refunds them.
+
+## Getting paid
+
+When someone buys, the contract checks the record version and the price they name, moves the NFT to them,
+removes the listing, and sends you the price as a NEAR transfer, all from the buyer's one `buy` call. You do
+nothing. You can no longer sign for the address: your next `sign_evm` is refused with
+`Satchel: only the token's owner can do this`.
+
+<Callout type="warning" title="Keep your account until you are paid">
+Your payment is a transfer to your account, made after the NFT has moved. If you delete your NEAR account
+before it lands, the transfer fails and the NEAR stays in the contract, which has no admin to return it.
+</Callout>
+
+A purchase can fail before the NFT moves; then nothing changes for you and the listing stays. The buyer gets
+their deposit back. The contract refuses a buy whose record version or price doesn't match the listing, a
+buy from you (`Satchel: the seller cannot buy`), and a buy with less than the price attached.
+
+## In a terminal
+
+```bash
+npx -y satchel-nft@0.1.0 list 7 0.5 --as satchel-nft.testnet
+npx -y satchel-nft@0.1.0 delist 7 --as satchel-nft.testnet
+```
+
+Before signing, `list` refuses if the account doesn't own the satchel, and shows what it will sign:
+
+```text
+  v1.satchel-nft.testnet.list({"price":"500000000000000000000000","token_id":"7"})
+  deposit 1 yoctoNEAR, gas 30 Tgas
+  Lists satchel #7 for 0.5 NEAR at record version 1.
+  It can't sign anything until it is sold, delisted or transferred.
+```
+
+## Next steps
+
+- [Listings and sales](/docs/concepts/listings-and-sales)
+- [The signing record](/docs/concepts/signing-record)
+- [Buy a satchel](/docs/guides/buy)
