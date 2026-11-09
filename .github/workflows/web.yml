@@ -1,11 +1,11 @@
 name: Web
 
+# Pull requests run this through ci.yml, on every pull request, whatever it touches.
 on:
   push:
     branches: [main, dev]
     paths: ["web/**", ".github/workflows/web.yml"]
-  pull_request:
-    paths: ["web/**", ".github/workflows/web.yml"]
+  workflow_call:
 
 defaults:
   run:

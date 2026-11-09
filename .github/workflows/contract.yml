@@ -1,8 +1,9 @@
 name: Contract
+# Pull requests run this through ci.yml, whose `verify` job is the check the ruleset requires.
 on:
   push:
     branches: [main, dev]
-  pull_request:
+  workflow_call:
 
 defaults:
   run:
