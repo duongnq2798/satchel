@@ -9,10 +9,14 @@
 //      same address
 //   7. call `new` from OWNER: it must fail
 //
+// `send <token_id> <signer>` signs a Sepolia transfer from a token's address as <signer> (its
+// owner) and broadcasts it. Fund the address first; the script prints it if the balance is short.
+//
 // Transactions are signed by near CLI from the legacy keychain (~/.near-credentials); this script
 // never reads a key. Usage (near CLI on PATH, or NEAR_CLI=/path/to/near):
 //   node e2e-testnet.mjs [--out ../deployments/testnet-e2e.json]
-import { execFileSync } from "node:child_process";
+//   node e2e-testnet.mjs send <token_id> <signer> [--out ../deployments/testnet-sepolia-send.json]
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { createPublicClient, http, keccak256, recoverAddress, serializeTransaction, toHex } from "viem";
@@ -65,7 +69,7 @@ async function view(account, method, args) {
  * Returns {hash, ok, value, error}.
  */
 async function call(signer, method, args, { deposit = "0 NEAR", gas = "300 Tgas" } = {}) {
-  const output = execFileSync(
+  const cli = spawnSync(
     NEAR_CLI,
     [
       "contract", "call-function", "as-transaction", CONTRACT, method,
@@ -75,9 +79,11 @@ async function call(signer, method, args, { deposit = "0 NEAR", gas = "300 Tgas"
     ],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
   );
-  const signed = output.split("Signed transaction (serialized as base64):")[1]?.trim().split(/s+/)[0];
-  if (!signed) throw new Error(`no signed transaction in near CLI output:
-${output}`);
+  if (cli.error) throw new Error(`could not run ${NEAR_CLI}: ${cli.error.message}`);
+  // near CLI prints its report, the signed transaction included, to stderr.
+  const output = `${cli.stdout}${cli.stderr}`;
+  const signed = output.split("Signed transaction (serialized as base64):")[1]?.trim().split(/\s+/)[0];
+  if (!signed) throw new Error(`no signed transaction in near CLI output:\n${output}`);
   const bytes = Buffer.from(signed, "base64");
   const hash = base58Encode(createHash("sha256").update(bytes.subarray(0, bytes.length - 65)).digest());
   await rpc("send_tx", { signed_tx_base64: signed, wait_until: "NONE" });
@@ -259,7 +265,29 @@ async function main() {
   console.log("\nE2E PASS");
 }
 
-main().catch((err) => {
+async function send(tokenId, signer) {
+  const path = await view(CONTRACT, "derivation_path", { token_id: tokenId });
+  const { address } = await tokenAddress(path);
+  const balance = await sepoliaClient.getBalance({ address });
+  log("token", { tokenId, owner: await view(CONTRACT, "nft_token", { token_id: tokenId }).then((t) => t?.owner_id), signer, address, balanceWei: String(balance) });
+  const signed = await signAndRecover(signer, tokenId, address);
+  if (!signed.ok) throw new Error(`sign_evm failed: ${signed.error}`);
+  if (signed.recovered.toLowerCase() !== address.toLowerCase()) throw new Error("recovered signer is not the token's address");
+  const cost = signed.tx.maxFeePerGas * signed.tx.gas + signed.tx.value;
+  if (balance < cost) throw new Error(`${address} holds ${balance} wei on Sepolia and needs ${cost}; fund it and run again`);
+  const sepoliaTx = await sepoliaClient.sendRawTransaction({ serializedTransaction: signed.raw });
+  const receipt = await sepoliaClient.waitForTransactionReceipt({ hash: sepoliaTx });
+  log("sent on Sepolia", { nearTx: signed.hash, sepoliaTx, status: receipt.status, block: String(receipt.blockNumber), url: `https://sepolia.etherscan.io/tx/${sepoliaTx}` });
+  if (receipt.status !== "success") throw new Error("Sepolia transaction reverted");
+  log("signing record", await view(CONTRACT, "signing_record", { token_id: tokenId }));
+  if (OUT) {
+    const out = { network: "testnet", contract: CONTRACT, tokenId, signer, address, nearTx: signed.hash, sepoliaTx, block: String(receipt.blockNumber), ranAt: new Date().toISOString() };
+    writeFileSync(OUT, `${JSON.stringify(out, null, 2)}\n`);
+  }
+  console.log("\nSEND PASS");
+}
+
+(process.argv[2] === "send" ? send(process.argv[3], process.argv[4]) : main()).catch((err) => {
   console.error(`\nE2E FAIL: ${err.message}`);
   process.exit(1);
 });

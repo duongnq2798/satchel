@@ -1,0 +1,44 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "mpc": "v1.signer-prod.testnet",
+  "steps": [
+    {
+      "step": "mint",
+      "tx": "3kBMVhva8pagScLwGJDNwF6Bfbzno9LxAVN5JKENvPxo",
+      "tokenId": "1",
+      "path": "satchel/1",
+      "address": "0x96da1468e95ab31a698891f0150095f86b5a282b"
+    },
+    {
+      "step": "sign_evm (owner)",
+      "tx": "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo",
+      "nonce": 0,
+      "recovered": "0x96DA1468E95Ab31A698891f0150095f86b5a282B"
+    },
+    {
+      "step": "not broadcast (no Sepolia ETH)",
+      "raw": "0x02f86583aa36a780021482520894000000000000000000000000000000000000dead0180c001a03bfe67004fdf62d18335201b3dd21dbc587de22beb526876fc0c4950fda0c1e3a04f94162cec29837b574fedef2af0825ab0a890c1c66667cd8940f38f98098cae"
+    },
+    {
+      "step": "nft_transfer",
+      "tx": "3sLuGS9pEnvURpha3QQBtumExxKC2f3GMJSRaccvNBwB",
+      "to": "buyer.satchel-nft.testnet"
+    },
+    {
+      "step": "sign_evm (previous owner) refused",
+      "tx": "GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU"
+    },
+    {
+      "step": "sign_evm (buyer)",
+      "tx": "9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM",
+      "recovered": "0x96DA1468E95Ab31A698891f0150095f86b5a282B"
+    },
+    {
+      "step": "new from another account refused",
+      "tx": "BeoXbii9WeodnG2XZarxZidtvqS6RzzA9KNqJnZRLrWv",
+      "reason": "Method new is private"
+    }
+  ],
+  "ranAt": "2026-11-09T01:53:05.547Z"
+}
