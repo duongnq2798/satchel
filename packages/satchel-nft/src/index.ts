@@ -7,8 +7,10 @@
 //   report?.verdict; // "clean", "not-provable" or "unknown"
 export * from "./approvals.js";
 export * from "./config.js";
+export * from "./contents.js";
 export * from "./evm.js";
 export * from "./guard.js";
+export * from "./history.js";
 export * from "./limit.js";
 export * from "./near.js";
 export * from "./report.js";

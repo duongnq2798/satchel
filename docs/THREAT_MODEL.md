@@ -39,6 +39,17 @@ transaction on testnet that shows it working.
 - **The pinned build image.** The reproducible build runs in
   `sourcescan/cargo-near:0.22.0-rust-1.99.1`, pinned by digest.
 - **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.
+- **FastNEAR's transaction index, for a satchel's history only.** The history on a satchel's page
+  and from `satchel-nft history` lists the contract's transactions as `tx.test.fastnear.com` or
+  `tx.main.fastnear.com` returns them. It keeps only events the Satchel contract logged in receipts
+  that succeeded, but an index that leaves transactions out, or makes them up, changes what it
+  shows. The report never reads it: it checks the signing record in the contract's state, and the
+  page says so when the history counts a different number of signatures. Each line links its
+  transaction, to check on an explorer.
+- **The token list, for what a satchel's page says it holds.** USDC, USDT and WETH are read at the
+  addresses that Circle, Tether, USDT0 or each chain lists, in `contents.ts`, with each source. A
+  token at any other address, a look-alike included, isn't shown; each chain's explorer, linked
+  from the page, shows everything. Nothing in the report depends on these balances.
 - **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**
   Version 0.1.0 was published from the owner's npm account and a Windows checkout of commit
   `728ed74`, which npm records as its `gitHead`, without npm provenance. Packing that commit on the

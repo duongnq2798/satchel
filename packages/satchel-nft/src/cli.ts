@@ -9,9 +9,11 @@ import { createRequire } from "node:module";
 import { createInterface } from "node:readline/promises";
 import { formatEther } from "viem";
 import { type CliArgs, USAGE, parseCli, sendInputs } from "./cli-args.js";
-import { CHAINS, NETWORKS, type Network, chainInfo, nearTxUrl, sendChains } from "./config.js";
-import { type MpcSignature, client, formatBalance, tokenAddress } from "./evm.js";
+import { CHAINS, NETWORKS, type Network, chainInfo, nearTxUrl } from "./config.js";
+import { contents } from "./contents.js";
+import { type MpcSignature, formatAmount, formatBalance, tokenAddress } from "./evm.js";
 import { assertDeployment, assertReceiver, assertTxFor } from "./guard.js";
+import { describeEntry, signatureCounts, tokenHistory } from "./history.js";
 import { limiter } from "./limit.js";
 import { type ExecutionOutcome, type SatchelView, type Token, nearChainId, nearRpcUrl, outcomeValue, setNearRpc } from "./near.js";
 import { type DecodedTx, type NearCli, OutcomeUnknown, resolveNearCli, signAndSend } from "./near-cli.js";
@@ -78,16 +80,15 @@ async function show(net: Network, args: CliArgs): Promise<number> {
   // Until the contract passes its check its account could hold anyone's code, so no address is shown.
   await assertDeployment(net);
   const address = await tokenAddress(net, view.path);
-  const balances = await Promise.all(
-    sendChains(net).map(async (chain) => ({
-      chainId: chain.id,
-      name: chain.name,
-      symbol: chain.symbol,
-      wei: await client(chain.id)
-        .getBalance({ address })
-        .catch(() => null),
-    })),
-  );
+  const holdings = await contents(net, address);
+  // `null` is a balance its RPC didn't answer.
+  const balances = holdings.map(({ chain, native, tokens }) => ({
+    chainId: chain.id,
+    name: chain.name,
+    symbol: chain.symbol,
+    wei: native,
+    tokens: tokens.map(({ token, amount }) => ({ ...token, amount })),
+  }));
   if (args.json) {
     const { token_id, owner_id, path, record, listing } = view;
     out(json({ network: net.id, contract: net.contract, tokenId: token_id, owner: owner_id, path, address, recordVersion: record.version, listing, balances }));
@@ -103,8 +104,38 @@ async function show(net: Network, args: CliArgs): Promise<number> {
   );
   out();
   const width = Math.max(...balances.map((b) => b.name.length));
-  for (const b of balances) out(`${b.name.padEnd(width)}  ${b.wei === null ? "unavailable" : `${formatBalance(b.wei)} ${b.symbol}`}`);
-  out(`\nBefore you buy it: satchel-nft verify${net.id === "mainnet" ? " --network mainnet" : ""} ${view.token_id}`);
+  for (const b of balances) {
+    // Every token the chain lists that holds something, or couldn't be read; zero balances are left out.
+    const held = b.tokens
+      .filter((t) => t.amount !== 0n)
+      .map((t) => (t.amount === null ? `${t.symbol} unavailable` : `${formatAmount(t.amount, t.decimals)} ${t.symbol}`));
+    const native = b.wei === null ? `${b.symbol} unavailable` : `${formatBalance(b.wei)} ${b.symbol}`;
+    out(`${b.name.padEnd(width)}  ${[native, ...held].join(", ")}`);
+  }
+  out(`\nUSDC, USDT and WETH are read where their issuer or the chain names a deployment; other tokens aren't.`);
+  out(`Before you buy it: satchel-nft verify${net.id === "mainnet" ? " --network mainnet" : ""} ${view.token_id}`);
+  return 0;
+}
+
+const when = (at: number) => new Date(at).toISOString().replace(/:\d\d\.\d+Z$/, "Z").replace("T", " ");
+
+async function history(net: Network, args: CliArgs): Promise<number> {
+  const view = await token(net, args.tokenId as string);
+  const found = await tokenHistory(net, view.token_id);
+  const counts = signatureCounts(found, view.record);
+  if (args.json) {
+    out(json({ network: net.id, contract: net.contract, tokenId: view.token_id, ...found, signatures: counts }));
+    return 0;
+  }
+  out(`Satchel #${view.token_id}'s history on ${net.contract} (${net.id}), oldest first`);
+  out();
+  for (const e of found.entries) out(`${when(e.at)}  ${describeEntry(e)}  ${nearTxUrl(net, e.tx)}`);
+  if (found.entries.length === 0) out("No events found.");
+  out();
+  out(`Read from ${found.source}: ${found.scanned} of the contract's transactions${found.complete ? "" : ", not all of them, so the oldest are missing"}.`);
+  if (counts.history !== counts.record) {
+    out(`It shows ${counts.history} signature(s); the contract's record counts ${counts.record}. The record is what the report checks.`);
+  }
   return 0;
 }
 
@@ -389,7 +420,7 @@ async function send(net: Network, args: CliArgs): Promise<number> {
 
 // ---- Main -------------------------------------------------------------------------------------
 
-const COMMANDS = { verify, show, record, market, mint, list, delist, buy, transfer, send } as const;
+const COMMANDS = { verify, show, record, history, market, mint, list, delist, buy, transfer, send } as const;
 
 async function main(argv: string[]): Promise<number> {
   const parsed = parseCli(argv);
