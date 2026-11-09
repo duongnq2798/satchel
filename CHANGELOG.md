@@ -6,6 +6,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The first satchel on mainnet. Satchel #1's address, `0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9`,
+  was funded with 0.00195 ETH on Base; the satchel was minted to `satchel-nft.near`, then sent
+  0.0001 ETH from it on Base at satchelnft.xyz, with the owner approving `sign_evm` in a NEAR wallet.
+  Its report reads `PROVABLY CLEAN`. Every step is in `deployments/mainnet-first-send.json`, and
+  `node scripts/check-claims.mjs --network mainnet` checks three more claims (9 in all): the mint
+  came after the lock; the contract recorded Base nonce 0 as the token's first entry, then asked
+  `v1.signer` to sign satchel #1's path over its own hash of those fields; and Base ran that exact
+  transaction with that exact signature, in a block now finalized.
 - The README, rewritten for both judges and builders: an "evaluate in 5 minutes" path from a fresh
   clone with the real output and timings of each step (the claim checker on both networks, two curl
   reads, hashing the CI wasm, `npm run verify` on every demo satchel, the tests), a status table of
@@ -110,6 +118,12 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- `docs/assets/src/screenshots.mjs` left the headless browser running on Windows, where it relaunches
+  itself under another process id, then crashed removing its profile. It now closes the browser over
+  DevTools, takes only the shots you name, and waits for balances still loading. The README's
+  mainnet screenshot is now satchel #1's page.
+- The web app's title and footer said Satchel is a wallet on every EVM chain. It is one wallet on
+  16 EVM chains: the contract signs only for the chain ids in `SUPPORTED_CHAINS`.
 - No pull request could merge: the ruleset on `main` and `dev` requires a check named `verify`,
   which no job reported. Every pull request now runs `.github/workflows/ci.yml`, which calls the
   contract and web workflows and adds `verify`, a job that passes only when both pass. The web checks

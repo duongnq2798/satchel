@@ -1,0 +1,29 @@
+{
+  "network": "mainnet",
+  "contract": "v1.satchel-nft.near",
+  "mpc": "v1.signer",
+  "tokenId": "1",
+  "path": "satchel/1",
+  "signer": "satchel-nft.near",
+  "address": "0xdc269ead17b522d49db2cefd38cef0c5413868f9",
+  "funded": {
+    "chainId": "8453",
+    "wei": "1950000000000000",
+    "tx": "0x928d1092bf3d2cad7fc824c8ce7567d29b14fa1e0a6e12259d07ecc785bcf2fb",
+    "block": "55152392",
+    "at": "2026-11-09T10:40:54Z"
+  },
+  "mintTx": "HCYB168yrYuR7U4THAbKZqyMgZ6pzSnWWNhLQNQJEU8g",
+  "mintBlock": "223756145",
+  "mintedAt": "2026-11-09T10:42:26Z",
+  "nearTx": "2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4",
+  "nearBlock": "223765205",
+  "chainId": "8453",
+  "baseTx": "0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532",
+  "block": "55178996",
+  "nonce": "0",
+  "valueWei": "100000000000000",
+  "feeWei": "127494755188",
+  "sentWith": "https://satchelnft.xyz/mainnet/satchel/1",
+  "sentAt": "2026-11-09T12:09:34Z"
+}

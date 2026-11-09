@@ -1,8 +1,9 @@
 // Checks the README's on-chain claims about a deployment against NEAR RPC: the contract's lock, code
-// and signer, the transactions that deployed and locked it, and, on testnet, the calls it refused.
-// Node 22 or later, no install, no wallet, no key.
+// and signer, the transactions that deployed and locked it; on testnet, the calls it refused; on
+// mainnet, satchel #1 and its first send on Base. Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
+// BASE_RPC replaces the Base node the mainnet run reads.
 import { readFileSync } from "node:fs";
 
 const flag = process.argv.indexOf("--network");
@@ -24,6 +25,10 @@ const FIRST_MINT_TX = "3kBMVhva8pagScLwGJDNwF6Bfbzno9LxAVN5JKENvPxo";
 /** Satchel #1 moving from its first owner to the buyer, before the refused `sign_evm`. */
 const TRANSFER_TX = "3sLuGS9pEnvURpha3QQBtumExxKC2f3GMJSRaccvNBwB";
 const STALE_BUY_TX = "7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv";
+// Mainnet only: satchel #1, minted after the lock, and its first send (deployments/mainnet-first-send.json).
+const FIRST =
+  NETWORK === "mainnet" ? JSON.parse(readFileSync(new URL("../deployments/mainnet-first-send.json", import.meta.url), "utf8")) : null;
+const BASE_RPC = process.env.BASE_RPC ?? "https://base-rpc.publicnode.com";
 
 async function rpc(url, method, params) {
   const res = await fetch(url, {
@@ -75,6 +80,10 @@ function expectArgs(call, method, expected) {
     if (call.args[key] !== value) throw new Error(`${method} with ${key} = ${JSON.stringify(call.args[key])}`);
   }
 }
+
+/** The NEP-297 events a receipt logged, parsed. */
+const events = (outcome) =>
+  outcome.outcome.logs.filter((l) => l.startsWith("EVENT_JSON:")).map((l) => JSON.parse(l.slice("EVENT_JSON:".length)));
 
 const refunds = (t, to) =>
   t.receipts
@@ -132,7 +141,7 @@ const DEPLOYMENT = [
   },
 ];
 
-/** On mainnet, where nothing was minted yet when it was checked: no satchel existed once the key was gone. */
+/** On mainnet: no satchel existed once the key was gone, read from the supply at the block that deleted it. */
 const MAINNET_LOCK = {
   claim: "Its only key was deleted before any satchel was minted",
   check: async () => {
@@ -229,7 +238,111 @@ const TESTNET = [
   },
 ];
 
-const CLAIMS = [...DEPLOYMENT, ...(NETWORK === "testnet" ? TESTNET : [MAINNET_LOCK])];
+/** The first mainnet satchel: its mint, its one signature, and that signature run on Base. */
+const MAINNET_FIRST = [
+  {
+    claim: "Satchel #1, the first on mainnet, was minted by satchel-nft.near after the lock",
+    check: async () => {
+      if (FIRST.contract !== CONTRACT || FIRST.mpc !== deployment.mpc_contract) throw new Error("mainnet-first-send.json names another deployment");
+      const [lock, mint] = await Promise.all([tx(deployment.lock_tx, CONTRACT), tx(FIRST.mintTx, FIRST.signer)]);
+      if (mint.transaction.signer_id !== FIRST.signer) throw new Error(`signed by ${mint.transaction.signer_id}`);
+      expectArgs(callOf(mint), "mint", {});
+      const token = JSON.parse(Buffer.from(mint.status.SuccessValue ?? "", "base64").toString() || "null");
+      if (token?.token_id !== FIRST.tokenId || token.owner_id !== FIRST.signer) {
+        throw new Error(`the mint returned token ${token?.token_id} to ${token?.owner_id}`);
+      }
+      const [locked, minted] = await Promise.all([height(lock), height(mint)]);
+      if (locked >= minted) throw new Error(`deleted at block ${locked}, minted at ${minted}`);
+      return `${FIRST.mintTx.slice(0, 8)}… minted #1 to ${FIRST.signer} at block ${minted}, after the DeleteKey at ${locked}`;
+    },
+  },
+  {
+    claim: "Its first signature is a Base transaction at nonce 0, recorded by the contract before v1.signer signed it",
+    check: async () => {
+      const t = await tx(FIRST.nearTx, FIRST.signer);
+      if (t.transaction.signer_id !== FIRST.signer) throw new Error(`signed by ${t.transaction.signer_id}`);
+      const call = callOf(t);
+      expectArgs(call, "sign_evm", { token_id: FIRST.tokenId });
+      if (call.args.tx.chain_id !== FIRST.chainId || call.args.tx.nonce !== FIRST.nonce) {
+        throw new Error(`signs chain ${call.args.tx.chain_id} at nonce ${call.args.tx.nonce}`);
+      }
+      // The contract's receipt writes the record and logs it, then calls the MPC contract, whose
+      // receipt comes after it; the MPC contract's answer is the transaction's result.
+      const ours = t.receipts_outcome.find((o) => o.outcome.executor_id === CONTRACT);
+      const entry = ours && events(ours).find((e) => e.standard === "satchel" && e.event === "sign_evm")?.data?.[0];
+      if (entry?.token_id !== FIRST.tokenId || entry.chain_id !== FIRST.chainId || entry.nonce !== FIRST.nonce) {
+        throw new Error(`the contract logged ${JSON.stringify(entry)}`);
+      }
+      // Version 1: the record was empty before this signature, so it is the token's first.
+      if (entry.record_version !== "1") throw new Error(`record version ${entry.record_version} after it`);
+      // What the contract asked the MPC contract to sign: satchel #1's key, over the hash the contract
+      // computes for exactly these fields.
+      const request = t.receipts
+        .filter((r) => r.predecessor_id === CONTRACT && r.receiver_id === deployment.mpc_contract)
+        .flatMap((r) => r.receipt.Action?.actions ?? [])
+        .map((a) => a.FunctionCall)
+        .find((c) => c?.method_name === "sign");
+      const asked = request && JSON.parse(Buffer.from(request.args, "base64").toString()).request;
+      const hash = await view("evm_signing_hash", { tx: call.args.tx });
+      if (asked?.path !== FIRST.path || asked.payload_v2?.Ecdsa !== hash || entry.payload !== hash) {
+        throw new Error(`asked ${deployment.mpc_contract} for ${JSON.stringify(asked)}, the hash of the call is ${hash}`);
+      }
+      const sig = JSON.parse(Buffer.from(t.status.SuccessValue ?? "", "base64").toString() || "null");
+      if (!sig?.big_r?.affine_point) throw new Error(`result ${JSON.stringify(t.status)}`);
+      return `${FIRST.nearTx.slice(0, 8)}… sign_evm: chain ${entry.chain_id}, nonce ${entry.nonce}, ${entry.class}, record version 1; ${deployment.mpc_contract} signed ${hash.slice(0, 8)}… for ${asked.path}`;
+    },
+  },
+  {
+    claim: "Base ran exactly that signed transaction, in a block that is now finalized",
+    check: async () => {
+      const [t, sent, receipt, final] = await Promise.all([
+        tx(FIRST.nearTx, FIRST.signer),
+        rpc(BASE_RPC, "eth_getTransactionByHash", [FIRST.baseTx]),
+        rpc(BASE_RPC, "eth_getTransactionReceipt", [FIRST.baseTx]),
+        rpc(BASE_RPC, "eth_getBlockByNumber", ["finalized", false]),
+      ]);
+      if (!sent || !receipt) throw new Error(`${BASE_RPC} has no transaction ${FIRST.baseTx}`);
+      const call = callOf(t);
+      expectArgs(call, "sign_evm", { token_id: FIRST.tokenId });
+      const signed = call.args.tx;
+      const fields = {
+        chainId: [sent.chainId, signed.chain_id],
+        nonce: [sent.nonce, signed.nonce],
+        maxPriorityFeePerGas: [sent.maxPriorityFeePerGas, signed.max_priority_fee_per_gas],
+        maxFeePerGas: [sent.maxFeePerGas, signed.max_fee_per_gas],
+        gas: [sent.gas, signed.gas_limit],
+        value: [sent.value, signed.value],
+      };
+      for (const [name, [onBase, inCall]] of Object.entries(fields)) {
+        if (BigInt(onBase) !== BigInt(inCall)) throw new Error(`${name} is ${BigInt(onBase)} on Base, ${inCall} in sign_evm`);
+      }
+      const data = (signed.data ?? "0x").toLowerCase();
+      if (sent.type !== "0x2" || sent.to?.toLowerCase() !== signed.to.toLowerCase() || sent.input !== data || sent.accessList?.length) {
+        throw new Error("the transaction on Base is not the one sign_evm built");
+      }
+      // The signature Base checked is the one the MPC contract returned: r is big_r's x coordinate.
+      const sig = JSON.parse(Buffer.from(t.status.SuccessValue ?? "", "base64").toString() || "null");
+      if (!sig?.big_r?.affine_point) throw new Error(`result ${JSON.stringify(t.status)}`);
+      const r = BigInt(`0x${sig.big_r.affine_point.slice(2)}`);
+      if (BigInt(sent.r) !== r || BigInt(sent.s) !== BigInt(`0x${sig.s.scalar}`) || Number(sent.yParity ?? sent.v) !== sig.recovery_id) {
+        throw new Error(`the signature on Base is not the one ${deployment.mpc_contract} returned`);
+      }
+      if (sent.from.toLowerCase() !== FIRST.address) throw new Error(`sent from ${sent.from}`);
+      // The block, value and fee the README cites; the fee includes the L1 data fee Base charges.
+      const fee = BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice) + BigInt(receipt.l1Fee ?? 0);
+      if (receipt.status !== "0x1" || BigInt(receipt.blockNumber) !== BigInt(FIRST.block)) {
+        throw new Error(`status ${receipt.status} in block ${BigInt(receipt.blockNumber)}`);
+      }
+      if (BigInt(sent.value) !== BigInt(FIRST.valueWei) || fee !== BigInt(FIRST.feeWei)) throw new Error(`value ${BigInt(sent.value)}, fee ${fee}`);
+      if (BigInt(final.number) < BigInt(receipt.blockNumber)) {
+        throw new Error(`Base has finalized up to block ${BigInt(final.number)}, not ${BigInt(receipt.blockNumber)} yet: check again in a few minutes`);
+      }
+      return `${FIRST.baseTx.slice(0, 10)}… from ${FIRST.address}, block ${BigInt(receipt.blockNumber)}, status 1, fee ${fee} wei, finalized`;
+    },
+  },
+];
+
+const CLAIMS = [...DEPLOYMENT, ...(NETWORK === "testnet" ? TESTNET : [MAINNET_LOCK, ...MAINNET_FIRST])];
 
 let failed = 0;
 for (const { claim, check } of CLAIMS) {
