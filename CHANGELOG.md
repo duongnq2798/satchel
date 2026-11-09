@@ -101,6 +101,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- No pull request could merge: the ruleset on `main` and `dev` requires a check named `verify`,
+  which no job reported. Every pull request now runs `.github/workflows/ci.yml`, which calls the
+  contract and web workflows and adds `verify`, a job that passes only when both pass. The web checks
+  now run on every pull request, not only on ones that touch `web/`. Pushes to `main` and `dev` run
+  the two workflows directly, as before.
 - The contract CI's build summary names the commit it built. On a pull request it printed GitHub's
   temporary merge commit, while the wasm records the branch commit.
 - The landing page labels each refused call with who made it: the refused `buy` of satchel #6 was
