@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { ConnectButton, WalletProvider } from "@/components/wallet";
-import { NETWORK, REPO_URL, nearAccountUrl } from "@/lib/config";
+import { NetworkProvider } from "@/components/network";
+import { NetLink, NetworkBanner, SiteHeader } from "@/components/site-header";
+import { WalletProvider } from "@/components/wallet";
+import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "@/lib/config";
 import "./globals.css";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"] });
@@ -17,29 +18,24 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg" },
 };
 
-const NAV = [
-  { href: "/#how", label: "How it works" },
-  { href: "/market", label: "Market" },
-  { href: "/satchels", label: "Your satchels" },
-  { href: "/verify", label: "Verify" },
-  { href: "/#developers", label: "Developers" },
-];
-
-const FOOTER: { title: string; links: { href: string; label: string; external?: boolean }[] }[] = [
+/** `follow` links go to the same page on the network on screen; the rest go where they say. */
+const FOOTER: { title: string; links: { href: string; label: string; external?: boolean; follow?: boolean }[] }[] = [
   {
     title: "Product",
     links: [
-      { href: "/market", label: "Market" },
-      { href: "/satchels", label: "Mint a satchel" },
-      { href: "/verify", label: "Verify a satchel" },
+      { href: "/market", label: "Market", follow: true },
+      { href: "/satchels", label: "Mint a satchel", follow: true },
+      { href: "/verify", label: "Verify a satchel", follow: true },
       { href: "/#examples", label: "Try to cheat a buyer" },
+      { href: "/mainnet", label: "Satchel on mainnet" },
     ],
   },
   {
     title: "Proof",
     links: [
-      { href: nearAccountUrl(NETWORK.contract), label: "The contract on NearBlocks", external: true },
-      { href: NETWORK.build.ciRun, label: "Reproducible build", external: true },
+      { href: nearAccountUrl(TESTNET, TESTNET.contract), label: "Testnet contract on NearBlocks", external: true },
+      { href: nearAccountUrl(MAINNET, MAINNET.contract), label: "Mainnet contract on NearBlocks", external: true },
+      { href: TESTNET.build.ciRun, label: "Reproducible build", external: true },
       { href: `${REPO_URL}/tree/main/deployments`, label: "Evidence files", external: true },
     ],
   },
@@ -57,64 +53,47 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`}>
       <body className="min-h-screen">
-        <WalletProvider>
-          <div className="bg-ink px-4 py-1.5 text-center text-xs text-paper/80">
-            NEAR testnet. Satchels here sign with the testnet MPC network: never send real funds to their addresses.
-          </div>
-          <header className="z-40 border-b border-line bg-paper/90 backdrop-blur md:sticky md:top-0">
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-                  <img src="/icon.svg" alt="" className="size-7" />
-                  Satchel
-                </Link>
-                <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
-                  {NAV.map((n) => (
-                    <Link key={n.href} href={n.href} className="hover:text-ink">
-                      {n.label}
-                    </Link>
-                  ))}
-                </nav>
-              </div>
-              <ConnectButton />
-            </div>
-          </header>
-          <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
-          <footer className="mt-16 border-t border-line bg-paper-2">
-            <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-              <div>
-                <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-                  <img src="/icon.svg" alt="" className="size-7" />
-                  Satchel
-                </Link>
-                <p className="mt-3 max-w-xs text-sm text-ink-2">
-                  An NFT that is a wallet on every EVM chain, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
-                </p>
-                <p className="mt-3 text-sm text-muted">NEAR testnet. Not audited.</p>
-              </div>
-              {FOOTER.map((col) => (
-                <div key={col.title}>
-                  <p className="text-sm font-medium">{col.title}</p>
-                  <ul className="mt-3 space-y-2 text-sm text-ink-2">
-                    {col.links.map((l) => (
-                      <li key={l.href}>
-                        {l.external ? (
-                          <a href={l.href} target="_blank" rel="noreferrer" className="hover:text-ink">
-                            {l.label}
-                          </a>
-                        ) : (
-                          <Link href={l.href} className="hover:text-ink">
-                            {l.label}
-                          </Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+        <NetworkProvider>
+          <WalletProvider>
+            <NetworkBanner />
+            <SiteHeader />
+            <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
+            <footer className="mt-16 border-t border-line bg-paper-2">
+              <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+                <div>
+                  <NetLink href="/" follow className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+                    <img src="/icon.svg" alt="" className="size-7" />
+                    Satchel
+                  </NetLink>
+                  <p className="mt-3 max-w-xs text-sm text-ink-2">
+                    An NFT that is a wallet on every EVM chain, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
+                  </p>
+                  <p className="mt-3 text-sm text-muted">NEAR testnet and mainnet. Not audited.</p>
                 </div>
-              ))}
-            </div>
-          </footer>
-        </WalletProvider>
+                {FOOTER.map((col) => (
+                  <div key={col.title}>
+                    <p className="text-sm font-medium">{col.title}</p>
+                    <ul className="mt-3 space-y-2 text-sm text-ink-2">
+                      {col.links.map((l) => (
+                        <li key={l.href}>
+                          {l.external ? (
+                            <a href={l.href} target="_blank" rel="noreferrer" className="hover:text-ink">
+                              {l.label}
+                            </a>
+                          ) : (
+                            <NetLink href={l.href} follow={l.follow} className="hover:text-ink">
+                              {l.label}
+                            </NetLink>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </footer>
+          </WalletProvider>
+        </NetworkProvider>
       </body>
     </html>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CHAINS, NETWORK } from "@/lib/config";
+import { CHAINS, TESTNET } from "@/lib/config";
 import { HANDOVER } from "@/lib/copy";
 import type { Report } from "@/lib/report";
 import { useReport } from "../report-checker";
@@ -51,7 +51,7 @@ export function HeroCard() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="font-display text-2xl font-semibold">Satchel #{HANDOVER.tokenId}</p>
-            <p className="mt-0.5 text-xs text-paper/70">NEP-171 NFT on {NETWORK.contract}</p>
+            <p className="mt-0.5 text-xs text-paper/70">NEP-171 NFT on {TESTNET.contract}</p>
           </div>
           <Stamp report={report.data} error={report.error} />
         </div>

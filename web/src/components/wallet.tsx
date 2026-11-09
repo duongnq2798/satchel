@@ -1,60 +1,87 @@
 "use client";
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
-import { connectedAccount, connector, runTx } from "@/lib/wallet";
+import { type NetworkId, accountOnNetwork } from "@/lib/config";
+import { assertDeployment, assertTxFor } from "@/lib/guard";
 import type { WalletTx } from "@/lib/satchel";
+import { connectedAccount, connector, runTx, signIn as connect } from "@/lib/wallet";
+import { useNetwork } from "./network";
 
 interface WalletState {
   accountId: string | null;
   ready: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  /** Signs and sends with the connected account; resolves once every receipt is final. */
+  /**
+   * Signs and sends with the connected account; resolves once every receipt is final. Only for this
+   * network's contract, and only once that contract passes its check.
+   */
   send: <T>(tx: WalletTx) => Promise<{ hash: string; value: T | null }>;
 }
 
 const WalletContext = createContext<WalletState | null>(null);
 
+/**
+ * The wallet for the network of the page on screen, with one connector per network. The account is
+ * stored with the network it was read on, so a page never sees the other network's account.
+ */
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [accountId, setAccountId] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const net = useNetwork();
+  const [session, setSession] = useState<{ net: NetworkId; accountId: string | null; ready: boolean }>({
+    net: net.id,
+    accountId: null,
+    ready: false,
+  });
+  const { accountId, ready } = session.net === net.id ? session : { accountId: null, ready: false };
 
   useEffect(() => {
     let live = true;
-    connectedAccount().then((id) => {
-      if (live) {
-        setAccountId(id);
-        setReady(true);
-      }
-    });
-    connector()
+    const set = (accountId: string | null) => live && setSession({ net: net.id, accountId, ready: true });
+    setSession({ net: net.id, accountId: null, ready: false });
+    connectedAccount(net).then(set);
+    const onSignIn = (e: { accounts: { accountId: string }[] }) => {
+      const id = e.accounts[0]?.accountId ?? null;
+      set(id !== null && accountOnNetwork(net, id) ? id : null);
+    };
+    const onSignOut = () => set(null);
+    const made = connector(net);
+    made
       .then((c) => {
-        c.on("wallet:signIn", (e) => live && setAccountId(e.accounts[0]?.accountId ?? null));
-        c.on("wallet:signOut", () => live && setAccountId(null));
+        c.on("wallet:signIn", onSignIn);
+        c.on("wallet:signOut", onSignOut);
       })
-      .catch(() => live && setReady(true));
+      .catch(() => set(null));
     return () => {
       live = false;
+      made.then(
+        (c) => {
+          c.off("wallet:signIn", onSignIn);
+          c.off("wallet:signOut", onSignOut);
+        },
+        () => {},
+      );
     };
-  }, []);
+  }, [net]);
 
   const signIn = useCallback(async () => {
-    await (await connector()).connect();
-  }, []);
+    const id = await connect(net);
+    setSession({ net: net.id, accountId: id, ready: true });
+  }, [net]);
   const signOut = useCallback(async () => {
     // A wallet whose session already ended can throw here; the app is signed out either way.
     try {
-      await (await connector()).disconnect();
+      await (await connector(net)).disconnect();
     } finally {
-      setAccountId(null);
+      setSession({ net: net.id, accountId: null, ready: true });
     }
-  }, []);
+  }, [net]);
   const send = useCallback(
     async <T,>(tx: WalletTx) => {
-      if (accountId === null) throw new Error("Connect a NEAR wallet first");
-      return runTx<T>(tx, accountId);
+      assertTxFor(net, tx, accountId);
+      await assertDeployment(net);
+      return runTx<T>(net, tx, accountId);
     },
-    [accountId],
+    [accountId, net],
   );
 
   return <WalletContext.Provider value={{ accountId, ready, signIn, signOut, send }}>{children}</WalletContext.Provider>;
@@ -68,23 +95,39 @@ export function useWallet(): WalletState {
 
 export function ConnectButton() {
   const { accountId, ready, signIn, signOut } = useWallet();
+  const net = useNetwork();
+  const [error, setError] = useState<string | null>(null);
   if (!ready) return <span className="h-9 w-32 animate-pulse rounded-full bg-paper-2" aria-hidden="true" />;
   if (accountId === null) {
     return (
-      <button
-        type="button"
-        onClick={() => signIn().catch(() => {})}
-        className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
-      >
-        Connect wallet
-      </button>
+      <span className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            signIn().catch((err: unknown) => {
+              const text = err instanceof Error ? err.message : String(err);
+              // Closing the picker is not an error worth showing.
+              if (!/rejected/i.test(text)) setError(text);
+            });
+          }}
+          className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
+        >
+          Connect wallet
+        </button>
+        {error && (
+          <span role="alert" className="absolute top-full right-0 z-50 mt-2 w-72 rounded-xl bg-bad-soft px-3 py-2 text-xs text-bad">
+            {error}
+          </span>
+        )}
+      </span>
     );
   }
   return (
     <button
       type="button"
       onClick={() => signOut().catch(() => {})}
-      title="Disconnect"
+      title={`Disconnect from NEAR ${net.id}. Some wallets also sign out on the other network.`}
       className="max-w-56 truncate rounded-full border border-line bg-card px-4 py-2 text-sm text-ink-2 transition hover:border-ink"
     >
       {accountId}

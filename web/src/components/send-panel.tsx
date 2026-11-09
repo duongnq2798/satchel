@@ -2,9 +2,10 @@
 
 import { type FormEvent, useRef, useState } from "react";
 import { type Address, type Hex, formatEther, isAddress, isHex, parseEther } from "viem";
-import { type ChainInfo, SEND_CHAINS, nearTxUrl } from "@/lib/config";
+import { type ChainInfo, nearTxUrl, sendChains } from "@/lib/config";
 import type { MpcSignature } from "@/lib/evm";
 import { type SendResult, type SendStep, liveSendDeps, sendFromSatchel } from "@/lib/send";
+import { useNetwork } from "./network";
 import { Button, Card, ErrorNote, ExternalLink } from "./ui";
 import { useWallet } from "./wallet";
 
@@ -19,7 +20,9 @@ const STEPS: { id: SendStep; label: string }[] = [
 
 export function SendPanel({ tokenId, address, onDone }: { tokenId: string; address: Address; onDone: () => void }) {
   const { send } = useWallet();
-  const [chainId, setChainId] = useState(SEND_CHAINS[0].id);
+  const net = useNetwork();
+  const chains = sendChains(net);
+  const [chainId, setChainId] = useState(chains[0].id);
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [data, setData] = useState("0x");
@@ -30,7 +33,7 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
   const [links, setLinks] = useState<{ chain?: ChainInfo; fee?: bigint; nearTx?: string; evmTx?: string }>({});
   const running = useRef(false);
   const [busy, setBusy] = useState(false);
-  const chain = SEND_CHAINS.find((c) => c.id === chainId) ?? SEND_CHAINS[0];
+  const chain = chains.find((c) => c.id === chainId) ?? chains[0];
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -59,8 +62,8 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
     setLinks({ chain });
     try {
       const done = await sendFromSatchel(
-        { tokenId, from: address, chain, to: to as Address, value, data: data as Hex },
-        liveSendDeps(signWithWallet),
+        { net, tokenId, from: address, chain, to: to as Address, value, data: data as Hex },
+        liveSendDeps(net, signWithWallet),
         (s, detail) => {
           setStep(s);
           if (s === "wallet" && detail) setLinks((l) => ({ ...l, fee: BigInt(detail) }));
@@ -94,7 +97,7 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
             onChange={(e) => setChainId(Number(e.target.value))}
             className="rounded-xl border border-line bg-paper px-3 py-2"
           >
-            {SEND_CHAINS.map((c) => (
+            {chains.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -168,7 +171,7 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
             <ExternalLink href={`${links.chain.explorer}/tx/${links.evmTx}`}>View on {links.chain.name}</ExternalLink>
           )}
           {links.evmTx && links.nearTx && " · "}
-          {links.nearTx && <ExternalLink href={nearTxUrl(links.nearTx)}>sign_evm on NEAR</ExternalLink>}
+          {links.nearTx && <ExternalLink href={nearTxUrl(net, links.nearTx)}>sign_evm on NEAR</ExternalLink>}
         </p>
       )}
     </Card>

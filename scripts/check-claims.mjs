@@ -1,13 +1,21 @@
-// Checks the README's on-chain claims about the testnet deployment against NEAR RPC: the contract's
-// lock, code and signer, the transactions that deployed and locked it, and the calls it refused.
-// Node 22 or later, no install, no wallet, no key. Usage: node scripts/check-claims.mjs
+// Checks the README's on-chain claims about a deployment against NEAR RPC: the contract's lock, code
+// and signer, the transactions that deployed and locked it, and, on testnet, the calls it refused.
+// Node 22 or later, no install, no wallet, no key.
+// Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
 import { readFileSync } from "node:fs";
 
-const deployment = JSON.parse(readFileSync(new URL("../deployments/testnet.json", import.meta.url), "utf8"));
-const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.fastnear.com";
-const ARCHIVAL = process.env.NEAR_ARCHIVAL_RPC ?? "https://archival-rpc.testnet.fastnear.com";
+const flag = process.argv.indexOf("--network");
+const NETWORK = flag === -1 ? "testnet" : process.argv[flag + 1];
+if (NETWORK !== "testnet" && NETWORK !== "mainnet") {
+  console.error("usage: node scripts/check-claims.mjs [--network testnet|mainnet]");
+  process.exit(2);
+}
+const deployment = JSON.parse(readFileSync(new URL(`../deployments/${NETWORK}.json`, import.meta.url), "utf8"));
+const RPC = process.env.NEAR_RPC ?? `https://rpc.${NETWORK}.fastnear.com`;
+const ARCHIVAL = process.env.NEAR_ARCHIVAL_RPC ?? `https://archival-rpc.${NETWORK}.fastnear.com`;
 const CONTRACT = deployment.contract;
+// Testnet only: the accounts behind the demo satchels and the refused calls.
 const OWNER = "satchel-nft.testnet";
 const BUYER = "buyer.satchel-nft.testnet";
 const ONE_NEAR = "1000000000000000000000000";
@@ -75,7 +83,7 @@ const refunds = (t, to) =>
     .map((a) => a.Transfer?.deposit);
 
 /** Each claim: the README's words, and a check that returns what it saw or throws. */
-const CLAIMS = [
+const DEPLOYMENT = [
   {
     claim: `${CONTRACT} has no access keys, so no one can redeploy it or sign as it`,
     check: async () => {
@@ -122,6 +130,23 @@ const CLAIMS = [
       return `${names}, new({ mpc_contract: "${args.mpc_contract}" })`;
     },
   },
+];
+
+/** On mainnet, where nothing was minted yet when it was checked: no satchel existed once the key was gone. */
+const MAINNET_LOCK = {
+  claim: "Its only key was deleted before any satchel was minted",
+  check: async () => {
+    const lock = await tx(deployment.lock_tx, CONTRACT);
+    if (actionNames(lock).join() !== "DeleteKey" || !("SuccessValue" in lock.status)) throw new Error("not a successful DeleteKey");
+    // The block that ran the DeleteKey; the supply only grows, so 0 there means no mint came first.
+    const ran = lock.receipts_outcome[0].block_hash;
+    const supply = await view("nft_total_supply", {}, ran);
+    if (supply !== "0") throw new Error(`${supply} satchel(s) minted by the block that deleted the key`);
+    return `DeleteKey at block ${await height(lock)}, nft_total_supply() = 0 there`;
+  },
+};
+
+const TESTNET = [
   {
     claim: "Its only key was deleted before the first mint",
     check: async () => {
@@ -203,6 +228,8 @@ const CLAIMS = [
     },
   },
 ];
+
+const CLAIMS = [...DEPLOYMENT, ...(NETWORK === "testnet" ? TESTNET : [MAINNET_LOCK])];
 
 let failed = 0;
 for (const { claim, check } of CLAIMS) {

@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useNetwork } from "@/components/network";
 import { ReportBadge, useReportChecker } from "@/components/report-checker";
 import { Card, ErrorNote } from "@/components/ui";
 import { useAsync } from "@/components/use-async";
 import type { Listing } from "@/lib/near";
 import type { Report } from "@/lib/report";
+import { appPath } from "@/lib/config";
 import { formatNear, satchel } from "@/lib/satchel";
 
 function ListingCard({
@@ -17,9 +19,10 @@ function ListingCard({
   listing: Listing;
   check: (tokenId: string) => Promise<Report | null>;
 }) {
-  const report = useAsync(() => check(tokenId), tokenId);
+  const net = useNetwork();
+  const report = useAsync(() => check(tokenId), `${net.id}:${tokenId}`);
   return (
-    <Link href={`/satchel/${tokenId}`}>
+    <Link href={appPath(net, `/satchel/${tokenId}`)}>
       <Card className="h-full transition hover:border-ink">
         <div className="flex items-center justify-between gap-2">
           <p className="font-display text-2xl font-semibold">#{tokenId}</p>
@@ -35,7 +38,8 @@ function ListingCard({
 }
 
 export default function Market() {
-  const listings = useAsync(() => satchel.listings(0, 100), "listings");
+  const net = useNetwork();
+  const listings = useAsync(() => satchel(net).listings(0, 100), `${net.id}:listings`);
   const check = useReportChecker();
   return (
     <div className="space-y-6">

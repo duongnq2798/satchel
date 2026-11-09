@@ -10,20 +10,22 @@ address on Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and Auror
 testnets. Give the NFT away, sell it or leave it to someone, and control of that address on every
 one of those chains moves with it in one NEAR transaction.
 
-**Try it: <https://satchelnft.xyz>** (NEAR testnet and Sepolia; reading needs no wallet).
+**Try it: <https://satchelnft.xyz>** (NEAR testnet and Sepolia; NEAR mainnet at
+[satchelnft.xyz/mainnet](https://satchelnft.xyz/mainnet); reading needs no wallet).
 
 > **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract is live on
-> NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
-> access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app), hosted
-> at [satchelnft.xyz](https://satchelnft.xyz), mints, sends through the MPC network, lists and buys,
-> and computes the clean transfer report in your browser. Five
-> [demo satchels](#see-it-catch-a-dirty-wallet) show what the report passes and what it catches,
-> and two refused calls show what the contract stops. Not on mainnet yet, not audited. This section
+> NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet) and on NEAR mainnet at
+> [`v1.satchel-nft.near`](#live-on-mainnet), the same reproducible build on both, each locked (no
+> access keys) before its first mint and checked end to end against NEAR's MPC network on testnet.
+> The [web app](#web-app), hosted at [satchelnft.xyz](https://satchelnft.xyz), mints, sends through
+> the MPC network, lists and buys on either network, and computes the clean transfer report in your
+> browser. Five [demo satchels](#see-it-catch-a-dirty-wallet) on testnet show what the report passes
+> and what it catches, and two refused calls show what the contract stops. Not audited. This section
 > is updated as each piece lands.
 
 **Checking the claims?** Start with [AGENTS.md](AGENTS.md). `node scripts/check-claims.mjs` checks
 the deployment and its history against NEAR testnet in a few seconds, with no install and no
-wallet. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) lists each attack and what stops it;
+wallet; add `--network mainnet` for the mainnet deployment. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) lists each attack and what stops it;
 [SECURITY.md](SECURITY.md) says how to report one.
 
 ## See it catch a dirty wallet
@@ -286,11 +288,40 @@ You should see `GALLERY PASS` and four new token ids. The script writes each ste
 goes, a signed send before it broadcasts it, so a run that stops partway resumes from there with the
 same `--out`, without minting or signing again.
 
+## Live on mainnet
+
+The same build, deployed on 2026-11-09 by [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh), which
+reads the chain before each step and stops if a name belongs to someone else or the code isn't the
+build, and asks before it deletes the last key.
+
+| | |
+|---|---|
+| Contract | [`v1.satchel-nft.near`](https://nearblocks.io/address/v1.satchel-nft.near) |
+| MPC signer | `v1.signer` (Chain Signatures) |
+| Source and code hash | the same as on testnet: commit `87148c6`, code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` |
+| Deploy and `new` | one transaction: [`3cbRdh9W…`](https://nearblocks.io/txns/3cbRdh9WnftTPbhkLs5fJCBJLh43dTtWywSzuFk8GHK4) |
+| Locked | its only key deleted in [`Dw29Zbe…`](https://nearblocks.io/txns/Dw29ZbeRNSLgyoeXGEdnDhxCMWB7L3w4vhKpYqmN9qqE), when no satchel had been minted |
+
+The record is in [`deployments/mainnet.json`](deployments/mainnet.json). To check it:
+
+```bash
+node scripts/check-claims.mjs --network mainnet
+```
+
+You should see `6 of 6 claims hold`: the five rows above, and `nft_total_supply()` read at the
+block that deleted the key is 0, so no satchel was minted while anyone could still change the code.
+The demo satchels and refused calls are on testnet only.
+
+Mainnet satchels hold real funds on Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and
+Aurora, and the contract is not audited: keep in one only what you can afford to lose.
+
 ## Web app
 
 [`web/`](web) is a Next.js app with no backend, hosted at <https://satchelnft.xyz> (Vercel, built
-from `main`, on NEAR testnet). Every read goes from your browser to a public NEAR RPC and to each
-EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
+from `main`). Pages under `/mainnet` work on NEAR mainnet and the 8 EVM mainnets; every other page
+works on NEAR testnet and the 8 testnets. A switch in the header moves between them. Every read
+goes from your browser to a public NEAR RPC and to each EVM chain's public RPC; every write is a
+transaction your NEAR wallet signs.
 
 | Page | What you can do there |
 |---|---|
@@ -299,6 +330,13 @@ EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
 | `/satchel/<id>` | The token's address, its balance on the 8 testnets, the clean transfer report; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy |
 | `/market` | The listed satchels, each with its price and the verdict of its report |
 | `/verify` | Enter a token id and read its report, no wallet needed |
+| `/mainnet`, `/mainnet/satchels`, `/mainnet/satchel/<id>`, `/mainnet/market`, `/mainnet/verify` | The same pages on mainnet, with the deployment's facts read live |
+
+**Before it signs or shows an address**, on either network, the app checks the contract: the account
+exists, runs the reproducible build, has no keys and signs only through the network's canonical MPC
+contract. Until then the account could hold anyone's code, and an address derived from it would be
+theirs to sign for, so the app shows none and signs nothing. A transfer refuses a receiver that
+doesn't exist on the network, since the contract takes any name and an NFT sent to one is lost.
 
 **The report** runs the four checks of the [clean-transfer table](#when-is-a-transfer-provably-clean)
 against NEAR and every chain the record lists. Each chain is read at its own finalized block
@@ -311,7 +349,7 @@ the page. If the seller delists, signs and relists before your transaction lands
 refuses the sale and you keep your NEAR. A satchel that is not provably clean can still be bought,
 after you tick a box that says so.
 
-**Sending** from a satchel: pick a testnet, a recipient and an amount (or raw calldata, under
+**Sending** from a satchel: pick a chain (a testnet, or a mainnet under `/mainnet`), a recipient and an amount (or raw calldata, under
 Advanced). The app estimates gas, reads the nonce and fees, checks that the contract hashes the same
 transaction, has your wallet call `sign_evm`, recovers the signer from the MPC signature, and only
 then broadcasts. It stops before your wallet opens if the address cannot pay the value plus the
@@ -319,7 +357,8 @@ most the fees can reach (on OP Sepolia and Base Sepolia, the L1 data fee include
 fee while your wallet asks.
 
 **Wallets.** The app lists a pinned set of NEAR wallets. On testnet that is Meteor, Intear,
-Nightly, Ledger and NEAR CLI.
+Nightly, Ledger and NEAR CLI; on mainnet, those and HOT and MyNearWallet. Each network remembers
+its own wallet, and an account from the other network is refused with a message saying so.
 
 To run it yourself:
 
@@ -345,7 +384,8 @@ To run it yourself:
    ```
 
    It prints each check, the verdict (`PROVABLY CLEAN` for token 1) and the RPCs it read from, and
-   exits 0 only when the satchel is provably clean.
+   exits 0 only when the satchel is provably clean. `npm run verify -- --network mainnet <id>`
+   reads a mainnet satchel.
 
 4. Read from nodes you trust. The report is only as honest as its RPCs: one that lies about a
    nonce or an allowance could make a satchel look clean. The app names the public RPCs it used
@@ -356,7 +396,7 @@ To run it yourself:
    ```
 
    `RPC_<chain id>` works for each of the 16 chains. The app also checks that every EVM RPC
-   answers with the chain id it expects.
+   answers with the chain id it expects, and the CLI that `NEAR_RPC` serves the network it reads.
 
 `npm test` runs the unit tests: the address derivation and the full signing round trip against
 the real `sign_evm` result from the E2E run (same hash, same signer, same raw transaction byte for

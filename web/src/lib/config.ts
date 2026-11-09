@@ -1,21 +1,80 @@
+export type NetworkId = "testnet" | "mainnet";
+
 /**
- * The deployment this app talks to. Every value a buyer's check depends on is pinned here, with
- * where it comes from, so the report never trusts the contract to describe itself.
+ * A deployment this app talks to. Every value a buyer's check depends on is pinned here, with where
+ * it comes from, so the report never trusts the contract to describe itself.
  */
-export const NETWORK = {
+export interface Network {
+  id: NetworkId;
+  contract: string;
+  /** The canonical Chain Signatures contract. `mpc_contract()` must return this. */
+  mpc: string;
+  nearRpc: string;
+  nearExplorer: string;
+  /** From the reproducible CI build the contract was deployed from (deployments/<id>.json). */
+  build: { codeHash: string; commit: string; ciRun: string };
+  /** Where this network's pages live: "" for testnet, "/mainnet" for mainnet. */
+  base: "" | "/mainnet";
+}
+
+/** Both networks run the same wasm: one reproducible build, one code hash. */
+const BUILD = {
+  codeHash: "94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph",
+  commit: "87148c6b6f97f3121cac13c93e22d7d153453b53",
+  ciRun: "https://github.com/duongnq2798/satchel/actions/runs/42547394040",
+} as const;
+
+export const TESTNET: Network = {
   id: "testnet",
   contract: "v1.satchel-nft.testnet",
-  /** The canonical Chain Signatures contract. `mpc_contract()` must return this. */
   mpc: "v1.signer-prod.testnet",
   nearRpc: "https://rpc.testnet.fastnear.com",
   nearExplorer: "https://testnet.nearblocks.io",
-  /** From the reproducible CI build the contract was deployed from (deployments/testnet.json). */
-  build: {
-    codeHash: "94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph",
-    commit: "87148c6b6f97f3121cac13c93e22d7d153453b53",
-    ciRun: "https://github.com/duongnq2798/satchel/actions/runs/42547394040",
-  },
-} as const;
+  build: BUILD,
+  base: "",
+};
+
+export const MAINNET: Network = {
+  id: "mainnet",
+  contract: "v1.satchel-nft.near",
+  mpc: "v1.signer",
+  nearRpc: "https://rpc.mainnet.fastnear.com",
+  nearExplorer: "https://nearblocks.io",
+  build: BUILD,
+  base: "/mainnet",
+};
+
+export const NETWORKS: Record<NetworkId, Network> = { testnet: TESTNET, mainnet: MAINNET };
+
+/** The network a page belongs to: everything under /mainnet is mainnet, the rest testnet. */
+export function networkForPath(pathname: string | null): Network {
+  return pathname === "/mainnet" || pathname?.startsWith("/mainnet/") ? MAINNET : TESTNET;
+}
+
+/** `path` ("/", "/market", "/satchel/3") on `net`'s side of the site. */
+export function appPath(net: Network, path: string): string {
+  if (net.base === "") return path;
+  return path === "/" ? net.base : `${net.base}${path}`;
+}
+
+/**
+ * The page on `to` that matches `pathname`: the market, your satchels and verify have a twin on
+ * each network; anything else, a satchel's page included (ids differ by network), goes home.
+ */
+export function switchPath(pathname: string | null, to: Network): string {
+  const rest = (pathname ?? "/").replace(/^\/mainnet(?=\/|$)/, "") || "/";
+  return appPath(to, ["/market", "/satchels", "/verify"].includes(rest) ? rest : "/");
+}
+
+/**
+ * Whether a connected account can belong to `net`. A wallet may remember a session from the other
+ * network, so the mainnet pages never act as a `.testnet` account, nor the testnet pages as a
+ * mainnet name. Implicit accounts exist on both.
+ */
+export function accountOnNetwork(net: Network, accountId: string): boolean {
+  if (/^[0-9a-f]{64}$/.test(accountId) || /^0x[0-9a-f]{40}$/.test(accountId)) return true;
+  return net.id === "testnet" ? accountId.endsWith(".testnet") : !accountId.endsWith(".testnet");
+}
 
 export const REPO_URL = "https://github.com/duongnq2798/satchel";
 
@@ -39,8 +98,8 @@ export interface ChainInfo {
 }
 
 /**
- * The contract's `SUPPORTED_CHAINS`, in its order. The report must cover every one of them, mainnets
- * included: the testnet contract can sign for chain 1 as well, so a record may list it.
+ * The contract's `SUPPORTED_CHAINS`, in its order, the same on both networks. The report must cover
+ * every one of them: the testnet contract can sign for chain 1 as well, so a record may list it.
  */
 export const CHAINS: readonly ChainInfo[] = [
   { id: 1, name: "Ethereum", symbol: "ETH", testnet: false, rpc: "https://ethereum-rpc.publicnode.com", explorer: "https://etherscan.io" },
@@ -61,17 +120,22 @@ export const CHAINS: readonly ChainInfo[] = [
   { id: 1313161555, name: "Aurora testnet", symbol: "ETH", testnet: true, rpc: "https://testnet.aurora.dev", explorer: "https://explorer.testnet.aurora.dev", finalityLag: 10n },
 ];
 
-/** Chains this deployment lets you send on. A testnet satchel never moves mainnet funds from the app. */
-export const SEND_CHAINS = CHAINS.filter((c) => c.testnet);
+/**
+ * Chains the app lets you send on: the testnets from a testnet satchel, the mainnets from a mainnet
+ * one. A testnet satchel never moves mainnet funds from the app.
+ */
+export function sendChains(net: Network): readonly ChainInfo[] {
+  return CHAINS.filter((c) => c.testnet === (net.id === "testnet"));
+}
 
 export function chainInfo(id: number): ChainInfo | undefined {
   return CHAINS.find((c) => c.id === id);
 }
 
-export function nearTxUrl(hash: string): string {
-  return `${NETWORK.nearExplorer}/txns/${hash}`;
+export function nearTxUrl(net: Network, hash: string): string {
+  return `${net.nearExplorer}/txns/${hash}`;
 }
 
-export function nearAccountUrl(account: string): string {
-  return `${NETWORK.nearExplorer}/address/${account}`;
+export function nearAccountUrl(net: Network, account: string): string {
+  return `${net.nearExplorer}/address/${account}`;
 }

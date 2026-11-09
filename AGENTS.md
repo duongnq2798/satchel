@@ -6,7 +6,8 @@ Node 22 or later; the contract tests also need Rust.
 
 ## Satchel in five lines
 
-- A NEAR NFT contract (NEP-171), live on testnet at `v1.satchel-nft.testnet`.
+- A NEAR NFT contract (NEP-171), live on testnet at `v1.satchel-nft.testnet` and on mainnet at
+  `v1.satchel-nft.near`, the same reproducible build.
 - Each token controls one secp256k1 key held by NEAR's MPC network (Chain Signatures). The key is
   derived from the contract's account and the path `satchel/<token_id>`, so a token is one address
   on 16 EVM chains.
@@ -54,6 +55,17 @@ mint returned token 1. Old transactions and state are read from FastNEAR's archi
 answers do not change if someone buys or signs with a demo satchel later. To use your own nodes,
 set `NEAR_RPC` and `NEAR_ARCHIVAL_RPC`.
 
+The mainnet deployment has its own record, `deployments/mainnet.json`:
+
+```bash
+node scripts/check-claims.mjs --network mainnet
+```
+
+You should see `6 of 6 claims hold`. The first five are the rows above for `v1.satchel-nft.near`
+(signer `v1.signer`, deploy-and-init tx `3cbRdh9W…`). The sixth reads `nft_total_supply()` at the
+block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
+satchel was minted while the key existed. The refused calls are testnet only.
+
 ### 2. The clean transfer report for each demo satchel
 
 ```bash
@@ -94,7 +106,7 @@ npm run typecheck
 cd ..
 ```
 
-You should see `Tests  56 passed (56)`, then no type errors.
+You should see `Tests  83 passed (83)`, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -146,12 +158,16 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `web/src/lib/approvals.ts` | `approvals.test.ts` |
 | Check 4: nothing the record can't explain | `countersCheck` in `report.ts` | `report.test.ts` |
 | Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `web/src/lib/evm.ts` | none yet |
-| A purchase takes its record version and price from the report the buyer read | `web/src/components/sale-panel.tsx` | manual, on testnet |
+| The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `web/src/lib/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
+| The wallet signs only for this network's contract, from an account on this network | `assertTxFor` in `guard.ts` | `guard.test.ts` |
+| A transfer refuses a receiver that doesn't exist on the network, the contract and the MPC contract | `assertReceiver` in `guard.ts` | `guard.test.ts` |
+| A purchase takes its record version and price from the report the buyer read, read on the same network | `web/src/components/sale-panel.tsx` | manual, on testnet |
 | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `web/src/lib/send.ts` | `send.test.ts` |
 
 ## What Satchel does not claim
 
-- **Not audited, testnet only.** No mainnet deployment yet.
+- **Not audited.** It is live on mainnet, where satchels hold real funds; the demo satchels and the
+  end-to-end runs are on testnet.
 - **The report proves only what the token's key signed.** It says nothing about powers built into
   an asset itself: an upgradable token, a blacklist, an issuer's clawback.
 - **The report trusts its RPCs**: one NEAR node and one node per EVM chain. It names them, and
@@ -175,8 +191,9 @@ The full list, with what stops each attack and what is left, is in
   - In `web`: `npm run typecheck`, `npm test`, `npm run build`.
 - **The deployed contract is locked**, with no keys and no admin. A contract change ships only as a
   new account (for example `v2.satchel-nft.testnet`) with a new code hash. Deploy that from the CI
-  reproducible artifact, then update `NETWORK` in `web/src/lib/config.ts`, the files in
-  `deployments/`, the transaction hashes in `scripts/check-claims.mjs` and the README.
+  reproducible artifact (`tools/deploy-mainnet.sh` shows the steps on mainnet), then update
+  `TESTNET` or `MAINNET` in `web/src/lib/config.ts`, the files in `deployments/`, the
+  transaction hashes in `scripts/check-claims.mjs` and the README.
 - **Keys:** the testnet scripts in `tools/` sign with the near CLI's legacy keychain
   (`~/.near-credentials`). Never commit a key, a seed phrase or an RPC key.
 - **Docs:** keep [README.md](README.md) and [CHANGELOG.md](CHANGELOG.md) (under Unreleased) in step

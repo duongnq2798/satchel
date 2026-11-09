@@ -6,10 +6,25 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Deployed to NEAR mainnet at `v1.satchel-nft.near` from the same reproducible build as testnet
+  (code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`), initialized with `v1.signer` in the
+  deploy transaction and locked by deleting its only key before any satchel was minted. Record in
+  `deployments/mainnet.json`. `tools/deploy-mainnet.sh` did it: it reads the chain before each step,
+  stops if a name exists without its key or the account runs other code, and asks before it deletes
+  the key. `node scripts/check-claims.mjs --network mainnet` checks six claims, the last that
+  `nft_total_supply()` was 0 at the block that deleted the key.
+- NEAR mainnet in the same web app. Pages under `/mainnet` read and sign on mainnet
+  (`v1.satchel-nft.near`, MPC `v1.signer`, the same reproducible build as testnet); every other page
+  stays on testnet. A switch in the header moves between them, and any link to the other side loads
+  it as a new page. Every read, report, wallet connector and transaction takes its network
+  explicitly, from the page's path, and each network remembers its own wallet. Each side sends only
+  on its own chains, and connecting an account from the other network says so.
+  `npm run verify -- --network mainnet <id>` reads mainnet. The landing page and its FAQ say Satchel is live on mainnet, and that the
+  examples on the page are on testnet.
 - Documents for reviewers and AI agents:
   - `AGENTS.md`: how to check every claim, with commands and expected output, a map from each rule
     to its code and tests, and how to change the code.
-  - `docs/THREAT_MODEL.md`: 26 attacks (the seller's, a buyer's, the deployer's, an RPC's, the
+  - `docs/THREAT_MODEL.md`: 29 attacks (the seller's, a buyer's, the deployer's, an RPC's, the
     hosted app's), what stops each one, the testnet transaction that shows it, and what is left.
   - `SECURITY.md`: how to report a vulnerability privately, what is in scope, and how a fix ships
     when the contract is locked.
@@ -110,6 +125,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Security
 
+- From two internal reviews of mainnet (one adversarial, on the money path): the app signs nothing
+  for a network's contract and shows no address derived from it until the contract passes its check
+  (the account exists, runs the reproducible build, has no keys and signs through the canonical MPC
+  contract), since until then the name could hold anyone's code; a transfer refuses a receiver that
+  doesn't exist on the network, the contract's own account and the MPC contract, since the contract
+  takes any name and an NFT sent to one is lost; a purchase refuses a report read on the other
+  network; a send stops before signing when the chain's priority fee can't be read, instead of
+  guessing a tip Polygon would refuse after the MPC signed; `npm run verify` checks that `NEAR_RPC`
+  serves the network it reads and refuses `--network` values that aren't networks.
 - Web app, from two internal reviews before release (one adversarial, on the report and the
   purchase): every EVM RPC must answer with the expected chain id before the report trusts it, and
   the report names the RPCs it read (`npm run verify` takes `NEAR_RPC` and `RPC_<chain id>` to use

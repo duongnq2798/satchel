@@ -1,0 +1,22 @@
+{
+  "network": "mainnet",
+  "contract": "v1.satchel-nft.near",
+  "mpc_contract": "v1.signer",
+  "source_commit": "87148c6b6f97f3121cac13c93e22d7d153453b53",
+  "code_hash": "94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph",
+  "wasm_bytes": 280471,
+  "build": {
+    "ci_run": "https://github.com/duongnq2798/satchel/actions/runs/42547394040",
+    "artifact": "satchel-reproducible-wasm",
+    "image": "sourcescan/cargo-near:0.22.0-rust-1.99.1@sha256:c9655eaf7436b90c87ea8b25739f91063032c5c30ba24cfeafe72c142943b5bb"
+  },
+  "deployed_by": "tools/deploy-mainnet.sh",
+  "parent_account": "satchel-nft.near",
+  "parent_create_tx": "ByH8EdoSUJjUwAFfyLiYiQQE9U5MwUvHVZXTehoxc9oN",
+  "contract_create_tx": "BFGbXYUnLJQ7ZbGYde467Uzn481zXF4ymmz1MR3tWg1k",
+  "deploy_and_init_tx": "3cbRdh9WnftTPbhkLs5fJCBJLh43dTtWywSzuFk8GHK4",
+  "lock_tx": "Dw29ZbeRNSLgyoeXGEdnDhxCMWB7L3w4vhKpYqmN9qqE",
+  "access_keys_after_lock": 0,
+  "satchels_minted_at_lock": 0,
+  "deployed_at": "2026-11-09"
+}
