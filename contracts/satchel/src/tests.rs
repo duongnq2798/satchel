@@ -25,7 +25,11 @@ fn set(predecessor: AccountId, deposit: NearToken) {
 
 /// A contract where alice owns token "1".
 fn setup() -> Contract {
-    set(accounts(0), NearToken::from_yoctonear(0));
+    // `new` is private: the contract account initializes itself.
+    set(
+        "satchel.testnet".parse().unwrap(),
+        NearToken::from_yoctonear(0),
+    );
     let mut c = Contract::new(MPC.parse().unwrap());
     set(accounts(0), MINT_DEPOSIT);
     c.mint(None);
@@ -281,13 +285,70 @@ fn sign_evm_keeps_the_highest_nonce_per_chain() {
 }
 
 #[test]
-#[should_panic(expected = "Satchel: this token already has records for 16 chains")]
-fn sign_evm_caps_the_number_of_chains() {
+#[should_panic(expected = "Satchel: chain_id is not one of the supported chains")]
+fn sign_evm_refuses_an_unsupported_chain() {
     let mut c = setup();
-    for chain in 1..=(MAX_EVM_CHAINS as u64 + 1) {
+    set(accounts(0), ONE_YOCTO);
+    // A chain that does not exist yet: a signature for it could never be checked.
+    let _ = c.sign_evm("1".to_string(), tx(999_999_999, 0));
+}
+
+#[test]
+fn every_supported_chain_can_be_signed_for() {
+    let mut c = setup();
+    for chain in SUPPORTED_CHAINS {
         set(accounts(0), ONE_YOCTO);
         let _ = c.sign_evm("1".to_string(), tx(chain, 0));
     }
+    assert_eq!(
+        c.signing_record("1".to_string()).evm.len(),
+        SUPPORTED_CHAINS.len()
+    );
+}
+
+#[test]
+fn mint_logs_the_nep171_mint_event() {
+    let mut c = setup();
+    set(accounts(1), MINT_DEPOSIT);
+    c.mint(None);
+    let logs = get_logs();
+    let mint = logs
+        .iter()
+        .find(|l| l.contains("\"event\":\"nft_mint\""))
+        .unwrap_or_else(|| panic!("no nft_mint event in {logs:?}"));
+    let event: Value = serde_json::from_str(&mint["EVENT_JSON:".len()..]).unwrap();
+    assert_eq!(event["standard"], "nep171");
+    assert_eq!(event["data"][0]["owner_id"], accounts(1).as_str());
+    assert_eq!(event["data"][0]["token_ids"][0], "2");
+}
+
+#[test]
+fn a_bounced_transfer_call_voids_the_receivers_listing() {
+    let mut c = setup();
+    // Alice sends token 1 to bob's contract with nft_transfer_call; while bob holds it, bob lists it.
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.nft_transfer_call(accounts(1), "1".to_string(), None, None, "".to_string());
+    set(accounts(1), ONE_YOCTO);
+    c.list("1".to_string(), U128(10));
+    // Bob's nft_on_transfer returns true: give the token back.
+    testing_env!(
+        ctx(
+            "satchel.testnet".parse().unwrap(),
+            NearToken::from_yoctonear(0)
+        )
+        .build(),
+        near_sdk::test_vm_config(),
+        near_sdk::RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![near_sdk::PromiseResult::Successful(b"true".to_vec())],
+    );
+    assert!(!c.nft_resolve_transfer(accounts(0), accounts(1), "1".to_string(), None));
+    assert_eq!(c.nft_token("1".to_string()).unwrap().owner_id, accounts(0));
+    assert!(c.listing("1".to_string()).is_none());
+    assert!(c.listings(None, None).is_empty());
+    // Alice can sign again: nothing is frozen.
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), tx(1, 0));
 }
 
 #[test]
@@ -646,17 +707,100 @@ fn sign_evm_itemizes_an_erc20_approval() {
 }
 
 #[test]
-fn a_repeated_approval_updates_its_argument_instead_of_adding_a_row() {
+fn an_identical_approval_is_one_row() {
     let mut c = setup();
-    for amount in [5u64, 0] {
+    for _ in 0..2 {
         set(accounts(0), ONE_YOCTO);
-        let data = format!("0x095ea7b3{}{amount:064x}", word_address(0xab));
+        let data = format!("0x095ea7b3{}{:064x}", word_address(0xab), 5);
         let _ = c.sign_evm("1".to_string(), call(USDC, data));
     }
     let r = c.signing_record("1".to_string());
     assert_eq!(r.approvals.len(), 1);
-    assert_eq!(r.approvals[0].arg, format!("0x{}", "0".repeat(64)));
     assert_eq!(r.evm[0].signatures, 2);
+}
+
+#[test]
+fn erc721_approvals_of_two_token_ids_stay_two_rows() {
+    // approve(S, 1) then approve(S, 2) on a collection: both are live on chain, so the buyer must
+    // see both. Merging them would let the seller clear #2, sell, and take #1.
+    let mut c = setup();
+    let collection = "0x3333333333333333333333333333333333333333";
+    for id in [1u64, 2] {
+        set(accounts(0), ONE_YOCTO);
+        let data = format!("0x095ea7b3{}{id:064x}", word_address(0xab));
+        let _ = c.sign_evm("1".to_string(), call(collection, data));
+    }
+    let r = c.signing_record("1".to_string());
+    assert_eq!(r.approvals.len(), 2);
+    assert_eq!(r.approvals[0].arg, format!("0x{:064x}", 1));
+    assert_eq!(r.approvals[1].arg, format!("0x{:064x}", 2));
+}
+
+#[test]
+fn a_call_satchel_cannot_classify_is_counted() {
+    // multicall(bytes[]) wrapping setApprovalForAll: a standing grant the decoder cannot see into.
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    let npm = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88";
+    let _ = c.sign_evm(
+        "1".to_string(),
+        call(npm, format!("0xac9650d8{}", "00".repeat(64))),
+    );
+    let r = c.signing_record("1".to_string());
+    assert_eq!(r.unclassified_calls, 1);
+    assert!(r.approvals.is_empty());
+    let event: Value =
+        serde_json::from_str(&get_logs().pop().unwrap()["EVENT_JSON:".len()..]).unwrap();
+    assert_eq!(event["data"][0]["class"], "unclassified");
+    assert_eq!(event["data"][0]["selector"], "0xac9650d8");
+    assert_eq!(event["data"][0]["data_hash"].as_str().unwrap().len(), 64);
+}
+
+#[test]
+fn calldata_shorter_than_a_selector_is_unclassified() {
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), call(USDC, "0x0102".to_string()));
+    assert_eq!(c.signing_record("1".to_string()).unclassified_calls, 1);
+}
+
+#[test]
+fn value_and_asset_transfers_are_classified() {
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), tx(8453, 0));
+    let event: Value =
+        serde_json::from_str(&get_logs().pop().unwrap()["EVENT_JSON:".len()..]).unwrap();
+    assert_eq!(event["data"][0]["class"], "value_transfer");
+    for selector in evm::ASSET_TRANSFER_SELECTORS {
+        set(accounts(0), ONE_YOCTO);
+        let data = format!("0x{}{}", evm::encode_hex(&selector), "00".repeat(64));
+        let _ = c.sign_evm("1".to_string(), call(USDC, data));
+        let event: Value =
+            serde_json::from_str(&get_logs().pop().unwrap()["EVENT_JSON:".len()..]).unwrap();
+        assert_eq!(event["data"][0]["class"], "asset_transfer");
+    }
+    let r = c.signing_record("1".to_string());
+    assert_eq!(r.unclassified_calls, 0);
+    assert!(r.approvals.is_empty());
+}
+
+#[test]
+fn asset_transfer_selectors_are_the_keccak_of_their_signatures() {
+    set(accounts(0), NearToken::from_yoctonear(0));
+    let sigs = [
+        "transfer(address,uint256)",
+        "transferFrom(address,address,uint256)",
+        "safeTransferFrom(address,address,uint256)",
+        "safeTransferFrom(address,address,uint256,bytes)",
+        "safeTransferFrom(address,address,uint256,uint256,bytes)",
+        "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)",
+        "deposit()",
+        "withdraw(uint256)",
+    ];
+    for (sig, sel) in sigs.iter().zip(evm::ASSET_TRANSFER_SELECTORS) {
+        assert_eq!(env::keccak256_array(sig.as_bytes())[..4], sel, "{sig}");
+    }
 }
 
 #[test]

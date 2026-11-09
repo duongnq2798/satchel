@@ -1,12 +1,14 @@
 # Satchel
 
-**An NFT that is a wallet on every chain. Transfer the NFT, transfer the keys, and prove the seller kept nothing back.**
+**An NFT that is a wallet on every EVM chain. Transfer the NFT, transfer the keys, and check on
+chain what the seller could have kept back.**
 
-Satchel is a NEAR NFT contract (NEP-171). Every token controls keys that NEAR's MPC network derives
-from the contract's account and the token's path (Chain Signatures). The token's owner, and only the
-owner, can have the contract sign with those keys, so the same token is an address on Ethereum, Base,
-Arbitrum and any other chain those keys work on. Give the NFT away, sell it or leave it to someone,
-and control of every one of those addresses moves with it in one NEAR transaction.
+Satchel is a NEAR NFT contract (NEP-171). Every token controls a secp256k1 key that NEAR's MPC
+network derives from the contract's account and the token's path (Chain Signatures). The token's
+owner, and only the owner, can have the contract sign with that key, so one token is the same
+address on Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and Aurora, mainnets and
+testnets. Give the NFT away, sell it or leave it to someone, and control of that address on every
+one of those chains moves with it in one NEAR transaction.
 
 > **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract and its unit
 > tests are in this repository. Not deployed yet, no web app yet, not audited.
@@ -14,45 +16,67 @@ and control of every one of those addresses moves with it in one NEAR transactio
 
 ## The problem it solves
 
-Selling a wallet is easy to fake. The seller signs a withdrawal, sells the wallet, then broadcasts the
-withdrawal and empties it. Token-bound accounts on a single chain have the same hole. Nobody can buy a
-wallet, a position or an address with history unless they can rule that out.
+Selling a wallet is easy to fake. The seller signs a withdrawal, sells the wallet, then broadcasts
+the withdrawal and empties it. Or the seller approves their own address to spend the wallet's
+tokens, sells, and pulls the tokens afterwards. Token-bound accounts on a single chain have the same
+holes. Nobody can safely buy a wallet, a position or an address with history unless they can rule
+those out.
 
-Satchel rules it out on chain:
+Satchel keeps a public, on-chain **signing record** for every token, so a buyer can check:
 
-1. **The contract builds every EVM transaction it signs.** The owner sends the fields
-   (`chain_id`, `nonce`, fees, `to`, `value`, `data`); the contract RLP-encodes and hashes them
-   itself (EIP-1559), so it knows exactly what it signed.
-2. **It keeps a public signing record per token:** the highest nonce it ever signed on each chain,
-   written *before* the signature is requested. A buyer reads the record and the address's nonce on
-   each chain. If the on-chain nonce is above the highest signed nonce, every signature the seller
-   holds is already used or can never execute.
-3. **It itemizes every approval it signs.** A mined `approve` leaves a standing right that no nonce
-   check can see: the seller could approve their own address, sell, then pull the tokens. Because the
-   contract builds the transaction, it decodes ERC-20 `approve` and `increaseAllowance`, ERC-721/1155
-   `setApprovalForAll` and Permit2 `approve`, and records the chain, contract and spender. The buyer
-   checks that each one is revoked on chain before buying.
-4. **Raw signatures are allowed but visible.** `sign_raw` signs any 32-byte payload (a Bitcoin
-   sighash, a message), and the record counts it as *opaque*, because no buyer can rule it out.
-5. **Listing freezes signing, and `buy` pins what the buyer checked.** `buy` names the record version
+1. **The contract builds every EVM transaction it signs.** The owner sends the fields (`chain_id`,
+   `nonce`, fees, `to`, `value`, `data`); the contract RLP-encodes and hashes them itself
+   (EIP-1559), so it knows exactly what it signed. The record holds the highest nonce signed on each
+   chain, written *before* the signature is requested.
+2. **It classifies every call.** Each `sign_evm` call is exactly one of:
+   - a **value transfer** (empty calldata);
+   - an **asset transfer** (ERC-20 `transfer`/`transferFrom`, ERC-721 and ERC-1155
+     `safeTransferFrom`, `safeBatchTransferFrom`, WETH `deposit`/`withdraw`);
+   - an **approval**, decoded and itemized: ERC-20 `approve` and `increaseAllowance`, ERC-721
+     `approve` (each token id its own row), `setApprovalForAll`, Permit2 `approve`;
+   - **anything else** (a multicall, a swap, `transferOwnership`…), counted in
+     `unclassified_calls`. Satchel cannot see what such a call left behind, so it does not pretend to.
+3. **Raw signatures are allowed but counted.** `sign_raw` signs any 32-byte payload (a Bitcoin
+   sighash, a message) and the record counts it in `opaque_signatures`.
+4. **Listing freezes signing, and `buy` pins what the buyer checked.** `buy` names the record version
    and price the buyer verified; if the seller delisted, signed and relisted in between, the purchase
-   fails. The NFT and the seller's payment move in the same receipt.
+   fails.
+
+### When is a transfer provably clean?
+
+A buyer (or the Satchel web app, when it ships) can call a token provably clean only when all of
+these hold:
+
+| Check | How |
+|---|---|
+| The contract account cannot sign behind the record | No access keys on the account; code hash equals the reproducible build; not a global contract referenced by account ID; `mpc_contract()` is the canonical signer (`v1.signer` / `v1.signer-prod.testnet`) |
+| No pending signed transaction | For every chain in `record.evm`, the address's nonce at a **finalized** block is above `max_nonce` |
+| No approval left behind | Every row in `record.approvals` is revoked on chain (allowance 0, `getApproved` cleared, operator off, Permit2 allowance 0) |
+| Nothing the record cannot explain | `opaque_signatures`, `approvals_not_itemized` and `unclassified_calls` are all 0 |
+
+If any of them fails, the honest answer is "not provable", with the reason. Many wallets will be
+used for swaps and DeFi and will not be provably clean; the record says so instead of hiding it.
 
 ## Contract interface
 
 | Method | Who | Deposit | What it does |
 |---|---|---|---|
-| `new(mpc_contract)` | deployer | | `v1.signer-prod.testnet` or `v1.signer`. No admin, nothing to change later |
+| `new(mpc_contract)` | the contract account itself (`#[private]`) | | Run in the same transaction as the deploy. No admin, nothing to change later |
 | `mint(receiver_id?)` | anyone | 0.1 NEAR (excess refunded) | New token; its path is `satchel/<token_id>` |
-| `sign_evm(token_id, tx)` | owner | 1 yocto, ≥ 50 TGas | Builds and hashes the EIP-1559 tx, records `(chain_id, nonce)`, returns the MPC signature |
+| `sign_evm(token_id, tx)` | owner | 1 yocto, ≥ 50 TGas | Builds and hashes the EIP-1559 tx, updates the record, returns the MPC signature |
 | `sign_raw(token_id, payload)` | owner | 1 yocto, ≥ 50 TGas | Signs 32 bytes, counted as opaque |
 | `list(token_id, price)` / `delist(token_id)` | owner | 1 yocto | Sale in NEAR; signing frozen while listed |
-| `buy(token_id, record_version, price)` | anyone but the seller | ≥ price (excess refunded) | Atomic sale |
+| `buy(token_id, record_version, price)` | anyone but the seller | ≥ price (excess refunded) | Moves the token in this receipt and sends the seller's payment as a transfer receipt |
 | `nft_transfer`, `nft_transfer_call`, enumeration, metadata | NEP-171/177/181 | | A transfer ends any listing |
-| `satchel(token_id)`, `signing_record`, `listing`, `listings`, `derivation_path`, `evm_signing_hash(tx)` | views | | Everything a buyer needs to check |
+| `satchel(token_id)`, `signing_record`, `listing`, `listings`, `derivation_path`, `mpc_contract`, `evm_signing_hash(tx)` | views | | Everything a buyer needs to check |
 
-Events use NEP-297 with standard `satchel`: `sign_evm`, `sign_raw`, `list`, `delist`, `sale`, next to
-the NFT standard's `nft_mint` and `nft_transfer`.
+Supported chain IDs (`SUPPORTED_CHAINS`): 1, 11155111, 8453, 84532, 42161, 421614, 10, 11155420, 137,
+80002, 56, 97, 43114, 43113, 1313161554, 1313161555. A fixed list keeps every record checkable and
+rules out signatures for chains that do not exist yet.
+
+Events: NEP-171 `nft_mint` and `nft_transfer`, plus NEP-297 events with standard `satchel`:
+`sign_evm` (with the call's class, decoded approval, selector and calldata hash), `sign_raw`,
+`list`, `delist`, `sale`.
 
 ## Build and test
 
@@ -68,25 +92,34 @@ On Windows, set `AWS_LC_SYS_PREBUILT_NASM=1` first: a dependency of near-sdk's t
 `aws-lc-sys`, which otherwise needs NASM. Also add `--no-abi` to the build: the ABI step links a host
 DLL against NEAR host functions, which MSVC refuses. CI builds with the ABI on Linux.
 
-The EIP-1559 encoding is checked against [viem](https://viem.sh) as an independent reference:
-`tools/evm-vectors/gen.mjs` writes `contracts/satchel/src/evm_vectors.json`, and the unit test
-`evm_hash_and_rlp_match_viem_for_every_vector` compares the contract's RLP and hash with each case
-(nonce 0, single-byte values, the 0x80 boundary, ERC-20 calldata, maximum values with 600 bytes of data).
+What the tests pin down:
+
+- **EIP-1559 encoding against an independent implementation.** `tools/evm-vectors/gen.mjs` uses
+  [viem](https://viem.sh) to write `contracts/satchel/src/evm_vectors.json`; the test
+  `evm_hash_and_rlp_match_viem_for_every_vector` compares the contract's RLP and hash for nonce 0,
+  single-byte values, the 0x80 boundary, ERC-20 calldata, and maximum values with 600 bytes of data.
+- **Every selector is the keccak of its signature**, computed in the test, so a typo cannot hide.
+- **The attacks the record exists for:** ERC-721 approvals of two token ids stay two rows; a
+  `multicall` is counted as unclassified; a seller who delists, signs and relists cannot complete a
+  sale against the version the buyer checked; a bounced `nft_transfer_call` voids the listing the
+  receiver made while holding the token; a previous owner cannot sign after a transfer.
 
 ## Limits, stated plainly
 
-- **The contract account must hold no access keys.** The MPC network derives each token's key from
-  the contract's account and the path, so a full-access key on that account could call the MPC
-  contract directly and sign for every token. The deployed account is locked after deployment (no
-  keys, no upgrades), and the buyer's check reads its key list.
-- The clean-transfer check covers EVM transactions built by `sign_evm`: pending signatures (nonces) and
-  the four approval calls above. Rights granted through other contract calls (adding an owner to a
-  Safe, say) are not decoded. Opaque signatures are counted, not explained.
-- The MPC network signs; Satchel cannot sign without it. If a request fails, the record still shows
-  the nonce, which makes the record stricter, never looser.
-- One token keeps records for at most 16 EVM chains and itemizes 32 distinct approvals; approvals
-  past that are counted in `approvals_not_itemized`.
-- Not audited.
+- **Calls are classified by selector**, assuming the called contract gives that selector its
+  standard meaning. A call can only change state in the contract it calls, so a non-standard
+  contract can only misuse what the wallet holds in that contract.
+- **secp256k1 only** (MPC domain 0): EVM chains through `sign_evm`, Bitcoin and anything else only
+  through `sign_raw`, which is opaque. No Ed25519 chains (Solana, NEAR) yet.
+- **The MPC network signs**; Satchel cannot sign without it. If a request fails, the record still
+  shows the nonce, which makes the record stricter, never looser.
+- **Per-token limits are permanent.** 32 approvals are itemized; more are only counted. Any owner can
+  make a token unprovable for every later owner, and the record shows it.
+- **The seller's payment can fail** if the seller deletes their account before it lands; the NEAR then
+  stays in the contract, which has no admin to return it.
+- `listings` pages can shift between calls, because removing a listing moves the last one into its slot.
+- Not audited. An internal adversarial review found two ways to slip an approval past the first
+  version of the record; both are fixed and covered by tests above.
 
 ## Other project by the same builder
 

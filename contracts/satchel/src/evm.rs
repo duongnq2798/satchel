@@ -106,18 +106,82 @@ pub struct DecodedApproval {
     pub arg: [u8; 32],
 }
 
+/// Calls that move assets out now and leave no standing right behind, by their standard meaning:
+/// ERC-20 `transfer` / `transferFrom`, ERC-721 `safeTransferFrom` (both forms), ERC-1155
+/// `safeTransferFrom` / `safeBatchTransferFrom`, and WETH `deposit` / `withdraw`.
+pub const ASSET_TRANSFER_SELECTORS: [[u8; 4]; 8] = [
+    [0xa9, 0x05, 0x9c, 0xbb],
+    [0x23, 0xb8, 0x72, 0xdd],
+    [0x42, 0x84, 0x2e, 0x0e],
+    [0xb8, 0x8d, 0x4f, 0xde],
+    [0xf2, 0x42, 0x43, 0x2a],
+    [0x2e, 0xb2, 0xc2, 0xd6],
+    [0xd0, 0xe3, 0x0d, 0xb0],
+    [0x2e, 0x1a, 0x7d, 0x4d],
+];
+
+/// What a transaction does, as far as a buyer's clean-transfer check is concerned. Every call
+/// falls in exactly one class; anything Satchel cannot classify is counted, never ignored.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CallClass {
+    /// Empty calldata: sends `value` and nothing else.
+    ValueTransfer,
+    /// One of `ASSET_TRANSFER_SELECTORS`.
+    AssetTransfer,
+    /// One of the four approval calls, decoded so the buyer can check it was revoked.
+    Approval(DecodedApproval),
+    /// Anything else (a multicall, a swap, `transferOwnership`…). It may leave a standing right
+    /// Satchel cannot see, so the record counts it.
+    Unclassified([u8; 4]),
+}
+
+/// EVM chains `sign_evm` signs for: mainnets and their public testnets whose nonces a buyer's check
+/// can read. A fixed list keeps the record bounded and rules out signatures for chains that do not
+/// exist yet. Ethereum, Sepolia, Base, Base Sepolia, Arbitrum One, Arbitrum Sepolia, OP Mainnet,
+/// OP Sepolia, Polygon PoS, Polygon Amoy, BNB Smart Chain and its testnet, Avalanche C-Chain, Fuji,
+/// Aurora and Aurora testnet.
+pub const SUPPORTED_CHAINS: [u64; 16] = [
+    1,
+    11_155_111,
+    8_453,
+    84_532,
+    42_161,
+    421_614,
+    10,
+    11_155_420,
+    137,
+    80_002,
+    56,
+    97,
+    43_114,
+    43_113,
+    1_313_161_554,
+    1_313_161_555,
+];
+
 impl Eip1559Tx {
-    /// Decodes the call if it grants an approval. Panics if the selector is an approval but the
-    /// calldata is too short to name the spender: an approval Satchel cannot itemize is refused.
-    pub fn approval(&self) -> Option<DecodedApproval> {
+    /// Classifies the call by its selector. Panics if the selector is an approval but the calldata
+    /// is too short to name the spender: an approval Satchel cannot itemize is refused.
+    pub fn classify(&self) -> CallClass {
         let data = decode_hex(&self.data, "data");
-        let selector: [u8; 4] = data.get(..4)?.try_into().ok()?;
+        if data.is_empty() {
+            return CallClass::ValueTransfer;
+        }
+        let mut selector = [0u8; 4];
+        let n = data.len().min(4);
+        selector[..n].copy_from_slice(&data[..n]);
+        if data.len() < 4 {
+            return CallClass::Unclassified(selector);
+        }
+        if ASSET_TRANSFER_SELECTORS.contains(&selector) {
+            return CallClass::AssetTransfer;
+        }
         let kind = match selector {
             SELECTOR_APPROVE => ApprovalKind::Approve,
             SELECTOR_INCREASE_ALLOWANCE => ApprovalKind::IncreaseAllowance,
             SELECTOR_SET_APPROVAL_FOR_ALL => ApprovalKind::SetApprovalForAll,
             SELECTOR_PERMIT2_APPROVE => ApprovalKind::Permit2Approve,
-            _ => return None,
+            _ => return CallClass::Unclassified(selector),
         };
         let word = |i: usize| -> [u8; 32] {
             data.get(4 + 32 * i..4 + 32 * (i + 1))
@@ -125,7 +189,7 @@ impl Eip1559Tx {
                 .unwrap_or_else(|| env::panic_str("Satchel: approval calldata is too short"))
         };
         let address = |w: [u8; 32]| -> [u8; 20] { w[12..].try_into().unwrap() };
-        Some(match kind {
+        CallClass::Approval(match kind {
             ApprovalKind::Permit2Approve => DecodedApproval {
                 kind,
                 token: Some(address(word(0))),
@@ -139,6 +203,11 @@ impl Eip1559Tx {
                 arg: word(1),
             },
         })
+    }
+
+    /// keccak256 of the calldata, for the event: the full data can be 8 KiB.
+    pub fn data_hash(&self) -> [u8; 32] {
+        env::keccak256_array(decode_hex(&self.data, "data"))
     }
 }
 

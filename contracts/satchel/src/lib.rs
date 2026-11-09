@@ -1,26 +1,27 @@
-//! Satchel: an NFT that is a wallet on every chain.
+//! Satchel: an NFT that is a wallet on every EVM chain.
 //!
-//! Every token controls keys derived by NEAR's MPC network (Chain Signatures) from this contract's
-//! account and the token's derivation path. Whoever owns the token can have the contract request
-//! signatures for those keys, so transferring the NFT transfers control of the addresses on
-//! Ethereum, Base and every other chain those keys work on.
+//! Every token controls a secp256k1 key derived by NEAR's MPC network (Chain Signatures) from this
+//! contract's account and the token's derivation path. Whoever owns the token can have the contract
+//! request signatures for that key, so transferring the NFT transfers control of the same address
+//! on Ethereum, Base, Arbitrum and the other supported chains.
 //!
 //! The hard part of selling a wallet is the seller who signs a withdrawal, sells, and broadcasts it
-//! afterwards. Satchel closes that gap with a public signing record: EVM transactions are built and
-//! hashed by this contract, which stores the highest nonce it ever signed per chain. Once the
-//! address's on-chain nonce is above that number, no signature the seller holds can still execute.
-//! Signatures over raw payloads are allowed but counted as opaque, so a buyer can see them.
-//! Listing a token freezes signing, and `buy` only goes through for the record the buyer checked.
+//! afterwards, or who leaves an approval behind. Satchel answers with a public signing record:
+//! EVM transactions are built and hashed by this contract, which stores the highest nonce it signed
+//! per chain, itemizes every approval, and counts every call it cannot classify. Signatures over
+//! raw payloads are allowed but counted as opaque. Listing a token freezes signing, and `buy` only
+//! goes through for the record the buyer checked.
 
 mod evm;
 #[cfg(test)]
 mod tests;
 
-pub use evm::{ApprovalKind, Eip1559Tx};
+pub use evm::{ApprovalKind, CallClass, Eip1559Tx, SUPPORTED_CHAINS};
 
 use near_contract_standards::non_fungible_token::core::{
     NonFungibleTokenCore, NonFungibleTokenResolver,
 };
+use near_contract_standards::non_fungible_token::events::NftMint;
 use near_contract_standards::non_fungible_token::metadata::{
     NFT_METADATA_SPEC, NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata,
 };
@@ -40,8 +41,6 @@ use std::collections::HashMap;
 /// Paid once per mint. It covers the token's storage plus its signing record and listing, which
 /// the contract stores later without asking for more.
 pub const MINT_DEPOSIT: NearToken = NearToken::from_millinear(100);
-/// Chains one token can hold EVM records for. Bounds the record's storage.
-pub const MAX_EVM_CHAINS: usize = 16;
 /// Distinct approvals itemized per token. Bounds the record's storage.
 pub const MAX_APPROVALS: usize = 32;
 /// The MPC contract refuses a `sign` call with less than 15 TGas; this leaves room for our own work.
@@ -73,7 +72,8 @@ pub struct ApprovalRecord {
     pub spender: String,
     /// Permit2 only: the token it approves.
     pub token: Option<String>,
-    /// The latest second argument signed: amount, token id, or the operator boolean.
+    /// The second argument: amount, token id (ERC-721 `approve`), or the operator boolean. Part of
+    /// the row's identity, so approvals of two token ids stay two rows.
     pub arg: String,
 }
 
@@ -87,6 +87,9 @@ pub struct SigningRecord {
     pub approvals: Vec<ApprovalRecord>,
     /// Approvals signed after the list was full. A buyer cannot check these one by one.
     pub approvals_not_itemized: u32,
+    /// `sign_evm` calls that were neither a value transfer, an asset transfer nor a decoded
+    /// approval. Like opaque signatures, a buyer cannot rule out what these left behind.
+    pub unclassified_calls: u32,
     /// Signatures over payloads the contract did not build. A buyer cannot rule these out.
     pub opaque_signatures: u32,
     /// Block time of the latest opaque signature, nanoseconds.
@@ -141,8 +144,9 @@ pub struct Contract {
 #[near]
 impl Contract {
     /// `mpc_contract` is `v1.signer-prod.testnet` on testnet and `v1.signer` on mainnet. It cannot
-    /// be changed later: there is no admin.
+    /// be changed later: there is no admin. Private, so nobody can front-run the deployer's init.
     #[init]
+    #[private]
     pub fn new(mpc_contract: AccountId) -> Self {
         let metadata = NFTContractMetadata {
             spec: NFT_METADATA_SPEC.to_string(),
@@ -199,9 +203,19 @@ impl Contract {
             reference: None,
             reference_hash: None,
         };
-        let token = self
-            .tokens
-            .internal_mint_with_refund(token_id, owner, Some(metadata), None);
+        let token = self.tokens.internal_mint_with_refund(
+            token_id.clone(),
+            owner.clone(),
+            Some(metadata),
+            None,
+        );
+        // `internal_mint_with_refund` does not log NEP-171's mint event; wallets and indexers need it.
+        NftMint {
+            owner_id: &owner,
+            token_ids: &[&token_id],
+            memo: None,
+        }
+        .emit();
         let refund = deposit.saturating_sub(MINT_DEPOSIT);
         if !refund.is_zero() {
             Promise::new(env::predecessor_account_id())
@@ -217,47 +231,57 @@ impl Contract {
     #[payable]
     pub fn sign_evm(&mut self, token_id: TokenId, tx: Eip1559Tx) -> Promise {
         self.assert_can_sign(&token_id);
+        require!(
+            SUPPORTED_CHAINS.contains(&tx.chain_id.0),
+            "Satchel: chain_id is not one of the supported chains"
+        );
         let hash = tx.signing_hash();
+        let class = tx.classify();
         let mut record = self.record(&token_id);
         match record.evm.iter_mut().find(|r| r.chain_id == tx.chain_id) {
             Some(chain) => {
                 chain.max_nonce = U64(chain.max_nonce.0.max(tx.nonce.0));
                 chain.signatures += 1;
             }
-            None => {
-                require!(
-                    record.evm.len() < MAX_EVM_CHAINS,
-                    "Satchel: this token already has records for 16 chains"
-                );
-                record.evm.push(EvmChainRecord {
-                    chain_id: tx.chain_id,
-                    max_nonce: tx.nonce,
-                    signatures: 1,
-                });
-            }
+            None => record.evm.push(EvmChainRecord {
+                chain_id: tx.chain_id,
+                max_nonce: tx.nonce,
+                signatures: 1,
+            }),
         }
-        let approval = tx.approval().map(|a| ApprovalRecord {
-            chain_id: tx.chain_id,
-            contract: format!("0x{}", evm::encode_hex(&evm::decode_hex(&tx.to, "to"))),
-            kind: a.kind,
-            spender: format!("0x{}", evm::encode_hex(&a.spender)),
-            token: a.token.map(|t| format!("0x{}", evm::encode_hex(&t))),
-            arg: format!("0x{}", evm::encode_hex(&a.arg)),
-        });
+        let (class_name, approval, selector) = match &class {
+            CallClass::ValueTransfer => ("value_transfer", None, None),
+            CallClass::AssetTransfer => ("asset_transfer", None, None),
+            CallClass::Approval(a) => (
+                "approval",
+                Some(ApprovalRecord {
+                    chain_id: tx.chain_id,
+                    contract: format!("0x{}", evm::encode_hex(&evm::decode_hex(&tx.to, "to"))),
+                    kind: a.kind,
+                    spender: format!("0x{}", evm::encode_hex(&a.spender)),
+                    token: a.token.map(|t| format!("0x{}", evm::encode_hex(&t))),
+                    arg: format!("0x{}", evm::encode_hex(&a.arg)),
+                }),
+                None,
+            ),
+            CallClass::Unclassified(sel) => {
+                record.unclassified_calls += 1;
+                (
+                    "unclassified",
+                    None,
+                    Some(format!("0x{}", evm::encode_hex(sel))),
+                )
+            }
+        };
         if let Some(new) = &approval {
-            let existing = record.approvals.iter().position(|r| {
-                r.chain_id == new.chain_id
-                    && r.contract == new.contract
-                    && r.kind == new.kind
-                    && r.spender == new.spender
-                    && r.token == new.token
-            });
-            match existing {
-                Some(i) => record.approvals[i].arg = new.arg.clone(),
-                None if record.approvals.len() < MAX_APPROVALS => {
-                    record.approvals.push(new.clone())
+            // Only an identical row is merged: two token ids, amounts or spenders stay two rows,
+            // so every approval the buyer must see revoked is listed.
+            if !record.approvals.contains(new) {
+                if record.approvals.len() < MAX_APPROVALS {
+                    record.approvals.push(new.clone());
+                } else {
+                    record.approvals_not_itemized += 1;
                 }
-                None => record.approvals_not_itemized += 1,
             }
         }
         record.version = U64(record.version.0 + 1);
@@ -270,7 +294,10 @@ impl Contract {
                 "nonce": tx.nonce,
                 "to": tx.to,
                 "value": tx.value,
+                "class": class_name,
                 "approval": approval,
+                "selector": selector,
+                "data_hash": evm::encode_hex(&tx.data_hash()),
                 "payload": evm::encode_hex(&hash),
                 "record_version": record.version,
             }),
@@ -336,14 +363,14 @@ impl Contract {
 
     /// Buys a listed token. `record_version` and `price` must match what the buyer checked, so a
     /// seller cannot change either between the check and the purchase. Attach at least `price`;
-    /// the rest is refunded. The seller is paid in the same receipt that moves the token.
+    /// the rest is refunded. The token moves in this receipt; the seller's payment is a transfer
+    /// receipt created by it. If the seller deleted their account, that transfer fails and the NEAR
+    /// stays in this contract.
     #[payable]
     pub fn buy(&mut self, token_id: TokenId, record_version: U64, price: U128) {
         let buyer = env::predecessor_account_id();
         let listing = self
-            .listings
-            .get(&token_id)
-            .cloned()
+            .active_listing(&token_id)
             .unwrap_or_else(|| env::panic_str("Satchel: token is not listed"));
         require!(listing.price == price, "Satchel: the price changed");
         let current = self.record(&token_id).version;
@@ -389,7 +416,7 @@ impl Contract {
         Some(SatchelView {
             path: token_path(&token_id),
             record: self.record(&token_id),
-            listing: self.listings.get(&token_id).cloned(),
+            listing: self.active_listing(&token_id),
             owner_id,
             token_id,
         })
@@ -400,14 +427,17 @@ impl Contract {
     }
 
     pub fn listing(&self, token_id: TokenId) -> Option<Listing> {
-        self.listings.get(&token_id).cloned()
+        self.active_listing(&token_id)
     }
 
+    /// Listings whose seller still owns the token. Removing a listing moves the last one into its
+    /// slot, so a page can shift between calls.
     pub fn listings(&self, from_index: Option<u32>, limit: Option<u32>) -> Vec<(TokenId, Listing)> {
         self.listings
             .iter()
             .skip(from_index.unwrap_or(0) as usize)
             .take(limit.unwrap_or(50).min(100) as usize)
+            .filter(|(id, l)| self.tokens.owner_by_id.get(*id).as_ref() == Some(&l.seller))
             .map(|(id, l)| (id.clone(), l.clone()))
             .collect()
     }
@@ -432,6 +462,14 @@ impl Contract {
         self.records.get(token_id).cloned().unwrap_or_default()
     }
 
+    /// The listing, if its seller still owns the token. Every path that moves a token removes its
+    /// listing; this is the second lock in case one is ever missed.
+    fn active_listing(&self, token_id: &TokenId) -> Option<Listing> {
+        let listing = self.listings.get(token_id)?;
+        let owner = self.tokens.owner_by_id.get(token_id)?;
+        (listing.seller == owner).then(|| listing.clone())
+    }
+
     fn assert_owner(&self, token_id: &TokenId) -> AccountId {
         let owner = self
             .tokens
@@ -449,7 +487,7 @@ impl Contract {
         assert_one_yocto();
         self.assert_owner(token_id);
         require!(
-            !self.listings.contains_key(token_id),
+            self.active_listing(token_id).is_none(),
             "Satchel: signing is frozen while the token is listed"
         );
         require!(
@@ -539,12 +577,17 @@ impl NonFungibleTokenResolver for Contract {
         token_id: TokenId,
         approved_account_ids: Option<HashMap<AccountId, u64>>,
     ) -> bool {
-        self.tokens.nft_resolve_transfer(
+        let kept = self.tokens.nft_resolve_transfer(
             previous_owner_id,
             receiver_id,
-            token_id,
+            token_id.clone(),
             approved_account_ids,
-        )
+        );
+        if !kept {
+            // The receiver gave the token back; any listing it made while it held the token is void.
+            self.listings.remove(&token_id);
+        }
+        kept
     }
 }
 
