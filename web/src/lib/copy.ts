@@ -28,13 +28,13 @@ export const GALLERY = {
       tokenId: "1",
       check: null,
       title: "Used, then handed on",
-      body: "Its owner has sent from it on Sepolia. Every transaction it ever signed is on chain, so none can be replayed, and it never signed an approval.",
+      body: "Its owners have sent from it on Sepolia. Every nonce it ever signed for has been used, so no old signature can be replayed, and it never signed an approval.",
     },
     {
-      tokenId: "2",
+      tokenId: "5",
       check: "pending",
       title: "A signed withdrawal is waiting",
-      body: "The seller had a 0.01 ETH send signed for it and never broadcast it. The signature is public, so anyone can send it once the address holds the ETH.",
+      body: "The seller had a 10,000 ETH send signed for it and never broadcast it. The signature is public, so it goes through the moment the address holds that much.",
     },
     {
       tokenId: "3",

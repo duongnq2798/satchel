@@ -148,30 +148,22 @@ function toEvmSignature(mpc) {
 
 /**
  * A Sepolia EIP-1559 transaction from `address` at its next nonce. The gas limit is the node's
- * estimate plus 20%, even for a plain send: Sepolia charges about 207k gas to send to an address
- * that has never been used, and a 21000 limit reverts. A node can't estimate for an address that
- * can't pay, so a plain send from one falls back to 21000; it can't be broadcast until funded
- * anyway. The fee cap is twice the node's estimate, so a rising base fee can't leave a signed
- * transaction stuck in the mempool.
+ * estimate plus 20%, even for a plain send: Sepolia charges about 205k gas to send to an address
+ * that has never been used, and a 21000 limit reverts. No node can estimate for an address that
+ * can't pay yet, so only a caller signing for one passes `gas` itself. The fee cap is twice the
+ * node's estimate, so a rising base fee can't leave a signed transaction stuck in the mempool.
  */
-export async function sepoliaTx(address, { to = DEAD, value = 1n, data = "0x" } = {}) {
+export async function sepoliaTx(address, { to = DEAD, value = 1n, data = "0x", gas } = {}) {
   const [nonce, fees] = await Promise.all([
     sepoliaClient.getTransactionCount({ address, blockTag: "pending" }),
     sepoliaClient.estimateFeesPerGas(),
   ]);
-  const gas = await sepoliaClient.estimateGas({ account: address, to, value, data }).then(
-    (estimate) => (estimate * 12n) / 10n,
-    (err) => {
-      if (data === "0x") return 21000n;
-      throw err;
-    },
-  );
   return {
     chainId: 11155111,
     nonce,
     maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
     maxFeePerGas: fees.maxFeePerGas * 2n,
-    gas,
+    gas: gas ?? ((await sepoliaClient.estimateGas({ account: address, to, value, data })) * 12n) / 10n,
     to,
     value,
     data,
@@ -209,11 +201,13 @@ export async function signAndRecover(signer, tokenId, tx) {
 }
 
 /**
- * Sends a Sepolia transaction from a token's address as `signer`, its owner: sign through
- * `sign_evm`, check the signature recovers to the address, broadcast, wait for the receipt.
- * Refuses before signing if the address can't pay for it.
+ * Signs a Sepolia transaction from a token's address as `signer`, its owner, through `sign_evm`,
+ * and checks the signature recovers to the address. Refuses before signing if the address can't
+ * pay for it. The signature is public in the NEAR receipt from then on, and the satchel isn't
+ * clean until the transaction is on chain, so the result holds what `broadcast` needs to finish
+ * the job, rerun as often as it takes: the raw transaction and its hash.
  */
-export async function sendFrom(tokenId, signer, fields = {}) {
+export async function signSend(tokenId, signer, fields = {}) {
   const address = await addressOf(tokenId);
   const tx = await sepoliaTx(address, fields);
   const balance = await sepoliaClient.getBalance({ address });
@@ -222,12 +216,24 @@ export async function sendFrom(tokenId, signer, fields = {}) {
   const signed = await signAndRecover(signer, tokenId, tx);
   if (!signed.ok) throw new Error(`sign_evm for satchel #${tokenId} failed: ${signed.error}`);
   if (signed.recovered.toLowerCase() !== address.toLowerCase()) throw new Error("recovered signer is not the token's address");
-  // The signature is public in the NEAR receipt from here on, so a failed broadcast must still
-  // leave the raw transaction at hand to retry: until it's on chain the satchel isn't clean.
-  const sepoliaTxHash = await sepoliaClient.sendRawTransaction({ serializedTransaction: signed.raw }).catch((err) => {
-    throw new Error(`broadcast failed (${err.shortMessage ?? err.message}); retry with this raw transaction:\n${signed.raw}`);
+  return { tokenId, address, nearTx: signed.hash, nonce: tx.nonce, raw: signed.raw, sepoliaTx: keccak256(signed.raw) };
+}
+
+/**
+ * Broadcasts a send `signSend` returned and waits for its receipt. Safe to repeat: when the node
+ * already has the transaction, or has mined it, the wait goes on by its hash.
+ */
+export async function broadcast(signed) {
+  await sepoliaClient.sendRawTransaction({ serializedTransaction: signed.raw }).catch((err) => {
+    if (!/already known|nonce too low/i.test(`${err.details ?? ""} ${err.message}`)) throw err;
   });
-  const receipt = await sepoliaClient.waitForTransactionReceipt({ hash: sepoliaTxHash, timeout: 180_000 });
-  if (receipt.status !== "success") throw new Error(`Sepolia transaction ${sepoliaTxHash} reverted`);
-  return { tokenId, address, nearTx: signed.hash, sepoliaTx: sepoliaTxHash, nonce: tx.nonce, block: String(receipt.blockNumber) };
+  const receipt = await sepoliaClient.waitForTransactionReceipt({ hash: signed.sepoliaTx, timeout: 180_000 });
+  if (receipt.status !== "success") throw new Error(`Sepolia transaction ${signed.sepoliaTx} reverted`);
+  const { raw, ...sent } = signed;
+  return { ...sent, block: String(receipt.blockNumber) };
+}
+
+/** Signs and sends a Sepolia transaction from a token's address; see `signSend`. */
+export async function sendFrom(tokenId, signer, fields = {}) {
+  return broadcast(await signSend(tokenId, signer, fields));
 }

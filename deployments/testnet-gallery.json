@@ -2,7 +2,7 @@
   "network": "testnet",
   "contract": "v1.satchel-nft.testnet",
   "funder": "1",
-  "pending": {
+  "retiredPending": {
     "tokenId": "2",
     "owner": "satchel-nft.testnet",
     "address": "0xac30961c59543fe2d8258b8c71c75320feb7c235",
@@ -10,7 +10,8 @@
     "signTx": "DSqPLcxYVGq83S84L9HndBtCm2iMaQ92V6DVXHzWj384",
     "nonce": 0,
     "signingHash": "0x5cff622500f873410a0aa1d5874deab403cae0b94634cf7c0ba65c44f2226d4b",
-    "broadcast": false
+    "broadcast": false,
+    "retiredBecause": "Its signed send was only 0.01 ETH, so anyone could fund the address with about 0.0101 Sepolia ETH, broadcast the signature from its public NEAR receipt and turn the satchel provably clean. The pending example was rebuilt with a 10,000 ETH send. Moved here by hand."
   },
   "approval": {
     "tokenId": "3",
@@ -18,7 +19,7 @@
     "address": "0x2bd9f7f9418a4747c4e1919cac43aeef0efa078b",
     "mintTx": "DfQFCpaXZmPhJu4fr5J6Ltbg42f97wtTLActAWaVSMhw",
     "revertedFunding": {
-      "note": "The first run gave this send a 21000 gas limit. Sepolia charges about 207k gas to send to an address that has never been used, so it reverted; satchel #1's nonce 1 was spent on it. The script now estimates gas for every send.",
+      "note": "The first run gave this send a 21000 gas limit. Sepolia charges about 207k gas to send to an address that has never been used, so it reverted; satchel #1's nonce 1 was spent on it. The script now estimates gas for every send. Written into this file by hand from the run log.",
       "nearTx": "3ThuSf3qpnV8MJTS4TpLM8pMFJqGHDh7z3z9224igJqZ",
       "sepoliaTx": "0x362be7cbacc888a7fa9ef121db57163828b298ff5910a193a88ee06178ef073f",
       "block": "12095030",
@@ -59,5 +60,16 @@
     "listTx": "7Q9WxuJ4yfQcsRBgUzWJ37gQxrgZxjWJauz1r4QeXfe6",
     "price": "1000000000000000000000000"
   },
-  "ranAt": "2026-11-09T04:10:05.981Z"
+  "ranAt": "2026-11-09T04:28:10.226Z",
+  "pending": {
+    "tokenId": "5",
+    "owner": "satchel-nft.testnet",
+    "address": "0x81149bf1c907579a150e9ab882e951b648853da3",
+    "mintTx": "Mo94fZuPy4FPPgvqro4MJvnbsWj5T63BSpqnLBSsf6K",
+    "signTx": "G66SfkVz9dbf4AeJam5jiLnZNmZGAAYpaLgDWPCa5Ga7",
+    "nonce": 0,
+    "value": "10000000000000000000000",
+    "signingHash": "0x6680bcedc09ae688ea14d6ace210029a53d1f6f3e0664adeb2dddcc1e598b7a1",
+    "broadcast": false
+  }
 }

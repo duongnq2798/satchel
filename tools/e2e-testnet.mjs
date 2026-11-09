@@ -20,6 +20,9 @@ import { writeFileSync } from "node:fs";
 import { BUYER, CONTRACT, MPC, OWNER, addressOf, arg, call, contractTx, log, sendFrom, sepoliaClient, sepoliaTx, signAndRecover, tokenAddress, view } from "./lib.mjs";
 
 const OUT = arg("--out");
+// A fresh token's address holds nothing, so no node can estimate gas for it; a plain send to
+// 0x…dEaD, an address in use, costs 21000.
+const UNFUNDED = { gas: 21000n };
 const evidence = { network: "testnet", contract: CONTRACT, mpc: MPC, steps: [] };
 
 async function main() {
@@ -33,7 +36,7 @@ async function main() {
   log("1-2. minted and derived", { tokenId, owner: OWNER, path, publicKey, address, tx: minted.hash });
   evidence.steps.push({ step: "mint", tx: minted.hash, tokenId, path, address });
 
-  const first = await signAndRecover(OWNER, tokenId, await sepoliaTx(address));
+  const first = await signAndRecover(OWNER, tokenId, await sepoliaTx(address, UNFUNDED));
   if (!first.ok) throw new Error(`sign_evm failed: ${first.error}`);
   const match = first.recovered.toLowerCase() === address.toLowerCase();
   log("3. sign_evm through the MPC network", {
@@ -63,9 +66,9 @@ async function main() {
 
   const moved = await call(OWNER, "nft_transfer", { receiver_id: BUYER, token_id: tokenId }, { deposit: "1 yoctoNEAR", gas: "30 Tgas" });
   if (!moved.ok) throw new Error(`nft_transfer failed: ${moved.error}`);
-  const refused = await call(OWNER, "sign_evm", { token_id: tokenId, tx: contractTx(await sepoliaTx(address)) }, { deposit: "1 yoctoNEAR" });
+  const refused = await call(OWNER, "sign_evm", { token_id: tokenId, tx: contractTx(await sepoliaTx(address, UNFUNDED)) }, { deposit: "1 yoctoNEAR" });
   const refusedRight = !refused.ok && refused.error.includes("only the token's owner");
-  const buyer = await signAndRecover(BUYER, tokenId, await sepoliaTx(address));
+  const buyer = await signAndRecover(BUYER, tokenId, await sepoliaTx(address, UNFUNDED));
   const buyerMatch = buyer.ok && buyer.recovered.toLowerCase() === address.toLowerCase();
   log("6. after nft_transfer to the buyer", {
     transfer: moved.hash,

@@ -6,13 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
-- Four demo satchels on testnet, one per verdict: #1 provably clean after four Sepolia sends, #2
-  with a signed send never broadcast, #3 with a live USDC approval to satchel #2's address, #4
-  provably clean and listed for 1 NEAR. Built by `tools/demo-gallery.mjs`, which records each step
-  in `deployments/testnet-gallery.json` and resumes from there if a run stops partway.
-- The landing page shows the demo satchels ("Three real satchels, three verdicts"), each with its
-  verdict and the report line that decided it, read live in the browser, and what satchel #4 costs
-  and holds while it is for sale.
+- Demo satchels on testnet for what the report passes and what it catches: #1 provably clean after
+  four Sepolia sends, #5 with a 10,000 ETH send signed and never broadcast, #3 with a live USDC
+  approval to satchel #2's address, #4 provably clean and listed for 1 NEAR. Built by
+  `tools/demo-gallery.mjs`, which records each step in `deployments/testnet-gallery.json`, a signed
+  send before it broadcasts it, and resumes from there if a run stops partway. Satchel #2, the first
+  pending example, was retired: its 0.01 ETH send could be pushed through by anyone who funded it.
+- The landing page shows the demo satchels ("Three real satchels: one clean, two caught"), each
+  with its verdict, read live in the browser, and the report line that caught it, plus what
+  satchel #4 costs and holds while it is for sale.
 - `tools/lib.mjs`: the NEAR calls, MPC address derivation and `sign_evm` round trip shared by the
   testnet scripts.
 - Token 1's open nonce-0 signature from the end-to-end run is spent: its current owner sent a
@@ -58,10 +60,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
-- The testnet scripts estimate gas for every Sepolia send instead of assuming 21000 for a plain
-  one: Sepolia charges about 207k to send to an address that has never been used, and a 21000 limit
-  reverted. They also check the balance before signing, so an unaffordable send never leaves a
-  signature open.
+- The testnet scripts estimate gas for every Sepolia send from an address that can pay, instead of
+  assuming 21000 for a plain one: sending to an address that has never been used now costs about
+  205k (204,600 for the demo funding sends), and a 21000 limit reverted. `e2e-testnet.mjs send` and
+  every send the gallery broadcasts also check the balance before signing, so a send the address can't
+  pay for never leaves a signature open.
 - The market shows "Couldn't check" for a listed satchel the contract no longer knows, instead of
   "Checking…" forever.
 

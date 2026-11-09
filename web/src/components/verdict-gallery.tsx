@@ -7,7 +7,7 @@ import type { Report, Status } from "@/lib/report";
 import { formatNear } from "@/lib/satchel";
 import { formatBalance } from "./balances";
 import { ReportBadge, useReportChecker } from "./report-checker";
-import { StatusIcon } from "./ui";
+import { Card, StatusIcon } from "./ui";
 import { useAsync } from "./use-async";
 
 const SEPOLIA = 11155111;
@@ -20,7 +20,8 @@ const BORDER = { clean: "border-ok/40", "not-provable": "border-warn/40", unknow
 function CheckLine({ report, check }: { report: Report; check: Example["check"] }) {
   const line = check ? report.checks.find((c) => c.id === check) : null;
   const passed = report.checks.filter((c) => c.status === "pass").length;
-  const status: Status = line ? line.status : passed === report.checks.length ? "pass" : "unknown";
+  const worst: Status = report.checks.some((c) => c.status === "fail") ? "fail" : passed === report.checks.length ? "pass" : "unknown";
+  const status = line ? line.status : worst;
   const text = line ? line.title : `${passed} of ${report.checks.length} checks pass`;
   return (
     <p className="mt-4 flex gap-2 text-sm font-medium">
@@ -34,8 +35,8 @@ function ExampleCard({ example, check }: { example: Example; check: (tokenId: st
   const report = useAsync(() => check(example.tokenId), example.tokenId);
   const border = report.data ? BORDER[report.data.verdict] : "";
   return (
-    <Link href={`/satchel/${example.tokenId}`} className="group">
-      <div className={`flex h-full flex-col rounded-2xl border border-line bg-card p-5 transition group-hover:border-ink ${border}`}>
+    <Link href={`/satchel/${example.tokenId}`}>
+      <Card className={`flex h-full flex-col transition hover:border-ink ${border}`}>
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-muted">Satchel #{example.tokenId}</p>
           <ReportBadge report={report} />
@@ -46,12 +47,12 @@ function ExampleCard({ example, check }: { example: Example; check: (tokenId: st
           {report.data && <CheckLine report={report.data} check={example.check} />}
           <p className="mt-4 text-sm font-medium text-leather">Open its report →</p>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }
 
-/** The listed example: what it costs and holds, or where to go once someone has bought it. */
+/** The listed example: what it costs and holds, or where to go once it is off the market. */
 function ForSale({ check }: { check: (tokenId: string) => Promise<Report | null> }) {
   const tokenId = GALLERY.forSale;
   const report = useAsync(() => check(tokenId), tokenId);
@@ -66,14 +67,14 @@ function ForSale({ check }: { check: (tokenId: string) => Promise<Report | null>
     const holds = typeof balance.data === "bigint" ? `It holds ${formatBalance(balance.data)} Sepolia ETH. ` : "";
     body = `${holds}Buy it and its address on every chain moves to you in one NEAR transaction, for the record version you checked.`;
   } else if (report.data) {
-    title = `Satchel #${tokenId} has been bought`;
+    title = `Satchel #${tokenId} is no longer for sale`;
     body = "Mint your own and list it from its page; it shows up on the market with its report.";
   } else if (report.error || report.data === null) {
     title = `Couldn't read satchel #${tokenId}`;
   }
 
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-card p-5">
+    <Card className="mt-4 flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0 flex-[1_1_18rem]">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-display text-xl font-semibold">{title}</h3>
@@ -92,17 +93,17 @@ function ForSale({ check }: { check: (tokenId: string) => Promise<Report | null>
           {listing || !report.data ? "See the market" : "Mint a satchel"}
         </Link>
       </div>
-    </div>
+    </Card>
   );
 }
 
-/** Real satchels on testnet, one for each verdict, each with its report run in the browser. */
+/** Real satchels on testnet, one clean and two caught, each with its report run in the browser. */
 export function VerdictGallery() {
   const check = useReportChecker();
   return (
     <section id="examples" className="scroll-mt-24">
       <p className="text-sm font-medium tracking-wide text-leather">See it in 30 seconds</p>
-      <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">Three real satchels, three verdicts</h2>
+      <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">Three real satchels: one clean, two caught</h2>
       <p className="mt-3 max-w-3xl text-ink-2">
         Each badge is the clean transfer report, run in your browser just now against NEAR testnet and Sepolia. Open one
         to see every line it checked.
