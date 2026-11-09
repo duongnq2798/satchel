@@ -1,8 +1,10 @@
 "use client";
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
-import { connectedAccount, connector, runTx } from "@/lib/wallet";
+import { accountOnNetwork } from "@/lib/config";
 import type { WalletTx } from "@/lib/satchel";
+import { connectedAccount, connector, runTx } from "@/lib/wallet";
+import { useNetwork } from "./network";
 
 interface WalletState {
   accountId: string | null;
@@ -15,46 +17,54 @@ interface WalletState {
 
 const WalletContext = createContext<WalletState | null>(null);
 
+/** The wallet for the network of the page on screen, with one connector per network. */
 export function WalletProvider({ children }: { children: ReactNode }) {
+  const net = useNetwork();
   const [accountId, setAccountId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let live = true;
-    connectedAccount().then((id) => {
+    setAccountId(null);
+    setReady(false);
+    connectedAccount(net).then((id) => {
       if (live) {
         setAccountId(id);
         setReady(true);
       }
     });
-    connector()
+    connector(net)
       .then((c) => {
-        c.on("wallet:signIn", (e) => live && setAccountId(e.accounts[0]?.accountId ?? null));
+        c.on("wallet:signIn", (e) => {
+          const id = e.accounts[0]?.accountId ?? null;
+          if (live) setAccountId(id !== null && accountOnNetwork(net, id) ? id : null);
+        });
         c.on("wallet:signOut", () => live && setAccountId(null));
       })
       .catch(() => live && setReady(true));
     return () => {
       live = false;
     };
-  }, []);
+  }, [net]);
 
   const signIn = useCallback(async () => {
-    await (await connector()).connect();
-  }, []);
+    await (await connector(net)).connect();
+  }, [net]);
   const signOut = useCallback(async () => {
     // A wallet whose session already ended can throw here; the app is signed out either way.
     try {
-      await (await connector()).disconnect();
+      await (await connector(net)).disconnect();
     } finally {
       setAccountId(null);
     }
-  }, []);
+  }, [net]);
   const send = useCallback(
     async <T,>(tx: WalletTx) => {
-      if (accountId === null) throw new Error("Connect a NEAR wallet first");
-      return runTx<T>(tx, accountId);
+      if (accountId === null) throw new Error(`Connect a NEAR ${net.id} wallet first`);
+      if (tx.receiverId !== net.contract) throw new Error(`This page signs only for ${net.contract}`);
+      return runTx<T>(net, tx, accountId);
     },
-    [accountId],
+    [accountId, net],
   );
 
   return <WalletContext.Provider value={{ accountId, ready, signIn, signOut, send }}>{children}</WalletContext.Provider>;

@@ -2,11 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { useNetwork } from "@/components/network";
 import { Button, Card } from "@/components/ui";
+import { appPath } from "@/lib/config";
 import { CHECKS } from "@/lib/copy";
 
 export default function Verify() {
   const router = useRouter();
+  const net = useNetwork();
   const [id, setId] = useState("1");
   const [error, setError] = useState("");
 
@@ -16,7 +19,7 @@ export default function Verify() {
       setError("Enter a token id, like 1");
       return;
     }
-    router.push(`/satchel/${id.trim()}`);
+    router.push(appPath(net, `/satchel/${id.trim()}`));
   }
 
   return (

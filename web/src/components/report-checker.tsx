@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode, createContext, useCallback, useContext, useMemo, useRef } from "react";
+import { type ReactNode, createContext, useContext, useMemo, useRef } from "react";
 import { limiter } from "@/lib/limit";
 import { type ContractFacts, type Report, buildReport, contractFacts } from "@/lib/report";
+import { useNetwork } from "./network";
 import { Badge, VERDICT, errorMessage } from "./ui";
 import { useAsync } from "./use-async";
 
@@ -13,19 +14,22 @@ type Checker = (tokenId: string) => Promise<Report | null>;
  * and a few reports at a time so the public RPCs don't throttle the page.
  */
 export function useReportChecker(): Checker {
-  const facts = useRef<Promise<ContractFacts> | null>(null);
-  const limit = useRef(limiter(3));
-  return useCallback((tokenId: string) => {
-    if (facts.current === null) {
-      const read = contractFacts();
-      read.catch(() => {
-        facts.current = null;
-      });
-      facts.current = read;
-    }
-    const shared = facts.current;
-    return limit.current(() => buildReport(tokenId, shared));
-  }, []);
+  const net = useNetwork();
+  return useMemo(() => {
+    let facts: Promise<ContractFacts> | null = null;
+    const limit = limiter(3);
+    return (tokenId: string) => {
+      if (facts === null) {
+        const read = contractFacts(net);
+        read.catch(() => {
+          facts = null;
+        });
+        facts = read;
+      }
+      const shared = facts;
+      return limit(() => buildReport(net, tokenId, shared));
+    };
+  }, [net]);
 }
 
 interface Reports {

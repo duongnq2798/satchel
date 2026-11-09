@@ -1,11 +1,27 @@
-// Prints the clean-transfer report for a token, read live from NEAR testnet and each EVM chain in
-// its record. No wallet and no keys: `npm run verify -- 1`.
+// Prints the clean-transfer report for a token, read live from NEAR and each EVM chain in its
+// record. No wallet and no keys: `npm run verify -- 1` on testnet, or
+// `npm run verify -- --network mainnet 1`.
 //
 // The report is only as honest as the RPCs it reads. To read from nodes you trust instead of the
 // public defaults, set NEAR_RPC=<url> and RPC_<chain id>=<url>, like RPC_11155111 for Sepolia.
-import { CHAINS, NETWORK } from "../src/lib/config";
+import { CHAINS, NETWORKS, type NetworkId } from "../src/lib/config";
 import { setNearRpc } from "../src/lib/near";
 import { buildReport } from "../src/lib/report";
+
+const USAGE = "usage: npm run verify -- [--network testnet|mainnet] <token_id>";
+
+/** `[--network <id>] <token_id>`, or null when the arguments are anything else. */
+function parseArgs(args: string[]): { network: NetworkId; tokenId: string } | null {
+  let network: string = "testnet";
+  const rest = [...args];
+  const flag = rest.indexOf("--network");
+  if (flag !== -1) {
+    network = rest[flag + 1] ?? "";
+    rest.splice(flag, 2);
+  }
+  if (!(network in NETWORKS) || rest.length !== 1 || !/^\d{1,19}$/.test(rest[0])) return null;
+  return { network: network as NetworkId, tokenId: rest[0] };
+}
 
 const MARK = { pass: "PASS", fail: "FAIL", unknown: "????" } as const;
 
@@ -18,18 +34,19 @@ function applyRpcOverrides() {
 }
 
 async function main() {
-  const tokenId = process.argv[2];
-  if (!tokenId) {
-    console.error("usage: npm run verify -- <token_id>");
+  const args = parseArgs(process.argv.slice(2));
+  if (args === null) {
+    console.error(USAGE);
     process.exit(2);
   }
+  const net = NETWORKS[args.network];
   applyRpcOverrides();
-  const report = await buildReport(tokenId);
+  const report = await buildReport(net, args.tokenId);
   if (report === null) {
-    console.error(`No satchel #${tokenId} on ${NETWORK.contract}`);
+    console.error(`No satchel #${args.tokenId} on ${net.contract}`);
     process.exit(1);
   }
-  console.log(`Satchel #${report.tokenId} on ${NETWORK.contract} (${NETWORK.id})`);
+  console.log(`Satchel #${report.tokenId} on ${net.contract} (${net.id})`);
   console.log(`owner ${report.owner}, address ${report.address}, record version ${report.recordVersion}`);
   if (report.listing) console.log(`listed by ${report.listing.seller} at record version ${report.listing.record_version}`);
   for (const check of report.checks) {

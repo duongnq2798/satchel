@@ -11,7 +11,7 @@ import {
   serializeTransaction,
   toHex,
 } from "viem";
-import { type ChainInfo, NETWORK, chainInfo } from "./config";
+import { type ChainInfo, type Network, chainInfo } from "./config";
 import { view } from "./near";
 
 const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -39,11 +39,11 @@ export function addressFromMpcKey(publicKey: string): Address {
   return getAddress(`0x${keccak256(toHex(bytes)).slice(-40)}`);
 }
 
-/** The address a token's key controls, derived by the MPC contract from this contract and the path. */
-export async function tokenAddress(path: string): Promise<Address> {
-  const key = await view<string>(NETWORK.mpc, "derived_public_key", {
+/** The address a token's key controls, derived by `net`'s MPC contract from its Satchel contract and the path. */
+export async function tokenAddress(net: Network, path: string): Promise<Address> {
+  const key = await view<string>(net, net.mpc, "derived_public_key", {
     path,
-    predecessor: NETWORK.contract,
+    predecessor: net.contract,
     domain_id: 0,
   });
   return addressFromMpcKey(key);

@@ -1,28 +1,30 @@
 "use client";
 
-import { CHAINS, NETWORK, nearAccountUrl } from "@/lib/config";
+import { CHAINS, nearAccountUrl } from "@/lib/config";
 import { accessKeyCount, viewAccount } from "@/lib/near";
 import { satchel } from "@/lib/satchel";
+import { useNetwork } from "./network";
 import { useAsync } from "./use-async";
 
 /** What anyone can confirm about the deployment, read live from NEAR, under four big numbers. */
 export function LiveStats() {
+  const net = useNetwork();
   const stats = useAsync(async () => {
     const [keys, account, supply, listings, mpc] = await Promise.all([
-      accessKeyCount(NETWORK.contract),
-      viewAccount(NETWORK.contract),
-      satchel.totalSupply(),
-      satchel.listings(0, 100),
-      satchel.mpcContract(),
+      accessKeyCount(net, net.contract),
+      viewAccount(net, net.contract),
+      satchel(net).totalSupply(),
+      satchel(net).listings(0, 100),
+      satchel(net).mpcContract(),
     ]);
     return {
       keys,
-      reproducible: account.code_hash === NETWORK.build.codeHash,
-      canonical: mpc === NETWORK.mpc,
+      reproducible: account.code_hash === net.build.codeHash,
+      canonical: mpc === net.mpc,
       supply,
       listed: listings.length,
     };
-  }, "stats");
+  }, `${net.id}:stats`);
 
   const s = stats.data;
   const none = stats.error ? "?" : "…";
@@ -42,7 +44,7 @@ export function LiveStats() {
   ];
   const facts = [
     { ok: s?.reproducible, text: s ? (s.reproducible ? "Code is the reproducible build" : "Code is not the reproducible build") : "Reading the code hash" },
-    { ok: s?.canonical, text: s ? (s.canonical ? `Signs only through ${NETWORK.mpc}` : "Signer is not the canonical MPC contract") : "Reading the signer" },
+    { ok: s?.canonical, text: s ? (s.canonical ? `Signs only through ${net.mpc}` : "Signer is not the canonical MPC contract") : "Reading the signer" },
     { ok: undefined, text: s ? `${s.supply} satchels minted, ${s.listed} listed now` : "Reading the supply" },
   ];
 
@@ -77,7 +79,7 @@ export function LiveStats() {
           </li>
         ))}
         <li>
-          <a href={nearAccountUrl(NETWORK.contract)} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+          <a href={nearAccountUrl(net, net.contract)} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
             See the contract on NearBlocks
           </a>
         </li>

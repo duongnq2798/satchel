@@ -1,5 +1,5 @@
 import { type Address, type Hex, getAddress, keccak256 } from "viem";
-import type { ChainInfo } from "./config";
+import { type ChainInfo, type Network, sendChains } from "./config";
 import {
   type EvmTx,
   type MpcSignature,
@@ -19,6 +19,7 @@ import { satchel, satchelTx, type WalletTx } from "./satchel";
 export type SendStep = "build" | "hash" | "wallet" | "recover" | "broadcast" | "confirm";
 
 export interface SendRequest {
+  net: Network;
   tokenId: string;
   from: Address;
   chain: ChainInfo;
@@ -47,12 +48,13 @@ export interface SendDeps {
 }
 
 export const liveSendDeps = (
+  net: Network,
   signWithWallet: SendDeps["signWithWallet"],
 ): SendDeps => ({
   prepare: (r) => prepareTx(r.chain, r.from, r.to, r.value, r.data),
   extraFee: l1Fee,
   balance: async (chainId, address) => (await verifiedClient(chainId)).getBalance({ address }),
-  contractHash: (tx) => satchel.signingHash(toContractTx(tx)),
+  contractHash: (tx) => satchel(net).signingHash(toContractTx(tx)),
   signWithWallet,
   broadcast: (chainId, raw) => client(chainId).sendRawTransaction({ serializedTransaction: raw }),
   confirm: async (chainId, hash) => (await client(chainId).waitForTransactionReceipt({ hash, timeout: 180_000 })).status,
@@ -69,6 +71,9 @@ export async function sendFromSatchel(
   onStep: (step: SendStep, detail?: string) => void = () => {},
 ): Promise<SendResult> {
   onStep("build");
+  if (!sendChains(request.net).some((c) => c.id === request.chain.id)) {
+    throw new Error(`A ${request.net.id} satchel doesn't send on ${request.chain.name} from this app. Nothing was signed.`);
+  }
   const unfunded = (balance: bigint, cost: bigint) =>
     new Error(
       `This satchel holds ${balance} wei on ${request.chain.name} and the transaction can cost up to ${cost}. Fund ${request.from} first.`,
@@ -88,7 +93,7 @@ export async function sendFromSatchel(
 
   // The most the satchel can pay in fees, shown while the wallet asks for approval.
   onStep("wallet", fee.toString());
-  const signed = await deps.signWithWallet(satchelTx.signEvm(request.tokenId, toContractTx(tx)));
+  const signed = await deps.signWithWallet(satchelTx(request.net).signEvm(request.tokenId, toContractTx(tx)));
   if (signed.signature === null) {
     throw new Error(`sign_evm (${signed.hash}) finished without a signature. Your record shows the nonce; signing again is safe.`);
   }

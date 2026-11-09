@@ -1,7 +1,7 @@
 import { keccak256 } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import outcome from "./__fixtures__/sign-evm-outcome.json";
-import { CHAINS } from "./config";
+import { CHAINS, MAINNET, TESTNET } from "./config";
 import { type EvmTx, type MpcSignature, signingHash } from "./evm";
 import { outcomeValue } from "./near";
 import { type SendDeps, type SendRequest, sendFromSatchel } from "./send";
@@ -19,6 +19,7 @@ const TX: EvmTx = {
 };
 const SIGNATURE = outcomeValue<MpcSignature>(outcome);
 const REQUEST: SendRequest = {
+  net: TESTNET,
   tokenId: "1",
   from: "0x96DA1468E95Ab31A698891f0150095f86b5a282B",
   chain: CHAINS.find((c) => c.id === 11155111) as SendRequest["chain"],
@@ -90,6 +91,14 @@ describe("sending from a satchel", () => {
     const d = deps({ prepare: async () => ({ ...TX, nonce: 1 }) });
     await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/Nothing was broadcast/);
     expect(d.broadcast).not.toHaveBeenCalled();
+  });
+
+  it("never signs for a chain on the other network", async () => {
+    const d = deps();
+    await expect(sendFromSatchel({ ...REQUEST, net: MAINNET }, d)).rejects.toThrow(/mainnet satchel doesn.t send on Sepolia/);
+    const base = CHAINS.find((c) => c.id === 8453) as SendRequest["chain"];
+    await expect(sendFromSatchel({ ...REQUEST, chain: base }, d)).rejects.toThrow(/testnet satchel doesn.t send on Base/);
+    expect(d.signWithWallet).not.toHaveBeenCalled();
   });
 
   it("says signing again is safe when the wallet returns no signature", async () => {

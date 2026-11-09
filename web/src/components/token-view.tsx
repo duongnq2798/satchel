@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { CHAINS, NETWORK, chainInfo, nearAccountUrl, nearTxUrl } from "@/lib/config";
+import { CHAINS, chainInfo, nearAccountUrl, nearTxUrl } from "@/lib/config";
 import { tokenAddress } from "@/lib/evm";
 import { buildReport } from "@/lib/report";
 import { satchel } from "@/lib/satchel";
 import { Balances } from "./balances";
+import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale } from "./sale-panel";
 import { SendPanel } from "./send-panel";
@@ -15,15 +16,16 @@ import { useWallet } from "./wallet";
 
 export function TokenView({ tokenId }: { tokenId: string }) {
   const { accountId } = useWallet();
+  const net = useNetwork();
   const [refresh, setRefresh] = useState(0);
   const token = useAsync(
     async () => {
-      const view = await satchel.get(tokenId);
-      return view ? { view, address: await tokenAddress(view.path) } : null;
+      const view = await satchel(net).get(tokenId);
+      return view ? { view, address: await tokenAddress(net, view.path) } : null;
     },
-    `${tokenId}:${refresh}`,
+    `${net.id}:${tokenId}:${refresh}`,
   );
-  const report = useAsync(() => buildReport(tokenId), `${tokenId}:${refresh}`);
+  const report = useAsync(() => buildReport(net, tokenId), `${net.id}:${tokenId}:${refresh}`);
   // The last transaction a panel finished. Kept here, since a sale or delist unmounts its panel.
   const [lastTx, setLastTx] = useState<string | null>(null);
   const reloadAll = (hash?: string) => {
@@ -45,7 +47,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       <Card>
         <h1 className="font-display text-2xl font-semibold">No satchel #{tokenId}</h1>
         <p className="mt-2 text-sm text-muted">
-          {NETWORK.contract} has no token with this id. Mint one from Your satchels.
+          {net.contract} has no token with this id. Mint one from Your satchels.
         </p>
       </Card>
     );
@@ -62,7 +64,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           <p className="text-sm text-muted">Satchel</p>
           <h1 className="font-display text-4xl font-semibold tracking-tight">#{view.token_id}</h1>
           <p className="mt-1 text-sm text-ink-2">
-            {isOwner ? "Owned by you" : <>Owned by <ExternalLink href={nearAccountUrl(view.owner_id)}>{view.owner_id}</ExternalLink></>} · path{" "}
+            {isOwner ? "Owned by you" : <>Owned by <ExternalLink href={nearAccountUrl(net, view.owner_id)}>{view.owner_id}</ExternalLink></>} · path{" "}
             <Mono>{view.path}</Mono> · record version {record.version}
           </p>
         </div>
@@ -93,7 +95,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
 
       {lastTx && (
         <p className="text-sm text-ok">
-          Done. <ExternalLink href={nearTxUrl(lastTx)}>View the transaction</ExternalLink>
+          Done. <ExternalLink href={nearTxUrl(net, lastTx)}>View the transaction</ExternalLink>
         </p>
       )}
       {view.listing && !isOwner && <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />}

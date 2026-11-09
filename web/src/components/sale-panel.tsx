@@ -3,7 +3,9 @@
 import { useRef, useState } from "react";
 import type { SatchelView } from "@/lib/near";
 import type { Report } from "@/lib/report";
+import { accountOnNetwork } from "@/lib/config";
 import { formatNear, parseNear, satchelTx } from "@/lib/satchel";
+import { useNetwork } from "./network";
 import { Button, Card, ErrorNote } from "./ui";
 import { useWallet } from "./wallet";
 
@@ -35,6 +37,7 @@ function useTx(onDone: (hash?: string) => void) {
 /** The owner's side: list, delist, or transfer the NFT. */
 export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash?: string) => void }) {
   const tx = useTx(onDone);
+  const net = useNetwork();
   const [price, setPrice] = useState("");
   const [receiver, setReceiver] = useState("");
 
@@ -47,7 +50,7 @@ export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash
             Listed for <strong>{formatNear(token.listing.price)} NEAR</strong> at record version {token.listing.record_version}.
             Signing is frozen until you delist or it sells.
           </p>
-          <Button busy={tx.busy} onClick={() => tx.run(() => satchelTx.delist(token.token_id))}>
+          <Button busy={tx.busy} onClick={() => tx.run(() => satchelTx(net).delist(token.token_id))}>
             Delist
           </Button>
         </div>
@@ -68,7 +71,7 @@ export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash
             <Button
               variant="primary"
               busy={tx.busy}
-              onClick={() => tx.run(() => satchelTx.list(token.token_id, parseNear(price)))}
+              onClick={() => tx.run(() => satchelTx(net).list(token.token_id, parseNear(price)))}
             >
               List for sale
             </Button>
@@ -77,15 +80,17 @@ export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash
             <input
               value={receiver}
               onChange={(e) => setReceiver(e.target.value.trim())}
-              placeholder="Receiver, like friend.testnet"
+              placeholder={`Receiver, like ${net.id === "testnet" ? "friend.testnet" : "friend.near"}`}
               className="w-64 rounded-xl border border-line bg-paper px-3 py-2 text-sm"
             />
             <Button
               busy={tx.busy}
               onClick={() =>
                 tx.run(() => {
-                  if (!/^[a-z0-9._-]{2,64}$/.test(receiver)) throw new Error("Enter the receiver's NEAR account, like friend.testnet");
-                  return satchelTx.transfer(token.token_id, receiver);
+                  if (!/^[a-z0-9._-]{2,64}$/.test(receiver)) throw new Error("Enter the receiver's NEAR account, like friend.near");
+                  // An NFT sent to a name that can't exist on this network is lost.
+                  if (!accountOnNetwork(net, receiver)) throw new Error(`${receiver} is not a NEAR ${net.id} account`);
+                  return satchelTx(net).transfer(token.token_id, receiver);
                 })
               }
             >
@@ -116,6 +121,7 @@ export function BuyPanel({
 }) {
   const { accountId, signIn } = useWallet();
   const tx = useTx(onDone);
+  const net = useNetwork();
   // The version whose risk the buyer accepted, so a new version asks again.
   const [accepted, setAccepted] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -169,7 +175,7 @@ export function BuyPanel({
               if (!agrees) return setNote("Check again: the page and the report read different record versions");
               if (!clean && !accept) return setNote("Tick the box above to buy a satchel that is not provably clean");
               setNote("");
-              tx.run(() => satchelTx.buy(token.token_id, checked.report.recordVersion, BigInt(checked.listing.price)));
+              tx.run(() => satchelTx(net).buy(token.token_id, checked.report.recordVersion, BigInt(checked.listing.price)));
             }}
           >
             Buy for {formatNear(listing.price)} NEAR

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { type Address, formatEther } from "viem";
-import { SEND_CHAINS } from "@/lib/config";
+import { sendChains } from "@/lib/config";
 import { client } from "@/lib/evm";
+import { useNetwork } from "./network";
 
 export function formatBalance(wei: bigint): string {
   if (wei === 0n) return "0";
@@ -13,14 +14,15 @@ export function formatBalance(wei: bigint): string {
   return short ? `${whole}.${short}` : whole === "0" ? "< 0.00001" : whole;
 }
 
-/** Native balances of one address on each testnet this deployment can send on. */
+/** Native balances of one address on each chain the app sends on for this network. */
 export function Balances({ address, refresh }: { address: Address; refresh: number }) {
+  const chains = sendChains(useNetwork());
   const [balances, setBalances] = useState<Record<number, bigint | null>>({});
 
   useEffect(() => {
     let live = true;
     setBalances({});
-    for (const chain of SEND_CHAINS) {
+    for (const chain of chains) {
       client(chain.id)
         .getBalance({ address })
         .then(
@@ -35,7 +37,7 @@ export function Balances({ address, refresh }: { address: Address; refresh: numb
 
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {SEND_CHAINS.map((chain) => {
+      {chains.map((chain) => {
         const wei = balances[chain.id];
         return (
           <a

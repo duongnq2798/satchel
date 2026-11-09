@@ -5,7 +5,7 @@ import { SaleFlow } from "@/components/landing/sale-flow";
 import { TrickExplorer } from "@/components/landing/trick-explorer";
 import { LiveStats } from "@/components/live-stats";
 import { ReportProvider } from "@/components/report-checker";
-import { CHAINS, NETWORK, REPO_URL } from "@/lib/config";
+import { CHAINS, REPO_URL, TESTNET } from "@/lib/config";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
 
 const USUAL_WAY = [
@@ -265,10 +265,10 @@ export default function Home() {
           </ul>
           <p className="mt-4 text-sm text-ink-2">
             The contract's code hash is the one{" "}
-            <a href={NETWORK.build.ciRun} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+            <a href={TESTNET.build.ciRun} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
               CI built reproducibly
             </a>{" "}
-            from commit <code className="font-mono text-[0.9em]">{NETWORK.build.commit.slice(0, 7)}</code>; the report checks it every time.
+            from commit <code className="font-mono text-[0.9em]">{TESTNET.build.commit.slice(0, 7)}</code>; the report checks it every time.
           </p>
         </section>
 
@@ -287,7 +287,7 @@ export default function Home() {
               <h3 className="font-display text-xl font-semibold">From the contract</h3>
               <p className="mt-2 text-sm text-ink-2">Every fact the report uses is a public view.</p>
               <div className="mt-4">
-                <Code>{`near contract call-function as-read-only \\\n  ${NETWORK.contract} satchel \\\n  json-args '{"token_id":"6"}' \\\n  network-config testnet now`}</Code>
+                <Code>{`near contract call-function as-read-only \\\n  ${TESTNET.contract} satchel \\\n  json-args '{"token_id":"6"}' \\\n  network-config testnet now`}</Code>
               </div>
             </div>
             <div className="rounded-2xl border border-line bg-card p-6">
@@ -313,7 +313,7 @@ export default function Home() {
             <ul className="mt-5 space-y-4 text-ink-2">
               <li>
                 <strong className="text-ink">Chain Signatures.</strong> Every key is derived and every signature made by the MPC
-                network ({NETWORK.mpc}); the contract is the only account that can ask for a satchel's key.
+                network ({TESTNET.mpc}); the contract is the only account that can ask for a satchel's key.
               </li>
               <li>
                 <strong className="text-ink">NEP-171, 177, 181 and 297.</strong> A standard NFT that wallets and marketplaces
