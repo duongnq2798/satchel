@@ -12,7 +12,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
-  title: { default: "Satchel: an NFT that is a wallet on every EVM chain", template: "%s · Satchel" },
+  title: { default: "Satchel: an NFT that is one wallet on 16 EVM chains", template: "%s · Satchel" },
   description:
     "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Sell the NFT and the keys move with it; a public signing record proves what the seller could have kept back.",
   icons: { icon: "/icon.svg" },
@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     Satchel
                   </NetLink>
                   <p className="mt-3 max-w-xs text-sm text-ink-2">
-                    An NFT that is a wallet on every EVM chain, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
+                    An NFT that is one wallet on 16 EVM chains, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
                   </p>
                   <p className="mt-3 text-sm text-muted">NEAR testnet and mainnet. Not audited.</p>
                 </div>

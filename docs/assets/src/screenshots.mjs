@@ -1,9 +1,10 @@
-// Takes the README's screenshots of the web app, read live from NEAR and Sepolia, with a headless
-// Chromium browser driven over the DevTools protocol. Start the app first (cd web && npm run build
-// && npm start), then from the repository root:
+// Takes the README's screenshots of the web app, read live from NEAR, Sepolia and Base, with a
+// headless Chromium browser driven over the DevTools protocol. Start the app first (cd web && npm run
+// build && npm start), or point it at https://satchelnft.xyz, then from the repository root:
 //
-//   node docs/assets/src/screenshots.mjs [http://localhost:3000]
+//   node docs/assets/src/screenshots.mjs [http://localhost:3000] [file.png ...]
 //
+// Name files to take only those shots (the origin comes first); with none it takes them all.
 // Set BROWSER=<path to msedge or chrome> if neither default path exists. Node 22 or later.
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -12,6 +13,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const origin = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
+if (!/^https?:\/\//.test(origin)) throw new Error(`The first argument is the origin, like http://localhost:3000, not ${origin}`);
+const only = process.argv.slice(3);
 const out = resolve(dirname(fileURLToPath(import.meta.url)), "..", "readme");
 const browser =
   process.env.BROWSER ??
@@ -38,10 +41,18 @@ const shots = [
     element: "#examples",
   },
   { file: "app-report-5.png", path: "/satchel/5", ready: "Not provable", readyIn: "main", until: "main > div > section:nth-of-type(2)" },
-  { file: "app-mainnet.png", path: "/mainnet", ready: "satchels minted", until: "main > div > section:nth-of-type(2)" },
+  {
+    file: "app-mainnet-satchel-1.png",
+    path: "/mainnet/satchel/1",
+    ready: "Provably clean",
+    readyIn: "main > div > section:nth-of-type(2)",
+    until: "main > div > section:nth-of-type(2)",
+  },
 ];
+const unknown = only.filter((name) => !shots.some((s) => s.file === name));
+if (unknown.length) throw new Error(`No shot named ${unknown.join(", ")}; the shots are ${shots.map((s) => s.file).join(", ")}`);
 
-const port = 9300 + Math.floor(Math.random() * 600);
+const port =9300 + Math.floor(Math.random() * 600);
 const profile = mkdtempSync(join(tmpdir(), "satchel-shots-"));
 const proc = spawn(browser, [
   "--headless=new",
@@ -99,7 +110,7 @@ async function waitFor(expression, what, ms = 45_000) {
 try {
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-  for (const shot of shots) {
+  for (const shot of only.length ? shots.filter((s) => only.includes(s.file)) : shots) {
     await send("Page.navigate", { url: origin + shot.path });
     await waitFor("document.readyState === 'complete'", `${shot.path} to load`);
     if (shot.click) {
@@ -109,6 +120,12 @@ try {
     const scope = JSON.stringify(shot.readyIn ?? "body");
     const text = JSON.stringify(shot.ready.toLowerCase());
     await waitFor(`(document.querySelector(${scope})?.innerText ?? "").toLowerCase().includes(${text})`, `"${shot.ready}" on ${shot.path}`);
+    // A balance still loading shows "…"; give a slow RPC 20 seconds, then take the shot anyway.
+    await waitFor(
+      `![...document.querySelectorAll("main *")].some((e) => e.childElementCount === 0 && e.textContent.trim() === "…")`,
+      "the balances",
+      20_000,
+    ).catch(() => console.log(`${shot.file}: a balance was still loading`));
     await evaluate("document.fonts.ready.then(() => true)");
     await sleep(1500); // let the last reads and fonts settle
     const box = await evaluate(`(() => {
@@ -125,7 +142,25 @@ try {
   }
 } finally {
   ws.close();
+  // Close the browser over DevTools: on Windows it can relaunch itself under another process id, so
+  // killing the process spawned above can leave it running and holding the profile.
+  try {
+    const { webSocketDebuggerUrl } = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+    const browserWs = new WebSocket(webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      browserWs.addEventListener("open", resolve, { once: true });
+      browserWs.addEventListener("error", reject, { once: true });
+    });
+    const closed = new Promise((resolve) => browserWs.addEventListener("close", resolve, { once: true }));
+    browserWs.send(JSON.stringify({ id: 1, method: "Browser.close" }));
+    await Promise.race([closed, sleep(10_000)]);
+    await sleep(2000); // its helper processes exit just after it
+  } catch {}
   proc.kill();
-  await sleep(500);
-  rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
+  // Windows can keep the profile locked after the browser exits; a temporary folder left is harmless.
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
+  } catch {
+    console.log(`Left ${profile} behind: Windows still holds it`);
+  }
 }
