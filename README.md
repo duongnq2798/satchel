@@ -819,7 +819,7 @@ never broadcast leaves the satchel unprovable until that nonce is spent.
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference) and [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every testnet run |
 | [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
-| [`.github/workflows`](.github/workflows) | [`contract.yml`](.github/workflows/contract.yml) and [`web.yml`](.github/workflows/web.yml) |
+| [`.github/workflows`](.github/workflows) | [`ci.yml`](.github/workflows/ci.yml), the pull request gate, which calls [`contract.yml`](.github/workflows/contract.yml) and [`web.yml`](.github/workflows/web.yml) |
 
 ## Documentation
 
@@ -828,7 +828,7 @@ never broadcast leaves the satchel unprovable until that nonce is spent.
 | **Checking the claims** | [AGENTS.md](AGENTS.md), for AI agents and humans: every claim with the command that checks it, and where each rule lives in the code |
 | **Security** | [Threat model](docs/THREAT_MODEL.md) (29 attacks, what stops each, what is left) · [Security policy](SECURITY.md) (private reporting, scope) |
 | **Evidence** | [Testnet deployment](deployments/testnet.json) · [Mainnet deployment](deployments/mainnet.json) · [End-to-end run](deployments/testnet-e2e.json) · [Sepolia send](deployments/testnet-sepolia-send.json) · [Demo satchels](deployments/testnet-gallery.json) |
-| **This repository** | [Changelog](CHANGELOG.md) · [Contract CI runs](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml) · [Web CI runs](https://github.com/duongnq2798/satchel/actions/workflows/web.yml) · [License](LICENSE) |
+| **This repository** | [Changelog](CHANGELOG.md) · [Pull request CI runs](https://github.com/duongnq2798/satchel/actions/workflows/ci.yml) · [Contract CI runs](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml) · [Web CI runs](https://github.com/duongnq2798/satchel/actions/workflows/web.yml) · [License](LICENSE) |
 
 ## Development
 
@@ -853,13 +853,17 @@ DLL against NEAR host functions, which MSVC refuses. CI builds with the ABI on L
 not reproducible and is not a source of code hashes: the deployed hash comes from CI's reproducible
 job.
 
-CI runs on GitHub Actions (ubuntu):
+CI runs on GitHub Actions (ubuntu). Every pull request runs [`ci.yml`](.github/workflows/ci.yml),
+which calls the contract and web workflows, then `verify`: the one check `main` and `dev` require
+before a merge, and it passes only when both workflows pass. Pushes to `main` and `dev` run the two
+workflows directly.
 
 | Workflow | Job | What it does | When |
 | --- | --- | --- | --- |
 | Contract | Format, lint, unit tests, wasm build | `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`, then `cargo near build non-reproducible-wasm --locked`; uploads `satchel-wasm` | Every pull request, every push to `main` or `dev` |
 | Contract | Reproducible build and code hash | `cargo near build reproducible-wasm` in the pinned Docker image, then writes the commit and the code hash to the run's summary; uploads `satchel-reproducible-wasm`, kept 90 days. cargo-near's release binary is checked against the sha256 its own installer pins | The same |
-| Web | Typecheck, unit tests, build | `npm ci`, `npm run typecheck`, `npm test`, `npm run build` on Node 24 | Pull requests and pushes to `main` or `dev` that touch `web/` or the workflow |
+| Web | Typecheck, unit tests, build | `npm ci`, `npm run typecheck`, `npm test`, `npm run build` on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/` or the workflow |
+| CI | verify | Passes only when the contract and web workflows both succeeded; a skipped or cancelled one fails it | Every pull request |
 
 The tests, as of 2026-11-09: 59 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs), and 83 web tests in 9 files: `report.test.ts` 20,

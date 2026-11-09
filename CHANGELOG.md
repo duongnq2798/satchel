@@ -110,6 +110,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- No pull request could merge: the ruleset on `main` and `dev` requires a check named `verify`,
+  which no job reported. Every pull request now runs `.github/workflows/ci.yml`, which calls the
+  contract and web workflows and adds `verify`, a job that passes only when both pass. The web checks
+  now run on every pull request, not only on ones that touch `web/`. Pushes to `main` and `dev` run
+  the two workflows directly, as before.
 - `AGENTS.md` placed `SUPPORTED_CHAINS` in `lib.rs`; it is in `contracts/satchel/src/evm.rs`.
 - `SECURITY.md` still said Satchel was on NEAR testnet only and named only the testnet contract. It
   now covers both deployments and says what a mainnet satchel's address holds.
