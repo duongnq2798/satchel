@@ -223,6 +223,8 @@ The full list, with what stops each attack and what is left, is in
   - At the repository root: `npm run typecheck`, `npm test` (both workspaces); then in
     `web`, `npm run build`.
   - For the package: `npm pack -w satchel-nft --dry-run` lists what npm would publish.
+  - For the demo kit: `node scripts/check-demo-kit.mjs`, after any change to `docs/DEMO.md` or
+    `docs/submission/`. The web workflow runs it.
 - **The deployed contract is locked**, with no keys and no admin. A contract change ships only as a
   new account (for example `v2.satchel-nft.testnet`) with a new code hash. Deploy that from the CI
   reproducible artifact (`tools/deploy-mainnet.sh` shows the steps on mainnet), then update

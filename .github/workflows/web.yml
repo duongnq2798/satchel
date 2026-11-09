@@ -27,6 +27,9 @@ jobs:
       # One lockfile at the root installs both workspaces: the app and the package it runs on.
       - run: npm ci
         working-directory: .
+      # The demo kit's lengths, tags, timings and pages (docs/DEMO.md). Node only, no network.
+      - run: node scripts/check-demo-kit.mjs
+        working-directory: .
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

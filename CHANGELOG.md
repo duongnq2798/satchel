@@ -6,6 +6,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A demo kit, [`docs/DEMO.md`](docs/DEMO.md): a 2:00 video script with a caption and a
+  voice-over line per scene, timed against how long each page took to load on satchelnft.xyz; a
+  recording checklist; the X post ([`docs/submission/x-post.txt`](docs/submission/x-post.txt))
+  and the "What did you build?" text
+  ([`docs/submission/what-did-you-build.txt`](docs/submission/what-did-you-build.txt)); the
+  submission form's values, with the Website field left empty because the organizers made it a
+  spam trap; the tracks and why; and what to leave unchanged until judging ends.
+  `node scripts/check-demo-kit.mjs` checks the form text's length; the post's length, close to
+  X's count, its tags as whole tags and its question; that the script's tables are well formed
+  (the optional scene too), the scenes run 0:00 to 2:00 and none says more than 2.5 words a
+  second; and that every satchelnft.xyz page it opens is a route the app has. The web workflow
+  runs it.
 - What's inside a satchel, and its history. Above the report, a satchel's page now shows, beside the
   native balance on each of the network's 8 chains, its USDC, USDT and WETH where a deployment is
   listed: 22 on the mainnets, 11 on the testnets (`TOKENS` in `contents.ts`, each with its source).
@@ -164,6 +176,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The README's quick-start output for satchel #1 showed its record before its last signature
+  (`max_nonce` 3, 6 signatures, version 6). It now shows what the chain returns: `max_nonce` 4,
+  7 signatures, version 7.
 - The npm package's files kept Windows line endings in a Windows checkout, so 0.1.0, packed there,
   ships CRLF in five files, the end of its launcher's first line among them. npm strips that CR when
   it links the command on Linux and macOS, so `npx` runs it, and CI now checks that on Linux. The
