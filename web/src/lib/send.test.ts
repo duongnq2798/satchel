@@ -1,3 +1,4 @@
+import { keccak256 } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import outcome from "./__fixtures__/sign-evm-outcome.json";
 import { CHAINS } from "./config";
@@ -28,7 +29,8 @@ const REQUEST: SendRequest = {
 
 function deps(overrides: Partial<SendDeps> = {}): SendDeps {
   return {
-    prepare: async () => TX,
+    prepare: vi.fn(async () => TX),
+    extraFee: async () => 0n,
     balance: async () => 10n ** 18n,
     contractHash: async (tx) => signingHash(tx).slice(2),
     signWithWallet: vi.fn(async () => ({ hash: "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo", signature: SIGNATURE })),
@@ -48,10 +50,34 @@ describe("sending from a satchel", () => {
     expect(d.broadcast).toHaveBeenCalledWith(11155111, expect.stringMatching(/^0x02f865/));
   });
 
+  it("shows the hash before broadcasting and the most it can pay in fees before the wallet", async () => {
+    const d = deps();
+    const details: Record<string, string | undefined> = {};
+    await sendFromSatchel(REQUEST, d, (s, detail) => {
+      details[s] = detail;
+    });
+    const raw = vi.mocked(d.broadcast).mock.calls[0][1];
+    expect(details.broadcast).toBe(keccak256(raw));
+    expect(details.wallet).toBe((21000n * 20n).toString());
+  });
+
   it("stops before the wallet when the satchel cannot pay for the transaction", async () => {
     const d = deps({ balance: async () => 420_000n });
     await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/Fund 0x96DA/);
     expect(d.signWithWallet).not.toHaveBeenCalled();
+  });
+
+  it("counts the L1 data fee in what the satchel must hold", async () => {
+    // Exactly enough for gas and value (21000 * 20 + 1), not for the L1 fee on top.
+    const d = deps({ balance: async () => 420_001n, extraFee: async () => 5n });
+    await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/up to 420006/);
+    await expect(sendFromSatchel(REQUEST, deps({ balance: async () => 420_001n }))).resolves.toBeDefined();
+  });
+
+  it("asks for funds before estimating a send the satchel can't cover", async () => {
+    const d = deps({ balance: async () => 0n });
+    await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/Fund 0x96DA/);
+    expect(d.prepare).not.toHaveBeenCalled();
   });
 
   it("stops before the wallet when the contract would hash something else", async () => {

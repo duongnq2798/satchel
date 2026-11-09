@@ -1,8 +1,8 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
-import { type Address, type Hex, isAddress, isHex, parseEther } from "viem";
-import { SEND_CHAINS, nearTxUrl } from "@/lib/config";
+import { type FormEvent, useRef, useState } from "react";
+import { type Address, type Hex, formatEther, isAddress, isHex, parseEther } from "viem";
+import { type ChainInfo, SEND_CHAINS, nearTxUrl } from "@/lib/config";
 import type { MpcSignature } from "@/lib/evm";
 import { type SendResult, type SendStep, liveSendDeps, sendFromSatchel } from "@/lib/send";
 import { Button, Card, ErrorNote, ExternalLink } from "./ui";
@@ -26,17 +26,25 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
   const [step, setStep] = useState<SendStep | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<SendResult | null>(null);
+  // The links stay up if a later step fails: the NEAR call, and the EVM hash once it is signed.
+  const [links, setLinks] = useState<{ chain?: ChainInfo; fee?: bigint; nearTx?: string; evmTx?: string }>({});
+  const running = useRef(false);
+  const [busy, setBusy] = useState(false);
   const chain = SEND_CHAINS.find((c) => c.id === chainId) ?? SEND_CHAINS[0];
-  const busy = step !== null && result === null && error === null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    // One flow at a time: a second one would sign the same pending nonce again.
+    if (running.current) return;
     setError(null);
     setResult(null);
+    setStep(null);
+    setLinks({});
     let value: bigint;
     try {
       if (!isAddress(to)) throw new Error("Enter the recipient's 0x address");
       value = parseEther(amount.trim() === "" ? "0" : amount.trim());
+      if (value < 0n) throw new Error(`Enter an amount in ${chain.symbol}`);
       if (!isHex(data) || data.length % 2 !== 0) throw new Error("Calldata must be 0x followed by whole bytes");
     } catch (err) {
       setError(err instanceof Error && !/parseEther|Number/.test(err.message) ? err : new Error(`Enter an amount in ${chain.symbol}`));
@@ -46,16 +54,26 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
       const { hash, value: signature } = await send<MpcSignature>(tx);
       return { hash, signature };
     };
+    running.current = true;
+    setBusy(true);
+    setLinks({ chain });
     try {
       const done = await sendFromSatchel(
         { tokenId, from: address, chain, to: to as Address, value, data: data as Hex },
         liveSendDeps(signWithWallet),
-        (s) => setStep(s),
+        (s, detail) => {
+          setStep(s);
+          if (s === "wallet" && detail) setLinks((l) => ({ ...l, fee: BigInt(detail) }));
+          if (s === "recover" && detail) setLinks((l) => ({ ...l, nearTx: detail }));
+          if ((s === "broadcast" || s === "confirm") && detail) setLinks((l) => ({ ...l, evmTx: detail }));
+        },
       );
       setResult(done);
     } catch (err) {
       setError(err);
     } finally {
+      running.current = false;
+      setBusy(false);
       onDone();
     }
   }
@@ -126,6 +144,12 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
           {STEPS.map((s, i) => (
             <li key={s.id} className={i <= reached ? "text-ink" : "text-muted"}>
               {i < reached || result ? "✓" : i === reached ? (error ? "✗" : "…") : "·"} {s.label}
+              {s.id === "wallet" && links.fee !== undefined && links.chain && (
+                <span className="text-muted">
+                  {" "}
+                  (fees up to {formatEther(links.fee)} {links.chain.symbol}, paid by the satchel)
+                </span>
+              )}
             </li>
           ))}
         </ol>
@@ -135,9 +159,16 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
       </div>
       {result && (
         <p className="mt-3 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
-          {result.status === "success" ? "Sent." : "Included, but the transaction reverted."}{" "}
-          <ExternalLink href={`${chain.explorer}/tx/${result.evmTx}`}>View on {chain.name}</ExternalLink> ·{" "}
-          <ExternalLink href={nearTxUrl(result.nearTx)}>sign_evm on NEAR</ExternalLink>
+          {result.status === "success" ? "Sent." : "Included, but the transaction reverted."}
+        </p>
+      )}
+      {(links.nearTx || links.evmTx) && (
+        <p className="mt-2 text-sm">
+          {links.evmTx && links.chain && (
+            <ExternalLink href={`${links.chain.explorer}/tx/${links.evmTx}`}>View on {links.chain.name}</ExternalLink>
+          )}
+          {links.evmTx && links.nearTx && " · "}
+          {links.nearTx && <ExternalLink href={nearTxUrl(links.nearTx)}>sign_evm on NEAR</ExternalLink>}
         </p>
       )}
     </Card>

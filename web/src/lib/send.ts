@@ -1,9 +1,10 @@
-import { type Address, type Hex, getAddress } from "viem";
+import { type Address, type Hex, getAddress, keccak256 } from "viem";
 import type { ChainInfo } from "./config";
 import {
   type EvmTx,
   type MpcSignature,
   client,
+  l1Fee,
   maxCost,
   prepareTx,
   recoverSigner,
@@ -11,6 +12,7 @@ import {
   signingHash,
   toContractTx,
   toEvmSignature,
+  verifiedClient,
 } from "./evm";
 import { satchel, satchelTx, type WalletTx } from "./satchel";
 
@@ -34,6 +36,8 @@ export interface SendResult {
 /** Everything the flow touches outside itself, so each guard can be tested without a chain. */
 export interface SendDeps {
   prepare: (r: SendRequest) => Promise<EvmTx>;
+  /** Fees the sender pays besides gas, like the OP Stack's L1 data fee. */
+  extraFee: (tx: EvmTx) => Promise<bigint>;
   balance: (chainId: number, address: Address) => Promise<bigint>;
   contractHash: (tx: EvmTx) => Promise<string>;
   /** Has the wallet sign `sign_evm` and resolves to the NEAR tx hash and the MPC signature. */
@@ -46,7 +50,8 @@ export const liveSendDeps = (
   signWithWallet: SendDeps["signWithWallet"],
 ): SendDeps => ({
   prepare: (r) => prepareTx(r.chain, r.from, r.to, r.value, r.data),
-  balance: (chainId, address) => client(chainId).getBalance({ address }),
+  extraFee: l1Fee,
+  balance: async (chainId, address) => (await verifiedClient(chainId)).getBalance({ address }),
   contractHash: (tx) => satchel.signingHash(toContractTx(tx)),
   signWithWallet,
   broadcast: (chainId, raw) => client(chainId).sendRawTransaction({ serializedTransaction: raw }),
@@ -64,21 +69,25 @@ export async function sendFromSatchel(
   onStep: (step: SendStep, detail?: string) => void = () => {},
 ): Promise<SendResult> {
   onStep("build");
-  const tx = await deps.prepare(request);
-  const balance = await deps.balance(request.chain.id, request.from);
-  const cost = maxCost(tx);
-  if (balance < cost) {
-    throw new Error(
+  const unfunded = (balance: bigint, cost: bigint) =>
+    new Error(
       `This satchel holds ${balance} wei on ${request.chain.name} and the transaction can cost up to ${cost}. Fund ${request.from} first.`,
     );
-  }
+  // Checked before estimating gas too, since a node refuses to estimate a send it can't fund.
+  const balance = await deps.balance(request.chain.id, request.from);
+  if (balance < request.value) throw unfunded(balance, request.value);
+  const tx = await deps.prepare(request);
+  const cost = maxCost(tx, await deps.extraFee(tx));
+  if (balance < cost) throw unfunded(balance, cost);
+  const fee = cost - tx.value;
 
   onStep("hash");
   const local = signingHash(tx);
   const onChain = `0x${await deps.contractHash(tx)}`;
   if (onChain !== local) throw new Error(`The contract would sign ${onChain}, not ${local}. Nothing was signed.`);
 
-  onStep("wallet");
+  // The most the satchel can pay in fees, shown while the wallet asks for approval.
+  onStep("wallet", fee.toString());
   const signed = await deps.signWithWallet(satchelTx.signEvm(request.tokenId, toContractTx(tx)));
   if (signed.signature === null) {
     throw new Error(`sign_evm (${signed.hash}) finished without a signature. Your record shows the nonce; signing again is safe.`);
@@ -91,8 +100,10 @@ export async function sendFromSatchel(
     throw new Error(`The signature recovers to ${recovered}, not this satchel's ${request.from}. Nothing was broadcast.`);
   }
 
-  onStep("broadcast", signed.hash);
-  const evmTx = await deps.broadcast(request.chain.id, signedRawTx(tx, signature));
+  // The hash is known before broadcasting, so a failed broadcast or a slow receipt still shows it.
+  const raw = signedRawTx(tx, signature);
+  onStep("broadcast", keccak256(raw));
+  const evmTx = await deps.broadcast(request.chain.id, raw);
 
   onStep("confirm", evmTx);
   const status = await deps.confirm(request.chain.id, evmTx);

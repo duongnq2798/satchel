@@ -136,17 +136,36 @@ export function client(chainId: number): PublicClient {
   return made;
 }
 
+const verified = new Map<number, Promise<PublicClient>>();
+
+/** The chain's client, once its RPC has said it serves that chain. Every read the report pins goes through it. */
+export function verifiedClient(chainId: number): Promise<PublicClient> {
+  const known = verified.get(chainId);
+  if (known) return known;
+  const c = client(chainId);
+  const checked = c.getChainId().then((id) => {
+    if (id !== chainId) throw new Error(`${chainInfo(chainId)?.rpc} serves chain ${id}, not ${chainId}`);
+    return c;
+  });
+  checked.catch(() => verified.delete(chainId));
+  verified.set(chainId, checked);
+  return checked;
+}
+
 /**
  * Builds a transaction from a token's address. Fees leave room for a doubled base fee, since the
- * MPC signature takes a few NEAR blocks to arrive.
+ * MPC signature takes a few NEAR blocks to arrive. Gas is always estimated: a plain send to a
+ * contract runs its `receive()` and needs more than 21000.
  */
 export async function prepareTx(chain: ChainInfo, from: Address, to: Address, value: bigint, data: Hex): Promise<EvmTx> {
-  const c = client(chain.id);
-  const [nonce, block, priority, gas] = await Promise.all([
+  const c = await verifiedClient(chain.id);
+  const [nonce, block, priority, estimate] = await Promise.all([
     c.getTransactionCount({ address: from, blockTag: "pending" }),
     c.getBlock({ blockTag: "latest" }),
     c.estimateMaxPriorityFeePerGas().catch(() => 1_000_000_000n),
-    data === "0x" ? Promise.resolve(21_000n) : c.estimateGas({ account: from, to, value, data }),
+    c.estimateGas({ account: from, to, value, data }).catch((err: unknown) => {
+      throw new Error(`${chain.name} says this transaction would fail, so nothing was signed: ${shortError(err)}`);
+    }),
   ]);
   const baseFee = block.baseFeePerGas ?? 0n;
   return {
@@ -154,14 +173,44 @@ export async function prepareTx(chain: ChainInfo, from: Address, to: Address, va
     nonce,
     maxPriorityFeePerGas: priority,
     maxFeePerGas: baseFee * 2n + priority,
-    gas: data === "0x" ? gas : (gas * 12n) / 10n,
+    gas: estimate <= 21_000n ? 21_000n : (estimate * 12n) / 10n,
     to,
     value,
     data,
   };
 }
 
-/** Most the transaction can cost the sender: gas at the fee cap, plus the value. */
-export function maxCost(tx: EvmTx): bigint {
-  return tx.gas * tx.maxFeePerGas + tx.value;
+function shortError(err: unknown): string {
+  if (err && typeof err === "object" && "shortMessage" in err && typeof err.shortMessage === "string") return err.shortMessage;
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** OP Stack chains charge an L1 data fee on top of gas, from this predeploy. */
+const GAS_PRICE_ORACLE = "0x420000000000000000000000000000000000000F" as const;
+const OP_STACK = new Set([10, 11155420, 8453, 84532]);
+const getL1FeeAbi = [
+  {
+    type: "function",
+    name: "getL1Fee",
+    stateMutability: "view",
+    inputs: [{ name: "_data", type: "bytes" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+/** The L1 data fee the sender pays besides gas, doubled for headroom; 0 off the OP Stack. */
+export async function l1Fee(tx: EvmTx): Promise<bigint> {
+  if (!OP_STACK.has(tx.chainId)) return 0n;
+  const fee = await client(tx.chainId).readContract({
+    address: GAS_PRICE_ORACLE,
+    abi: getL1FeeAbi,
+    functionName: "getL1Fee",
+    args: [serializeTransaction(serializable(tx))],
+  });
+  return fee * 2n;
+}
+
+/** Most the transaction can cost the sender: gas at the fee cap, plus the value, plus any L1 fee. */
+export function maxCost(tx: EvmTx, extraFee = 0n): bigint {
+  return tx.gas * tx.maxFeePerGas + tx.value + extraFee;
 }

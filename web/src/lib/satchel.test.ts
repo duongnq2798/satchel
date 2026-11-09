@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { failureMessage, outcomeValue } from "./near";
+import { failureMessage, outcomeValue, viewErrorMessage } from "./near";
 import { formatNear, parseNear, satchelTx } from "./satchel";
 
 describe("NEAR amounts", () => {
@@ -62,6 +62,14 @@ describe("outcomes", () => {
     };
     expect(failureMessage(failure)).toBe("Satchel: only the token's owner can do this");
     expect(() => outcomeValue({ transaction: { hash: "x" }, status: { Failure: failure } })).toThrow(/only the token's owner/);
+  });
+
+  it("turns a view panic into its message", () => {
+    // What rpc.testnet.fastnear.com answered for evm_signing_hash with the tip above the fee cap.
+    const error =
+      'wasm execution failed with error: HostError(GuestPanic { panic_msg: "Satchel: max_priority_fee_per_gas is above max_fee_per_gas" })';
+    expect(viewErrorMessage("evm_signing_hash", error)).toBe("Satchel: max_priority_fee_per_gas is above max_fee_per_gas");
+    expect(viewErrorMessage("satchel", "MethodNotFound")).toBe("satchel failed: MethodNotFound");
   });
 
   it("returns null while a wallet reports no final status", () => {

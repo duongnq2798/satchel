@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CHAINS, NETWORK, chainInfo, nearAccountUrl } from "@/lib/config";
+import { CHAINS, NETWORK, chainInfo, nearAccountUrl, nearTxUrl } from "@/lib/config";
 import { tokenAddress } from "@/lib/evm";
 import { buildReport } from "@/lib/report";
 import { satchel } from "@/lib/satchel";
@@ -9,7 +9,7 @@ import { Balances } from "./balances";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale } from "./sale-panel";
 import { SendPanel } from "./send-panel";
-import { Badge, Card, CopyButton, ErrorNote, ExternalLink, Mono } from "./ui";
+import { Badge, Button, Card, CopyButton, ErrorNote, ExternalLink, Mono, VERDICT } from "./ui";
 import { useAsync } from "./use-async";
 import { useWallet } from "./wallet";
 
@@ -24,10 +24,22 @@ export function TokenView({ tokenId }: { tokenId: string }) {
     `${tokenId}:${refresh}`,
   );
   const report = useAsync(() => buildReport(tokenId), `${tokenId}:${refresh}`);
-  const reloadAll = () => setRefresh((n) => n + 1);
+  // The last transaction a panel finished. Kept here, since a sale or delist unmounts its panel.
+  const [lastTx, setLastTx] = useState<string | null>(null);
+  const reloadAll = (hash?: string) => {
+    setLastTx(hash ?? null);
+    setRefresh((n) => n + 1);
+  };
 
-  if (token.error) return <ErrorNote error={token.error} />;
-  if (token.data === undefined) return <p className="text-muted">Loading satchel #{tokenId}…</p>;
+  if (token.data === undefined) {
+    if (!token.error) return <p className="text-muted">Loading satchel #{tokenId}…</p>;
+    return (
+      <div className="space-y-3">
+        <ErrorNote error={token.error} />
+        <Button onClick={token.reload}>Try again</Button>
+      </div>
+    );
+  }
   if (token.data === null) {
     return (
       <Card>
@@ -56,9 +68,10 @@ export function TokenView({ tokenId }: { tokenId: string }) {
         </div>
         <div className="flex gap-2">
           {view.listing && <Badge tone="gold">Listed</Badge>}
-          {report.data && <Badge tone={report.data.verdict === "clean" ? "ok" : "warn"}>{report.data.verdict === "clean" ? "Provably clean" : "Not provable yet"}</Badge>}
+          {report.data && <Badge tone={VERDICT[report.data.verdict].tone}>{VERDICT[report.data.verdict].label}</Badge>}
         </div>
       </div>
+      <ErrorNote error={token.error} />
 
       <Card>
         <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, controlled by whoever owns this NFT</p>
@@ -71,8 +84,18 @@ export function TokenView({ tokenId }: { tokenId: string }) {
         </div>
       </Card>
 
-      <ReportCard report={report.data} loading={report.loading} error={report.error} onRecheck={report.reload} />
+      <ReportCard
+        report={report.data}
+        loading={report.loading || token.loading}
+        error={report.error}
+        onRecheck={() => reloadAll()}
+      />
 
+      {lastTx && (
+        <p className="text-sm text-ok">
+          Done. <ExternalLink href={nearTxUrl(lastTx)}>View the transaction</ExternalLink>
+        </p>
+      )}
       {view.listing && !isOwner && <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />}
       {isOwner && !view.listing && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} />}
       {isOwner && <OwnerSale token={view} onDone={reloadAll} />}

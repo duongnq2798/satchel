@@ -57,6 +57,13 @@ describe("approval liveness", () => {
     expect((await approvalLiveness(fakeClient({}), WALLET, row("IncreaseAllowance"), AT)).live).toBeNull();
   });
 
+  it("passes approve(0x0, id), the way an ERC-721 approval is cleared", async () => {
+    // getApproved reads 0x0, which equals the row's spender; that must not count as live.
+    const cleared = row("Approve", { spender: "0x0000000000000000000000000000000000000000", arg: "0x07" });
+    const r = await approvalLiveness(fakeClient({ getApproved: "0x0000000000000000000000000000000000000000" }), WALLET, cleared, AT);
+    expect(r.live).toBe(false);
+  });
+
   it("reads operators", async () => {
     expect((await approvalLiveness(fakeClient({ isApprovedForAll: true }), WALLET, row("SetApprovalForAll"), AT)).live).toBe(true);
     expect((await approvalLiveness(fakeClient({ isApprovedForAll: false }), WALLET, row("SetApprovalForAll"), AT)).live).toBe(false);

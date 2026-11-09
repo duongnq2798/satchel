@@ -42,8 +42,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await (await connector()).connect();
   }, []);
   const signOut = useCallback(async () => {
-    await (await connector()).disconnect();
-    setAccountId(null);
+    // A wallet whose session already ended can throw here; the app is signed out either way.
+    try {
+      await (await connector()).disconnect();
+    } finally {
+      setAccountId(null);
+    }
   }, []);
   const send = useCallback(
     async <T,>(tx: WalletTx) => {

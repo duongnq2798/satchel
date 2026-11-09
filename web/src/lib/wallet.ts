@@ -9,7 +9,7 @@ import manifest from "./wallet-manifest.json";
  * wallet's own script still comes from its publisher.
  */
 interface NearWallet {
-  signAndSendTransaction(params: { receiverId: string; actions: WalletTx["actions"] }): Promise<ExecutionOutcome>;
+  signAndSendTransaction(params: { signerId?: string; receiverId: string; actions: WalletTx["actions"] }): Promise<ExecutionOutcome>;
 }
 
 interface Connector {
@@ -53,9 +53,10 @@ export async function connectedAccount(): Promise<string | null> {
  */
 export async function runTx<T>(tx: WalletTx, signer: string): Promise<{ hash: string; value: T | null }> {
   const wallet = await (await connector()).wallet();
-  const sent = await wallet.signAndSendTransaction({ receiverId: tx.receiverId, actions: tx.actions });
+  const sent = await wallet.signAndSendTransaction({ signerId: signer, receiverId: tx.receiverId, actions: tx.actions });
   const hash = sent?.transaction?.hash;
   if (!hash) throw new Error("The wallet did not return a transaction hash");
-  const settled = sent.final_execution_status === "FINAL" ? sent : await finalOutcome(hash, signer);
+  const settled =
+    sent.final_execution_status === "FINAL" ? sent : await finalOutcome(hash, sent.transaction.signer_id ?? signer);
   return { hash, value: outcomeValue<T>(settled) };
 }

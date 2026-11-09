@@ -28,8 +28,8 @@ export function ReportCard({
         </div>
       </div>
       <p className="mt-1 text-sm text-muted">
-        Checked in your browser against NEAR and each chain the record lists, at a finalized block. Nothing here
-        comes from a server of ours.
+        Checked in your browser against NEAR and each chain the record lists, at a finalized block. Nothing here comes
+        from a server of ours; it trusts the public RPCs named below.
       </p>
       <ErrorNote error={error} />
       {!report && loading && <p className="mt-4 text-sm text-muted">Reading the record and every chain it lists…</p>}
@@ -41,8 +41,9 @@ export function ReportCard({
               <div className="min-w-0">
                 <p className="font-medium">{check.title}</p>
                 <ul className="mt-0.5 space-y-0.5 text-sm text-ink-2">
-                  {check.lines.map((line) => (
-                    <li key={line} className="break-words">
+                  {check.lines.map((line, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: two approval rows can read the same
+                    <li key={i} className="break-words">
                       {line}
                     </li>
                   ))}
@@ -58,6 +59,13 @@ export function ReportCard({
           no wallet needed: <code className="font-mono">npm run verify -- {report.tokenId}</code> in{" "}
           <ExternalLink href={`${REPO_URL}/tree/main/web`}>web/</ExternalLink>. The code hash
           it expects comes from the <ExternalLink href={NETWORK.build.ciRun}>reproducible CI build</ExternalLink>.
+          {report.sources && (
+            <>
+              {" "}
+              Read from {report.sources.map((s) => new URL(s).host).join(", ")}. An RPC that lies could fool this page, so
+              for a large purchase run the command against nodes you trust.
+            </>
+          )}
         </p>
       )}
     </Card>

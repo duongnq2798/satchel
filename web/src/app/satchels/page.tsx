@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Badge, Button, Card, ErrorNote, Mono } from "@/components/ui";
 import { useAsync } from "@/components/use-async";
 import { useWallet } from "@/components/wallet";
@@ -21,7 +21,11 @@ export default function YourSatchels() {
     return Promise.all(owned.map(async (t) => ({ ...t, address: await tokenAddress(`satchel/${t.token_id}`) })));
   }, accountId ?? "");
 
+  const running = useRef(false);
+
   async function mint() {
+    if (running.current) return;
+    running.current = true;
     setError(null);
     setMinting(true);
     try {
@@ -31,6 +35,7 @@ export default function YourSatchels() {
     } catch (err) {
       setError(err);
     } finally {
+      running.current = false;
       setMinting(false);
     }
   }

@@ -76,7 +76,12 @@ describe("pending check", () => {
   it("fails while the signed nonce is still open: the token 1 case", () => {
     const check = pendingCheck([sepolia(0n, 0n)]);
     expect(check.status).toBe("fail");
-    expect(check.lines[0]).toMatch(/nonce 0 voids it/);
+    expect(check.lines[0]).toMatch(/anyone can still broadcast/);
+  });
+
+  it("waits, without passing, while the nonce is spent in a block that is not final yet", () => {
+    expect(pendingCheck([{ ...sepolia(0n, 0n), latestNonce: 1n }]).status).toBe("unknown");
+    expect(pendingCheck([{ ...sepolia(0n, 0n), latestNonce: 0n }]).status).toBe("fail");
   });
 
   it("is unknown when the nonce cannot be read, and fail outranks unknown", () => {

@@ -66,7 +66,18 @@ export class NearRpcError extends Error {
   }
 }
 
-export async function nearRpc<T>(method: string, params: unknown, rpcUrl: string = NETWORK.nearRpc): Promise<T> {
+let rpcInUse: string = NETWORK.nearRpc;
+
+/** The NEAR RPC every read goes to. `npm run verify` can point it at your own node. */
+export function nearRpcUrl(): string {
+  return rpcInUse;
+}
+
+export function setNearRpc(url: string) {
+  rpcInUse = url;
+}
+
+export async function nearRpc<T>(method: string, params: unknown, rpcUrl: string = rpcInUse): Promise<T> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -91,16 +102,23 @@ function decodeBase64(value: string): string {
   return new TextDecoder().decode(bytes);
 }
 
-/** Calls a view method at a final block. */
+/** Calls a view method at a final block. A panic comes back as `result.error`, not as an RPC error. */
 export async function view<T>(account: string, method: string, args: unknown = {}): Promise<T> {
-  const result = await nearRpc<{ result: number[] }>("query", {
+  const result = await nearRpc<{ result?: number[]; error?: string }>("query", {
     request_type: "call_function",
     finality: "final",
     account_id: account,
     method_name: method,
     args_base64: encodeArgs(args),
   });
+  if (result.result === undefined) throw new Error(viewErrorMessage(method, result.error));
   return JSON.parse(new TextDecoder().decode(Uint8Array.from(result.result))) as T;
+}
+
+/** "Satchel: …" from a view panic, or the raw error. */
+export function viewErrorMessage(method: string, error: string | undefined): string {
+  const panic = error?.match(/panic_msg: "((?:[^"\\]|\\.)*)"/);
+  return panic ? panic[1] : `${method} failed: ${error ?? "no result"}`;
 }
 
 export async function viewAccount(account: string): Promise<AccountView> {

@@ -1,45 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { nearTxUrl } from "@/lib/config";
+import { useRef, useState } from "react";
 import type { SatchelView } from "@/lib/near";
 import type { Report } from "@/lib/report";
 import { formatNear, parseNear, satchelTx } from "@/lib/satchel";
-import { Button, Card, ErrorNote, ExternalLink } from "./ui";
+import { Button, Card, ErrorNote } from "./ui";
 import { useWallet } from "./wallet";
 
-function useTx(onDone: () => void) {
+/** Runs one wallet transaction at a time and hands its hash to `onDone`, which shows it. */
+function useTx(onDone: (hash?: string) => void) {
   const { send } = useWallet();
+  const running = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [hash, setHash] = useState<string | null>(null);
   async function run(build: () => Parameters<typeof send>[0]) {
+    if (running.current) return;
+    running.current = true;
     setError(null);
-    setHash(null);
     setBusy(true);
+    let hash: string | undefined;
     try {
-      setHash((await send(build())).hash);
+      hash = (await send(build())).hash;
     } catch (err) {
       setError(err);
     } finally {
+      running.current = false;
       setBusy(false);
-      onDone();
+      onDone(hash);
     }
   }
-  return { busy, error, hash, run };
-}
-
-function Done({ hash }: { hash: string | null }) {
-  if (!hash) return null;
-  return (
-    <p className="text-sm text-ok">
-      Done. <ExternalLink href={nearTxUrl(hash)}>View the transaction</ExternalLink>
-    </p>
-  );
+  return { busy, error, run };
 }
 
 /** The owner's side: list, delist, or transfer the NFT. */
-export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: () => void }) {
+export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash?: string) => void }) {
   const tx = useTx(onDone);
   const [price, setPrice] = useState("");
   const [receiver, setReceiver] = useState("");
@@ -100,36 +94,63 @@ export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: () =>
           </div>
         </div>
       )}
-      <div className="mt-3 space-y-2">
+      <div className="mt-3">
         <ErrorNote error={tx.error} />
-        <Done hash={tx.hash} />
       </div>
     </Card>
   );
 }
 
-/** A buyer's side. `buy` names the record version this report checked; any later signature voids it. */
-export function BuyPanel({ token, report, onDone }: { token: SatchelView; report: Report | undefined; onDone: () => void }) {
+/**
+ * A buyer's side. The purchase takes its record version and price from the report, never from the
+ * rest of the page, so it names exactly what the buyer checked; any later signature voids it.
+ */
+export function BuyPanel({
+  token,
+  report,
+  onDone,
+}: {
+  token: SatchelView;
+  report: Report | undefined;
+  onDone: (hash?: string) => void;
+}) {
   const { accountId, signIn } = useWallet();
   const tx = useTx(onDone);
-  const [accept, setAccept] = useState(false);
+  // The version whose risk the buyer accepted, so a new version asks again.
+  const [accepted, setAccepted] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const listing = token.listing;
-  if (!listing) return null;
-  const checked = report && report.recordVersion === token.record.version ? report : undefined;
-  const clean = checked?.verdict === "clean";
+  if (!token.listing) return null;
+
+  const checked =
+    report && report.tokenId === token.token_id && report.listing && report.listing.record_version === report.recordVersion
+      ? { report, listing: report.listing }
+      : undefined;
+  const listing = checked?.listing ?? token.listing;
+  const clean = checked?.report.verdict === "clean";
+  const accept = checked !== undefined && accepted === checked.report.recordVersion;
+  // The page and the report read the token separately; buy only once they agree.
+  const agrees = checked !== undefined && checked.report.recordVersion === token.record.version;
 
   return (
     <Card className="border-gold/60">
       <h2 className="font-display text-xl font-semibold">For sale: {formatNear(listing.price)} NEAR</h2>
       <p className="mt-1 text-sm text-muted">
-        Sold by {listing.seller}. Your purchase names record version {token.record.version}; if the seller signed anything
-        since this report, the contract refuses the sale and you keep your NEAR.
+        Sold by {listing.seller}. Your purchase names record version {checked?.report.recordVersion ?? token.record.version}
+        , the one the report above checked; if the seller signed anything since, the contract refuses the sale and you keep
+        your NEAR.
       </p>
-      {!checked && <p className="mt-3 text-sm text-muted">Waiting for the report on this version…</p>}
+      {!checked && <p className="mt-3 text-sm text-muted">Waiting for the report on this listing…</p>}
+      {checked && !agrees && (
+        <p className="mt-3 text-sm text-warn">The record changed while this page loaded. Check again before you buy.</p>
+      )}
       {checked && !clean && (
         <label className="mt-3 flex items-start gap-2 text-sm text-warn">
-          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-1" />
+          <input
+            type="checkbox"
+            checked={accept}
+            onChange={(e) => setAccepted(e.target.checked ? checked.report.recordVersion : null)}
+            className="mt-1"
+          />
           This satchel is not provably clean (see the report). I accept that the seller may still be able to move what it
           holds.
         </label>
@@ -139,17 +160,16 @@ export function BuyPanel({ token, report, onDone }: { token: SatchelView; report
           <Button variant="primary" onClick={() => signIn().catch(() => {})}>
             Connect to buy
           </Button>
-        ) : accountId === listing.seller ? (
-          <p className="text-sm text-muted">This is your listing.</p>
         ) : (
           <Button
             variant="gold"
             busy={tx.busy}
             onClick={() => {
-              if (!checked) return setNote("Wait for the report on this version first");
+              if (!checked) return setNote("Wait for the report on this listing first");
+              if (!agrees) return setNote("Check again: the page and the report read different record versions");
               if (!clean && !accept) return setNote("Tick the box above to buy a satchel that is not provably clean");
               setNote("");
-              tx.run(() => satchelTx.buy(token.token_id, checked.recordVersion, BigInt(listing.price)));
+              tx.run(() => satchelTx.buy(token.token_id, checked.report.recordVersion, BigInt(checked.listing.price)));
             }}
           >
             Buy for {formatNear(listing.price)} NEAR
@@ -159,7 +179,6 @@ export function BuyPanel({ token, report, onDone }: { token: SatchelView; report
       <div className="mt-3 space-y-2">
         {note && <p className="text-sm text-warn">{note}</p>}
         <ErrorNote error={tx.error} />
-        <Done hash={tx.hash} />
       </div>
     </Card>
   );

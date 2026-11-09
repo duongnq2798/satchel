@@ -31,6 +31,7 @@ export function Button({
       type={type}
       onClick={onClick}
       aria-busy={busy}
+      disabled={busy}
       className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition aria-busy:cursor-progress aria-busy:opacity-70 ${BUTTON[variant]}`}
     >
       {busy && <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />}
@@ -89,9 +90,21 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
   );
 }
 
+/** Wallets reject with strings, Errors or plain objects; show each as words, not "[object Object]". */
+export function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export function ErrorNote({ error }: { error: unknown }) {
   if (error === null || error === undefined) return null;
-  const message = error instanceof Error ? error.message : String(error);
+  const message = errorMessage(error);
   return <p className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">{message}</p>;
 }
 

@@ -31,6 +31,11 @@ export interface ChainInfo {
   testnet: boolean;
   rpc: string;
   explorer: string;
+  /**
+   * Set where the RPC answers "finalized" with its latest block (Aurora), so reads go this many
+   * blocks further back. Aurora's blocks follow NEAR's, which are final within a few blocks.
+   */
+  finalityLag?: bigint;
 }
 
 /**
@@ -44,7 +49,7 @@ export const CHAINS: readonly ChainInfo[] = [
   { id: 84532, name: "Base Sepolia", symbol: "ETH", testnet: true, rpc: "https://base-sepolia-rpc.publicnode.com", explorer: "https://sepolia.basescan.org" },
   { id: 42161, name: "Arbitrum One", symbol: "ETH", testnet: false, rpc: "https://arb1.arbitrum.io/rpc", explorer: "https://arbiscan.io" },
   { id: 421614, name: "Arbitrum Sepolia", symbol: "ETH", testnet: true, rpc: "https://sepolia-rollup.arbitrum.io/rpc", explorer: "https://sepolia.arbiscan.io" },
-  { id: 10, name: "OP Mainnet", symbol: "ETH", testnet: false, rpc: "https://optimism-rpc.publicnode.com", explorer: "https://optimistic.etherscan.io" },
+  { id: 10, name: "OP Mainnet", symbol: "ETH", testnet: false, rpc: "https://mainnet.optimism.io", explorer: "https://optimistic.etherscan.io" },
   { id: 11155420, name: "OP Sepolia", symbol: "ETH", testnet: true, rpc: "https://optimism-sepolia-rpc.publicnode.com", explorer: "https://sepolia-optimism.etherscan.io" },
   { id: 137, name: "Polygon", symbol: "POL", testnet: false, rpc: "https://polygon-bor-rpc.publicnode.com", explorer: "https://polygonscan.com" },
   { id: 80002, name: "Polygon Amoy", symbol: "POL", testnet: true, rpc: "https://polygon-amoy-bor-rpc.publicnode.com", explorer: "https://amoy.polygonscan.com" },
@@ -52,8 +57,8 @@ export const CHAINS: readonly ChainInfo[] = [
   { id: 97, name: "BNB testnet", symbol: "tBNB", testnet: true, rpc: "https://bsc-testnet-rpc.publicnode.com", explorer: "https://testnet.bscscan.com" },
   { id: 43114, name: "Avalanche", symbol: "AVAX", testnet: false, rpc: "https://avalanche-c-chain-rpc.publicnode.com", explorer: "https://snowtrace.io" },
   { id: 43113, name: "Avalanche Fuji", symbol: "AVAX", testnet: true, rpc: "https://avalanche-fuji-c-chain-rpc.publicnode.com", explorer: "https://testnet.snowtrace.io" },
-  { id: 1313161554, name: "Aurora", symbol: "ETH", testnet: false, rpc: "https://mainnet.aurora.dev", explorer: "https://explorer.mainnet.aurora.dev" },
-  { id: 1313161555, name: "Aurora testnet", symbol: "ETH", testnet: true, rpc: "https://testnet.aurora.dev", explorer: "https://explorer.testnet.aurora.dev" },
+  { id: 1313161554, name: "Aurora", symbol: "ETH", testnet: false, rpc: "https://mainnet.aurora.dev", explorer: "https://explorer.mainnet.aurora.dev", finalityLag: 10n },
+  { id: 1313161555, name: "Aurora testnet", symbol: "ETH", testnet: true, rpc: "https://testnet.aurora.dev", explorer: "https://explorer.testnet.aurora.dev", finalityLag: 10n },
 ];
 
 /** Chains this deployment lets you send on. A testnet satchel never moves mainnet funds from the app. */

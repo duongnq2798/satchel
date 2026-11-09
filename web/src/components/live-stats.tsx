@@ -25,12 +25,13 @@ export function LiveStats() {
   }, "stats");
 
   const s = stats.data;
+  const none = stats.error ? "Couldn't read" : "…";
   const items = [
-    { label: "Contract keys", value: s ? (s.locked ? "None: locked" : "Has keys") : "…", good: s?.locked },
-    { label: "Code", value: s ? (s.reproducible ? "Reproducible build" : "Unknown build") : "…", good: s?.reproducible },
-    { label: "Signer", value: s ? (s.canonical ? NETWORK.mpc : "Not canonical") : "…", good: s?.canonical },
-    { label: "Satchels minted", value: s ? String(s.supply) : "…" },
-    { label: "Listed now", value: s ? String(s.listed) : "…" },
+    { label: "Contract keys", value: s ? (s.locked ? "None: locked" : "Has keys") : none, good: s?.locked },
+    { label: "Code", value: s ? (s.reproducible ? "Reproducible build" : "Unknown build") : none, good: s?.reproducible },
+    { label: "Signer", value: s ? (s.canonical ? NETWORK.mpc : "Not canonical") : none, good: s?.canonical },
+    { label: "Satchels minted", value: s ? String(s.supply) : none },
+    { label: "Listed now", value: s ? String(s.listed) : none },
   ];
   return (
     <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-5">

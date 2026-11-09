@@ -1,8 +1,16 @@
 import type { Address } from "viem";
 import { type Liveness, type ReadAt, approvalLiveness } from "./approvals";
 import { NETWORK, chainInfo } from "./config";
-import { client, tokenAddress } from "./evm";
-import { type AccountView, type ApprovalRecord, type SatchelView, accessKeyCount, view, viewAccount } from "./near";
+import { client, tokenAddress, verifiedClient } from "./evm";
+import {
+  type AccountView,
+  type ApprovalRecord,
+  type SatchelView,
+  accessKeyCount,
+  nearRpcUrl,
+  view,
+  viewAccount,
+} from "./near";
 import { satchel } from "./satchel";
 
 /**
@@ -30,6 +38,8 @@ export interface Report {
   checks: Check[];
   verdict: Verdict;
   checkedAt: string;
+  /** The RPCs every fact came from. The report is as honest as they are. */
+  sources?: string[];
 }
 
 export interface ContractFacts {
@@ -74,6 +84,8 @@ export interface ChainNonce {
   chainId: number;
   maxNonce: bigint;
   finalizedNonce: bigint | null;
+  /** The nonce at the latest block, only to tell "not final yet" from "still open". */
+  latestNonce?: bigint | null;
   blockNumber: bigint | null;
 }
 
@@ -89,10 +101,16 @@ export function pendingCheck(nonces: ChainNonce[]): Check {
       lines.push(`${name}: could not read the nonce at a finalized block`);
     } else if (n.finalizedNonce > n.maxNonce) {
       lines.push(`${name}: signed up to nonce ${n.maxNonce}, finalized nonce is ${n.finalizedNonce}`);
+    } else if (n.latestNonce != null && n.latestNonce > n.maxNonce) {
+      if (status === "pass") status = "unknown";
+      lines.push(
+        `${name}: signed up to nonce ${n.maxNonce}; a transaction at that nonce is in a recent block that is not finalized yet. Check again once it is`,
+      );
     } else {
       status = "fail";
+      // The MPC signature is public in the sign_evm receipt, so anyone can rebuild and broadcast it.
       lines.push(
-        `${name}: signed up to nonce ${n.maxNonce}, finalized nonce is ${n.finalizedNonce}. A signed transaction may still be broadcast; sending one transaction at nonce ${n.maxNonce} voids it`,
+        `${name}: signed up to nonce ${n.maxNonce}, finalized nonce is ${n.finalizedNonce}. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce ${n.maxNonce} is final`,
       );
     }
   }
@@ -156,14 +174,30 @@ function short(hex: string): string {
   return `${hex.slice(0, 6)}…${hex.slice(-4)}`;
 }
 
-/** The finalized block of a chain, which every read on it is pinned to. */
+/**
+ * The finalized block of a chain, which every read on it is pinned to, after its RPC has said it
+ * serves that chain. Where the RPC's "finalized" is its latest block, read further back.
+ */
 async function finalizedAt(chainId: number): Promise<ReadAt | null> {
   try {
-    const block = await client(chainId).getBlock({ blockTag: "finalized" });
+    const c = await verifiedClient(chainId);
+    const finalized = await c.getBlock({ blockTag: "finalized" });
+    const lag = chainInfo(chainId)?.finalityLag ?? 0n;
+    const block = lag === 0n ? finalized : await c.getBlock({ blockNumber: finalized.number - lag });
     return { blockNumber: block.number, now: block.timestamp };
   } catch {
     return null;
   }
+}
+
+/** What anyone can read about the deployment itself. One read serves every report on a page. */
+export async function contractFacts(): Promise<ContractFacts> {
+  const [accessKeys, account, mpcContract] = await Promise.all([
+    accessKeyCount(NETWORK.contract),
+    viewAccount(NETWORK.contract),
+    view<string>(NETWORK.contract, "mpc_contract"),
+  ]);
+  return { accessKeys, account, mpcContract };
 }
 
 export interface ReportInputs {
@@ -193,16 +227,14 @@ export function assemble(inputs: ReportInputs): Report {
   };
 }
 
-/** Reads everything for one token, from NEAR and from each chain its record lists. */
-export async function buildReport(tokenId: string): Promise<Report | null> {
+/**
+ * Reads everything for one token, from NEAR and from each chain its record lists. Pass `facts` to
+ * share one read of the contract's own facts across many reports.
+ */
+export async function buildReport(tokenId: string, facts?: Promise<ContractFacts>): Promise<Report | null> {
   const token = await satchel.get(tokenId);
   if (token === null) return null;
-  const [address, accessKeys, account, mpcContract] = await Promise.all([
-    tokenAddress(token.path),
-    accessKeyCount(NETWORK.contract),
-    viewAccount(NETWORK.contract),
-    view<string>(NETWORK.contract, "mpc_contract"),
-  ]);
+  const [address, contract] = await Promise.all([tokenAddress(token.path), facts ?? contractFacts()]);
 
   const chainIds = new Set<number>([
     ...token.record.evm.map((c) => Number(c.chain_id)),
@@ -215,15 +247,20 @@ export async function buildReport(tokenId: string): Promise<Report | null> {
     token.record.evm.map(async (c): Promise<ChainNonce> => {
       const chainId = Number(c.chain_id);
       const at = pinned.get(chainId) ?? null;
-      let finalizedNonce: bigint | null = null;
-      if (at !== null) {
+      const read = async (blockNumber?: bigint) => {
         try {
-          finalizedNonce = BigInt(await client(chainId).getTransactionCount({ address, blockNumber: at.blockNumber }));
+          const rpc = client(chainId);
+          return BigInt(
+            await (blockNumber === undefined
+              ? rpc.getTransactionCount({ address, blockTag: "latest" })
+              : rpc.getTransactionCount({ address, blockNumber })),
+          );
         } catch {
-          finalizedNonce = null;
+          return null;
         }
-      }
-      return { chainId, maxNonce: BigInt(c.max_nonce), finalizedNonce, blockNumber: at?.blockNumber ?? null };
+      };
+      const [finalizedNonce, latestNonce] = at === null ? [null, null] : await Promise.all([read(at.blockNumber), read()]);
+      return { chainId, maxNonce: BigInt(c.max_nonce), finalizedNonce, latestNonce, blockNumber: at?.blockNumber ?? null };
     }),
   );
 
@@ -235,5 +272,6 @@ export async function buildReport(tokenId: string): Promise<Report | null> {
     }),
   );
 
-  return assemble({ view: token, address, facts: { accessKeys, account, mpcContract }, nonces, approvals });
+  const sources = [nearRpcUrl(), ...[...chainIds].flatMap((id) => chainInfo(id)?.rpc ?? [])];
+  return { ...assemble({ view: token, address, facts: contract, nonces, approvals }), sources };
 }

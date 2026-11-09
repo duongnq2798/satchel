@@ -1,4 +1,4 @@
-import { type Address, type PublicClient, getAddress, parseAbi } from "viem";
+import { type Address, type PublicClient, getAddress, parseAbi, zeroAddress } from "viem";
 import type { ApprovalRecord } from "./near";
 
 const ERC20 = parseAbi(["function allowance(address owner, address spender) view returns (uint256)"]);
@@ -45,6 +45,9 @@ export async function approvalLiveness(
   const contract = getAddress(row.contract);
   const spender = getAddress(row.spender);
   const { blockNumber } = at;
+  // No one can send from the zero address, so a right granted to it is no right. ERC-721
+  // `approve(0x0, id)` is how an approval is cleared, and `getApproved` then reads 0x0.
+  if (spender === zeroAddress) return { live: false, detail: "granted to the zero address, which no one can use" };
 
   switch (row.kind) {
     case "Approve":
