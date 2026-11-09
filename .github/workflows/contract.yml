@@ -67,12 +67,16 @@ jobs:
         run: cargo near build reproducible-wasm
       - name: Code hash
         working-directory: .
+        env:
+          # The commit checked out above, which the wasm records; on a pull request GITHUB_SHA is
+          # the temporary merge commit instead.
+          BUILT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           hash="$(node scripts/code-hash.mjs contracts/satchel/target/near/satchel.wasm)"
           echo "$hash" > contracts/satchel/target/near/satchel.code-hash.txt
           {
             echo "### Satchel reproducible build"
-            echo "- commit: \`$GITHUB_SHA\`"
+            echo "- commit: \`$BUILT_COMMIT\`"
             echo "- code hash: \`$hash\`"
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

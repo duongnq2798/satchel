@@ -6,6 +6,19 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Documents for reviewers and AI agents:
+  - `AGENTS.md`: how to check every claim, with commands and expected output, a map from each rule
+    to its code and tests, and how to change the code.
+  - `docs/THREAT_MODEL.md`: 26 attacks (the seller's, a buyer's, the deployer's, an RPC's, the
+    hosted app's), what stops each one, the testnet transaction that shows it, and what is left.
+  - `SECURITY.md`: how to report a vulnerability privately, what is in scope, and how a fix ships
+    when the contract is locked.
+- `scripts/check-claims.mjs`: checks the README's on-chain claims against NEAR testnet with Node 22
+  and nothing else. Covers the lock, the code hash, the NEP-330 commit, the MPC signer, the
+  deploy-and-init and lock transactions (in that order before the first mint, which returned token
+  1), the four refused calls (each checked for its sender, method, arguments and error, with the
+  buyer's refund and the transfer before the previous owner's call) and satchel #6's record at the
+  refused buy's block, read from an archival node so later sales don't change the answer.
 - The web app is hosted at <https://satchelnft.xyz> (Vercel, built from `main`, NEAR testnet); the
   README links it first.
 - Demo satchels on testnet for what the report passes and what it catches: #1 provably clean after
@@ -73,6 +86,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The contract CI's build summary names the commit it built. On a pull request it printed GitHub's
+  temporary merge commit, while the wasm records the branch commit.
 - The landing page labels each refused call with who made it: the refused `buy` of satchel #6 was
   the buyer's call, but the page showed it as the seller's.
 - Contract CI downloads the cargo-near 0.22.0 release binary itself, with retries, and checks it
