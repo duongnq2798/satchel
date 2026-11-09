@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The README, rewritten for both judges and builders: an "evaluate in 5 minutes" path from a fresh
+  clone with the real output and timings of each step (the claim checker on both networks, two curl
+  reads, hashing the CI wasm, `npm run verify` on every demo satchel, the tests), a status table of
+  what is shipped, in progress and planned, a sale step by step with a diagram, the safety layers
+  mapped to their code and tests, a section on each NEAR technology Satchel uses and how, the
+  mainnet and testnet proof side by side, a quick start with the near CLI, the test inventory with the
+  rules that have no unit test, and screenshots of the app read live. Its banner, buttons
+  and screenshots are rendered from `docs/assets/src` (`render.mjs` and `screenshots.mjs`, with any
+  Chromium browser).
 - Deployed to NEAR mainnet at `v1.satchel-nft.near` from the same reproducible build as testnet
   (code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`), initialized with `v1.signer` in the
   deploy transaction and locked by deleting its only key before any satchel was minted. Record in
@@ -101,6 +110,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- `AGENTS.md` placed `SUPPORTED_CHAINS` in `lib.rs`; it is in `contracts/satchel/src/evm.rs`.
+- `SECURITY.md` still said Satchel was on NEAR testnet only and named only the testnet contract. It
+  now covers both deployments and says what a mainnet satchel's address holds.
 - The contract CI's build summary names the commit it built. On a pull request it printed GitHub's
   temporary merge commit, while the wasm records the branch commit.
 - The landing page labels each refused call with who made it: the refused `buy` of satchel #6 was
