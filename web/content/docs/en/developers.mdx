@@ -81,6 +81,10 @@ so the report never trusts the contract to describe itself.
 | `build.codeHash` | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` | the same |
 | `build.commit` | `87148c6b6f97f3121cac13c93e22d7d153453b53` | the same |
 
+In this repository (not in 0.1.0), `Network` also has `txApi`, FastNEAR's transaction index
+(`https://tx.test.fastnear.com`, `https://tx.main.fastnear.com`). Only a satchel's history reads it;
+the report doesn't.
+
 `CHAINS` lists the 16 EVM chains the contract can sign for, each with its chain id, coin, default
 RPC and explorer. A testnet satchel sends on the 8 testnets and a mainnet satchel on the 8 mainnets
 (`sendChains(net)`). [Networks and chains](/docs/concepts/networks-and-chains) has the full list.

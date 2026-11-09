@@ -77,13 +77,15 @@ Its address is known before it exists, but anyone can mint the next id: fund it 
    chain. A testnet satchel: Sepolia ETH, Base Sepolia ETH, Polygon Amoy POL and so on. A mainnet satchel:
    real ETH, POL, BNB or AVAX.
 
-3. **Check the balance.** Under the address, the page shows the native balance on each of the network's 8
-   chains. Each balance links to the address on that chain's explorer, and reads `unavailable` when the
-   chain's RPC doesn't answer. Click **Check again** on the report to read everything again.
+3. **Check what's inside.** Under the address, **What's inside** shows the native balance on each of the
+   network's 8 chains, and USDC, USDT and WETH where the satchel holds some. Each chain links to the address
+   on its explorer, which also shows any other token, and a balance reads `unavailable` when the chain's RPC
+   doesn't answer. Click **Check again** on the report to read everything again.
 
 </Steps>
 
-From a terminal, `show` prints the same balances. This is satchel #4 on testnet:
+From a terminal, `show` prints the native balances (built from this repository, its USDC, USDT and
+WETH too). This is satchel #4 on testnet:
 
 ```bash
 npx -y satchel-nft@0.1.0 show 4

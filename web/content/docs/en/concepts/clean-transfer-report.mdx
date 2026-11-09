@@ -220,6 +220,11 @@ NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-nod
 
 A satchel's address also comes through the NEAR RPC, from the MPC contract's `derived_public_key` view.
 
+Two things on a satchel's page are not part of the report, and it reads neither. **What's inside** reads
+USDC, USDT and WETH at one listed address per chain. **History** comes from FastNEAR's transaction index, a
+third party that could leave transactions out; the report checks the signing record in the contract's state
+instead.
+
 ## What a clean report doesn't say
 
 - **It proves only what the token's key signed.** An upgradable token, a blacklist, an issuer's clawback, an ENS

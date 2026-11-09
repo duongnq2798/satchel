@@ -57,7 +57,7 @@ the code you checked out.
 | --- | --- |
 | `/` | What Satchel is, with satchel #1's verdict checked live and the demo satchels |
 | `/satchels` | Connect a NEAR wallet, mint a satchel, see the ones you own |
-| `/satchel/<id>` | A satchel's address, balances and report; as owner, send, list, delist or transfer; as a buyer, buy |
+| `/satchel/<id>` | A satchel's address, what it holds, its report and its history; as owner, send, list, delist or transfer; as a buyer, buy |
 | `/market` | Every listing, with its price and its report's verdict |
 | `/verify` | Any satchel's report, no wallet needed |
 | `/mainnet`, `/mainnet/…` | The same pages on NEAR mainnet and the 8 EVM mainnets |
@@ -100,6 +100,7 @@ export const MAINNET: Network = {
   mpc: "v1.signer",
   nearRpc: "https://<your-near-mainnet-node>",
   nearExplorer: "https://nearblocks.io",
+  txApi: "https://tx.main.fastnear.com",
   build: BUILD,
 };
 ```

@@ -59,7 +59,14 @@ Two checks catch a node that serves the wrong network:
   report the chain id it is configured for (`eth_chainId`). If it doesn't, the report reads that
   chain as unknown, and a send stops with `<rpc> serves chain <id>, not <expected>`.
 
-`show`'s balances are the exception: they are a convenience, read without the chain id check.
+`show`'s balances are the exception: they are a convenience, read without the chain id check. So
+are the token balances on a satchel's page.
+
+A satchel's history, on its page and from `satchel-nft history` (not in 0.1.0), reads a fourth
+source: FastNEAR's transaction index, `https://tx.test.fastnear.com` or `https://tx.main.fastnear.com`
+(`txApi` in `config.ts`). It keeps only events the Satchel contract logged in receipts that
+succeeded, but an index that leaves transactions out changes what the history shows. The report
+never reads it.
 
 ## How each read is pinned
 

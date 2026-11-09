@@ -129,6 +129,19 @@ The contract refuses a purchase before it moves anything, and refunds what you a
 | `Enter the receiver's NEAR account, like friend.testnet` | Not a valid account id | Fix it |
 | `Approval extension is disabled` | The caller doesn't own the satchel | Sign as the owner |
 
+## The history or the balances look wrong
+
+Neither is part of the report, so nothing here changes a verdict.
+
+| You see | Why | What to do |
+| --- | --- | --- |
+| `The history couldn't be shown. The report doesn't use it.` | The History card failed to render | Reload the page. The report above it is unaffected |
+| `https://tx.test.fastnear.com/v0/account answered <status>` | FastNEAR's transaction index refused or rate-limited the read | Click **Try again** in a minute |
+| `… of the contract's transactions, not all of them, so the oldest are missing.` | The history reads the contract's 1,000 newest transactions at most | Look up older ones on the explorer. The signing record holds every signature |
+| `It shows <n> signature(s); the contract's record counts <m>. The record is what the report checks.` | The index left a transaction out, or hasn't caught up | Trust the record: `satchel-nft record <id>` prints it |
+| A token you sent isn't in **What's inside** | Only USDC, USDT and WETH at their listed addresses are read, and a zero balance is hidden | Open the chain's explorer from the page; it shows every token |
+| `<symbol> unavailable` | That chain's RPC didn't answer | Click **Check again** on the report |
+
 ## Wallet problems
 
 | You see | Cause | Fix |

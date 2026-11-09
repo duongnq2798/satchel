@@ -33,9 +33,12 @@ On `/mainnet` pages you pay real NEAR for an address that may hold real funds. S
 
    [The clean transfer report](/docs/concepts/clean-transfer-report) explains each check.
 
-3. **Check its balances.** Under the address, the page shows the native balance on each of the network's 8
-   chains, each linked to its explorer. Tokens such as USDC aren't listed in the app yet: look them up on the
-   explorer.
+3. **Check what's inside, and its history.** Under the address, **What's inside** shows the native balance on
+   each of the network's 8 chains, and USDC, USDT and WETH where it holds some, each chain linked to its
+   explorer. Any other token, a look-alike included, isn't read: look it up on the explorer. Below the report,
+   **History** lists the mint, transfers, signatures, listings and sales, each linked to its NEAR transaction.
+   Neither card is part of the report. The history comes from FastNEAR's transaction index, and the card warns
+   when it counts a different number of signatures than the record, which is what the report checks.
 
 4. **Click Buy for … NEAR** in the **For sale** card, and approve `buy` in your wallet. Its arguments are the
    token id, the record version and the price; its deposit is the price; gas is 100 TGas. If you aren't

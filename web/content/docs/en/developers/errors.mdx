@@ -146,7 +146,7 @@ the same thing twice. The message names what to check, and with `--json` the obj
 
 | Message | Cause |
 | --- | --- |
-| `Unknown command <name>` | Not one of `verify`, `show`, `record`, `market`, `mint`, `list`, `delist`, `buy`, `transfer`, `send` |
+| `Unknown command <name>` | Not one of `verify`, `show`, `record`, `market`, `mint`, `list`, `delist`, `buy`, `transfer`, `send`, or, built from this repository, `history` |
 | `<command> does not take --<option>` | An option that belongs to another command. `satchel-nft buy 4 --value 1` is an error, not a purchase |
 | `usage: satchel-nft <command> <arguments>` | Too many or too few positional arguments |
 | `A token id is a whole number, like 1, not <text>` | The id is not a `u64` in decimal |

@@ -41,8 +41,9 @@ node packages/satchel-nft/bin/satchel-nft.js verify 1
 | Command | Signs? | What it does |
 | --- | --- | --- |
 | [`verify <id>`](#verify) | No | The clean transfer report. Exits 0 only when it reads `PROVABLY CLEAN` |
-| [`show <id>`](#show) | No | Owner, path, address, listing, and the native balance on each of the network's 8 EVM chains |
+| [`show <id>`](#show) | No | Owner, path, address, listing, and the native balance on each of the network's 8 EVM chains; from this repository, its USDC, USDT and WETH too |
 | [`record <id>`](#record) | No | The signing record, as the contract returns it |
+| [`history <id>`](#history) | No | Its mint, owners, signatures, listings and sales, from FastNEAR's transaction index. In this repository, not in 0.1.0 |
 | [`market`](#market) | No | Every listing, with its report's verdict |
 | [`mint`](#mint) | Yes | Mints a satchel for 0.1 NEAR |
 | [`list <id> <price>`](#list-and-delist) | Yes | Lists it for `<price>` NEAR. It can't sign until it is sold, delisted or transferred |
@@ -50,6 +51,9 @@ node packages/satchel-nft/bin/satchel-nft.js verify 1
 | [`buy <id>`](#buy) | Yes | Buys it at its listed price, only if its report reads `PROVABLY CLEAN` |
 | [`transfer <id> <account>`](#transfer) | Yes | Gives it to another NEAR account |
 | [`send <id> --chain … --to … --value …`](#send) | Yes | Sends from its address on one of the network's EVM chains |
+
+`history`, and the tokens `show` prints, are in this repository's code and come with the next npm
+release; to run them now, build the checkout as shown above.
 
 Every command reads NEAR testnet unless you pass `--network mainnet`. A token id is a whole number
 up to the `u64` maximum, like `1` (leading zeros are dropped, so `007` is `7`); anything else stops
@@ -247,6 +251,21 @@ A balance it could not read prints `unavailable`. With `--json`:
 (Six more `balances` entries are left out above.) `wei` is a decimal string, or `null` when that
 chain could not be read.
 
+Built from this repository, `show` also reads USDC, USDT and WETH at the one address per chain that
+their issuer or the chain lists (Uniswap's deployment list, for WETH on Sepolia): 22 deployments on
+the mainnets, 11 on the testnets. On each chain's line it prints, after the native coin, every token
+that holds something or couldn't be read, with the symbol its contract reports (`USD₮0` on
+Arbitrum, `WETH.e` on Avalanche). A zero balance is left out, and tokens at any other address
+aren't read; the chain's explorer shows them. A last line says so:
+
+```text
+USDC, USDT and WETH are read at the addresses their issuers or the chains list (Uniswap's, for WETH on Sepolia); other tokens aren't.
+```
+
+With `--json`, each `balances` entry gains `tokens`: one object per listed token, with `kind`
+(`USDC`, `USDT` or `WETH`), `symbol`, `address`, `decimals` and `amount`, a decimal string in the
+token's smallest unit or `null`. None of these balances is part of the report.
+
 ### record
 
 ```text
@@ -305,6 +324,84 @@ npx -y satchel-nft@0.1.0 record 3 --json
 ```
 
 The [contract reference](/docs/developers/contract#json-types) explains every field.
+
+### history
+
+```text
+satchel-nft history <id> [--network testnet|mainnet] [--json]
+```
+
+Lists everything the Satchel contract logged about the satchel, oldest first: its mint, transfers,
+signatures, listings, delistings and sales, each with its NEAR transaction. It is in this
+repository's code, not in 0.1.0; build the checkout first, then:
+
+```bash
+node packages/satchel-nft/bin/satchel-nft.js history 7
+```
+
+```text
+Satchel #7's history on v1.satchel-nft.testnet (testnet), oldest first
+
+2026-11-09 15:04Z  minted to satchel-nft.testnet  https://testnet.nearblocks.io/txns/FyT2ELA2jigMegAiVnMVAm3C4ESiVRiMSDJ6CQMBokTh
+2026-11-09 15:05Z  satchel-nft.testnet had a send of 0.0001 ETH to 0x000000000000000000000000000000000000dEaD signed on Sepolia, nonce 0  https://testnet.nearblocks.io/txns/3u7kDzeB6zMSdC6Ddbvm55qoGwwoP1YxvMH3T9PvUYAL
+2026-11-09 15:06Z  satchel-nft.testnet listed it for 0.5 NEAR  https://testnet.nearblocks.io/txns/AkqiPEQUVXjmaFdr8fKRVd4f7CyFrER6V6EkRd4ZgzMF
+2026-11-09 15:06Z  satchel-nft.testnet delisted it  https://testnet.nearblocks.io/txns/2g9KsqmKVQGiSNSJMGkMo7WpdxakVji8BkRPg7ZnBBAL
+2026-11-09 15:06Z  satchel-nft.testnet listed it for 0.5 NEAR  https://testnet.nearblocks.io/txns/7guTVgDqjx1gwCnMjeyMipg9TGMwBHxf5cLhBFap4qC9
+2026-11-09 15:24Z  satchel-nft.testnet sold it to buyer.satchel-nft.testnet for 0.5 NEAR  https://testnet.nearblocks.io/txns/BcrTmMCqdYGdCXDHH4fZqUHCy8bYdnUXLx3JS94jKUHX
+2026-11-09 15:24Z  buyer.satchel-nft.testnet gave it to satchel-nft.testnet  https://testnet.nearblocks.io/txns/8TKVW1K3KwZ91PDJcjXmEQ8XA7vfq1AeH4B7FqHpsETH
+2026-11-09 15:33Z  satchel-nft.testnet listed it for 0.5 NEAR  https://testnet.nearblocks.io/txns/6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc
+2026-11-09 15:33Z  satchel-nft.testnet delisted it  https://testnet.nearblocks.io/txns/G2EC3pQ7gF51nVjpsFNdefwvTe7Y43yzskACqVSeJUU8
+
+Read from https://tx.test.fastnear.com: 39 of the contract's transactions.
+```
+
+The history comes from FastNEAR's transaction index (`tx.test.fastnear.com`, `tx.main.fastnear.com`
+on mainnet), not from the contract's state, and the report never reads it. It keeps only events the
+Satchel contract logged in receipts that succeeded. A sale shows once: the transfer from the seller
+to the buyer that `buy` also logs is left out. It reads the contract's 1,000 newest transactions at
+most; when the index holds more, the last line ends `not all of them, so the oldest are missing`.
+When it counts a different number of signatures than the record, it adds
+`It shows <n> signature(s); the contract's record counts <m>. The record is what the report checks.`
+
+With `--json` (two of the nine entries shown):
+
+```json
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "tokenId": "7",
+  "entries": [
+    {
+      "kind": "mint",
+      "owner": "satchel-nft.testnet",
+      "tx": "FyT2ELA2jigMegAiVnMVAm3C4ESiVRiMSDJ6CQMBokTh",
+      "block": 276936040,
+      "at": 1794236690580,
+      "caller": "satchel-nft.testnet"
+    },
+    {
+      "kind": "sign_evm",
+      "chainId": "11155111",
+      "nonce": "0",
+      "to": "0x000000000000000000000000000000000000dEaD",
+      "value": "100000000000000",
+      "class": "value_transfer",
+      "tx": "3u7kDzeB6zMSdC6Ddbvm55qoGwwoP1YxvMH3T9PvUYAL",
+      "block": 276936151,
+      "at": 1794236757851,
+      "caller": "satchel-nft.testnet"
+    }
+  ],
+  "scanned": 39,
+  "complete": true,
+  "source": "https://tx.test.fastnear.com",
+  "signatures": { "history": 1, "record": 1 }
+}
+```
+
+`kind` is `mint`, `transfer`, `sign_evm`, `sign_raw`, `list`, `delist` or `sale`; `at` is
+milliseconds since the epoch, from the block that ran the contract's receipt; `caller` is the
+account that called the contract. `complete` is `false` when the oldest entries are missing.
 
 ### market
 

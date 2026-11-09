@@ -476,6 +476,46 @@ limits](/docs/developers/rpc-and-finality) covers finality and choosing nodes.
   const reports = await Promise.all(ids.map((id) => limit(() => buildReport(TESTNET, id, facts))));
   ```
 
+## What a satchel holds, and its history
+
+<Callout type="note" title="Not in 0.1.0">
+These exports are in this repository's `packages/satchel-nft` and come with the next release. The
+report reads none of them: they are for display.
+</Callout>
+
+From `contents.ts`, `history.ts` and `evm.ts`.
+
+| Export | Signature | What it is |
+| --- | --- | --- |
+| `TOKENS` | `Readonly<Record<number, readonly TokenInfo[]>>` | USDC, USDT and WETH by chain id, where the issuer or the chain lists a deployment (Uniswap's list, for WETH on Sepolia): 22 on the mainnets, 11 on the testnets. The source of each is in [`contents.ts`](https://github.com/duongnq2798/satchel/blob/dev/packages/satchel-nft/src/contents.ts) |
+| `TokenInfo` | `{ kind, symbol, address, decimals }` | `kind` is `"USDC" \| "USDT" \| "WETH"`; `symbol` is what the token's contract reports, like `"USD₮0"` |
+| `contents(net, address)` | `=> Promise<ChainContents[]>` | What an address holds on each of `sendChains(net)`, read now |
+| `chainContents(chain, address)` | `(chain: ChainInfo, address: Address) => Promise<ChainContents>` | The same for one chain |
+| `ChainContents` | `{ chain, native, tokens: { token, amount }[] }` | `native` and each `amount` are `bigint`, or `null` when the RPC didn't answer |
+| `formatAmount(amount, decimals)` | `(amount: bigint, decimals: number) => string` | Like `formatBalance`, for any number of decimals |
+| `tokenHistory(net, tokenId, maxTransactions?)` | `=> Promise<History>` | The events the contract logged about a token, oldest first, from FastNEAR's transaction index (`net.txApi`). Reads at most `maxTransactions` (default 1,000) of the contract's newest transactions |
+| `History` | `{ entries, scanned, complete, source }` | `complete` is `false` when the index holds more transactions than were read |
+| `HistoryEntry` | `HistoryEvent & { tx, block, at, caller }` | One event, with its NEAR transaction, block, time in ms and the calling account |
+| `HistoryEvent` | union on `kind` | `mint`, `transfer`, `sign_evm`, `sign_raw`, `list`, `delist`, `sale`, with the fields the contract logged |
+| `eventsIn(net, tx, tokenId)` | `(net, tx: IndexedTx, tokenId: string) => HistoryEntry[]` | The events in one indexed transaction: only the contract's own logs, from receipts that succeeded, and a sale without the transfer it also logs |
+| `describeEntry(entry)` | `(e: HistoryEntry) => string` | One line, like `satchel-nft.testnet listed it for 0.5 NEAR` |
+| `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
+
+`Network` also gains `txApi`: `https://tx.test.fastnear.com` on testnet,
+`https://tx.main.fastnear.com` on mainnet.
+
+```ts title="history.ts"
+import { TESTNET, describeEntry, satchel, signatureCounts, tokenHistory } from "satchel-nft";
+
+const view = await satchel(TESTNET).get("7");
+if (view === null) throw new Error("No such satchel");
+const history = await tokenHistory(TESTNET, view.token_id);
+for (const entry of history.entries) console.log(describeEntry(entry));
+
+const counts = signatureCounts(history, view.record);
+if (counts.history !== counts.record) console.log("The index and the record disagree; trust the record.");
+```
+
 ## Related
 
 - [Build a feed of clean listings](/docs/tutorials/clean-listings-feed): a complete script with
