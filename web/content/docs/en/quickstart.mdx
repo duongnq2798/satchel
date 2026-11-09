@@ -1,0 +1,202 @@
+You don't need a wallet, a key or a NEAR account to see what Satchel does. Every satchel's signing record
+is public, and the report that checks it reads only public data: the Satchel contract on NEAR, and each
+EVM chain the record lists. This page runs that report twice, once in your browser and once in your
+terminal, on satchels that live on NEAR testnet.
+
+## What you need
+
+- A browser, for the first path.
+- [Node.js](https://nodejs.org) 22 or later, for the second. `npx` comes with it. Nothing else to install
+  and nothing to clone.
+
+## In your browser
+
+<Steps>
+
+1. **Open [satchelnft.xyz/verify](https://satchelnft.xyz/verify).** The page is titled "Verify a satchel"
+   and has one field, a token id, set to `1`.
+
+2. **Click "Check it".** The app opens [satchel #1's page](https://satchelnft.xyz/satchel/1). Your browser
+   reads the satchel from `v1.satchel-nft.testnet`, derives its address from NEAR's MPC contract, then
+   reads Sepolia at its latest finalized block. The "Clean transfer report" card fills in four checks.
+
+3. **Read the verdict.** Satchel #1 reads <Verdict v="clean" />: all four checks pass. Under the report,
+   the page names the record version it read and every RPC it asked.
+
+4. **Now try a satchel that hides something.** Go back, enter `5` and click "Check it". Satchel #5 reads
+   <Verdict v="not-provable" />: "A signed transaction may still be pending". Its seller had a 10,000 ETH
+   send signed on Sepolia and never broadcast it.
+
+</Steps>
+
+<Figure
+  src="/docs/app-report-5.png"
+  alt="Satchel #5's page on testnet: its address with 0 balances on the 8 testnets, and its clean transfer report reading Not provable because a transaction signed at nonce 0 on Sepolia may still be pending; the other three checks pass."
+  caption="Satchel #5 on testnet: three checks pass, one fails, so the verdict is Not provable."
+/>
+
+The landing page has the same demo satchels side by side. Open
+[satchelnft.xyz/#examples](https://satchelnft.xyz/#examples), under "Try to cheat the buyer.", and pick a
+move: "Play fair" (#1), "Keep a signed withdrawal" (#5), "Leave an approval behind" (#3) or "Sign a raw
+payload" (#6). Each runs the report live and picks out the check that catches it. The last two moves,
+"Sign while it's listed" and "Change it after the buyer checked", show calls the contract refused on
+chain. [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer) walks through every one.
+
+## In your terminal
+
+The npm package [`satchel-nft`](https://www.npmjs.com/package/satchel-nft) is the code the web app runs.
+Its command `satchel-nft verify` builds the same report.
+
+<Steps>
+
+1. **Run the report for satchel #1.** `-y` lets `npx` install the package without asking. The first run
+   downloads it, which can take a minute or more; later runs take seconds.
+
+   ```bash
+   npx -y satchel-nft@0.1.0 verify 1
+   ```
+
+   ```text
+   Satchel #1 on v1.satchel-nft.testnet (testnet)
+   owner buyer.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, record version 7
+
+   [PASS] The contract can't sign behind the record
+          No access keys, so no one can redeploy it or sign as it
+          Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+          Signs only through v1.signer-prod.testnet
+
+   [PASS] No signed transaction is still pending
+          Sepolia: signed up to nonce 4, finalized nonce is 5
+
+   [PASS] No approval left behind
+          No approval was ever signed for this token
+
+   [PASS] Nothing the record can't explain
+          0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+   PROVABLY CLEAN (checked 2026-11-09T17:04:02.935Z)
+   read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+   ```
+
+2. **Run it for satchel #5, and print the exit code.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"
+   ```
+
+   ```text
+   Satchel #5 on v1.satchel-nft.testnet (testnet)
+   owner satchel-nft.testnet, address 0x81149BF1C907579A150e9AB882E951B648853dA3, record version 1
+
+   [PASS] The contract can't sign behind the record
+          No access keys, so no one can redeploy it or sign as it
+          Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+          Signs only through v1.signer-prod.testnet
+
+   [FAIL] A signed transaction may still be pending
+          Sepolia: signed up to nonce 0, finalized nonce is 0. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce 0 is final
+
+   [PASS] No approval left behind
+          No approval was ever signed for this token
+
+   [PASS] Nothing the record can't explain
+          0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+   NOT PROVABLE (checked 2026-11-09T17:04:27.492Z)
+   read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+   exit 1
+   ```
+
+   In PowerShell, print the code with `npx -y satchel-nft@0.1.0 verify 5; $LASTEXITCODE` instead.
+
+3. **Read a satchel on mainnet.** `--network mainnet` reads `v1.satchel-nft.near` and the 8 EVM mainnets.
+   Satchel #1 on mainnet has sent once, on Base:
+
+   ```bash
+   npx -y satchel-nft@0.1.0 verify --network mainnet 1
+   ```
+
+   ```text
+   Satchel #1 on v1.satchel-nft.near (mainnet)
+   owner satchel-nft.near, address 0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9, record version 1
+
+   [PASS] The contract can't sign behind the record
+          No access keys, so no one can redeploy it or sign as it
+          Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+          Signs only through v1.signer
+
+   [PASS] No signed transaction is still pending
+          Base: signed up to nonce 0, finalized nonce is 1
+
+   [PASS] No approval left behind
+          No approval was ever signed for this token
+
+   [PASS] Nothing the record can't explain
+          0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+   PROVABLY CLEAN (checked 2026-11-09T17:04:42.686Z)
+   read from https://rpc.mainnet.fastnear.com, https://base-rpc.publicnode.com
+   ```
+
+</Steps>
+
+Satchel #1 on testnet and satchel #1 on mainnet are different tokens with different addresses: each
+network has its own contract, and an address is derived from the contract's account.
+
+## How to read a report
+
+| Line | What it tells you |
+| --- | --- |
+| `Satchel #1 on v1.satchel-nft.testnet (testnet)` | Which token, on which contract and network |
+| `owner …, address 0x…, record version 7` | The NEAR account that owns it now, its EVM address (the same on all 16 chains), and how many times its record has changed |
+| `[PASS]`, `[FAIL]` or `[????]`, and four titles | The four checks, each with the facts it read. `[????]` is a check that couldn't be read: never a pass |
+| `listed by … at record version …` | Shown only when the satchel is for sale: the seller, and the record version the listing pinned |
+| `Sepolia: signed up to nonce 4, finalized nonce is 5` | The highest nonce the contract ever signed on that chain, and the address's nonce at the chain's latest finalized block. The check passes when the second is higher |
+| `PROVABLY CLEAN`, `NOT PROVABLE` or `COULD NOT CHECK EVERYTHING` | The verdict. Clean only when all four checks pass |
+| `read from …` | Every RPC the facts came from. The report is only as honest as these nodes |
+
+[The clean transfer report](/docs/concepts/clean-transfer-report) explains each check and status.
+
+## Exit codes
+
+`satchel-nft verify` is made for scripts as well as people.
+
+| Code | Meaning for `verify` |
+| --- | --- |
+| `0` | The report reads `PROVABLY CLEAN` |
+| `1` | It doesn't: a check failed, a check couldn't be read, or there is no satchel with that id (`No satchel #999999 on v1.satchel-nft.testnet`) |
+| `2` | It could not run: bad arguments, or a `NEAR_RPC` that serves the other network |
+
+Add `--json` to get the report as JSON. [CLI reference](/docs/developers/cli) has every command and option.
+
+## If something goes wrong
+
+- **`COULD NOT CHECK EVERYTHING` right after a satchel sends.** The report reads each chain at its
+  finalized block. On Sepolia that is about 13 minutes behind; on Base it took about 20 minutes for
+  mainnet satchel #1. Run it again later.
+- **A check says it couldn't read a chain.** A public RPC was down or rate limited you. Run it again, or
+  read from your own node: `RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1`.
+  See [RPCs, finality and rate limits](/docs/developers/rpc-and-finality).
+- **The command fails before printing a report.** `satchel-nft` needs Node.js 22 or later; check with
+  `node --version`.
+- **A demo satchel reads differently from this page.** Satchels #4 and #6 are for sale on testnet, and
+  anyone may buy and then sign with one, which changes its record. That is the report working.
+
+More in [Troubleshooting](/docs/troubleshooting).
+
+## Next steps
+
+<Cards>
+  <Card href="/docs/how-it-works" eyebrow="Everyone" title="How Satchel works">
+    What happens between a signature and a report, on one page.
+  </Card>
+  <Card href="/docs/guides/buy" eyebrow="Buyers and owners" title="Buy a satchel">
+    Read a report before you pay, and buy at the version you checked.
+  </Card>
+  <Card href="/docs/developers" eyebrow="Developers" title="Build on Satchel">
+    Put the same report in your app with the `satchel-nft` library.
+  </Card>
+  <Card href="/docs/security/check-every-claim" eyebrow="Evaluators" title="Check every claim">
+    One command checks the deployments themselves against the chain.
+  </Card>
+</Cards>

@@ -128,8 +128,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  97 passed (97)` for `satchel-nft`, then
-`Tests  3 passed (3)` for the app, then no type errors.
+Each runs in both workspaces. You should see `Tests  114 passed (114)` for `satchel-nft`, then
+`Tests  15 passed (15)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -194,6 +194,8 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | The CLI asks before it sends, and refuses to sign without a terminal unless given `--yes` | `submit`, `confirm` in `packages/satchel-nft/src/cli.ts` | manual, on testnet ([`deployments/testnet-cli.json`](deployments/testnet-cli.json)) |
 | The CLI buys only a satchel whose report reads `PROVABLY CLEAN` (unless `--accept-not-clean`), naming the record version and price that report read | `buy` in `cli.ts` | manual, on testnet |
 | Every CLI option belongs to one command, so an option meant for another is an error | `parseCli` in `packages/satchel-nft/src/cli-args.ts` | `cli-args.test.ts` |
+| A satchel's history shows only events the network's Satchel contract logged about that token, in receipts that succeeded, oldest first, and a sale once, not also as the seller-to-buyer transfer it logs. A bad block time skips the receipt, and an error in the card can't unmount the report (`Contained` in `web/src/components/history.tsx`). It is display only: the report never reads it | `eventsIn`, `tokenHistory` in `packages/satchel-nft/src/history.ts` | `history.test.ts`, on satchel #7's real transactions |
+| What a satchel holds is read at one listed address per token on each chain, checksummed, with the symbol and decimals its contract reports. Display only | `TOKENS`, `chainContents` in `packages/satchel-nft/src/contents.ts` | `contents.test.ts`; on chain, `node scripts/check-tokens.mjs` after `npm run build -w satchel-nft` |
 
 ## What Satchel does not claim
 
@@ -231,3 +233,7 @@ The full list, with what stops each attack and what is left, is in
   keychain (`~/.near-credentials` unless `--keychain os`); neither reads a key. Never commit a key, a seed phrase or an RPC key.
 - **Docs:** keep [README.md](README.md), [CHANGELOG.md](CHANGELOG.md) (under Unreleased) and the
   package's [README](packages/satchel-nft/README.md), which npm shows, in step with the change. A claim the README makes should be checkable by a command, like the ones above.
+  The documentation at <https://satchelnft.xyz/docs> is `web/content/docs`, ordered by
+  `web/src/lib/docs/nav.ts`; a page that describes what you changed changes with it.
+  [`web/content/README.md`](web/content/README.md) says how, and `docs.test.ts` fails on a page
+  without a file or a link to a page or heading that doesn't exist.

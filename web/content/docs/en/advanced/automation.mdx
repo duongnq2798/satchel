@@ -1,0 +1,261 @@
+The CLI's read commands are made for scripts: `--json` puts one JSON object on stdout, and the exit
+code alone tells a script whether a satchel is clean. Use them to check a satchel before a bot buys
+it, to watch the market, or to fail a CI job when a satchel you hold stops being clean. The sign
+commands can run unattended too, but only with `--yes`, which takes away the last check a person
+makes. Read [Sign commands without a person](#sign-commands-without-a-person) before you use it.
+
+## What you need
+
+- Node.js 22 or later.
+- `satchel-nft`, pinned: `npx -y satchel-nft@0.1.0`, or `npm install satchel-nft@0.1.0` in your
+  project.
+- For sign commands only: near-cli-rs and the signing account's key in its keychain. Read commands
+  need no key.
+
+## Exit codes are the contract
+
+Every command ends with one of four exit codes. A script should branch on the code first and read
+the output second.
+
+| Code | Meaning | What a script should do |
+| --- | --- | --- |
+| `0` | Done. For `verify`: `PROVABLY CLEAN` | Go on |
+| `1` | The answer is no: not clean, no such satchel, refused, or the transaction failed on chain | Stop, and don't retry the same thing |
+| `2` | It could not run: bad arguments, a node for the wrong network, an RPC error, no near CLI, no terminal | Fix the cause; for an RPC error, retry later |
+| `3` | It sent a transaction but couldn't read its outcome | Look the transaction up before anything else. See [Handle exit code 3](#handle-exit-code-3) |
+
+`verify` exits 1 for `NOT PROVABLE` and for `COULD NOT CHECK EVERYTHING` alike: anything that isn't
+provably clean is a no. Read `verdict` in the JSON to tell them apart; `"unknown"` usually clears
+when you try again later.
+
+<Tabs labels={["bash", "PowerShell"]}>
+<Tab>
+
+```bash title="check.sh"
+npx -y satchel-nft@0.1.0 verify 1 --json > report.json
+case $? in
+  0) echo "clean at record version $(node -p 'require("./report.json").recordVersion')" ;;
+  1) echo "not clean: $(node -p 'require("./report.json").verdict ?? require("./report.json").error')"; exit 1 ;;
+  *) echo "could not check"; exit 2 ;;
+esac
+```
+
+</Tab>
+<Tab>
+
+```powershell title="check.ps1"
+$json = npx -y satchel-nft@0.1.0 verify 1 --json | Out-String
+$code = $LASTEXITCODE
+$report = $json | ConvertFrom-Json
+switch ($code) {
+  0 { "clean at record version $($report.recordVersion)" }
+  1 { "not clean: $($report.verdict) $($report.error)"; exit 1 }
+  default { "could not check: $($report.error)"; exit 2 }
+}
+```
+
+</Tab>
+</Tabs>
+
+## Read the JSON
+
+With `--json`, stdout holds exactly one JSON object, and an error is `{"error": "…"}` with the same
+exit code as without `--json`. Numbers that can be large (prices in yoctoNEAR, wei, nonces, record
+versions) are decimal strings; parse them with `BigInt`, never `Number`.
+
+| Command | Top-level fields |
+| --- | --- |
+| `verify` | `network`, `contract`, `tokenId`, `owner`, `address`, `recordVersion`, `listing`, `checks`, `verdict`, `checkedAt`, `sources` |
+| `show` | `network`, `contract`, `tokenId`, `owner`, `path`, `address`, `recordVersion`, `listing`, `balances` |
+| `record` | `network`, `contract`, `tokenId`, `owner`, `record` |
+| `history` (not in 0.1.0) | `network`, `contract`, `tokenId`, `entries`, `scanned`, `complete`, `source`, `signatures` |
+| `market` | `network`, `contract`, `listings` (each with `verdict` and the `recordVersion` its report read) |
+
+The [CLI reference](/docs/developers/cli) shows each one in full.
+
+### From Node
+
+`execFile` runs the CLI without a shell, so no argument is ever parsed by one. Install the package in
+your project and run its `bin` file with the same Node:
+
+```js title="check.mjs"
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
+const CLI = "node_modules/satchel-nft/bin/satchel-nft.js";
+
+/** Runs a read command with --json and returns its exit code and output. */
+async function satchelNft(...args) {
+  try {
+    const { stdout } = await run(process.execPath, [CLI, ...args, "--json"]);
+    return { code: 0, json: JSON.parse(stdout) };
+  } catch (err) {
+    if (typeof err.code !== "number") throw err; // Node itself didn't start
+    return { code: err.code, json: err.stdout ? JSON.parse(err.stdout) : null };
+  }
+}
+
+for (const id of ["1", "5", "999", "abc"]) {
+  const { code, json } = await satchelNft("verify", id);
+  if (code === 0) console.log(`#${id}: clean at record version ${json.recordVersion}`);
+  else if (code === 1) console.log(`#${id}: not clean (${json.verdict ?? json.error})`);
+  else console.log(`#${id}: could not run: ${json?.error}`);
+}
+```
+
+On testnet it printed:
+
+```text
+#1: clean at record version 7
+#5: not clean (not-provable)
+#999: not clean (No satchel #999 on v1.satchel-nft.testnet)
+#abc: could not run: A token id is a whole number, like 1, not abc
+```
+
+If your code is already TypeScript or JavaScript, the [library](/docs/developers/library) gives you
+the same report as an object, with no process to start.
+
+## A scheduled check in CI
+
+This GitHub Actions workflow builds the report for a satchel you hold every six hours, and fails
+when it isn't clean. It reads only, so it needs no secret.
+
+```yaml title=".github/workflows/satchel.yml"
+name: satchel
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npx -y satchel-nft@0.1.0 verify --network mainnet 1
+```
+
+The job's log holds the whole report, with the nodes it read. A failed run can mean two things: the
+satchel isn't clean, or a node couldn't be read (`COULD NOT CHECK EVERYTHING`, or exit 2). Read the
+log before you act on it. To read from your own nodes, set `NEAR_RPC` and `RPC_<chain id>` from
+repository secrets, since provider URLs often hold an API key.
+
+## Watch the market
+
+`market --json` builds every listing's report. Filter on `verdict` and keep `recordVersion`: it is
+the version a purchase must name.
+
+```js title="clean-listings.mjs"
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
+const { stdout } = await run(process.execPath, ["node_modules/satchel-nft/bin/satchel-nft.js", "market", "--json"]);
+const { listings } = JSON.parse(stdout);
+for (const l of listings.filter((l) => l.verdict === "clean")) {
+  console.log(`#${l.tokenId}: ${BigInt(l.price)} yoctoNEAR, record version ${l.recordVersion}`);
+}
+```
+
+`market` builds three reports at a time and shares one read of the contract's facts. Run it every few
+minutes, not every few seconds: the default nodes are free public ones, and a report that couldn't be
+read counts as `unknown`. [RPCs, finality and rate limits](/docs/developers/rpc-and-finality) has
+more.
+
+A clean verdict in the market list is a reason to look, not to pay. `buy` builds its own report again
+right before it signs, and the contract refuses the sale if the record changed after that.
+
+## Sign commands without a person
+
+A sign command asks `Send it? Type yes to send:` after it shows what the near CLI signed. A script
+can't answer, and when there is no terminal the command stops:
+
+```text
+There is no terminal to ask in, or stderr is redirected. In Git Bash's mintty window, try PowerShell or cmd; or pass --yes to sign without asking. Nothing was signed.
+```
+
+That is exit code 2. `--yes` sends without asking. Every other check still runs: the account belongs
+to the network, the contract passes its own check, the near CLI signed exactly what was asked, and
+the command's own refusals (not the owner, not listed, a report that isn't clean, a receiver that
+doesn't exist).
+
+<Callout type="danger" title="--yes signs whatever the arguments say">
+With `--yes`, nobody reads the transaction before it is sent. A wrong price, receiver, `--to` or
+`--value` in your script is sent as written. On mainnet that is real NEAR and real funds. Keep
+`--yes` for testnet, or for a script whose every argument you control, and never build arguments
+from input you don't trust.
+</Callout>
+
+If you do sign from a script:
+
+- **Pass `--network` every time.** The default is testnet.
+- **Pass `--as` from configuration, not input.** It names the key the near CLI signs with.
+- **Pin the near CLI with `--near-cli <absolute path>`** or `NEAR_CLI`, so the script never depends on
+  `PATH`.
+- **Keep `buy` strict.** Don't pass `--accept-not-clean` in automation.
+- **Store keys like any secret.** The near CLI reads `~/.near-credentials` (`--keychain legacy`, the
+  default) or the OS keychain (`--keychain os`). Never commit either, and never put a seed phrase in
+  a CI variable for a mainnet account that holds anything.
+- **Log stderr.** It holds the description of every transaction the near CLI signed.
+
+`satchel-nft` never reads the key itself. It runs the near CLI with `display`, so the near CLI signs
+without sending, and sends the transaction only after its own checks.
+
+Git Bash's own window (mintty) can give Node no terminal even when you are sitting at it. Run sign
+commands from PowerShell or cmd there, or pass `--yes`.
+
+## Handle exit code 3
+
+Exit code 3 means a transaction may have gone through. Never run the same command again before you
+know: a second `buy` could pay twice, a second `send` could send twice.
+
+With `--json`, the error object names the transaction:
+
+```json
+{ "error": "Sent <hash>, but its outcome couldn't be read: …", "status": "unknown", "nearTx": "<hash>" }
+```
+
+For a `send` whose EVM transaction was broadcast, it names that one instead:
+
+```json
+{ "error": "Broadcast <evmTx> on <chain>, but …", "status": "unknown", "chainId": 11155111, "evmTx": "0x…", "nonce": "…" }
+```
+
+<Steps>
+
+1. **Stop the script.** Record the hash, and for a send, the chain id and nonce.
+
+2. **Look the transaction up.** A NEAR transaction is at `https://nearblocks.io/txns/<hash>` (mainnet)
+   or `https://testnet.nearblocks.io/txns/<hash>` (testnet). An EVM transaction is on that chain's
+   explorer.
+
+3. **Read the state, not the output.** `satchel-nft show <id>` gives the owner and listing; `record
+   <id>` shows whether the record's version moved. For a send, the address's nonce on that chain
+   tells you whether the nonce was spent.
+
+4. **Retry only if nothing happened.** For a send, mind the signature: it is public in the NEAR
+   receipt, so anyone can broadcast it until that nonce is spent, and the satchel's report can't
+   read `PROVABLY CLEAN` until a transaction at that nonce is final.
+
+</Steps>
+
+## If something goes wrong
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| Exit 2, `… serves NEAR mainnet, not testnet` | `NEAR_RPC` points at the other network | Fix `NEAR_RPC`, or pass the matching `--network` |
+| Exit 2, `NEAR RPC query failed: HTTP 429` or similar | The node rate limited you or failed | Wait and retry, or use your own node |
+| `verify` exits 1 with verdict `unknown` | An EVM read failed, or a recent block isn't finalized yet | Retry later; it is not a reason to buy or to panic |
+| Exit 2, `There is no terminal to ask in …` | A sign command with no terminal and no `--yes` | Run it from a terminal, or decide to use `--yes` |
+| Exit 2, `No near in PATH's absolute folders …` | The near CLI isn't installed or isn't found | Pass `--near-cli <absolute path>` |
+| JSON parse error in your script | You parsed stderr, or a command that was killed | Parse stdout only, and check the exit code first |
+
+## Next steps
+
+- [CLI reference](/docs/developers/cli): every command, option and output.
+- [RPCs, finality and rate limits](/docs/developers/rpc-and-finality): run against your own nodes.
+- [Build a feed of clean listings](/docs/tutorials/clean-listings-feed): the same with the library.
+- [Production checklist](/docs/advanced/production-checklist): before you run it on mainnet.

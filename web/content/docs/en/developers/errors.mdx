@@ -1,0 +1,278 @@
+Satchel refuses things in four places: the contract, before it changes anything; the
+`satchel-nft` CLI and library, before anything is signed; the web app, before your wallet opens;
+and the report, which says what it could not prove. This page lists every message each one can give,
+what causes it and what to do. If you start from a symptom rather than a message,
+[Troubleshooting](/docs/troubleshooting) is organized that way.
+
+## Contract errors
+
+A contract error is a panic: the transaction fails, nothing it would have changed is saved, and any
+deposit you attached comes back to you. On NEAR the failure looks like this (the refused `sign_evm`
+on satchel #4, transaction `5ZaKqJUx…` on testnet):
+
+```json
+{"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: Satchel: signing is frozen while the token is listed"}}}}
+```
+
+The library's `failureMessage` (and so the app and the CLI) shows only the part after
+`Smart contract panicked: `. Every message the contract writes itself starts with `Satchel:`.
+
+### Who can call
+
+| Error | Methods | Cause | What to do |
+| --- | --- | --- | --- |
+| `Satchel: no such token` | `sign_evm`, `sign_raw`, `list`, `delist` | No satchel has that id on this contract | Check the id, and the network: ids differ between testnet and mainnet |
+| `Satchel: only the token's owner can do this` | `sign_evm`, `sign_raw`, `list`, `delist` | The caller doesn't own the satchel. A previous owner gets this after a sale | Sign as the owner. `satchel-nft show <id>` prints who it is |
+| `Requires attached deposit of exactly 1 yoctoNEAR` | `sign_evm`, `sign_raw`, `list`, `delist`, `nft_transfer`, `nft_transfer_call` | Not exactly 1 yoctoNEAR attached. This message is near-sdk's, not Satchel's | Attach `1 yoctoNEAR`. A function-call access key (a dapp login) can't attach a deposit, so use the owner's full-access key: a wallet confirmation |
+| `Method new is private` | `new` | Anyone but the contract account called `new`. The deployed contracts were initialized in their deploy transaction | Nothing: this is the contract protecting itself. Testnet transaction `BeoXbii9…` shows it |
+
+### Signing
+
+| Error | Methods | Cause | What to do |
+| --- | --- | --- | --- |
+| `Satchel: signing is frozen while the token is listed` | `sign_evm`, `sign_raw` | The satchel is listed. Listing freezes signing so a buyer's check can't go stale | `delist` first. Relisting afterwards pins the new record version |
+| `Satchel: attach at least 50 TGas to sign` | `sign_evm`, `sign_raw` | Less than 50 TGas prepaid | Attach more. The app and the CLI attach 300 TGas, which leaves gas for the MPC request |
+| `Satchel: chain_id is not one of the supported chains` | `sign_evm` | The chain id is not one of the 16 in `SUPPORTED_CHAINS` | Use a [supported chain](/docs/concepts/networks-and-chains). The list can't change; a new chain needs a new contract |
+| `Satchel: chain_id must be positive` | `evm_signing_hash` | Chain id 0. (`sign_evm` refuses 0 as unsupported first) | Use a supported chain id |
+| `Satchel: max_priority_fee_per_gas is above max_fee_per_gas` | `sign_evm`, `evm_signing_hash` | The tip is higher than the fee cap, which EIP-1559 doesn't allow | Raise `max_fee_per_gas` or lower the tip |
+| `Satchel: to must be 20 bytes` | `sign_evm`, `evm_signing_hash` | `to` is not a 20-byte address. Contract creation (an empty `to`) is not supported | Pass a `0x` address of 40 hex digits |
+| `Satchel: data is longer than 8 KiB` | `sign_evm`, `evm_signing_hash` | Calldata over 8,192 bytes | Split the call, or send it another way. Through `sign_raw` it would count as opaque |
+| `Satchel: to must start with 0x`, `Satchel: data must start with 0x`, `Satchel: payload must start with 0x` | `sign_evm`, `evm_signing_hash`, `sign_raw` | A hex field without its `0x` prefix. The demo gallery's first `sign_raw` hit this | Prefix the value with `0x`. Empty calldata is `0x` |
+| `Satchel: <field> has an odd number of hex digits` | the same | Hex that isn't whole bytes | Pad to an even number of digits |
+| `Satchel: <field> is not hex` | the same | A character other than `0-9`, `a-f`, `A-F` after `0x` | Fix the value |
+| `Satchel: approval calldata is too short` | `sign_evm` | The selector is an approval's (`approve`, `increaseAllowance`, `setApprovalForAll`, Permit2 `approve`) but the arguments are cut short, so the contract couldn't itemize it | Send the full ABI-encoded arguments. The contract refuses an approval it can't record rather than sign it |
+| `Satchel: payload must be 32 bytes` | `sign_raw` | The payload is not exactly 32 bytes | Pass a 32-byte hash, `0x` and 64 hex digits |
+
+### Minting
+
+| Error | Methods | Cause | What to do |
+| --- | --- | --- | --- |
+| `Satchel: attach 0.1 NEAR to mint (it pays for the token's storage)` | `mint` | Less than 0.1 NEAR attached | Attach 0.1 NEAR. Anything above it is refunded |
+
+### Listing and buying
+
+`buy` checks in this order, so the first that fails is the one you see: listed, price, record
+version, buyer, deposit.
+
+| Error | Methods | Cause | What to do |
+| --- | --- | --- | --- |
+| `Satchel: price must be positive` | `list` | A price of 0 | List for more than 0 yoctoNEAR |
+| `Satchel: token is not listed` | `delist`, `buy` | No active listing. It was bought, delisted or transferred, or a second buyer lost a race with the first | Reload the listing. On `buy`, your deposit is refunded |
+| `Satchel: the price changed` | `buy` | The price you named is not the listing's | Read the listing again, and run the report again before you buy |
+| `Satchel: the signing record changed since you checked it` | `buy` | The record version you named is not the token's current version, or not the one the listing pinned. The seller signed something after your check, for example by delisting, signing and relisting | Run the [report](/docs/concepts/clean-transfer-report) again and decide on what it says now. Testnet transaction `7HQPu9qe…` shows this, with the 1 NEAR refunded |
+| `Satchel: the seller cannot buy` | `buy` | The buyer is the account that listed it | Delist instead |
+| `Satchel: attach at least the price` | `buy` | The deposit is below the price | Attach the price. Any excess is refunded |
+
+### Transfers
+
+`nft_transfer` and `nft_transfer_call` come from NEAR's NFT standard library, so their messages
+don't start with `Satchel:`.
+
+| Error | Cause | What to do |
+| --- | --- | --- |
+| `Token not found` | No satchel with that id | Check the id and the network |
+| `Approval extension is disabled` | The caller doesn't own the token. Satchel has no NEP-178 approvals, so only the owner can transfer | Sign as the owner |
+| `Current and next owner must differ` | The receiver already owns it | Pick another receiver |
+
+The contract accepts any account name as a receiver, even one that doesn't exist. The app and the
+CLI refuse those before signing ([below](#the-guards-before-signing)); a transfer made another way
+gets no such check.
+
+## Errors from views
+
+A view that panics returns no value. The library's `view` turns the panic into an error whose
+message is the contract's text (`Satchel: …`), or `<method> failed: <error>` for anything else.
+The `satchel` view returns `null` for an id that doesn't exist, and the CLI then prints
+`No satchel #<id> on <contract>` and exits 1.
+
+## CLI exit codes
+
+| Code | Meaning | Examples |
+| --- | --- | --- |
+| `0` | Done. For `verify`, the report reads `PROVABLY CLEAN` | A clean `verify`; `show`, `record` and `market`; a sign command that succeeded; a `send` whose transaction succeeded |
+| `1` | The answer is no: not clean, refused, or failed on chain | `verify` on a satchel that is not provably clean; `No satchel #999999 on v1.satchel-nft.testnet`; a contract error; you didn't type `yes`; a `send` whose EVM transaction reverted |
+| `2` | It could not run | Bad arguments; an option the command doesn't take; a NEAR RPC for the other network; no near CLI; no terminal to ask in; an error it didn't expect |
+| `3` | It sent a transaction but couldn't read what happened to it | The NEAR RPC stopped answering after `send_tx`; a `send` broadcast on the EVM chain but its receipt didn't come |
+
+These ran on testnet:
+
+```bash
+npx -y satchel-nft@0.1.0 verify abc; echo "exit $?"
+```
+
+```text
+A token id is a whole number, like 1, not abc
+
+satchel-nft --help lists the commands and options.
+exit 2
+```
+
+```bash
+NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.1.0 verify 1; echo "exit $?"
+```
+
+```text
+https://rpc.mainnet.fastnear.com serves NEAR mainnet, not testnet
+exit 2
+```
+
+With `--json`, every error is an object on stdout instead:
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1 --json --network devnet
+```
+
+```json
+{
+  "error": "--network is testnet or mainnet, not devnet"
+}
+```
+
+### Exit code 3
+
+Code 3 means a transaction may have run. Don't run the command again until you've looked: it could do
+the same thing twice. The message names what to check, and with `--json` the object says where.
+
+| Command | Message | JSON fields besides `error` |
+| --- | --- | --- |
+| Any sign command | `Sent <hash>, but its outcome couldn't be read: <cause>. Check <explorer link> before you run this again.` | `status: "unknown"`, `nearTx` |
+| `send`, after the broadcast | `Broadcast <hash> on <chain>, but <cause>. Check <explorer link> before you send again: the signature for nonce <n> is public, so anyone can broadcast it until that nonce is spent.` | `status: "unknown"`, `chainId`, `evmTx`, `nonce` |
+
+[Automate with the CLI](/docs/advanced/automation) shows how a script should handle each code.
+
+## CLI messages
+
+### Arguments (exit 2)
+
+| Message | Cause |
+| --- | --- |
+| `Unknown command <name>` | Not one of `verify`, `show`, `record`, `market`, `mint`, `list`, `delist`, `buy`, `transfer`, `send`, or, built from this repository, `history` |
+| `<command> does not take --<option>` | An option that belongs to another command. `satchel-nft buy 4 --value 1` is an error, not a purchase |
+| `usage: satchel-nft <command> <arguments>` | Too many or too few positional arguments |
+| `A token id is a whole number, like 1, not <text>` | The id is not a `u64` in decimal |
+| `--network is testnet or mainnet, not <text>` | Another network name |
+| `--keychain is legacy or os, not <text>` | Another keychain |
+| `<command> signs: name the NEAR account with --as <account>` | A sign command without `--as` |
+| `--as takes a NEAR account id, like alice.testnet, not <text>` | Not a valid account id |
+| `send needs --chain`, `--to` or `--value` | A required `send` option is missing |
+| `A <network> satchel sends on <chains>; not <text>` | `--chain` names a chain of the other network, or none. Testnet satchels send on testnets, mainnet satchels on mainnets |
+| `--to is a 0x address, checksummed if it mixes cases; not <text>` | A bad recipient. A mixed-case address must have a valid checksum |
+| `--value is an amount of <coin>, like 0.01; not <text>` | Not a decimal with at most 18 places |
+| `--data is 0x followed by whole bytes` | Bad calldata |
+| `Enter an amount in NEAR, like 2.5`, `The price must be above 0` | A bad `list` price |
+
+### Before signing (exit 1 or 2)
+
+| Message | Exit | Cause |
+| --- | --- | --- |
+| `<owner> owns satchel #<id>, not <account>` | 1 | `--as` isn't the owner |
+| `Satchel #<id> is not listed` | 1 | `delist` or `buy` on an unlisted satchel |
+| `<account> is the seller` | 1 | `buy` as the seller |
+| `Satchel #<id> was listed at record version <a> and is now at <b>; the contract refuses that sale` | 1 | The listing's version doesn't match the record. Signing is frozen while a satchel is listed, so this shouldn't happen; the CLI checks anyway, because the contract would refuse this `buy` |
+| `Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.` | 1 | `buy` checks the report first. The same for `COULD NOT CHECK EVERYTHING` |
+| `<account> is not a NEAR <network> account` | 1 or 2 | A `.testnet` account on mainnet, or the reverse |
+| `Not sent.` | 1 | You answered anything but `yes`, or the input ended |
+| `There is no terminal to ask in, or stderr is redirected. …` | 2 | No terminal and no `--yes`. See [Troubleshooting](/docs/troubleshooting) |
+| `No near.exe in PATH's absolute folders. Install near-cli-rs, or pass --near-cli <path to it>` | 2 | The near CLI isn't on your `PATH` (`near` on macOS and Linux) |
+| `<path> is a script: pass the path of near.exe itself with --near-cli` | 2 | On Windows, `--near-cli` points at npm's `near.cmd`, which can't run without a shell |
+| `No near CLI at <path>` | 2 | `--near-cli` or `$NEAR_CLI` points at nothing runnable |
+| `The near CLI did not sign. Its output ends with: …` | 2 | The near CLI failed, usually because the key for `--as` isn't in the keychain you chose (`--keychain legacy` is `~/.near-credentials`) |
+| `The near CLI signed something else, so nothing was sent: …` | 2 | What it signed differs from what was asked: the signer, receiver, method, arguments, gas or deposit. Nothing is sent |
+| `The near CLI signed a V1 transaction; …`, `The signed transaction has trailing bytes`, and other decoding errors | 2 | The signed transaction isn't one plain function call. Nothing is sent |
+
+The library's [guards](#the-guards-before-signing) and the [send flow's checks](#sending-from-a-satchel)
+apply to the CLI too.
+
+## The guards before signing
+
+`packages/satchel-nft/src/guard.ts` runs in the app and the CLI before anything is signed. Each
+message ends the action with nothing signed.
+
+| Message | Cause |
+| --- | --- |
+| `Connect a NEAR <network> wallet first` | No account connected |
+| `<account> is not a NEAR <network> account` | An account from the other network. Implicit accounts work on both |
+| `This page signs only for <contract>` | A transaction for any other receiver |
+| `<contract> doesn't exist yet: Satchel isn't live on NEAR <network>` | The contract account doesn't exist |
+| `<contract> doesn't pass the contract check: <reasons>` | Check 1 of the report fails: keys on the account, other code, or another MPC contract. The app then shows no address either |
+| `Couldn't check <contract>: <error>` | The NEAR RPC didn't answer. Try again |
+| `Enter the receiver's NEAR account, like friend.testnet` (or `friend.near`) | A malformed receiver |
+| `<account> can never transfer a satchel out` | The receiver is the Satchel contract or the MPC contract |
+| `<account> doesn't exist on NEAR <network>, so a satchel sent there could be lost. Ask for an account that exists.` | The receiver doesn't exist yet |
+| `Couldn't check that <account> exists, so nothing was signed: <error>` | The NEAR RPC didn't answer |
+
+## Sending from a satchel
+
+`sendFromSatchel` in `send.ts` and `prepareTx` in `evm.ts` check each step before the one that would
+spend anything. The app shows these under the send form; the CLI prints them and exits 1.
+
+| Message | Step | Cause and what to do |
+| --- | --- | --- |
+| `A <network> satchel doesn't send on <chain> from this app. Nothing was signed.` | build | The chain belongs to the other network |
+| `This satchel holds <n> wei on <chain> and the transaction can cost up to <m>. Fund <address> first.` | build | The address can't pay the value plus the most the fees can reach (with the L1 data fee on OP Mainnet, Base and their Sepolia testnets). Send it the chain's coin |
+| `<chain> says this transaction would fail, so nothing was signed: <reason>` | build | Gas estimation failed: the call would revert as written |
+| `Couldn't read <chain>'s priority fee, so nothing was signed: <reason>` | build | The chain's RPC didn't answer. Try again, or set your own with `RPC_<chain id>` |
+| `<rpc> serves chain <a>, not <b>` | build | The EVM RPC is for another chain. Fix `RPC_<chain id>` |
+| `The contract would sign 0x…, not 0x…. Nothing was signed.` | hash | The contract's `evm_signing_hash` disagrees with viem's hash of the same transaction. Report it: it should never happen |
+| `sign_evm (<hash>) finished without a signature. Your record shows the nonce; signing again is safe.` | wallet | The `sign_evm` transaction succeeded but returned no signature. (If the MPC request itself fails, you see its failure message instead.) The record already counts that nonce, so the satchel stays not provable until a transaction at that nonce is final |
+| `The signature recovers to <address>, not this satchel's <address>. Nothing was broadcast.` | recover | The signature isn't for this satchel's key. Report it |
+
+The app's own form adds three input messages before any of these: `Enter the recipient's 0x address`,
+`Enter an amount in <coin>` and `Calldata must be 0x followed by whole bytes`.
+
+## Wallet messages in the app
+
+| Message | Cause |
+| --- | --- |
+| `<account> is not a NEAR testnet account: switch to Mainnet to use it, or pick a testnet account` (or the reverse) | The wallet connected an account from the other network. Use the network switch in the header |
+| `The wallet didn't connect an account` | The wallet closed without an account |
+| `The wallet did not return a transaction hash` | The wallet didn't report the transaction. Check your wallet's activity before you try again |
+| `Wait for the report on this listing first` | You pressed Buy before the report finished |
+| `Check again: the page and the report read different record versions` | The record changed while the page loaded |
+| `Tick the box above to buy a satchel that is not provably clean` | The report isn't clean and you haven't accepted that |
+
+A transaction you reject in the wallet shows no error.
+
+## NEAR RPC errors
+
+Every NEAR read goes through `nearRpc`, which throws a `NearRpcError` when the node answers with an
+HTTP error or a JSON-RPC error:
+
+```text
+NEAR RPC query failed: HTTP 429
+```
+
+The error has `method` (the JSON-RPC method, such as `query`, `tx` or `send_tx`) and `cause` (the
+HTTP status or the node's error object). A 429 means the public node is rate limiting you: wait, or
+point `NEAR_RPC` at your own node ([RPCs, finality and rate limits](/docs/developers/rpc-and-finality)).
+
+## Report statuses
+
+The report never fails silently. Each check is `pass`, `fail` or `unknown`, and the verdict follows:
+any `fail` makes it not provable; otherwise any `unknown` makes it couldn't check everything.
+
+| Verdict | `verdict` field | CLI prints | App shows | `verify` exits |
+| --- | --- | --- | --- | --- |
+| All four checks pass | `clean` | `PROVABLY CLEAN` | <Verdict v="clean" /> | 0 |
+| Any check fails | `not-provable` | `NOT PROVABLE` | <Verdict v="not-provable" /> | 1 |
+| None fails, one couldn't be read | `unknown` | `COULD NOT CHECK EVERYTHING` | <Verdict v="unknown" /> | 1 |
+
+The CLI marks a check `[PASS]`, `[FAIL]` or `[????]`. The titles and lines:
+
+| Check | Pass | Fail | Unknown |
+| --- | --- | --- | --- |
+| 1 | `The contract can't sign behind the record` | `The contract could sign behind the record`: access keys on the account, a code hash that isn't the reproducible build, a global contract referenced by account, or another MPC contract | Never: if NEAR can't be read, there is no report and the CLI exits 2 |
+| 2 | `No signed transaction is still pending` | `A signed transaction may still be pending`: `signed up to nonce N, finalized nonce is M. That signature is public in its NEAR receipt, …`, with M at most N | `Could not confirm every signed nonce is spent`: `could not read the nonce at a finalized block`, or a transaction at that nonce `is in a recent block that is not finalized yet. Check again once it is` |
+| 3 | `No approval left behind` | `An approval is still live`: `allowance of N still granted`, `token N still approved`, `operator still approved`, or a Permit2 allowance until a date | `Could not read every approval`: `could not read the chain at a finalized block`, `could not read allowance or getApproved`, `could not read isApprovedForAll`, `could not read the Permit2 allowance` |
+| 4 | `Nothing the record can't explain` | `The record can't explain everything signed`: raw signatures, unclassified calls or approvals over the cap | Never: the counters come from NEAR |
+
+A fail on checks 2 and 3 can turn into a pass once the seller spends the nonce or revokes the
+approval. A fail on check 4 is permanent. [The clean transfer report](/docs/concepts/clean-transfer-report)
+explains each check.
+
+## Related
+
+- [Troubleshooting](/docs/troubleshooting): the same errors, starting from what you see.
+- [CLI reference](/docs/developers/cli): every command, option and JSON output.
+- [Contract reference](/docs/developers/contract): the methods and the deposits and gas each needs.
+- [Automate with the CLI](/docs/advanced/automation): handling exit codes in scripts.

@@ -1,0 +1,158 @@
+The web app in `web/` is a Next.js app with no backend: every read goes from the browser to a public
+NEAR node and to each EVM chain's node, and every write is a transaction the visitor's NEAR wallet
+signs. That makes it easy to run yourself: to read from nodes you trust, to look at the code a page
+runs, or to work on the app. It needs no API key and no environment variable.
+
+## What you need
+
+- **Node.js 22 or later.** CI builds the app on Node 24.
+- **git**, to clone `https://github.com/duongnq2798/satchel`.
+- Nothing else. Rust is needed only for the contract, and a wallet only to sign.
+
+The repository is an npm workspace with one lockfile: `packages/satchel-nft` (the library and CLI)
+and `web` (the app). The app runs the library from the checkout, not from npm, so what you build is
+the code you checked out.
+
+## Run it locally
+
+<Steps>
+
+1. **Install from the repository root.**
+
+   ```bash
+   git clone https://github.com/duongnq2798/satchel.git
+   cd satchel
+   npm ci
+   ```
+
+   `npm ci` installs both workspaces from `package-lock.json`, at the exact versions it pins.
+
+2. **Start the dev server.**
+
+   ```bash
+   cd web
+   npm run dev
+   ```
+
+   `npm run dev` builds the `satchel-nft` package first (its `predev` script), then starts Next.js on
+   port 3000.
+
+3. **Check that it reads the chains.** Open `http://localhost:3000`. The card at the top should read
+   "Provably clean" for satchel #1. Under "Try to cheat the buyer", "Play fair" shows #1 with all four
+   checks passing, and the other moves show #5, #3 and #6 "Not provable", each with its failing check
+   picked out. `http://localhost:3000/satchel/1` has the full report, and
+   `http://localhost:3000/mainnet` the mainnet deployment's facts.
+
+4. **Compare it with the CLI.** The CLI runs the same code, so it should give the same verdict:
+
+   ```bash
+   npx -y satchel-nft@0.1.0 verify 1
+   ```
+
+</Steps>
+
+## The pages
+
+| Path | What it does |
+| --- | --- |
+| `/` | What Satchel is, with satchel #1's verdict checked live and the demo satchels |
+| `/satchels` | Connect a NEAR wallet, mint a satchel, see the ones you own |
+| `/satchel/<id>` | A satchel's address, what it holds, its report and its history; as owner, send, list, delist or transfer; as a buyer, buy |
+| `/market` | Every listing, with its price and its report's verdict |
+| `/verify` | Any satchel's report, no wallet needed |
+| `/mainnet`, `/mainnet/…` | The same pages on NEAR mainnet and the 8 EVM mainnets |
+| `/docs` | These docs, from `web/content/docs` |
+
+Everything outside `/mainnet` works on testnet. A switch in the header moves between the two.
+
+## Build and test
+
+Run what CI runs before you deploy or open a pull request. From `web/`:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+Each of these builds the package first. Then `npm start` serves the production build, on port 3000
+by default.
+
+CI runs the same three on every pull request, after `npm ci` at the root, on Node 24.
+[Check every claim](/docs/security/check-every-claim) lists the other tests, the contract's
+included.
+
+## Point it at your own nodes
+
+The app has no setting for its nodes. They are in `packages/satchel-nft/src/config.ts`, which the
+app, the CLI and the library share:
+
+- `nearRpc` in `TESTNET` and `MAINNET`: the NEAR node for each network;
+- `rpc` in each entry of `CHAINS`: the node for each of the 16 EVM chains.
+
+Change the URLs you want and rebuild. `npm run dev` and `npm run build` rebuild the package
+themselves.
+
+```ts title="packages/satchel-nft/src/config.ts"
+export const MAINNET: Network = {
+  id: "mainnet",
+  contract: "v1.satchel-nft.near",
+  mpc: "v1.signer",
+  nearRpc: "https://<your-near-mainnet-node>",
+  nearExplorer: "https://nearblocks.io",
+  txApi: "https://tx.main.fastnear.com",
+  build: BUILD,
+};
+```
+
+The app still checks that every EVM node answers with the chain id it is configured for, so a node
+for the wrong chain makes its checks unknown instead of passing.
+
+<Callout type="danger" title="Change only the URLs">
+Leave `contract`, `mpc` and `build` as they are. The app shows no address and signs nothing until the
+contract passes check 1 against those values: no keys, the code hash of the reproducible build, and
+the canonical MPC contract. Pointing them at another contract would make the app trust that
+contract's code.
+</Callout>
+
+<Callout type="warning" title="Anything in the browser is public">
+A node URL in `config.ts` is shipped to every visitor's browser, and the report prints every node it
+read. Don't put a URL with a private API key in a build others can open.
+</Callout>
+
+## Deploy it
+
+The app is a standard Next.js 16 app. Any host that runs Next.js can serve it: build `web/` with the
+commands above and serve it with `npm start`, or let a Next.js host build it from the repository.
+`satchelnft.xyz` is built by Vercel from the `main` branch.
+
+Wallet connections need nothing from you either. The list of wallets is pinned in
+`web/src/lib/wallet-manifest.json` (on testnet Meteor, Intear, Nightly, Ledger and NEAR CLI; on
+mainnet those and HOT and MyNearWallet), and each wallet's own script comes from its publisher, as
+on `satchelnft.xyz`. Each network remembers its connected wallet separately, in the browser's
+`localStorage` under `satchel:<network>:…`.
+
+## Check that a site runs this code
+
+A copy of the app can show anything; only the chain is the truth. Whatever site you use, these are
+the checks it can't fake:
+
+- Build the same report with the CLI, from nodes you choose, and compare the verdict and record
+  version: `npx -y satchel-nft@0.1.0 verify <id>`.
+- Before you sign, read what your wallet shows: the receiver must be `v1.satchel-nft.testnet` or
+  `v1.satchel-nft.near`, and a purchase must name the record version you checked.
+
+## If something goes wrong
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| `satchel-nft is not built yet: run npm run build -w satchel-nft at the repository root` | You ran the checkout's CLI before building the package | Run that from the root. The app's own scripts build it for you |
+| A report reads "Couldn't check everything" | A node is down or rate limited, or a recent block isn't finalized yet | Wait and reload, or use your own nodes |
+| The app shows no address and refuses to sign | The contract didn't pass check 1, often because `contract`, `mpc` or `build` was changed in `config.ts` | Restore them |
+
+## Next steps
+
+- [RPCs, finality and rate limits](/docs/developers/rpc-and-finality): the nodes and how each read is pinned.
+- [CLI reference](/docs/developers/cli): the same report without a browser.
+- [Connect a NEAR wallet](/docs/guides/wallets): which wallets the app lists.
+- [Production checklist](/docs/advanced/production-checklist): before you depend on it.

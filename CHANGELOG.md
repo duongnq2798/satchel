@@ -6,6 +6,30 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A documentation center at `/docs` (satchelnft.xyz/docs): 36 pages in 8 sections, from a
+  quickstart and the concepts to a guide for each thing the app does, three tutorials, the library,
+  CLI, contract, events, errors and RPC reference, an advanced section, security, troubleshooting,
+  a FAQ and a glossary. AGENTS.md, the threat model, SECURITY.md and this changelog render there
+  from the repository files. Pages are MDX in `web/content/docs`, built at build time with Shiki
+  highlighting; the site has full-text search (Ctrl K), a table of contents per page, breadcrumbs,
+  previous and next links, a light and a dark theme, a page-feedback prompt, a sitemap, `robots.txt`,
+  `llms.txt` and structured data. `docs.test.ts` compiles every page and fails on a broken link or
+  anchor. Every page was checked against the contract, the package and the app's source.
+- What's inside a satchel, and its history. Above the report, a satchel's page now shows, beside the
+  native balance on each of the network's 8 chains, its USDC, USDT and WETH where a deployment is
+  listed: 22 on the mainnets, 11 on the testnets (`TOKENS` in `contents.ts`, each with its source).
+  They come from Circle, Tether, USDT0 or the chain, except WETH on Sepolia, from Uniswap's
+  deployment list. A token shows the symbol its contract reports: USD₮0, USDT0, USDt, WETH.e, and
+  ETH for Binance-Peg ETH on BNB Chain. After `npm run build -w satchel-nft`,
+  `node scripts/check-tokens.mjs` reads every address's code, symbol and decimals back from its
+  chain. Below the report, a History card lists the mint,
+  transfers, signatures, listings, delistings and sales from FastNEAR's transaction index, each
+  linked to its transaction. It keeps only the contract's own events from receipts that succeeded,
+  and says when it read only part of the index or counts a different number of signatures than the
+  record. A sale shows once, without the transfer it logs; a failure in the card can't take the
+  report down with it. The report reads neither. In the CLI, `show` prints the tokens too, and
+  `history <id>` prints the timeline; neither is in 0.1.0. 17 new unit tests, 111 in all, with
+  satchel #7's real transactions as a fixture.
 - The npm package `satchel-nft` (`packages/satchel-nft`), published on npm as 0.1.0 on 2026-11-09
   by the owner, from commit `728ed74`. `npx -y satchel-nft@0.1.0 verify 1` runs the report with no
   clone. It holds the clean transfer report, the guards, the send flow and the contract's reads and
@@ -155,7 +179,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   CLI stopped at the first page under 100 rows and the app read only the first page. The package now
   has `satchel(net).allListings()`, which reads pages until they cover `nft_total_supply` (each
   stored listing is keyed by a token, and tokens are never burned) and keeps a listing that shows up
-  twice once; the CLI and the app use it. The deployed contract is unchanged.
+  twice once; the CLI and the app use it. The deployed contract is unchanged. It is not in 0.1.0.
+  3 new unit tests, 114 in all.
 - The npm package's files kept Windows line endings in a Windows checkout, so 0.1.0, packed there,
   ships CRLF in five files, the end of its launcher's first line among them. npm strips that CR when
   it links the command on Linux and macOS, so `npx` runs it, and CI now checks that on Linux. The

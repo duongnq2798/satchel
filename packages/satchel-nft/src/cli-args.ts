@@ -7,8 +7,11 @@ export const USAGE = `usage: satchel-nft <command> [options]
 
 Read, no keys needed:
   verify <id>                 the clean transfer report; exits 0 only when it reads PROVABLY CLEAN
-  show <id>                   owner, address, listing, and balances on the network's EVM chains
+  show <id>                   owner, address, listing, and what it holds on the network's EVM
+                              chains: the native coin, USDC, USDT and WETH
   record <id>                 the signing record, as the contract returns it
+  history <id>                its mint, owners, signatures, listings and sales, from FastNEAR's
+                              transaction index
   market                      every listing, with its report's verdict
 
 Sign with a key in the near CLI's keychain, as --as <account>:
@@ -37,7 +40,7 @@ public defaults, like RPC_8453 for Base.
 Exit codes: 0 done (verify: PROVABLY CLEAN), 1 no (not clean, refused, failed on chain), 2 it
 could not run, 3 it sent a transaction but could not read its outcome: check it before running again.`;
 
-export const READ_COMMANDS = ["verify", "show", "record", "market"] as const;
+export const READ_COMMANDS = ["verify", "show", "record", "history", "market"] as const;
 export const SIGN_COMMANDS = ["mint", "list", "delist", "buy", "transfer", "send"] as const;
 export type CommandName = (typeof READ_COMMANDS)[number] | (typeof SIGN_COMMANDS)[number];
 
@@ -70,6 +73,7 @@ const SHAPE: Record<CommandName, { positionals: string[]; options: string[] }> =
   verify: { positionals: ["id"], options: [] },
   show: { positionals: ["id"], options: [] },
   record: { positionals: ["id"], options: [] },
+  history: { positionals: ["id"], options: [] },
   market: { positionals: [], options: [] },
   mint: { positionals: [], options: [] },
   list: { positionals: ["id", "price"], options: [] },

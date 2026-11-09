@@ -1,0 +1,98 @@
+Satchel is an NFT on NEAR that is a wallet. Each satchel controls one address on 16 EVM chains, through
+[NEAR Chain Signatures](https://docs.near.org/chain-abstraction/chain-signatures). Whoever owns the NFT
+is the only one who can have that address sign, so selling the NFT sells the wallet, on every chain at
+once. The contract keeps a public record of everything the address's key signs, so before you pay, you
+can check on chain that the seller kept nothing back.
+
+<Callout type="danger" title="Not audited">
+No third party has reviewed Satchel's code. On NEAR mainnet a satchel's address holds real funds: keep in
+one only what you can afford to lose. A testnet satchel's address is also a valid address on mainnet
+chains, but NEAR's testnet MPC network signs for it, so never send real funds to it.
+</Callout>
+
+## The problem Satchel solves
+
+Selling a wallet is easy to fake. A seller can:
+
+- **sign a withdrawal and keep it**, sell the wallet, then broadcast the withdrawal and empty it;
+- **approve an address of their own** to spend the wallet's tokens, and pull them out after the sale;
+- **keep a copy of the key**: a seed phrase handed over is still in the seller's notes.
+
+A buyer can't rule any of these out, so wallets, positions and addresses with a history don't change
+hands safely. Satchel makes each of them checkable, or impossible:
+
+| The seller tries to | What happens with a satchel |
+| --- | --- |
+| Keep a copy of the key | There is no key to copy. NEAR's MPC network holds it in shares and signs only when the Satchel contract asks, and the contract asks only for the NFT's current owner |
+| Keep a signed withdrawal | The contract builds every EVM transaction it signs and records its nonce first. The report can't read clean until every nonce ever signed is spent at a finalized block |
+| Leave an approval behind | The contract decodes and records every approval it signs. The report reads each one on chain and fails while any is live |
+| Sign something the record can't describe | It is counted. The report says "not provable" rather than guess |
+| Sign more between your check and your purchase | Listing freezes signing, and `buy` names the record version you checked. Any change makes the purchase fail, and you keep your NEAR |
+
+> The NFT moves the keys. The record proves what they signed.
+
+## Start here
+
+<Cards>
+  <Card href="/docs/quickstart" eyebrow="New to Satchel" title="Quickstart">
+    Read a real satchel's report in your browser and your terminal in two minutes. No wallet needed.
+  </Card>
+  <Card href="/docs/how-it-works" eyebrow="New to Satchel" title="How Satchel works">
+    The contract, the MPC network, the chains and the report, on one page.
+  </Card>
+  <Card href="/docs/guides/buy" eyebrow="Buyers and owners" title="Buy, sell and send">
+    Use satchelnft.xyz: mint, fund, send, list, buy and transfer, step by step.
+  </Card>
+  <Card href="/docs/developers" eyebrow="Developers" title="Build on Satchel">
+    The `satchel-nft` library and CLI, and the contract's methods, events and errors.
+  </Card>
+  <Card href="/docs/advanced/automation" eyebrow="Builders" title="Automate it">
+    Scripts, bots and CI with the CLI's JSON output and exit codes.
+  </Card>
+  <Card href="/docs/security" eyebrow="Evaluators and partners" title="Security and trust">
+    What Satchel trusts, what it doesn't claim, and a command for every claim.
+  </Card>
+</Cards>
+
+## What you can do
+
+**Without a wallet, a key or an account:**
+
+- read any satchel's [clean transfer report](/docs/concepts/clean-transfer-report), in the browser at
+  [satchelnft.xyz/verify](https://satchelnft.xyz/verify) or with `npx -y satchel-nft@0.1.0 verify <id>`;
+- [try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer) with the demo satchels on testnet, and watch
+  the report catch each trick;
+- [check every claim](/docs/security/check-every-claim) about the deployments against the chain.
+
+**With a NEAR wallet:** [mint a satchel](/docs/guides/mint-and-fund) for 0.1 NEAR,
+[send from its address](/docs/guides/send) on any of its network's 8 EVM chains,
+[sell it](/docs/guides/sell), [buy one](/docs/guides/buy) or [give it away](/docs/guides/transfer).
+
+**As a developer:** build the report into a marketplace, a wallet or a bot with the
+[TypeScript library](/docs/developers/library), script every action with the [CLI](/docs/developers/cli),
+or call the [contract](/docs/developers/contract) from any NEAR client.
+
+## The deployments
+
+Both networks run the same reproducible build, code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`,
+from commit [`87148c6`](https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53).
+Each contract had its only access key deleted before its first mint, so no one, its deployer included,
+can change its code or sign as it.
+
+| | Testnet | Mainnet |
+| --- | --- | --- |
+| Contract | [`v1.satchel-nft.testnet`](https://testnet.nearblocks.io/address/v1.satchel-nft.testnet) | [`v1.satchel-nft.near`](https://nearblocks.io/address/v1.satchel-nft.near) |
+| MPC contract (Chain Signatures) | `v1.signer-prod.testnet` | `v1.signer` |
+| EVM chains the app sends on | Sepolia, Base Sepolia, Arbitrum Sepolia, OP Sepolia, Polygon Amoy, BNB testnet, Avalanche Fuji, Aurora testnet | Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain, Avalanche, Aurora |
+| App | [satchelnft.xyz](https://satchelnft.xyz) | [satchelnft.xyz/mainnet](https://satchelnft.xyz/mainnet) |
+
+[Networks and chains](/docs/concepts/networks-and-chains) has the chain ids and why both contracts can
+sign for all 16.
+
+## Get help
+
+- **Something doesn't work:** [Troubleshooting](/docs/troubleshooting), then
+  [Errors and exit codes](/docs/developers/errors).
+- **A quick question:** the [FAQ](/docs/faq) and the [Glossary](/docs/glossary).
+- **A bug or a gap in these docs:** [open an issue](https://github.com/duongnq2798/satchel/issues/new) on GitHub.
+- **A security problem:** don't open an issue; [report it privately](/docs/security/report-a-vulnerability).

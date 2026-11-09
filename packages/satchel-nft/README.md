@@ -58,7 +58,8 @@ satchel-nft <command> [options]
 | Command | What it does |
 | --- | --- |
 | `verify <id>` | The clean transfer report. Exits 0 only when it reads `PROVABLY CLEAN` |
-| `show <id>` | Owner, address, listing, and balances on the network's EVM chains |
+| `show <id>` | Owner, address, listing, and what it holds on the network's EVM chains: the native coin, USDC, USDT and WETH |
+| `history <id>` | Its mint, owners, signatures, listings and sales, each with its NEAR transaction, from FastNEAR's transaction index. The report doesn't use it |
 | `record <id>` | The signing record, as the contract returns it |
 | `market` | Every listing, with its report's verdict |
 | `mint` | Mints a satchel for 0.1 NEAR |
@@ -165,7 +166,7 @@ if (report?.verdict === "clean") {
 | `TESTNET`, `MAINNET`, `CHAINS` | Each network's contract, MPC contract, NEAR RPC and reproducible build; the 16 EVM chains |
 | `buildReport(net, id)` | The clean transfer report for one satchel, or `null` if there is none |
 | `contractFacts(net)` | The deployment's own facts, to share across many reports |
-| `satchel(net)` | Reads: `get`, `tokensFor`, `listings` (one page, which can be short with more after it), `allListings` (every live listing), `totalSupply`, `mpcContract`, `signingHash` |
+| `satchel(net)` | Reads: `get`, `tokensFor`, `listings` (one page, which can be short with more after it), `allListings` (every live listing; not in 0.1.0), `totalSupply`, `mpcContract`, `signingHash` |
 | `satchelTx(net)` | Transactions in the near-connect and wallet-selector format: `mint`, `list`, `delist`, `buy`, `transfer`, `signEvm` |
 | `tokenAddress(net, path)` | A satchel's EVM address, derived by the MPC contract |
 | `sendFromSatchel(request, deps)` | The send flow, with each step's check, for any wallet you pass in `deps` |

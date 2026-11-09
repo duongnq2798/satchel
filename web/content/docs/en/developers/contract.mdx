@@ -1,0 +1,433 @@
+The Satchel contract is one Rust crate, `contracts/satchel`, built with near-sdk. Everything a
+satchel can do goes through it: minting, signing on EVM chains, listing, buying and moving the NFT.
+The same build runs on both networks, so this page holds for both:
+
+| | Testnet | Mainnet |
+| --- | --- | --- |
+| Contract | `v1.satchel-nft.testnet` | `v1.satchel-nft.near` |
+| MPC contract it signs through | `v1.signer-prod.testnet` | `v1.signer` |
+| Code hash | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` | the same |
+| Source | commit `87148c6`, path `contracts/satchel` | the same |
+
+Neither account has an access key, and the contract has no admin method and no upgrade path. A
+change ships only as a new account with a new code hash.
+[Check every claim](/docs/security/check-every-claim) shows how to confirm each of these facts.
+
+## Calling it
+
+Every view is a plain function call that needs no account. Arguments are JSON; numbers that can
+exceed 2^53 (`U64`, `U128`) are decimal strings, and token ids are strings too.
+
+<Tabs labels={["near CLI", "JSON-RPC"]}>
+<Tab>
+
+```bash
+near contract call-function as-read-only v1.satchel-nft.testnet satchel json-args '{"token_id":"4"}' network-config testnet now
+```
+
+</Tab>
+<Tab>
+
+```bash
+curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d '{
+  "jsonrpc": "2.0", "id": 1, "method": "query",
+  "params": {
+    "request_type": "call_function", "finality": "final",
+    "account_id": "v1.satchel-nft.testnet", "method_name": "satchel",
+    "args_base64": "eyJ0b2tlbl9pZCI6IjQifQ=="
+  }
+}'
+```
+
+`args_base64` is `{"token_id":"4"}` in base64. The answer's `result.result` is the returned JSON as
+an array of bytes.
+
+</Tab>
+</Tabs>
+
+What `satchel("4")` returned on testnet, a satchel that has never signed and is for sale:
+
+```json
+{
+  "token_id": "4",
+  "owner_id": "satchel-nft.testnet",
+  "path": "satchel/4",
+  "record": {
+    "evm": [],
+    "approvals": [],
+    "approvals_not_itemized": 0,
+    "unclassified_calls": 0,
+    "opaque_signatures": 0,
+    "last_opaque_at": "0",
+    "version": "0"
+  },
+  "listing": {
+    "seller": "satchel-nft.testnet",
+    "price": "1000000000000000000000000",
+    "record_version": "0",
+    "listed_at": "1794197407046137608"
+  }
+}
+```
+
+Change methods need a signed transaction. The [CLI](/docs/developers/cli) and the
+[library](/docs/developers/library) build each one with the gas and deposit below, and check what was
+signed before sending it.
+
+## Change methods
+
+| Method | Who | Deposit | Gas the CLI and app attach | Returns |
+| --- | --- | --- | --- | --- |
+| [`mint`](#mint) | anyone | at least 0.1 NEAR | 50 Tgas | `Token` |
+| [`sign_evm`](#sign_evm) | the owner | exactly 1 yoctoNEAR | 300 Tgas (at least 50) | the MPC signature |
+| [`sign_raw`](#sign_raw) | the owner | exactly 1 yoctoNEAR | at least 50 Tgas | the MPC signature |
+| [`list`](#list-and-delist) | the owner | exactly 1 yoctoNEAR | 30 Tgas | nothing |
+| [`delist`](#list-and-delist) | the owner | exactly 1 yoctoNEAR | 30 Tgas | nothing |
+| [`buy`](#buy) | anyone but the seller | at least the price | 100 Tgas | nothing |
+| [`nft_transfer`](#nft_transfer-and-nft_transfer_call) | the owner | exactly 1 yoctoNEAR | 30 Tgas | nothing |
+| [`nft_transfer_call`](#nft_transfer-and-nft_transfer_call) | the owner | exactly 1 yoctoNEAR | not used by the app | `bool` |
+| `new` | the contract itself | none | | |
+
+`new(mpc_contract)` is `#[init]` and `#[private]`: only the contract's own account could call it, in
+the transaction that deployed it. That account has no key now, so nobody can call it again; a try
+fails with `Method new is private`.
+
+### mint
+
+```rust
+#[payable]
+pub fn mint(&mut self, receiver_id: Option<AccountId>) -> Token
+```
+
+Mints the next token id to `receiver_id`, or to the caller when it is left out. Attach at least
+0.1 NEAR, which pays for the token's storage; anything above it is refunded. Ids start at 1 and go
+up by one, so anyone can mint the id you expect to get: read the returned `token_id` before you fund
+the address.
+
+The token's metadata has the title `Satchel #<id>`, one copy, `issued_at` in milliseconds, and
+`extra` set to `{"path":"satchel/<id>"}`. The call logs the standard NEP-171 `nft_mint` event.
+
+```bash
+near contract call-function as-transaction v1.satchel-nft.testnet mint json-args '{}' prepaid-gas '50 Tgas' attached-deposit '0.1 NEAR' sign-as <your-account>.testnet network-config testnet sign-with-keychain send
+```
+
+### sign_evm
+
+```rust
+#[payable]
+pub fn sign_evm(&mut self, token_id: TokenId, tx: Eip1559Tx) -> Promise
+```
+
+Builds the EIP-1559 transaction `tx`, hashes it, writes it into the token's signing record, then asks
+the MPC contract to sign that hash with the token's key. The caller must own the token, attach exactly
+1 yoctoNEAR and at least 50 Tgas, and the token must not be listed. `tx.chain_id` must be one of the
+[16 supported chains](#supported-chains).
+
+In order, it:
+
+1. refuses a non-owner, a listed token, too little gas or an unsupported chain;
+2. computes the signing hash (see [`Eip1559Tx`](#eip1559tx)) and [classifies the call](#how-a-call-is-classified);
+3. updates the record: the chain's highest nonce and signature count, an approval row if the call is
+   an approval, the unclassified counter if it is unclassified, and `version` plus one;
+4. logs a `sign_evm` event with the hash it will sign and the new record version;
+5. calls `sign` on the MPC contract with 1 yoctoNEAR attached and the arguments below.
+
+```json
+{
+  "request": {
+    "path": "satchel/1",
+    "payload_v2": { "Ecdsa": "<the 32-byte hash, hex>" },
+    "domain_id": 0
+  }
+}
+```
+
+The MPC call gets 20 Tgas plus all the gas left over. The record is saved when the `sign_evm` receipt
+succeeds; the MPC call is a later receipt, so a failed signature can't undo the record. It can only
+make the record stricter.
+
+The promise resolves to the MPC contract's signature:
+
+```json
+{
+  "big_r": { "affine_point": "<33-byte compressed point, hex>" },
+  "s": { "scalar": "<32 bytes, hex>" },
+  "recovery_id": 0
+}
+```
+
+`r` is `big_r` without its first byte, and `recovery_id` is the y parity. EVM nodes need `s` in the
+lower half of the curve order, so if it isn't, use `n - s` and flip the parity, as the library's
+`toEvmSignature` does. The contract doesn't send
+the EVM transaction: the caller adds the signature and broadcasts it. The
+[library's send flow](/docs/developers/library) checks that the signature recovers to the satchel's
+address before broadcasting.
+
+```bash
+near contract call-function as-transaction v1.satchel-nft.testnet sign_evm json-args '{"token_id":"<id>","tx":{"chain_id":"11155111","nonce":"0","max_priority_fee_per_gas":"1000000000","max_fee_per_gas":"20000000000","gas_limit":"21000","to":"0x000000000000000000000000000000000000dEaD","value":"1","data":"0x"}}' prepaid-gas '300 Tgas' attached-deposit '1 yoctoNEAR' sign-as <your-account>.testnet network-config testnet sign-with-keychain send
+```
+
+<Callout type="warning" title="The signature is public">
+The signature is in the MPC contract's receipt, which anyone can read. Anyone can broadcast the signed
+transaction until a transaction at that nonce is final on the EVM chain. Sign a transaction only if
+you want it to run.
+</Callout>
+
+### sign_raw
+
+```rust
+#[payable]
+pub fn sign_raw(&mut self, token_id: TokenId, payload: String) -> Promise
+```
+
+Signs a 32-byte payload the contract did not build, such as a Bitcoin sighash or a message hash.
+`payload` is `0x` and 64 hex digits. The same owner, 1 yoctoNEAR, gas and not-listed rules apply.
+
+The contract can't tell what such a signature authorizes, so it counts it: `opaque_signatures` goes
+up by one, `last_opaque_at` is set to the block time, and `version` goes up. Any opaque signature
+makes check 4 of the [clean transfer report](/docs/concepts/clean-transfer-report) fail for good.
+The event is `sign_raw`.
+
+### list and delist
+
+```rust
+#[payable]
+pub fn list(&mut self, token_id: TokenId, price: U128)
+
+#[payable]
+pub fn delist(&mut self, token_id: TokenId)
+```
+
+`list` offers the token for `price` yoctoNEAR, which must be above 0. The listing pins the record's
+current version, and signing is frozen until the token is sold, delisted or transferred. Listing a
+listed token replaces its listing. `delist` removes it, and fails with
+`Satchel: token is not listed` if there is none. Both are owner only, with exactly 1 yoctoNEAR. Their
+events are `list` and `delist`.
+
+### buy
+
+```rust
+#[payable]
+pub fn buy(&mut self, token_id: TokenId, record_version: U64, price: U128)
+```
+
+Buys a listed token. `record_version` and `price` are the values the buyer checked; the call fails
+unless:
+
+- the token has a listing whose seller still owns it;
+- `price` equals the listed price;
+- `record_version` equals both the record's current version and the version the listing pinned;
+- the caller is not the seller;
+- the deposit is at least the price.
+
+Then, in the same receipt, it removes the listing, moves the token to the buyer and logs a `sale`
+event. The seller's payment and the buyer's change, if any, are transfer receipts that this one
+creates. If a check fails, the whole call fails and the deposit goes back to the buyer.
+
+```bash
+near contract call-function as-transaction v1.satchel-nft.testnet buy json-args '{"token_id":"4","record_version":"0","price":"1000000000000000000000000"}' prepaid-gas '100 Tgas' attached-deposit '1 NEAR' sign-as <your-account>.testnet network-config testnet sign-with-keychain send
+```
+
+Build the arguments from the [report](/docs/concepts/clean-transfer-report) you read, never from a
+fresh read of the listing: the point of `record_version` is that a change after your check makes the
+purchase fail.
+
+<Callout type="note" title="If the seller's account is gone">
+If the seller deleted their NEAR account before the payment receipt ran, that transfer fails and the
+NEAR stays in the contract. The buyer still gets the token.
+</Callout>
+
+### nft_transfer and nft_transfer_call
+
+These are the NEP-171 methods. Satchel's versions first remove the token's listing, then call the
+standard implementation, so a transfer always ends a sale and the new owner can sign at once. If the
+receiver of `nft_transfer_call` returns the token, `nft_resolve_transfer` also removes any listing
+the receiver made while it held it.
+
+The contract doesn't offer NEP-178 approvals, so nobody but the owner can transfer a token. The
+standard's own errors apply: `Approval extension is disabled` for another sender,
+`Current and next owner must differ` for a transfer to yourself, `Token not found` for an unknown id.
+
+The contract accepts any receiver name. The CLI and the app also refuse a receiver that doesn't exist
+on the network, and the Satchel and MPC contracts, which could never move a satchel out.
+
+## Views
+
+| View | Returns |
+| --- | --- |
+| `satchel(token_id: String)` | `SatchelView` or `null` for an unknown id |
+| `signing_record(token_id: String)` | `SigningRecord`. An unknown id returns an empty record at version `"0"` |
+| `listing(token_id: String)` | `Listing` or `null`. `null` when the seller no longer owns the token |
+| `listings(from_index?: u32, limit?: u32)` | `[token_id, Listing][]`. Default limit 50, at most 100 |
+| `derivation_path(token_id: String)` | `"satchel/<token_id>"` |
+| `mpc_contract()` | The MPC contract's account id |
+| `evm_signing_hash(tx: Eip1559Tx)` | The hash `sign_evm` would sign, 64 hex digits without `0x` |
+| `contract_source_metadata()` | NEP-330: version, source link, standards, build info |
+| `nft_token(token_id: String)` | NEP-171 `Token` or `null` |
+| `nft_tokens(from_index?: U128, limit?: u64)` | `Token[]` (NEP-181) |
+| `nft_tokens_for_owner(account_id, from_index?: U128, limit?: u64)` | `Token[]` |
+| `nft_supply_for_owner(account_id)` | `U128` |
+| `nft_total_supply()` | `U128` |
+| `nft_metadata()` | NEP-177: `spec` `nft-1.0.0`, `name` `Satchel`, `symbol` `SATCHEL`, an SVG icon |
+
+`listings` takes its page of stored listings first and then drops those whose seller no longer
+owns the token, so a page can hold fewer than `limit` entries, or none, with more listings after it.
+To read them all, page until `from_index` reaches `nft_total_supply`, which bounds the stored count
+because each listing is keyed by a token and tokens are never burned. Removing a listing moves the last one into its slot, so a page can shift between
+calls. On testnet, as these docs are written, it returns two:
+
+```json
+[
+  ["4", { "seller": "satchel-nft.testnet", "price": "1000000000000000000000000", "record_version": "0", "listed_at": "1794197407046137608" }],
+  ["6", { "seller": "satchel-nft.testnet", "price": "1000000000000000000000000", "record_version": "1", "listed_at": "1794200923994130462" }]
+]
+```
+
+`evm_signing_hash` lets a client check the contract's encoding before it spends a signature. For the
+README's sample transaction it returned
+`5b62cc6120b69aa2f0ce614fc48e847311a73fc9f2d1b5f9384778d2edc0ba57`:
+
+```bash
+near contract call-function as-read-only v1.satchel-nft.testnet evm_signing_hash json-args '{"tx":{"chain_id":"11155111","nonce":"4","max_priority_fee_per_gas":"1000000000","max_fee_per_gas":"20000000000","gas_limit":"21000","to":"0x000000000000000000000000000000000000dEaD","value":"1","data":"0x"}}' network-config testnet now
+```
+
+It runs the same checks as `sign_evm` on the fields, so a bad transaction fails here too, with
+`Satchel: max_priority_fee_per_gas is above max_fee_per_gas` or `Satchel: to must be 20 bytes`, for
+example. It doesn't check the chain id against the supported list, and doesn't classify the call,
+so approval calldata that `sign_evm` would refuse as too short still gets a hash here.
+
+## JSON types
+
+### Eip1559Tx
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `chain_id` | `U64` string | Must be positive; `sign_evm` also needs a supported chain |
+| `nonce` | `U64` string | The address's nonce on that chain |
+| `max_priority_fee_per_gas` | `U128` string | Wei. Must not be above `max_fee_per_gas` |
+| `max_fee_per_gas` | `U128` string | Wei |
+| `gas_limit` | `U64` string | |
+| `to` | string | `0x` and 40 hex digits. Contract creation isn't supported |
+| `value` | `U128` string | Wei |
+| `data` | string | `0x` and whole bytes, at most 8 KiB. Optional, default `0x` |
+
+The signing hash is `keccak256(0x02 || rlp([chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, to, value, data, []]))`:
+EIP-1559 with an empty access list. Hex fields that don't start with `0x`, have an odd number of
+digits or aren't hex fail with `Satchel: <field> must start with 0x`,
+`Satchel: <field> has an odd number of hex digits` or `Satchel: <field> is not hex`.
+
+### SatchelView
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `token_id` | string | |
+| `owner_id` | string | The NEAR account that can sign with it |
+| `path` | string | `satchel/<token_id>`. Pass it to the MPC contract's `derived_public_key` with this contract as `predecessor` and `domain_id` 0 to get the key |
+| `record` | `SigningRecord` | |
+| `listing` | `Listing` or `null` | |
+
+### SigningRecord
+
+The record of everything the contract ever signed for the token. It is never reset, not even by a
+sale; the [signing record](/docs/concepts/signing-record) page explains how a buyer reads it.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `evm` | `EvmChainRecord[]` | One entry per chain signed for |
+| `evm[].chain_id` | `U64` string | |
+| `evm[].max_nonce` | `U64` string | The highest nonce ever signed on that chain |
+| `evm[].signatures` | number | How many `sign_evm` calls named that chain |
+| `approvals` | `ApprovalRecord[]` | Each distinct approval signed, up to 32 |
+| `approvals_not_itemized` | number | Approvals signed after the list was full, each one counted, repeats too |
+| `unclassified_calls` | number | `sign_evm` calls the contract couldn't classify |
+| `opaque_signatures` | number | `sign_raw` calls |
+| `last_opaque_at` | `U64` string | Block time of the latest `sign_raw`, in nanoseconds; `"0"` if none |
+| `version` | `U64` string | Goes up by one on every signature. `buy` must name it |
+
+### ApprovalRecord
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `chain_id` | `U64` string | |
+| `contract` | string | The contract the transaction called (`to`), lowercase |
+| `kind` | `"Approve"`, `"IncreaseAllowance"`, `"SetApprovalForAll"`, `"Permit2Approve"` | |
+| `spender` | string | The address it approves, lowercase |
+| `token` | string or `null` | Permit2 only: the token it approves |
+| `arg` | string | The second argument as a 32-byte word: an amount, an ERC-721 token id, or the operator flag. For Permit2, the amount |
+
+An approval identical in every field to one already listed isn't added twice. Two token ids,
+amounts or spenders stay two rows, so every approval a buyer must see revoked is listed.
+
+### Listing
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `seller` | string | The account that listed it |
+| `price` | `U128` string | yoctoNEAR |
+| `record_version` | `U64` string | The record's version when it was listed |
+| `listed_at` | `U64` string | Block time, in nanoseconds |
+
+## How a call is classified
+
+`sign_evm` puts every transaction in exactly one class, from its calldata, and logs the class in its
+event:
+
+| Class | When | What the record does |
+| --- | --- | --- |
+| `value_transfer` | `data` is empty | Nothing more |
+| `asset_transfer` | ERC-20 `transfer` or `transferFrom` (also ERC-721's), ERC-721 `safeTransferFrom` with three arguments or with empty `bytes`, ERC-1155 `safeTransferFrom` with a non-zero amount and empty `bytes`, WETH `deposit` or `withdraw` | Nothing more |
+| `approval` | `approve(address,uint256)`, `increaseAllowance(address,uint256)`, `setApprovalForAll(address,bool)`, or Permit2 `approve(address,address,uint160,uint48)` that grants something | Adds an approval row, or counts it in `approvals_not_itemized` once 32 rows are listed |
+| `revocation` | `setApprovalForAll(x, false)`, `increaseAllowance(x, 0)`, or a Permit2 `approve` of 0 | Nothing more, so cleaning up never fills the list |
+| `unclassified` | Anything else: a multicall, a swap, ERC-1155 batch transfers, calldata shorter than 4 bytes | Adds one to `unclassified_calls` |
+
+`approve(x, 0)` is still an approval: on an ERC-721 contract it approves token id 0. An approval whose
+calldata is too short to name the spender is refused with `Satchel: approval calldata is too short`.
+
+## Supported chains
+
+`sign_evm` signs only for these chain ids. Any other fails with
+`Satchel: chain_id is not one of the supported chains`.
+
+| Chain | Id | Testnet | Id |
+| --- | --- | --- | --- |
+| Ethereum | 1 | Sepolia | 11155111 |
+| Base | 8453 | Base Sepolia | 84532 |
+| Arbitrum One | 42161 | Arbitrum Sepolia | 421614 |
+| OP Mainnet | 10 | OP Sepolia | 11155420 |
+| Polygon PoS | 137 | Polygon Amoy | 80002 |
+| BNB Smart Chain | 56 | BNB testnet | 97 |
+| Avalanche C-Chain | 43114 | Avalanche Fuji | 43113 |
+| Aurora | 1313161554 | Aurora testnet | 1313161555 |
+
+The contract itself takes any of the 16 on either network. The CLI and the app send only on the 8
+that match the NEAR network: testnet satchels on the testnets, mainnet satchels on the mainnets.
+
+## Events
+
+Each change method logs NEP-297 events, each a line `EVENT_JSON:` followed by
+`{"standard":"satchel","version":"1.0.0","event":"<name>","data":[...]}`. The events are `sign_evm`,
+`sign_raw`, `list`, `delist` and `sale`; `mint` and the transfers log the NEP-171 `nft_mint` and
+`nft_transfer` events, and `buy` logs `nft_transfer` just before its `sale`. [Events](/docs/developers/events) has every field.
+
+## Standards
+
+`contract_source_metadata` lists the standards the contract implements:
+
+| Standard | Version | What |
+| --- | --- | --- |
+| NEP-171 | 1.2.0 | Non-fungible tokens: `nft_transfer`, `nft_transfer_call`, `nft_token` |
+| NEP-177 | 2.0.0 | NFT metadata: `nft_metadata`, token metadata |
+| NEP-181 | 1.0.0 | Enumeration: `nft_total_supply`, `nft_tokens`, `nft_tokens_for_owner`, `nft_supply_for_owner` |
+| NEP-297 | 1.0.0 | Events |
+| NEP-330 | 1.3.0 | Source metadata: `contract_source_metadata` |
+
+Its `build_info` names the Docker image `sourcescan/cargo-near:0.22.0-rust-1.99.1` by digest and the
+path `contracts/satchel`, and its `link` points at commit `87148c6`. NEP-178 (approvals) and NEP-199
+(royalties) are not implemented.
+
+## Related
+
+- [Errors and exit codes](/docs/developers/errors): every error the contract can return.
+- [Events](/docs/developers/events): what each method logs.
+- [The signing record](/docs/concepts/signing-record): how a buyer reads the record.
+- [Threat model](/docs/security/threat-model): what the contract stops, and what it trusts.

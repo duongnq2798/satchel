@@ -1,0 +1,125 @@
+Satchel runs on two NEAR networks, testnet and mainnet, each with its own contract and its own MPC
+contract. Both contracts run the same code and can sign for the same 16 EVM chain ids. What differs is
+which MPC network derives the keys, and so whether an address is safe for real value.
+
+## The two deployments
+
+| | Testnet | Mainnet |
+| --- | --- | --- |
+| Satchel contract | `v1.satchel-nft.testnet` | `v1.satchel-nft.near` |
+| MPC contract (Chain Signatures) | `v1.signer-prod.testnet` | `v1.signer` |
+| Code hash | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` |
+| Source | commit `87148c6`, the [reproducible CI build](https://github.com/duongnq2798/satchel/actions/runs/42547394040) | the same |
+| Access keys | 0, deleted before the first mint | 0, deleted before the first mint |
+| Default NEAR RPC | `https://rpc.testnet.fastnear.com` | `https://rpc.mainnet.fastnear.com` |
+| Explorer | [testnet.nearblocks.io](https://testnet.nearblocks.io/address/v1.satchel-nft.testnet) | [nearblocks.io](https://nearblocks.io/address/v1.satchel-nft.near) |
+| In the app | every page outside `/mainnet` | pages under [`/mainnet`](https://satchelnft.xyz/mainnet) |
+| In the CLI | the default | `--network mainnet` |
+| Record of the deployment | [`deployments/testnet.json`](https://github.com/duongnq2798/satchel/blob/main/deployments/testnet.json) | [`deployments/mainnet.json`](https://github.com/duongnq2798/satchel/blob/main/deployments/mainnet.json) |
+
+Each contract was deployed and initialized with its MPC contract in one transaction, so no one could
+initialize it first with another signer. There is no admin and no method to change the MPC contract
+later. The first check of every [report](/docs/concepts/clean-transfer-report) reads the contract's
+access keys, code hash and `mpc_contract()` and compares them with these values, which the `satchel-nft`
+package pins in its `config.ts` rather than trusting the contract to describe itself.
+
+Token ids are per contract: satchel #1 on testnet and satchel #1 on mainnet are different tokens with
+different owners and different addresses.
+
+## The 16 chains
+
+The contract's `SUPPORTED_CHAINS` holds 16 chain ids, the same on both networks. `sign_evm` refuses any
+other with `Satchel: chain_id is not one of the supported chains`.
+
+| Mainnet | Chain id | Coin | Testnet | Chain id | Coin |
+| --- | --- | --- | --- | --- | --- |
+| Ethereum | 1 | ETH | Sepolia | 11155111 | ETH |
+| Base | 8453 | ETH | Base Sepolia | 84532 | ETH |
+| Arbitrum One | 42161 | ETH | Arbitrum Sepolia | 421614 | ETH |
+| OP Mainnet | 10 | ETH | OP Sepolia | 11155420 | ETH |
+| Polygon | 137 | POL | Polygon Amoy | 80002 | POL |
+| BNB Chain | 56 | BNB | BNB testnet | 97 | tBNB |
+| Avalanche | 43114 | AVAX | Avalanche Fuji | 43113 | AVAX |
+| Aurora | 1313161554 | ETH | Aurora testnet | 1313161555 | ETH |
+
+### Which chains you can send on
+
+The contract would sign for any of the 16 on either network. The app and the CLI narrow that down:
+
+- a **testnet** satchel sends only on the 8 **testnets**, from the app's testnet pages or `satchel-nft send`
+  without `--network`;
+- a **mainnet** satchel sends only on the 8 **mainnets**, from `/mainnet` pages or with `--network mainnet`.
+
+So a testnet satchel never moves mainnet funds from the app or the CLI. The report, though, reads
+every chain a record lists, whichever network it is on: a testnet satchel's record can name chain 1 if
+someone called `sign_evm` directly, and the report checks it.
+
+<Callout type="danger" title="Never send real funds to a testnet satchel's address">
+The address is valid on every EVM mainnet, and the testnet contract can sign mainnet chain ids. But its
+key is derived by NEAR's testnet MPC network, which is not meant to secure real value. Keep real funds in
+mainnet satchels only, and only what you can afford to lose: Satchel is not audited.
+</Callout>
+
+### Why the list is fixed
+
+A fixed list keeps every record checkable: the report knows an RPC and an explorer for every chain a
+record can name. It also rules out signatures for chains that don't exist yet, whose transactions no one
+could check today.
+
+The cost is that the list can't change for the life of a contract. There is no admin, so
+`SUPPORTED_CHAINS` can't gain a chain or drop a testnet that shuts down. A new chain needs a new contract,
+deployed as a new account such as `v2.satchel-nft.near`. If a testnet in the list shuts down, a satchel
+with history there can never read provably clean again, because its nonce can no longer be read.
+
+## The RPCs the report reads
+
+By default, the app and the CLI read each chain from one public node, and name it under every report:
+
+| Chain | Default RPC | Explorer |
+| --- | --- | --- |
+| Ethereum | `https://ethereum-rpc.publicnode.com` | etherscan.io |
+| Sepolia | `https://ethereum-sepolia-rpc.publicnode.com` | sepolia.etherscan.io |
+| Base | `https://base-rpc.publicnode.com` | basescan.org |
+| Base Sepolia | `https://base-sepolia-rpc.publicnode.com` | sepolia.basescan.org |
+| Arbitrum One | `https://arb1.arbitrum.io/rpc` | arbiscan.io |
+| Arbitrum Sepolia | `https://sepolia-rollup.arbitrum.io/rpc` | sepolia.arbiscan.io |
+| OP Mainnet | `https://mainnet.optimism.io` | optimistic.etherscan.io |
+| OP Sepolia | `https://optimism-sepolia-rpc.publicnode.com` | sepolia-optimism.etherscan.io |
+| Polygon | `https://polygon-bor-rpc.publicnode.com` | polygonscan.com |
+| Polygon Amoy | `https://polygon-amoy-bor-rpc.publicnode.com` | amoy.polygonscan.com |
+| BNB Chain | `https://bsc-rpc.publicnode.com` | bscscan.com |
+| BNB testnet | `https://bsc-testnet-rpc.publicnode.com` | testnet.bscscan.com |
+| Avalanche | `https://avalanche-c-chain-rpc.publicnode.com` | snowtrace.io |
+| Avalanche Fuji | `https://avalanche-fuji-c-chain-rpc.publicnode.com` | testnet.snowtrace.io |
+| Aurora | `https://mainnet.aurora.dev` | explorer.mainnet.aurora.dev |
+| Aurora testnet | `https://testnet.aurora.dev` | explorer.testnet.aurora.dev |
+
+Before it trusts an EVM node, the report checks that the node answers with the chain id it is configured
+for; one that serves another chain counts as unreadable, never as a pass. In the CLI, `NEAR_RPC=<url>`
+replaces the NEAR node and `RPC_<chain id>=<url>` replaces a chain's, for example `RPC_8453` for Base:
+
+```bash
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+```
+
+A `NEAR_RPC` that serves the other network stops the CLI with exit code 2. [RPCs, finality and rate
+limits](/docs/developers/rpc-and-finality) covers running against your own nodes.
+
+## Finality, chain by chain
+
+Every EVM read in the report, a nonce or an allowance, is pinned to the chain's **finalized** block,
+which can't be reorganized away. That is why a send shows up in a report only after a delay: about 13
+minutes on Sepolia, and about 20 on Base, where mainnet satchel #1's first send read
+`PROVABLY CLEAN` 21 minutes after it was broadcast. Until then the report reads
+<Verdict v="unknown" />, not clean.
+
+Aurora is the exception. Its RPC answers "finalized" with its latest block, so the report reads 10 blocks
+further back there. Aurora's blocks follow NEAR's, which are final within a few blocks. The threat model
+lists this as a residual risk: a chain whose RPC calls a non-final block finalized.
+
+## Related
+
+- [Satchels and their addresses](/docs/concepts/satchels-and-addresses): how one key becomes one address on all 16 chains.
+- [The clean transfer report](/docs/concepts/clean-transfer-report): what is read on each chain, and when it passes.
+- [RPCs, finality and rate limits](/docs/developers/rpc-and-finality): use your own nodes.
+- [Check every claim](/docs/security/check-every-claim): verify both deployments against the chain.

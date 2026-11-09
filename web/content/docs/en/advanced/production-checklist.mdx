@@ -1,0 +1,258 @@
+Satchel is live on NEAR mainnet, where a satchel's address holds real funds, and it is not audited. Most of
+what goes wrong in practice isn't an attack on the contract: it is a satchel funded before it was minted, a
+signature that was never broadcast, a report read from a node no one checked, or a purchase at a version
+nobody looked at. Go through this list before you put real value in a satchel or ship a product that reads
+or trades them.
+
+<Callout type="danger" title="Real funds">
+Keep in a mainnet satchel only what you can afford to lose. Never send real funds to a testnet satchel's address:
+it is a valid address on mainnet chains too, but NEAR's testnet MPC network signs for it.
+</Callout>
+
+## The list at a glance
+
+| | Item | For |
+| --- | --- | --- |
+| 1 | [Verify the deployment you integrate with](#1-verify-the-deployment-you-integrate-with) | Builders, evaluators |
+| 2 | [Pin `satchel-nft@0.1.0` and check it](#2-pin-satchel-nft010-and-check-it) | Builders |
+| 3 | [Read from nodes you trust](#3-read-from-nodes-you-trust) | Builders, buyers |
+| 4 | [Check the network of every report](#4-check-the-network-of-every-report) | Builders |
+| 5 | [Wait for finality](#5-wait-for-finality) | Everyone |
+| 6 | [Never put real funds in a testnet satchel](#6-never-put-real-funds-in-a-testnet-satchel) | Owners |
+| 7 | [Mint first, then fund](#7-mint-first-then-fund) | Owners |
+| 8 | [Never sign a nonce you won't broadcast](#8-never-sign-a-nonce-you-wont-broadcast) | Owners, sellers |
+| 9 | [Revoke approvals before you list](#9-revoke-approvals-before-you-list) | Sellers |
+| 10 | [Keep a satchel you'll sell away from raw signatures and unclassified calls](#10-keep-a-satchel-youll-sell-away-from-raw-signatures-and-unclassified-calls) | Sellers |
+| 11 | [Buy only at the record version you checked](#11-buy-only-at-the-record-version-you-checked) | Buyers, builders |
+| 12 | [Don't use `--yes` where fees matter](#12-dont-use---yes-where-fees-matter) | Automation |
+| 13 | [Handle exit code 3](#13-handle-exit-code-3) | Automation |
+| 14 | [Keep amounts small](#14-keep-amounts-small) | Everyone |
+
+## Before you integrate
+
+### 1. Verify the deployment you integrate with
+
+**What.** Confirm that `v1.satchel-nft.near` (or `v1.satchel-nft.testnet`) has no access keys, runs the
+reproducible build `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`, and signs only through `v1.signer`
+(`v1.signer-prod.testnet` on testnet).
+
+**Why.** Everything the report proves rests on the contract being unable to sign around its own record. Check it
+yourself rather than taking these docs' word.
+
+**How.** From a clone of the repository, no install:
+
+```bash
+node scripts/check-claims.mjs --network mainnet
+```
+
+You should see `9 of 9 claims hold` and exit code 0. The [security model](/docs/security#evaluate-satchel-in-15-minutes)
+has curl reads that need none of Satchel's code. In your own code, `contractFacts(MAINNET)` and `contractCheck`
+from the library run the same check, and `assertDeployment(MAINNET)` throws unless it passes.
+
+### 2. Pin `satchel-nft@0.1.0` and check it
+
+**What.** Run and depend on exactly version 0.1.0, not a range and not `latest`.
+
+**Why.** 0.1.0 was published from the owner's npm account without npm provenance. A later version holds whatever
+its publisher put in it. npm also lists a `0.0.0-stage` placeholder that is not the package.
+
+**How.** Name the version in every `npx` call, and save it exactly in a project:
+
+```bash
+npx -y satchel-nft@0.1.0 verify 1
+npm install --save-exact satchel-nft@0.1.0
+```
+
+npm records the release's commit and checksum:
+
+```bash
+npm view satchel-nft@0.1.0 gitHead dist.shasum
+```
+
+```text
+gitHead = '728ed74e978fb0cd81808ada8febdb02633d73b7'
+dist.shasum = '599980b6445558157e28f7bae7872b0756988150'
+```
+
+To check the files themselves, follow the [threat model's npm entry](/docs/security/threat-model#what-satchel-trusts):
+unpack `npm pack satchel-nft@0.1.0`, strip its Windows line endings, and compare `bin/`, `package.json`,
+`README.md` and `LICENSE` with commit `728ed74`, and `dist/` with what `npm run build -w satchel-nft` builds from it.
+
+### 3. Read from nodes you trust
+
+**What.** Point the report at your own NEAR node and your own node for each chain a satchel's record names.
+
+**Why.** The report is as honest as its RPCs. One that lies about a nonce or an allowance can make a satchel look
+clean. The defaults are public nodes, named in every report.
+
+**How.** The CLI reads `NEAR_RPC` and `RPC_<chain id>`:
+
+```bash
+NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.1.0 verify --network mainnet 1
+```
+
+A NEAR RPC that serves the other network stops the CLI with exit code 2. An EVM RPC that answers with another chain
+id counts as unreadable, so the report can't read clean. In the library, `setNearRpc(url)` replaces the NEAR RPC,
+and each entry of `CHAINS` carries the `rpc` its client uses. [RPCs, finality and rate limits](/docs/developers/rpc-and-finality)
+covers both.
+
+### 4. Check the network of every report
+
+**What.** Before acting on a report, confirm its `network` and `contract` are the ones you mean to act on.
+
+**Why.** Satchel ids are per network: testnet's #1 and mainnet's #1 are different satchels at different
+addresses. A report read on testnet says nothing about a mainnet satchel.
+
+**How.** Every `Report` carries `network` and `contract`:
+
+```ts
+import { MAINNET, buildReport } from "satchel-nft";
+
+const report = await buildReport(MAINNET, "1");
+if (report === null) throw new Error("No such satchel on mainnet");
+if (report.network !== MAINNET.id || report.contract !== MAINNET.contract) throw new Error("Report from the wrong network");
+```
+
+## Holding funds
+
+### 5. Wait for finality
+
+**What.** Treat a report as final only once every chain it reads has finalized the blocks that matter.
+
+**Why.** The report reads each chain at its finalized block. Right after a send, the nonce is spent only in a block
+that is not final yet, so the report reads "couldn't check everything". About 13 minutes on Sepolia; satchel #1's
+first mainnet send read clean 21 minutes after it was sent on Base.
+
+**How.** Read the report again later. Don't treat `unknown` as a pass, and don't lower the bar in your own code:
+`report.verdict === "clean"` is the only clean answer.
+
+### 6. Never put real funds in a testnet satchel
+
+**What.** Fund testnet satchels only with testnet coins.
+
+**Why.** Both contracts can sign for all 16 chain ids, mainnets included. A testnet satchel's address is a valid
+address on Ethereum or Base, but NEAR's testnet MPC network signs for it, which is not where real value belongs.
+The app only sends from a testnet satchel on the 8 testnets.
+
+**How.** Use satchelnft.xyz for testnet and satchelnft.xyz/mainnet for mainnet, and check the banner each page
+shows. In code, pass `TESTNET` or `MAINNET` explicitly to every call. See [Networks and chains](/docs/concepts/networks-and-chains).
+
+### 7. Mint first, then fund
+
+**What.** Send funds to a satchel's address only after you own the token.
+
+**Why.** A token's address is fixed by its id before the token exists, and `mint` is open to anyone. Fund the
+address of the next id before minting, and whoever mints that id first owns the funds. Satchel #1 on mainnet was
+funded 92 seconds before it was minted; anyone who minted #1 in between would have owned that ETH.
+
+**How.** Mint, check the owner, then fund the address the app or `show` gives you:
+
+```bash
+npx -y satchel-nft@0.1.0 show --network mainnet <id>
+```
+
+[Mint and fund a satchel](/docs/guides/mint-and-fund) walks through it in the app.
+
+## Selling and buying
+
+### 8. Never sign a nonce you won't broadcast
+
+**What.** Every `sign_evm` signature should end in a broadcast transaction at that nonce.
+
+**Why.** The record keeps the highest nonce ever signed on each chain, and the MPC signature is public in the
+NEAR receipt. Until a transaction at that nonce is final, anyone holding the signature can broadcast it, and the
+report reads "not provable". This is what satchel #5 shows.
+
+**How.** Use the app's send or `satchel-nft send`, which check, sign and broadcast in one flow. If a send stops after
+signing, broadcast it or spend that nonce with another transaction before you list. A reverted transaction still
+spends its nonce.
+
+### 9. Revoke approvals before you list
+
+**What.** Revoke every approval the satchel ever signed, on chain, before you list it.
+
+**Why.** Check 3 reads each approval in the record at a finalized block and fails while any is live.
+
+**How.** Send the revoking call from the satchel through `sign_evm`: `approve(spender, 0)` for an ERC-20,
+`setApprovalForAll(operator, false)`, or a Permit2 `approve` of 0. The last two are recorded as revocations and
+take no approval slot; `approve(x, 0)` is itemized like any approval, and reads as revoked once the allowance is 0.
+Then read the report and wait for finality. [Sell a satchel](/docs/guides/sell) has the steps.
+
+### 10. Keep a satchel you'll sell away from raw signatures and unclassified calls
+
+**What.** Use a satchel you plan to sell only for value transfers, plain asset transfers and approvals you'll
+revoke.
+
+**Why.** `sign_raw`, any call the contract can't classify (a swap, a multicall, a safe transfer with data), and
+any approval past the 32nd are counted, and check 4 then fails for good. The record never shrinks, so such a
+satchel can never read provably clean, for you or anyone after you.
+
+**How.** Keep DeFi activity on a different satchel or wallet. Before signing data you didn't write, check what the
+[signing record](/docs/concepts/signing-record#the-five-call-classes) will call it.
+
+### 11. Buy only at the record version you checked
+
+**What.** Name, in `buy`, the record version and price from the report you read.
+
+**Why.** Between your check and your purchase, a seller could delist, sign and relist. Every signature raises the
+version, so `buy` with the version you read fails instead of buying something you didn't check, and you keep your
+NEAR.
+
+**How.** The app and `satchel-nft buy` do this for you. In code, take both from the report:
+
+```ts
+import { MAINNET, buildReport, satchelTx } from "satchel-nft";
+
+const report = await buildReport(MAINNET, "1");
+if (!report?.listing || report.verdict !== "clean" || report.listing.record_version !== report.recordVersion) {
+  throw new Error("Not clean, not listed, or the listing doesn't match the record");
+}
+const tx = satchelTx(MAINNET).buy(report.tokenId, report.recordVersion, BigInt(report.listing.price));
+// Have the buyer's wallet sign `tx`.
+```
+
+## Automating
+
+### 12. Don't use `--yes` where fees matter
+
+**What.** Let the CLI ask before it sends, unless the inputs are fully under your control.
+
+**Why.** Without `--yes`, a send shows the most its fees can reach and the nonce before you agree. With `--yes`,
+nothing caps the fee or checks the nonce against the record: an EVM RPC that lies can spend the balance on fees.
+
+**How.** Leave out `--yes` for sends, or use your own RPC for the chain (`RPC_<chain id>`) when you must run
+unattended. [Automate with the CLI](/docs/advanced/automation) covers scripts.
+
+### 13. Handle exit code 3
+
+**What.** Treat exit code 3 as "sent, outcome unknown", never as a failure to retry.
+
+**Why.** The CLI exits 3 when it sent a transaction but couldn't read what happened to it. Running the command again
+may send it twice: for a `send`, that can mean paying twice, and the signature at that nonce is already public.
+
+**How.** Read the transaction it names (`nearTx` or `evmTx` with `--json`) on the explorer before doing anything else:
+
+```bash
+npx -y satchel-nft@0.1.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as <you>.testnet --json
+code=$?
+if [ "$code" -eq 3 ]; then echo "Outcome unknown: check the transaction before retrying"; exit 3; fi
+```
+
+[Errors and exit codes](/docs/developers/errors) lists every code.
+
+### 14. Keep amounts small
+
+**What.** Hold in any one satchel only what you can afford to lose.
+
+**Why.** No third party has audited the contract, the package or the app. The [threat model](/docs/security/threat-model#residual-risks-in-one-list)
+lists what is left even when everything works as designed: the MPC network, the RPCs, the hosted app, the npm
+release.
+
+**How.** Split value across satchels, and read the residual risks before deciding what "small" means for you.
+
+## Next steps
+
+- [Security model](/docs/security): the layers and what Satchel trusts.
+- [Threat model](/docs/security/threat-model): every attack and what stops it.
+- [RPCs, finality and rate limits](/docs/developers/rpc-and-finality): running against your own nodes.
+- [Automate with the CLI](/docs/advanced/automation): exit codes and JSON in scripts.

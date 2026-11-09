@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { CHAINS, buildReport, chainInfo, nearAccountUrl, nearTxUrl, satchel, tokenAddress } from "satchel-nft";
-import { Balances } from "./balances";
+import { Contents } from "./contents";
 import { DeploymentNote, useDeployment } from "./deployment";
+import { History } from "./history";
 import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale } from "./sale-panel";
@@ -82,8 +83,9 @@ export function TokenView({ tokenId }: { tokenId: string }) {
               <Mono className="text-lg">{address}</Mono>
               <CopyButton value={address} />
             </div>
-            <div className="mt-4">
-              <Balances address={address} refresh={refresh} />
+            <h2 className="mt-5 font-display text-xl font-semibold">What&apos;s inside</h2>
+            <div className="mt-3">
+              <Contents address={address} refresh={refresh} />
             </div>
           </>
         ) : (
@@ -108,6 +110,8 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       {view.listing && !isOwner && <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />}
       {isOwner && !view.listing && deployment.data && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} />}
       {isOwner && <OwnerSale token={view} onDone={reloadAll} />}
+
+      <History tokenId={view.token_id} record={record} refresh={refresh} />
 
       <Card>
         <h2 className="font-display text-xl font-semibold">Signing record</h2>
