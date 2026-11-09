@@ -100,7 +100,7 @@ function RefusedPanel({ trick }: { trick: RefusedTrick }) {
       <p className="mt-2 text-sm leading-relaxed text-paper/80">{trick.body}</p>
       <div className="mt-5 overflow-hidden rounded-xl border border-paper/15 font-mono text-xs">
         <p className="bg-paper/5 px-3 py-2 break-all text-paper/80">
-          <span className="text-paper/50">seller → </span>
+          <span className="text-paper/50">{trick.caller} → </span>
           {trick.call}
         </p>
         <p className="px-3 py-2 break-all text-[#f0997b]">
