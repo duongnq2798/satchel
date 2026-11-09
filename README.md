@@ -12,8 +12,10 @@ one of those chains moves with it in one NEAR transaction.
 
 > **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract is live on
 > NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
-> access keys), and checked end to end against NEAR's MPC network. No web app yet, not on mainnet
-> yet, not audited. This section is updated as each piece lands.
+> access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app) mints,
+> sends through the MPC network, lists and buys, and computes the clean transfer report in your
+> browser; it runs locally and is not hosted yet. Not on mainnet yet, not audited. This section is
+> updated as each piece lands.
 
 ## The problem it solves
 
@@ -50,8 +52,8 @@ Satchel keeps a public, on-chain **signing record** for every token, so a buyer 
 
 ### When is a transfer provably clean?
 
-A buyer (or the Satchel web app, when it ships) can call a token provably clean only when all of
-these hold:
+A buyer (or the [Satchel web app](#web-app), which runs these checks) can call a token provably
+clean only when all of these hold:
 
 | Check | How |
 |---|---|
@@ -144,8 +146,10 @@ the real MPC network. Its last run (evidence in
 signature was never broadcast (the address held no Sepolia ETH), and the signed transaction is in
 the evidence file. Anyone holding it can still broadcast it once the address is funded, so token 1
 is **not** provably clean yet: Sepolia's nonce for the address is 0 and the record's `max_nonce` is
-0. It becomes clean on that check when the buyer lands a nonce-0 transaction of their own, which
-voids the old one.
+0. It passes that check once any transaction at nonce 0 is final on Sepolia, the old one included.
+A buyer cannot count on voiding it with a transaction of their own: the old signature is public in
+the NEAR receipt, so the seller can broadcast it the moment the address is funded. That is why the
+check has to pass before a sale, not after.
 
 To run it yourself, put two testnet accounts in the legacy keychain (`~/.near-credentials`) and:
 
@@ -158,6 +162,80 @@ SATCHEL_OWNER=<your-account>.testnet SATCHEL_BUYER=<second-account>.testnet node
 You should see `E2E PASS`. To broadcast for real, fund the token's address on Sepolia, then run
 `node e2e-testnet.mjs send <token_id> <owner-account>`; it prints the Etherscan link. Set
 `NEAR_CLI` if `near` is not on your `PATH`.
+
+## Web app
+
+[`web/`](web) is a Next.js app with no backend. Every read goes from your browser to a public NEAR
+RPC and to each EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
+
+| Page | What you can do there |
+|---|---|
+| `/` | What Satchel is, and live facts about the deployment: contract keys, code hash, MPC signer, supply |
+| `/satchels` | Connect a NEAR wallet, mint a satchel for 0.1 NEAR, see the ones you own |
+| `/satchel/<id>` | The token's address, its balance on the 8 testnets, the clean transfer report; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy |
+| `/market` | The listed satchels, each with its price and the verdict of its report |
+| `/verify` | Enter a token id and read its report, no wallet needed |
+
+**The report** runs the four checks of the [clean-transfer table](#when-is-a-transfer-provably-clean)
+against NEAR and every chain the record lists. Each chain is read at its own finalized block
+(Aurora's RPC calls its latest block finalized, so the app reads 10 blocks back there). A check
+that cannot be read (an RPC down, a chain the app does not know, an RPC serving the wrong chain) is
+shown as unknown, never as a pass, and the verdict is "Provably clean" only when all four pass.
+
+**Buying** takes the record version and the price from the report you read, not from the rest of
+the page. If the seller delists, signs and relists before your transaction lands, the contract
+refuses the sale and you keep your NEAR. A satchel that is not provably clean can still be bought,
+after you tick a box that says so.
+
+**Sending** from a satchel: pick a testnet, a recipient and an amount (or raw calldata, under
+Advanced). The app estimates gas, reads the nonce and fees, checks that the contract hashes the same
+transaction, has your wallet call `sign_evm`, recovers the signer from the MPC signature, and only
+then broadcasts. It stops before your wallet opens if the address cannot pay the value plus the
+most the fees can reach (on OP Sepolia and Base Sepolia, the L1 data fee included), and shows that
+fee while your wallet asks.
+
+**Wallets.** The app lists a pinned set of NEAR wallets. On testnet that is Meteor, Intear,
+Nightly, Ledger and NEAR CLI.
+
+To run it:
+
+1. Install and start it. Node 22 or later.
+
+   ```bash
+   cd web
+   npm ci
+   npm run dev
+   ```
+
+2. Open <http://localhost:3000/satchel/1>. You should see satchel #1's address, its testnet
+   balances and its report: three checks pass and "No signed transaction is still pending" fails,
+   for the reason [above](#end-to-end-run).
+
+3. Get the same report without a browser:
+
+   ```bash
+   npm run verify -- 1
+   ```
+
+   It prints each check, the verdict (`NOT PROVABLE` for token 1) and the RPCs it read from, and
+   exits 0 only when the satchel is provably clean.
+
+4. Read from nodes you trust. The report is only as honest as its RPCs: one that lies about a
+   nonce or an allowance could make a satchel look clean. The app names the public RPCs it used
+   under every report; the CLI can use your own instead:
+
+   ```bash
+   NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npm run verify -- 1
+   ```
+
+   `RPC_<chain id>` works for each of the 16 chains. The app also checks that every EVM RPC
+   answers with the chain id it expects.
+
+`npm test` runs the unit tests: the address derivation and the full signing round trip against
+the real `sign_evm` result from the E2E run (same hash, same signer, same raw transaction byte for
+byte), each check and the verdict order, every approval kind (a cleared ERC-721 approval included),
+and every guard in the send flow.
+`npm run typecheck` and `npm run build` are the other two steps CI runs.
 
 ## Build and test
 
@@ -204,6 +282,9 @@ What the tests pin down:
 - **The seller's payment can fail** if the seller deletes their account before it lands; the NEAR then
   stays in the contract, which has no admin to return it.
 - `listings` pages can shift between calls, because removing a listing moves the last one into its slot.
+- **The web app trusts the RPCs it reads.** The checks are only as true as the answers of one public
+  RPC per chain and one NEAR RPC. The report names them, and `npm run verify` can read from your own
+  nodes instead. It does not yet compare two RPCs or check storage proofs.
 - Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
   version of the record, then two smaller gaps in the fix; all four are fixed and covered by the
   tests above.

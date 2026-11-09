@@ -6,6 +6,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- `web/`: a Next.js web app with no backend, on NEAR testnet. Connect a NEAR wallet (a pinned list
+  through near-connect), mint a satchel, see its address and balances on 8 testnets, send from it
+  through `sign_evm` (the app checks the contract's hash and recovers the MPC signature's signer
+  before it broadcasts), list, delist, transfer and buy. Buying names the record version the report
+  checked. Sends estimate gas, count the OP Stack L1 data fee toward what the satchel must hold, and
+  keep the NEAR and EVM transaction links up if a later step fails.
+- The clean transfer report, computed in the browser: the contract check (no keys, reproducible
+  code hash, canonical MPC signer), pending signatures, approvals and counters, with each chain read
+  at its finalized block. Anything unreadable is unknown, never a pass.
+- `npm run verify -- <token_id>` in `web/`: the same report in a terminal, exit code 0 only when
+  provably clean.
+- CI for the web app: typecheck, unit tests and the production build.
 - Deployed to NEAR testnet at `v1.satchel-nft.testnet` from the reproducible CI build of commit
   `87148c6` (code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`), initialized in the deploy
   transaction and locked by deleting its only key before the first mint. Record in
@@ -34,6 +46,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Security
 
+- Web app, from two internal reviews before release (one adversarial, on the report and the
+  purchase): every EVM RPC must answer with the expected chain id before the report trusts it, and
+  the report names the RPCs it read (`npm run verify` takes `NEAR_RPC` and `RPC_<chain id>` to use
+  your own nodes); a purchase takes its record version and price only from the report the buyer
+  read; buttons lock while a transaction is in flight, so a double click cannot sign the same nonce
+  twice; a failed pending check no longer tells the buyer they can void the old signature, which is
+  public and can be broadcast first; an ERC-721 approval cleared with `approve(0x0, id)` no longer
+  reads as live; Aurora is read 10 blocks behind its "finalized" block, which is its latest.
 - Fixed before release, from an internal adversarial review: ERC-721 approvals of different token
   ids no longer merge into one row; calls the contract cannot classify (multicall and others) are
   counted instead of passing silently; `new` is private; a listing made by the receiver of a bounced

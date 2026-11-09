@@ -1,0 +1,10 @@
+{
+  "transaction": {
+    "hash": "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo",
+    "signer_id": "satchel-nft.testnet",
+    "receiver_id": "v1.satchel-nft.testnet"
+  },
+  "status": {
+    "SuccessValue": "eyJzY2hlbWUiOiJTZWNwMjU2azEiLCJiaWdfciI6eyJhZmZpbmVfcG9pbnQiOiIwMzNiZmU2NzAwNGZkZjYyZDE4MzM1MjAxYjNkZDIxZGJjNTg3ZGUyMmJlYjUyNjg3NmZjMGM0OTUwZmRhMGMxZTMifSwicyI6eyJzY2FsYXIiOiI0Zjk0MTYyY2VjMjk4MzdiNTc0ZmVkZWYyYWYwODI1YWIwYTg5MGMxYzY2NjY3Y2Q4OTQwZjM4Zjk4MDk4Y2FlIn0sInJlY292ZXJ5X2lkIjoxfQ=="
+  }
+}
