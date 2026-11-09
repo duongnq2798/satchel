@@ -6,6 +6,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Token 1's open nonce-0 signature from the end-to-end run is spent: its current owner sent a
+  Sepolia transaction at nonce 0 through `sign_evm`, and once that block was final the report reads
+  provably clean. Evidence in `deployments/testnet-sepolia-send.json`.
 - `web/`: a Next.js web app with no backend, on NEAR testnet. Connect a NEAR wallet (a pinned list
   through near-connect), mint a satchel, see its address and balances on 8 testnets, send from it
   through `sign_evm` (the app checks the contract's hash and recovers the MPC signature's signer

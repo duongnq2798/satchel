@@ -1,0 +1,11 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "tokenId": "1",
+  "signer": "buyer.satchel-nft.testnet",
+  "address": "0x96da1468e95ab31a698891f0150095f86b5a282b",
+  "nearTx": "27myw3U1iMmPvvGajeao1mqPaoqKu3C6SJQt7VL6FRCd",
+  "sepoliaTx": "0x43c37e67eed3c849acfc4b3f525a762d9c862c9fec017b0391c49ee2f89d6965",
+  "block": "12094728",
+  "ranAt": "2026-11-09T03:05:35.797Z"
+}
