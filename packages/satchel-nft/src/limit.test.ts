@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { limiter } from "./limit";
+import { limiter } from "./limit.js";
 
 describe("limiter", () => {
   it("runs at most n tasks at once and all of them in the end", async () => {

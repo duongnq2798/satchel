@@ -2,9 +2,16 @@
 
 import { type FormEvent, useRef, useState } from "react";
 import { type Address, type Hex, formatEther, isAddress, isHex, parseEther } from "viem";
-import { type ChainInfo, nearTxUrl, sendChains } from "@/lib/config";
-import type { MpcSignature } from "@/lib/evm";
-import { type SendResult, type SendStep, liveSendDeps, sendFromSatchel } from "@/lib/send";
+import {
+  type ChainInfo,
+  type MpcSignature,
+  type SendResult,
+  type SendStep,
+  liveSendDeps,
+  nearTxUrl,
+  sendChains,
+  sendFromSatchel,
+} from "satchel-nft";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote, ExternalLink } from "./ui";
 import { useWallet } from "./wallet";

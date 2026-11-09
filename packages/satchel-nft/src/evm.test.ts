@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import outcome from "./__fixtures__/sign-evm-outcome.json";
+import outcome from "./__fixtures__/sign-evm-outcome.json" with { type: "json" };
 import {
   type EvmTx,
   type MpcSignature,
@@ -11,8 +11,8 @@ import {
   signingHash,
   toContractTx,
   toEvmSignature,
-} from "./evm";
-import { outcomeValue } from "./near";
+} from "./evm.js";
+import { outcomeValue } from "./near.js";
 
 // Token 1 on v1.satchel-nft.testnet, from the end-to-end run (deployments/testnet-e2e.json).
 const TOKEN_1_KEY =

@@ -1,32 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { CHAINS, MAINNET, TESTNET, accountOnNetwork, appPath, networkForPath, sendChains, switchPath } from "./config";
+import { CHAINS, MAINNET, TESTNET, accountOnNetwork, sendChains } from "./config.js";
 
 describe("networks", () => {
-  it("reads the network from the page's path", () => {
-    expect(networkForPath("/mainnet")).toBe(MAINNET);
-    expect(networkForPath("/mainnet/satchel/1")).toBe(MAINNET);
-    expect(networkForPath("/")).toBe(TESTNET);
-    expect(networkForPath("/satchel/1")).toBe(TESTNET);
-    expect(networkForPath("/mainnetish")).toBe(TESTNET);
-    expect(networkForPath(null)).toBe(TESTNET);
-  });
-
-  it("keeps links on the same network", () => {
-    expect(appPath(TESTNET, "/market")).toBe("/market");
-    expect(appPath(TESTNET, "/")).toBe("/");
-    expect(appPath(MAINNET, "/market")).toBe("/mainnet/market");
-    expect(appPath(MAINNET, "/")).toBe("/mainnet");
-  });
-
-  it("switches to the same page on the other network, or home", () => {
-    expect(switchPath("/market", MAINNET)).toBe("/mainnet/market");
-    expect(switchPath("/mainnet/satchels", TESTNET)).toBe("/satchels");
-    expect(switchPath("/mainnet", TESTNET)).toBe("/");
-    expect(switchPath("/", MAINNET)).toBe("/mainnet");
-    expect(switchPath("/satchel/4", MAINNET)).toBe("/mainnet");
-    expect(switchPath("/mainnet/satchel/1", TESTNET)).toBe("/");
-  });
-
   it("sends only on the network's own chains, and both cover every chain the contract signs for", () => {
     expect(sendChains(TESTNET).every((c) => c.testnet)).toBe(true);
     expect(sendChains(MAINNET).every((c) => !c.testnet)).toBe(true);

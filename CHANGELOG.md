@@ -6,6 +6,23 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The npm package `satchel-nft` (`packages/satchel-nft`), published on npm as 0.1.0 on 2026-11-09
+  by the owner, from commit `728ed74`. `npx -y satchel-nft@0.1.0 verify 1` runs the report with no
+  clone. It holds the clean transfer report, the guards, the send flow and the contract's reads and
+  transactions as a library (`import { buildReport } from "satchel-nft"`), and a command,
+  `satchel-nft`. Read commands need no keys: `verify`, `show`, `record`, `market`. Sign commands (`mint`, `list`, `delist`, `buy`,
+  `transfer`, `send`) have the near CLI sign with the key in its keychain, so the package never
+  reads one; it decodes the signed transaction, refuses it unless the signer, receiver, method,
+  arguments, gas and deposit are the ones it asked for, shows it, and sends only after `yes` or
+  `--yes`. `buy` goes ahead only when the report reads `PROVABLY CLEAN`, naming the record version
+  that report read. `--network`, `--json` and exit codes for scripts: 0 done, 1 no, 2 could not run,
+  3 sent but the outcome is unknown. Every sign command ran on testnet with satchel #7, minted,
+  funded, sent from, listed, sold and handed back with the CLI; the transactions and the refusals
+  are in `deployments/testnet-cli.json`. 94 unit tests.
+- CI: `package.yml` typechecks and tests the package, packs it, fails if the tarball holds anything
+  but the launcher, `dist`, the README, LICENSE and `package.json`, installs the tarball in an empty
+  project and runs it on Node 22, then runs the 0.1.0 release from npm. `ci.yml`'s `verify` now
+  needs the contract, web and package workflows.
 - The first satchel on mainnet. Satchel #1's address, `0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9`,
   was funded with 0.00195 ETH on Base; the satchel was minted to `satchel-nft.near`, then sent
   0.0001 ETH from it on Base at satchelnft.xyz, with the owner approving `sign_evm` in a NEAR wallet.
@@ -116,8 +133,26 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   network (mint, derive the address, sign a Sepolia transaction, recover the signer, transfer the
   NFT, refused calls), and a `send` mode that broadcasts a signed Sepolia transaction.
 
+### Changed
+
+- The web app runs on `satchel-nft`: its report, guards, send flow and contract calls moved from
+  `web/src/lib` into the package, with their tests, so the app and the command run one copy of the
+  code. The repository root is an npm workspace (the package and the app, one lockfile); the app
+  builds the package before `dev`, `build`, `test` and `typecheck`. `npm run verify` in `web` now
+  runs `satchel-nft verify`, and `web/scripts/verify.ts` is gone.
+- The README's evaluation runs the report with `npx satchel-nft verify`: from npm with no clone, or
+  after installing only the package; testnet satchel #1 now reads record version 7, signed up to
+  nonce 4. The threat model lists 32 attacks, and what to trust about the npm release.
+- The site's "check it from a terminal" boxes and each report's "run it yourself" line say
+  `npx satchel-nft@0.1.0 verify <id>`, from npm, instead of `cd web && npm ci && npm run verify`.
+  The README's commands pin the same release.
+
 ### Fixed
 
+- The npm package's files kept Windows line endings in a Windows checkout, so 0.1.0, packed there,
+  ships CRLF in five files, the end of its launcher's first line among them. npm strips that CR when
+  it links the command on Linux and macOS, so `npx` runs it, and CI now checks that on Linux. The
+  `.gitattributes` keeps the package's files LF in every checkout, so the next release won't.
 - `docs/assets/src/screenshots.mjs` left the headless browser running on Windows, where it relaunches
   itself under another process id, then crashed removing its profile. It now closes the browser over
   DevTools, takes only the shots you name, and waits for balances still loading. The README's
@@ -151,6 +186,16 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Security
 
+- From an adversarial review of the CLI's signing, which found no way to make it send a transaction
+  other than the one it shows: it runs the near CLI by its absolute path, from `--near-cli`,
+  `$NEAR_CLI` or PATH's absolute folders only, since Windows runs a `near.exe` from the current
+  folder before PATH; it builds nothing from a token view about another token; a transaction counts
+  as done only once its status is final; a transaction sent but not read back exits 3 with its hash,
+  where it exited as "could not run" and invited a second send; input that ends before an answer is
+  a no, where it exited 0; it asks only when both stdin and stderr are terminals; a byte order mark
+  in the signed transaction fails the comparison; `--as` must be a NEAR account id. Not fixed, and
+  in the threat model: a satchel's address still comes from one NEAR RPC, and with `--yes` nothing
+  caps a send's fee.
 - From two internal reviews of mainnet (one adversarial, on the money path): the app signs nothing
   for a network's contract and shows no address derived from it until the contract passes its check
   (the account exists, runs the reproducible build, has no keys and signs through the canonical MPC

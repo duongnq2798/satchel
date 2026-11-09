@@ -1,10 +1,10 @@
 import { keccak256 } from "viem";
 import { describe, expect, it, vi } from "vitest";
-import outcome from "./__fixtures__/sign-evm-outcome.json";
-import { CHAINS, MAINNET, TESTNET } from "./config";
-import { type EvmTx, type MpcSignature, signingHash } from "./evm";
-import { outcomeValue } from "./near";
-import { type SendDeps, type SendRequest, liveSendDeps, sendFromSatchel } from "./send";
+import outcome from "./__fixtures__/sign-evm-outcome.json" with { type: "json" };
+import { CHAINS, MAINNET, TESTNET } from "./config.js";
+import { type EvmTx, type MpcSignature, signingHash } from "./evm.js";
+import { outcomeValue } from "./near.js";
+import { type SendDeps, type SendRequest, liveSendDeps, sendFromSatchel } from "./send.js";
 
 // The real token 1 transaction and its MPC signature (evm.test.ts has the same vectors).
 const TX: EvmTx = {

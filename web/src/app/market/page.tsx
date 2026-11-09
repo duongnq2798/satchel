@@ -5,10 +5,8 @@ import { useNetwork } from "@/components/network";
 import { ReportBadge, useReportChecker } from "@/components/report-checker";
 import { Card, ErrorNote } from "@/components/ui";
 import { useAsync } from "@/components/use-async";
-import type { Listing } from "@/lib/near";
-import type { Report } from "@/lib/report";
-import { appPath } from "@/lib/config";
-import { formatNear, satchel } from "@/lib/satchel";
+import { type Listing, type Report, formatNear, satchel } from "satchel-nft";
+import { appPath } from "@/lib/routes";
 
 function ListingCard({
   tokenId,

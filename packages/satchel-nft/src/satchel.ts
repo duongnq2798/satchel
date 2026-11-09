@@ -1,11 +1,18 @@
-import { MINT_DEPOSIT, type Network, ONE_YOCTO, TGAS } from "./config";
-import type { ContractTx } from "./evm";
-import { type Listing, type SatchelView, type Token, view } from "./near";
+import { MINT_DEPOSIT, type Network, ONE_YOCTO, TGAS } from "./config.js";
+import type { ContractTx } from "./evm.js";
+import { type Listing, type SatchelView, type Token, nearRpcUrl, view } from "./near.js";
 
 /** Reads from the Satchel contract on `net`. */
 export function satchel(net: Network) {
   return {
-    get: (tokenId: string) => view<SatchelView | null>(net, net.contract, "satchel", { token_id: tokenId }),
+    /** Throws if the RPC answers about another token: addresses and transactions are built from this. */
+    get: async (tokenId: string) => {
+      const found = await view<SatchelView | null>(net, net.contract, "satchel", { token_id: tokenId });
+      if (found !== null && (found.token_id !== tokenId || found.path !== `satchel/${tokenId}`)) {
+        throw new Error(`${nearRpcUrl(net)} answered for satchel #${found.token_id} at path ${found.path}, not #${tokenId}`);
+      }
+      return found;
+    },
     tokensFor: (accountId: string) =>
       view<Token[]>(net, net.contract, "nft_tokens_for_owner", { account_id: accountId, from_index: "0", limit: 100 }),
     listings: (fromIndex = 0, limit = 100) =>

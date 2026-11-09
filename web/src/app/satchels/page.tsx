@@ -8,10 +8,8 @@ import { Badge, Button, Card, ErrorNote, Mono } from "@/components/ui";
 import { useNetwork } from "@/components/network";
 import { useAsync } from "@/components/use-async";
 import { useWallet } from "@/components/wallet";
-import { appPath } from "@/lib/config";
-import { tokenAddress } from "@/lib/evm";
-import type { Token } from "@/lib/near";
-import { satchel, satchelTx } from "@/lib/satchel";
+import { type Token, satchel, satchelTx, tokenAddress } from "satchel-nft";
+import { appPath } from "@/lib/routes";
 
 export default function YourSatchels() {
   const { accountId, ready, signIn, send } = useWallet();

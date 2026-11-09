@@ -1,5 +1,5 @@
 import { type Address, type PublicClient, getAddress, parseAbi, zeroAddress } from "viem";
-import type { ApprovalRecord } from "./near";
+import type { ApprovalRecord } from "./near.js";
 
 const ERC20 = parseAbi(["function allowance(address owner, address spender) view returns (uint256)"]);
 const ERC721 = parseAbi([

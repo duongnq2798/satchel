@@ -1,18 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { type Address, formatEther } from "viem";
-import { sendChains } from "@/lib/config";
-import { client } from "@/lib/evm";
+import type { Address } from "viem";
+import { client, formatBalance, sendChains } from "satchel-nft";
 import { useNetwork } from "./network";
-
-export function formatBalance(wei: bigint): string {
-  if (wei === 0n) return "0";
-  const text = formatEther(wei);
-  const [whole, fraction = ""] = text.split(".");
-  const short = fraction.slice(0, 5).replace(/0+$/, "");
-  return short ? `${whole}.${short}` : whole === "0" ? "< 0.00001" : whole;
-}
 
 /** Native balances of one address on each chain the app sends on for this network. */
 export function Balances({ address, refresh }: { address: Address; refresh: number }) {

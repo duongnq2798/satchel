@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { client } from "@/lib/evm";
+import { type Report, client, formatBalance, formatNear } from "satchel-nft";
 import { FOR_SALE, type RefusedTrick, type ReportTrick, TRICKS, type Trick, type TxLink } from "@/lib/copy";
-import type { Report } from "@/lib/report";
-import { formatNear } from "@/lib/satchel";
-import { formatBalance } from "../balances";
 import { ReportBadge, useReport } from "../report-checker";
 import { Badge, StatusIcon, VERDICT } from "../ui";
 import { useAsync } from "../use-async";

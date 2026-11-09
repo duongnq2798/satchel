@@ -15,7 +15,7 @@ Include:
 
 - what an attacker can do, and to whom (a seller, a buyer, any holder);
 - the steps, or a transaction on testnet that shows it;
-- which part it touches: the contract, the report (web app or `npm run verify`), or the scripts in
+- which part it touches: the contract, the report or the transactions (the web app, or the `satchel-nft` package and CLI), or the scripts in
   `tools/`.
 
 The answer comes on the private advisory thread. Once a fix is ready, the report is published as a
@@ -27,7 +27,7 @@ with credit unless you ask for none. There is no bug bounty.
 | Part | Where | What counts |
 |---|---|---|
 | The contract | `contracts/satchel`, deployed at `v1.satchel-nft.testnet` and `v1.satchel-nft.near` | Signing without being the owner; signing anything the record does not show; a `buy` that completes against a record version or price the buyer did not name; losing a buyer's or seller's NEAR |
-| The clean transfer report | `web/src/lib`, `web/scripts/verify.ts` | A satchel reported "provably clean" while someone other than its owner can still move what it holds |
+| The clean transfer report | `packages/satchel-nft/src` (the app and the CLI run the same code) | A satchel reported "provably clean" while someone other than its owner can still move what it holds |
 | The web app | `web/`, <https://satchelnft.xyz> | Sending, signing or buying something other than what the user confirmed |
 | Scripts | `scripts/`, `tools/` | Leaking a key, or signing with one the user did not choose |
 

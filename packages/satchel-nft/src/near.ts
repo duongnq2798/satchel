@@ -1,4 +1,4 @@
-import type { Network } from "./config";
+import type { Network } from "./config.js";
 
 /** The contract's JSON types (contracts/satchel/src/lib.rs). u64 and u128 arrive as strings. */
 export type ApprovalKind = "Approve" | "IncreaseAllowance" | "SetApprovalForAll" | "Permit2Approve";
@@ -68,12 +68,12 @@ export class NearRpcError extends Error {
 
 let override: string | null = null;
 
-/** The NEAR RPC every read on `net` goes to. `npm run verify` can point it at your own node. */
+/** The NEAR RPC every read on `net` goes to. `satchel-nft verify` can point it at your own node. */
 export function nearRpcUrl(net: Network): string {
   return override ?? net.nearRpc;
 }
 
-/** Sends every NEAR read to `url`. For `npm run verify`, which reads one network per run. */
+/** Sends every NEAR read to `url`. For the `satchel-nft` CLI, which reads one network per run. */
 export function setNearRpc(url: string) {
   override = url;
 }
@@ -146,11 +146,18 @@ export async function accessKeyCount(net: Network, account: string): Promise<num
  */
 export function outcomeValue<T>(outcome: ExecutionOutcome): T | null {
   const status = outcome.status;
-  if (status === undefined || typeof status === "string") return null;
+  if (!finished(outcome) || typeof status !== "object") {
+    throw new Error(`Transaction ${outcome.transaction.hash} has not finished: its status is ${JSON.stringify(status ?? null)}`);
+  }
   if (status.Failure !== undefined) throw new Error(failureMessage(status.Failure));
-  if (status.SuccessValue === undefined) return null;
-  const raw = decodeBase64(status.SuccessValue);
+  const raw = decodeBase64(status.SuccessValue as string);
   return raw === "" ? null : (JSON.parse(raw) as T);
+}
+
+/** Whether every receipt finished: a final status is `{ SuccessValue }` or `{ Failure }`, nothing else. */
+export function finished(outcome: ExecutionOutcome): boolean {
+  const status = outcome.status;
+  return typeof status === "object" && status !== null && (status.SuccessValue !== undefined || status.Failure !== undefined);
 }
 
 /** "Satchel: …" from a contract panic, or the raw failure. */
@@ -167,11 +174,13 @@ export async function finalOutcome(net: Network, hash: string, signer: string, a
   let last: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await nearRpc<ExecutionOutcome>(net, "tx", { tx_hash: hash, sender_account_id: signer, wait_until: "FINAL" });
+      const outcome = await nearRpc<ExecutionOutcome>(net, "tx", { tx_hash: hash, sender_account_id: signer, wait_until: "FINAL" });
+      if (finished(outcome)) return outcome;
+      last = new Error(`transaction ${hash} has not finished`);
     } catch (err) {
       last = err;
-      await new Promise((r) => setTimeout(r, 2000));
     }
+    await new Promise((r) => setTimeout(r, 2000));
   }
   throw last instanceof Error ? last : new Error(`transaction ${hash} did not finish`);
 }

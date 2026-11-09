@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MAINNET, TESTNET } from "./config";
-import { assertDeployment, assertReceiver, assertTxFor } from "./guard";
-import { satchelTx } from "./satchel";
+import { MAINNET, TESTNET } from "./config.js";
+import { assertDeployment, assertReceiver, assertTxFor } from "./guard.js";
+import { satchelTx } from "./satchel.js";
 
 /** A NEAR RPC that answers `query` from `answer`, by request type, and records what it was asked. */
 function stubRpc(answer: (params: Record<string, string>) => { result?: unknown; error?: unknown }) {

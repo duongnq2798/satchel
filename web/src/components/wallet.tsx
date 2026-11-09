@@ -1,9 +1,7 @@
 "use client";
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
-import { type NetworkId, accountOnNetwork } from "@/lib/config";
-import { assertDeployment, assertTxFor } from "@/lib/guard";
-import type { WalletTx } from "@/lib/satchel";
+import { type NetworkId, type WalletTx, accountOnNetwork, assertDeployment, assertTxFor } from "satchel-nft";
 import { connectedAccount, connector, runTx, signIn as connect } from "@/lib/wallet";
 import { useNetwork } from "./network";
 

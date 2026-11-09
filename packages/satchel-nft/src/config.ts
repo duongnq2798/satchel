@@ -13,8 +13,6 @@ export interface Network {
   nearExplorer: string;
   /** From the reproducible CI build the contract was deployed from (deployments/<id>.json). */
   build: { codeHash: string; commit: string; ciRun: string };
-  /** Where this network's pages live: "" for testnet, "/mainnet" for mainnet. */
-  base: "" | "/mainnet";
 }
 
 /** Both networks run the same wasm: one reproducible build, one code hash. */
@@ -31,7 +29,6 @@ export const TESTNET: Network = {
   nearRpc: "https://rpc.testnet.fastnear.com",
   nearExplorer: "https://testnet.nearblocks.io",
   build: BUILD,
-  base: "",
 };
 
 export const MAINNET: Network = {
@@ -41,30 +38,9 @@ export const MAINNET: Network = {
   nearRpc: "https://rpc.mainnet.fastnear.com",
   nearExplorer: "https://nearblocks.io",
   build: BUILD,
-  base: "/mainnet",
 };
 
 export const NETWORKS: Record<NetworkId, Network> = { testnet: TESTNET, mainnet: MAINNET };
-
-/** The network a page belongs to: everything under /mainnet is mainnet, the rest testnet. */
-export function networkForPath(pathname: string | null): Network {
-  return pathname === "/mainnet" || pathname?.startsWith("/mainnet/") ? MAINNET : TESTNET;
-}
-
-/** `path` ("/", "/market", "/satchel/3") on `net`'s side of the site. */
-export function appPath(net: Network, path: string): string {
-  if (net.base === "") return path;
-  return path === "/" ? net.base : `${net.base}${path}`;
-}
-
-/**
- * The page on `to` that matches `pathname`: the market, your satchels and verify have a twin on
- * each network; anything else, a satchel's page included (ids differ by network), goes home.
- */
-export function switchPath(pathname: string | null, to: Network): string {
-  const rest = (pathname ?? "/").replace(/^\/mainnet(?=\/|$)/, "") || "/";
-  return appPath(to, ["/market", "/satchels", "/verify"].includes(rest) ? rest : "/");
-}
 
 /**
  * Whether a connected account can belong to `net`. A wallet may remember a session from the other
@@ -74,6 +50,13 @@ export function switchPath(pathname: string | null, to: Network): string {
 export function accountOnNetwork(net: Network, accountId: string): boolean {
   if (/^[0-9a-f]{64}$/.test(accountId) || /^0x[0-9a-f]{40}$/.test(accountId)) return true;
   return net.id === "testnet" ? accountId.endsWith(".testnet") : !accountId.endsWith(".testnet");
+}
+
+/** A NEAR account id: lowercase letters, digits, `-` and `_` between them, parts joined by dots. */
+const ACCOUNT_ID = /^(?:[a-z\d]+[-_])*[a-z\d]+(?:\.(?:[a-z\d]+[-_])*[a-z\d]+)*$/;
+
+export function isAccountId(text: string): boolean {
+  return text.length >= 2 && text.length <= 64 && ACCOUNT_ID.test(text);
 }
 
 export const REPO_URL = "https://github.com/duongnq2798/satchel";

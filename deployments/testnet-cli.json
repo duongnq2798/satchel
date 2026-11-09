@@ -1,0 +1,223 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "package": "satchel-nft 0.1.0, built from this repository (packages/satchel-nft), not from npm",
+  "nearCli": "near-cli-rs 0.30.1, legacy keychain (~/.near-credentials)",
+  "note": "Every transaction in steps was signed by the near CLI and sent by satchel-nft with --yes: the shell they ran in had no terminal to ask in. A script read each one back from the chain. The refusals were run without --yes, so none could sign; all but the second were run again at 2026-11-09T15:40Z, the second is from the run log.",
+  "steps": [
+    {
+      "command": "satchel-nft mint --as satchel-nft.testnet",
+      "tx": "FyT2ELA2jigMegAiVnMVAm3C4ESiVRiMSDJ6CQMBokTh",
+      "signer": "satchel-nft.testnet",
+      "method": "mint",
+      "args": {},
+      "deposit": "100000000000000000000000",
+      "block": "276936039",
+      "at": "2026-11-09T15:04:50Z",
+      "status": "success",
+      "result": "Minted satchel #7, address 0x65c60dbfc8b3c949ae7eb104ef47a08286ab9c8e"
+    },
+    {
+      "command": "satchel-nft send 1 --chain sepolia --to 0x65C60dBFc8B3c949AE7Eb104EF47A08286AB9C8E --value 0.002 --as buyer.satchel-nft.testnet",
+      "tx": "2rWtXS4Zum5uQ5Medoj8KZpRCbGFZperLtBABhfqEiV1",
+      "signer": "buyer.satchel-nft.testnet",
+      "method": "sign_evm",
+      "args": {
+        "token_id": "1",
+        "tx": {
+          "chain_id": "11155111",
+          "data": "0x",
+          "gas_limit": "248869",
+          "max_fee_per_gas": "1018",
+          "max_priority_fee_per_gas": "978",
+          "nonce": "4",
+          "to": "0x65C60dBFc8B3c949AE7Eb104EF47A08286AB9C8E",
+          "value": "2000000000000000"
+        }
+      },
+      "deposit": "1",
+      "block": "276936071",
+      "at": "2026-11-09T15:05:09Z",
+      "status": "success",
+      "sepolia": {
+        "tx": "0x2aae9695b13c845ef3af9a90c11b20c9b18b6f7af9f95545a592c89b4e8ffaa9",
+        "block": "12098300",
+        "from": "0x96da1468e95ab31a698891f0150095f86b5a282b",
+        "to": "0x65c60dbfc8b3c949ae7eb104ef47a08286ab9c8e",
+        "nonce": "4",
+        "valueWei": "2000000000000000",
+        "status": "success"
+      }
+    },
+    {
+      "command": "satchel-nft send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as satchel-nft.testnet",
+      "tx": "3u7kDzeB6zMSdC6Ddbvm55qoGwwoP1YxvMH3T9PvUYAL",
+      "signer": "satchel-nft.testnet",
+      "method": "sign_evm",
+      "args": {
+        "token_id": "7",
+        "tx": {
+          "chain_id": "11155111",
+          "data": "0x",
+          "gas_limit": "21000",
+          "max_fee_per_gas": "1016",
+          "max_priority_fee_per_gas": "978",
+          "nonce": "0",
+          "to": "0x000000000000000000000000000000000000dEaD",
+          "value": "100000000000000"
+        }
+      },
+      "deposit": "1",
+      "block": "276936150",
+      "at": "2026-11-09T15:05:57Z",
+      "status": "success",
+      "sepolia": {
+        "tx": "0xb732020d0283ee39eec9a8b27c7049015000ac5a108a2942207a986a6c314e45",
+        "block": "12098303",
+        "from": "0x65c60dbfc8b3c949ae7eb104ef47a08286ab9c8e",
+        "to": "0x000000000000000000000000000000000000dead",
+        "nonce": "0",
+        "valueWei": "100000000000000",
+        "status": "success"
+      }
+    },
+    {
+      "command": "satchel-nft list 7 0.5 --as satchel-nft.testnet",
+      "tx": "AkqiPEQUVXjmaFdr8fKRVd4f7CyFrER6V6EkRd4ZgzMF",
+      "signer": "satchel-nft.testnet",
+      "method": "list",
+      "args": {
+        "price": "500000000000000000000000",
+        "token_id": "7"
+      },
+      "deposit": "1",
+      "block": "276936203",
+      "at": "2026-11-09T15:06:27Z",
+      "status": "success"
+    },
+    {
+      "command": "satchel-nft delist 7 --as satchel-nft.testnet",
+      "tx": "2g9KsqmKVQGiSNSJMGkMo7WpdxakVji8BkRPg7ZnBBAL",
+      "signer": "satchel-nft.testnet",
+      "method": "delist",
+      "args": {
+        "token_id": "7"
+      },
+      "deposit": "1",
+      "block": "276936220",
+      "at": "2026-11-09T15:06:37Z",
+      "status": "success"
+    },
+    {
+      "command": "satchel-nft list 7 0.5 --as satchel-nft.testnet",
+      "tx": "7guTVgDqjx1gwCnMjeyMipg9TGMwBHxf5cLhBFap4qC9",
+      "signer": "satchel-nft.testnet",
+      "method": "list",
+      "args": {
+        "price": "500000000000000000000000",
+        "token_id": "7"
+      },
+      "deposit": "1",
+      "block": "276936230",
+      "at": "2026-11-09T15:06:43Z",
+      "status": "success"
+    },
+    {
+      "command": "satchel-nft buy 7 --as buyer.satchel-nft.testnet",
+      "tx": "BcrTmMCqdYGdCXDHH4fZqUHCy8bYdnUXLx3JS94jKUHX",
+      "signer": "buyer.satchel-nft.testnet",
+      "method": "buy",
+      "args": {
+        "price": "500000000000000000000000",
+        "record_version": "1",
+        "token_id": "7"
+      },
+      "deposit": "500000000000000000000000",
+      "block": "276938018",
+      "at": "2026-11-09T15:24:10Z",
+      "status": "success",
+      "reportBefore": "PROVABLY CLEAN at 2026-11-09T15:24:04.244Z, record version 1"
+    },
+    {
+      "command": "satchel-nft transfer 7 satchel-nft.testnet --as buyer.satchel-nft.testnet",
+      "tx": "8TKVW1K3KwZ91PDJcjXmEQ8XA7vfq1AeH4B7FqHpsETH",
+      "signer": "buyer.satchel-nft.testnet",
+      "method": "nft_transfer",
+      "args": {
+        "receiver_id": "satchel-nft.testnet",
+        "token_id": "7"
+      },
+      "deposit": "1",
+      "block": "276938042",
+      "at": "2026-11-09T15:24:24Z",
+      "status": "success"
+    },
+    {
+      "command": "satchel-nft list 7 0.5 --as satchel-nft.testnet (near found on PATH, after the review fixes)",
+      "tx": "6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc",
+      "signer": "satchel-nft.testnet",
+      "method": "list",
+      "args": {
+        "price": "500000000000000000000000",
+        "token_id": "7"
+      },
+      "deposit": "1",
+      "block": "276938970",
+      "at": "2026-11-09T15:33:40Z",
+      "status": "success"
+    },
+    {
+      "command": "satchel-nft delist 7 --as satchel-nft.testnet --json",
+      "tx": "G2EC3pQ7gF51nVjpsFNdefwvTe7Y43yzskACqVSeJUU8",
+      "signer": "satchel-nft.testnet",
+      "method": "delist",
+      "args": {
+        "token_id": "7"
+      },
+      "deposit": "1",
+      "block": "276938982",
+      "at": "2026-11-09T15:33:47Z",
+      "status": "success"
+    }
+  ],
+  "refusedBeforeSigning": [
+    {
+      "command": "satchel-nft buy 6 --as buyer.satchel-nft.testnet",
+      "exit": 1,
+      "printed": "Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway."
+    },
+    {
+      "command": "satchel-nft buy 7 --as buyer.satchel-nft.testnet, before Sepolia finalized #7's send",
+      "exit": 1,
+      "printed": "Not buying: the report reads COULD NOT CHECK EVERYTHING. Pass --accept-not-clean to buy it anyway."
+    },
+    {
+      "command": "satchel-nft buy 4 --as satchel-nft.testnet",
+      "exit": 1,
+      "printed": "satchel-nft.testnet is the seller"
+    },
+    {
+      "command": "satchel-nft transfer 7 no-such-account-zz.testnet --as satchel-nft.testnet",
+      "exit": 1,
+      "printed": "no-such-account-zz.testnet doesn't exist on NEAR testnet, so a satchel sent there could be lost. Ask for an account that exists."
+    },
+    {
+      "command": "satchel-nft list 7 1 --as buyer.satchel-nft.testnet",
+      "exit": 1,
+      "printed": "satchel-nft.testnet owns satchel #7, not buyer.satchel-nft.testnet"
+    },
+    {
+      "command": "satchel-nft mint --as satchel-nft.testnet, with no terminal and no --yes",
+      "exit": 2,
+      "printed": "There is no terminal to ask in, or stderr is redirected. In Git Bash's mintty window, try PowerShell or cmd; or pass --yes to sign without asking. Nothing was signed."
+    },
+    {
+      "command": "satchel-nft mint --as satchel-nft.near",
+      "exit": 2,
+      "printed": "satchel-nft.near is not a NEAR testnet account"
+    }
+  ],
+  "reportAfter": {
+    "satchel7": "PROVABLY CLEAN at 2026-11-09T15:34:01.492Z, owner satchel-nft.testnet, not listed"
+  }
+}

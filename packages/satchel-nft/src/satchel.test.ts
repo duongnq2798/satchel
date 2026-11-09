@@ -1,7 +1,34 @@
-import { describe, expect, it } from "vitest";
-import { MAINNET, TESTNET } from "./config";
-import { failureMessage, outcomeValue, viewErrorMessage } from "./near";
-import { formatNear, parseNear, satchelTx } from "./satchel";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MAINNET, TESTNET } from "./config.js";
+import { failureMessage, outcomeValue, viewErrorMessage } from "./near.js";
+import { formatNear, parseNear, satchel, satchelTx } from "./satchel.js";
+
+describe("satchel(net).get", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A NEAR RPC whose `satchel` view returns `view`, whatever token it was asked about. */
+  const answering = (view: unknown) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const result = [...new TextEncoder().encode(JSON.stringify(view))];
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: "satchel", result: { result } }));
+      }),
+    );
+
+  it("refuses an answer about another token, since addresses and transactions are built from it", async () => {
+    answering({ token_id: "7", owner_id: "a.testnet", path: "satchel/7" });
+    await expect(satchel(TESTNET).get("4")).rejects.toThrow(/answered for satchel #7 at path satchel\/7, not #4/);
+    answering({ token_id: "4", owner_id: "a.testnet", path: "satchel/7" });
+    await expect(satchel(TESTNET).get("4")).rejects.toThrow(/at path satchel\/7, not #4/);
+    answering({ token_id: "4", owner_id: "a.testnet", path: "satchel/4" });
+    await expect(satchel(TESTNET).get("4")).resolves.toMatchObject({ token_id: "4" });
+    answering(null);
+    await expect(satchel(TESTNET).get("4")).resolves.toBeNull();
+  });
+});
 
 describe("NEAR amounts", () => {
   it("parses decimals to yoctoNEAR exactly", () => {
@@ -78,8 +105,10 @@ describe("outcomes", () => {
     expect(viewErrorMessage("satchel", "MethodNotFound")).toBe("satchel failed: MethodNotFound");
   });
 
-  it("returns null while a wallet reports no final status", () => {
-    expect(outcomeValue({ transaction: { hash: "x" } })).toBeNull();
-    expect(outcomeValue({ transaction: { hash: "x" }, status: "Started" })).toBeNull();
+  it("never reads an unfinished transaction as a success", () => {
+    for (const status of [undefined, "Started", "NotStarted", {}]) {
+      expect(() => outcomeValue({ transaction: { hash: "x" }, status })).toThrow(/has not finished/);
+    }
+    expect(outcomeValue({ transaction: { hash: "x" }, status: { SuccessValue: "" } })).toBeNull();
   });
 });
