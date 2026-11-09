@@ -1,0 +1,11 @@
+{
+  "name": "satchel-tools",
+  "private": true,
+  "type": "module",
+  "description": "Test vectors and the testnet end-to-end check. viem is the independent EVM reference.",
+  "scripts": {
+    "gen-vectors": "node gen-vectors.mjs > ../contracts/satchel/src/evm_vectors.json",
+    "e2e:testnet": "node e2e-testnet.mjs"
+  },
+  "devDependencies": { "viem": "2.21.54" }
+}
