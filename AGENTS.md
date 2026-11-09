@@ -61,10 +61,24 @@ The mainnet deployment has its own record, `deployments/mainnet.json`:
 node scripts/check-claims.mjs --network mainnet
 ```
 
-You should see `6 of 6 claims hold`. The first five are the rows above for `v1.satchel-nft.near`
+You should see `9 of 9 claims hold`. The first five are the rows above for `v1.satchel-nft.near`
 (signer `v1.signer`, deploy-and-init tx `3cbRdh9W…`). The sixth reads `nft_total_supply()` at the
 block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
 satchel was minted while the key existed. The refused calls are testnet only.
+
+The last three read `deployments/mainnet-first-send.json`, satchel #1's first send:
+
+- its mint, tx `HCYB168y…`, was signed by `satchel-nft.near` and returned token 1 to it, in a block
+  after the lock;
+- its `sign_evm`, tx `2xqwe8AA…`, signed by the same account for Base (8453) at nonce 0: the contract
+  logged that entry in its own receipt at record version 1 (so it was the first), and asked
+  `v1.signer` to sign path `satchel/1` over the hash that `evm_signing_hash` gives for those fields;
+  `v1.signer` returned a signature;
+- the Base transaction `0x8044dd8c…` has the fields `sign_evm` was given and the r, s and parity
+  `v1.signer` returned, comes from `0xdc269ead…868f9`, succeeded in block 55178996 for the value and
+  fee the record names, and that block is finalized. This one reads Base through `BASE_RPC`
+  (`https://base-rpc.publicnode.com` by default) and fails until Base finalizes the block, about
+  20 minutes after a send.
 
 ### 2. The clean transfer report for each demo satchel
 

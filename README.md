@@ -46,8 +46,9 @@ and with it the address on every one of those chains.
 > on both, each locked (no access keys) before its first mint. On mainnet a satchel's address holds
 > real funds on eight EVM chains, so keep in one only what you can afford to lose. A testnet
 > satchel's address is a valid address on mainnet chains too, but NEAR's testnet MPC network signs for
-> it: never send real funds to it. The demo satchels and the end-to-end runs are on testnet; the first
-> mainnet satchel is [in progress](#status).
+> it: never send real funds to it. The demo satchels and the end-to-end runs are on testnet. On
+> mainnet, [satchel #1](#satchel-1-the-first-on-mainnet) was funded with 0.00195 ETH on Base and has
+> sent from it once, in the app.
 
 ## Contents
 
@@ -98,12 +99,14 @@ the record changed).
 2. **Check both deployments against the chain.** No install.
    [`scripts/check-claims.mjs`](scripts/check-claims.mjs) reads the contract's keys, code hash,
    NEP-330 metadata and MPC signer from a public NEAR RPC node, and the transactions that deployed
-   and locked it from an archival one. On testnet it also reads the calls the contract refused. It
-   took about 5 s for testnet and 3 s for mainnet.
+   and locked it from an archival one. On testnet it also reads the calls the contract refused; on
+   mainnet, satchel #1's mint and first signature, and that send on Base from a public Base node
+   (set `BASE_RPC` to use your own). Each run took 5 to 17 s here, most of it waiting on the archival
+   node.
 
    ```bash
    node scripts/check-claims.mjs                      # NEAR testnet: 11 claims
-   node scripts/check-claims.mjs --network mainnet    # NEAR mainnet: 6 claims
+   node scripts/check-claims.mjs --network mainnet    # NEAR mainnet: 9 claims, the last also reads Base
    ```
 
    The mainnet run prints:
@@ -121,8 +124,14 @@ the record changed).
           DeployContract, FunctionCall, new({ mpc_contract: "v1.signer" })
    [PASS] Its only key was deleted before any satchel was minted
           DeleteKey at block 223741744, nft_total_supply() = 0 there
+   [PASS] Satchel #1, the first on mainnet, was minted by satchel-nft.near after the lock
+          HCYB168y… minted #1 to satchel-nft.near at block 223756145, after the DeleteKey at 223741744
+   [PASS] Its first signature is a Base transaction at nonce 0, recorded by the contract before v1.signer signed it
+          2xqwe8AA… sign_evm: chain 8453, nonce 0, value_transfer, record version 1; v1.signer signed 4e9284fc… for satchel/1
+   [PASS] Base ran exactly that signed transaction, in a block that is now finalized
+          0x8044dd8c… from 0xdc269ead17b522d49db2cefd38cef0c5413868f9, block 55178996, status 1, fee 127494755188 wei, finalized
 
-   6 of 6 claims hold (https://rpc.mainnet.fastnear.com, archival https://archival-rpc.mainnet.fastnear.com)
+   9 of 9 claims hold (https://rpc.mainnet.fastnear.com, archival https://archival-rpc.mainnet.fastnear.com)
    ```
 
    The testnet run checks the same five facts about `v1.satchel-nft.testnet`, then that its key was
@@ -213,9 +222,15 @@ the record changed).
    | #6 | Listed, delisted, had a raw 32-byte payload signed, then listed again | `[FAIL] The record can't explain everything signed`, `NOT PROVABLE` | 1 |
    | #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, and `listed by satchel-nft.testnet at record version 0` | 0 |
 
-   `npm run verify -- --network mainnet <id>` reads a mainnet satchel. Until the first one is
-   minted, `npm run verify -- --network mainnet 1` prints `No satchel #1 on v1.satchel-nft.near`
-   and exits 1.
+   `npm run verify -- --network mainnet <id>` reads a mainnet satchel. Satchel #1, the first on
+   mainnet, has sent once on Base; after 30 to 45 s it prints, among its four passing checks:
+
+   ```text
+   [PASS] No signed transaction is still pending
+          Base: signed up to nonce 0, finalized nonce is 1
+   ```
+
+   then `PROVABLY CLEAN`, and exits 0.
 
 5. **Run every test.** Still in `web`:
 
@@ -252,9 +267,9 @@ What exists at this commit, and what does not yet.
 | Guards before anything is signed | **Shipped**. The app shows no address and signs nothing until the network's contract passes check 1; it refuses an account from the other network, a transaction for another contract, and a receiver that doesn't exist | [`web/src/lib/guard.ts`](web/src/lib/guard.ts) |
 | Demo satchels and two refused calls | **Shipped** on testnet: satchels #1 and #3 to #6 (#2 is retired), every step in an evidence file (two entries written by hand from the run log, one failed retry left out, as [noted below](#on-chain-proof)) | [`tools/demo-gallery.mjs`](tools/demo-gallery.mjs), [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json) |
 | End-to-end run against the real MPC network | **Shipped** on testnet: mint, sign, transfer, the previous owner refused, the new owner signing, a broadcast on Sepolia | [`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`deployments/testnet-e2e.json`](deployments/testnet-e2e.json), [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json) |
-| Claim checker | **Shipped**: 11 claims on testnet, 6 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
+| Claim checker | **Shipped**: 11 claims on testnet, 9 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
 | Mainnet deploy script | **Shipped**, and used for the mainnet deployment. It reads the chain before each step, stops if a name belongs to someone else or the code isn't the build, and asks before it deletes the last key | [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
-| The first satchel on mainnet: minted in the app, about $2 of ETH sent to its address on Base, one send from it, its report clean | **In progress**. The owner signs every mainnet transaction | |
+| The first satchel on mainnet: funded on Base, minted, one send from it in the app, its report clean | **Shipped** on 2026-11-09: satchel #1, 0.00195 ETH on Base, 0.0001 ETH sent from it at satchelnft.xyz, `PROVABLY CLEAN`. The owner signed every transaction | [`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json) |
 | npm package `satchel-nft`: the report as a library and a CLI (`npx satchel-nft verify 1`), with read commands and signing commands that use the near CLI's keychain | **Planned**. Nothing is published | |
 | What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Planned**. Today a satchel's page shows its native balance on each of the network's 8 chains | |
 | Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
@@ -459,7 +474,7 @@ every transaction signed by the owner. The record is in
 | Account | Role |
 | --- | --- |
 | [`v1.satchel-nft.near`](https://nearblocks.io/address/v1.satchel-nft.near) | The contract. 0 access keys, code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` (commit [`87148c6`](https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53), [reproducible CI build](https://github.com/duongnq2798/satchel/actions/runs/42547394040)), signs only through `v1.signer` |
-| [`satchel-nft.near`](https://nearblocks.io/address/satchel-nft.near) | The account that created it. It has no power over the contract |
+| [`satchel-nft.near`](https://nearblocks.io/address/satchel-nft.near) | The account that created it, and the owner of satchel #1. It has no power over the contract |
 
 | What happened | Transaction | Result |
 | --- | --- | --- |
@@ -467,6 +482,24 @@ every transaction signed by the owner. The record is in
 | Created `v1.satchel-nft.near` with 3 NEAR, from `satchel-nft.near` | [`BFGbXYUn…`](https://nearblocks.io/txns/BFGbXYUnLJQ7ZbGYde467Uzn481zXF4ymmz1MR3tWg1k) | |
 | Deployed the build and called `new({"mpc_contract":"v1.signer"})`, in one transaction, so nobody could initialize it first | [`3cbRdh9W…`](https://nearblocks.io/txns/3cbRdh9WnftTPbhkLs5fJCBJLh43dTtWywSzuFk8GHK4) | `DeployContract`, `FunctionCall` |
 | Deleted its only key | [`Dw29ZbeR…`](https://nearblocks.io/txns/Dw29ZbeRNSLgyoeXGEdnDhxCMWB7L3w4vhKpYqmN9qqE) | Block 223741744; `nft_total_supply()` read at that block is 0, so no satchel was minted while anyone could still change the code |
+
+#### Satchel #1, the first on mainnet
+
+Satchel #1's address was funded on Base, then the satchel was minted by `satchel-nft.near`, then it
+sent once from the app; the owner signed each transaction. The funding came first because a token's
+address is fixed by its id before the token exists, but `mint` is open to anyone: whoever had minted
+#1 in the 92 seconds between would have owned that ETH. Mint first, then fund. The record is in
+[`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json), and the last three
+claims of `node scripts/check-claims.mjs --network mainnet` check its mint, its signature and its
+send against NEAR and Base.
+
+| What happened | Transaction | Result |
+| --- | --- | --- |
+| Funded satchel #1's address, `0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9`, on Base (2026-11-09 10:40 UTC) | [`0x928d1092…`](https://basescan.org/tx/0x928d1092bf3d2cad7fc824c8ce7567d29b14fa1e0a6e12259d07ecc785bcf2fb) | 0.00195 ETH |
+| Minted satchel #1 to `satchel-nft.near` for 0.1 NEAR | [`HCYB168y…`](https://nearblocks.io/txns/HCYB168yrYuR7U4THAbKZqyMgZ6pzSnWWNhLQNQJEU8g) | Token `1`, path `satchel/1`, at block 223756145, after the lock at 223741744 |
+| `sign_evm` for 0.0001 ETH on Base (8453) at nonce 0, approved in a NEAR wallet at [satchelnft.xyz/mainnet/satchel/1](https://satchelnft.xyz/mainnet/satchel/1) | [`2xqwe8AA…`](https://nearblocks.io/txns/2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4) | The contract recorded chain 8453, nonce 0, `value_transfer`, then `v1.signer` signed |
+| The app checked that the signature recovers to the satchel's address, then broadcast it | [`0x8044dd8c…`](https://basescan.org/tx/0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532) | Block 55178996, status 1. Its r, s and parity are the ones `v1.signer` returned. Fee 0.000000127494755188 ETH, the L1 data fee included, paid by the satchel |
+| Its report, `npm run verify -- --network mainnet 1` or [its page](https://satchelnft.xyz/mainnet/satchel/1) | | `PROVABLY CLEAN` once Base finalized that block, 21 minutes after the send |
 
 Mainnet satchels hold real funds on Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain,
 Avalanche and Aurora, and the contract is not audited: keep in one only what you can afford to lose.
@@ -686,11 +719,11 @@ transaction your NEAR wallet signs.
 <table>
 <tr>
 <td width="50%"><img src="docs/assets/readme/app-report-5.png" alt="Satchel #5's page on testnet: its address 0x81149BF1C907579A150e9AB882E951B648853dA3 with 0 balances on the 8 testnets, and its clean transfer report reading Not provable because a transaction signed at nonce 0 on Sepolia may still be pending; the other three checks pass."></td>
-<td width="50%"><img src="docs/assets/readme/app-mainnet.png" alt="The /mainnet page: Satchels that hold real funds, at v1.satchel-nft.near signing through v1.signer. Read live: 0 access keys on the contract, 16 EVM chains, 4 checks, 1 NEAR transaction; code is the reproducible build, signs only through v1.signer, 0 satchels minted and 0 listed."></td>
+<td width="50%"><img src="docs/assets/readme/app-mainnet-satchel-1.png" alt="Satchel #1's page on mainnet: owned by satchel-nft.near, path satchel/1, record version 1. Its address 0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9 holds 0.00184 ETH on Base and 0 on the other seven mainnets. Its clean transfer report reads Provably clean: no access keys, the reproducible build of commit 87148c6, signs only through v1.signer; Base signed up to nonce 0, finalized nonce is 1; no approval was ever signed; 0 raw signatures, 0 unclassified calls."></td>
 </tr>
 <tr>
 <td><sub>A satchel's page: its address on the network's 8 chains and its report, read live. Satchel #5 hides a signed send.</sub></td>
-<td><sub>The mainnet pages read the deployment's facts live: no keys, the reproducible build, the canonical signer.</sub></td>
+<td><sub>Satchel #1 on mainnet after its one send on Base: the same report, read live, <code>PROVABLY CLEAN</code>.</sub></td>
 </tr>
 </table>
 
@@ -918,8 +951,8 @@ What the tests pin down:
   a signature on a chain the report doesn't read, and an NFT transferred outside the app gets no
   check that its receiver exists.
 - **Mainnet is new.** The mainnet contract is the same build as on testnet, checked the same way, but
-  the demo satchels and the end-to-end runs are on testnet; the first mainnet mint and send are
-  [in progress](#status).
+  the demo satchels and the end-to-end runs are on testnet. On mainnet, as of 2026-11-09, one
+  satchel has been minted and has sent once, on Base.
 - **Not audited** by anyone outside the project. Internal reviews only: two of the contract (one
   adversarial) found two ways to slip an approval past the first version of the record, then two
   smaller gaps in the fix, all fixed and tested; the web app and the mainnet path had two each, one of
