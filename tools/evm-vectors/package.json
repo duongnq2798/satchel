@@ -1,0 +1,8 @@
+{
+  "name": "satchel-evm-vectors",
+  "private": true,
+  "type": "module",
+  "description": "Generates the EIP-1559 test vectors the contract's unit tests check against, with viem as the independent reference.",
+  "scripts": { "gen": "node gen.mjs > ../../contracts/satchel/src/evm_vectors.json" },
+  "devDependencies": { "viem": "2.21.54" }
+}

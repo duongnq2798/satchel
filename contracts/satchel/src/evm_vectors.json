@@ -1,0 +1,77 @@
+[
+  {
+    "name": "plain transfer, nonce 0 (zero fields encode as 0x80)",
+    "tx": {
+      "chain_id": "11155111",
+      "nonce": "0",
+      "max_priority_fee_per_gas": "1000000000",
+      "max_fee_per_gas": "30000000000",
+      "gas_limit": "21000",
+      "to": "0x000000000000000000000000000000000000dEaD",
+      "value": "10000000000000000",
+      "data": "0x"
+    },
+    "serialized_unsigned": "0x02f283aa36a780843b9aca008506fc23ac0082520894000000000000000000000000000000000000dead872386f26fc1000080c0",
+    "signing_hash": "0xdeda16fbc7e14f60a0bf178bc33cee3938915d765f0253dd86ef05d57e0d1133"
+  },
+  {
+    "name": "single-byte nonce below 0x80 and zero value",
+    "tx": {
+      "chain_id": "84532",
+      "nonce": "127",
+      "max_priority_fee_per_gas": "0",
+      "max_fee_per_gas": "1",
+      "gas_limit": "21000",
+      "to": "0x1111111111111111111111111111111111111111",
+      "value": "0",
+      "data": "0x"
+    },
+    "serialized_unsigned": "0x02e283014a347f80018252089411111111111111111111111111111111111111118080c0",
+    "signing_hash": "0x546496ee9377c1b70a0a823834d743fe4e875a46c78aeb7fe586c763a332b94e"
+  },
+  {
+    "name": "nonce 128 needs a length prefix",
+    "tx": {
+      "chain_id": "1",
+      "nonce": "128",
+      "max_priority_fee_per_gas": "2",
+      "max_fee_per_gas": "3",
+      "gas_limit": "50000",
+      "to": "0x2222222222222222222222222222222222222222",
+      "value": "1",
+      "data": "0x00"
+    },
+    "serialized_unsigned": "0x02e0018180020382c3509422222222222222222222222222222222222222220100c0",
+    "signing_hash": "0xe32907ee696e1a638de1a23345b8b70f6822d13c504a2b546467dcbdc39861b9"
+  },
+  {
+    "name": "ERC-20 transfer calldata (68 bytes, long-string header)",
+    "tx": {
+      "chain_id": "8453",
+      "nonce": "42",
+      "max_priority_fee_per_gas": "1500000",
+      "max_fee_per_gas": "9000000",
+      "gas_limit": "65000",
+      "to": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "value": "0",
+      "data": "0xa9059cbb000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd00000000000000000000000000000000000000000000000000000000000f4240"
+    },
+    "serialized_unsigned": "0x02f86c8221052a8316e3608389544082fde894833589fcd6edb6e08f4c7c32d4f71b54bda0291380b844a9059cbb000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd00000000000000000000000000000000000000000000000000000000000f4240c0",
+    "signing_hash": "0xa68ff5f65c1a3af1a6a5145db5bfd2abd5916fc527276da34564a13acf2b43c8"
+  },
+  {
+    "name": "large values and 600 bytes of data (two-byte list length)",
+    "tx": {
+      "chain_id": "42161",
+      "nonce": "18446744073709551615",
+      "max_priority_fee_per_gas": "340282366920938463463374607431768211455",
+      "max_fee_per_gas": "340282366920938463463374607431768211455",
+      "gas_limit": "18446744073709551615",
+      "to": "0xffffffffffffffffffffffffffffffffffffffff",
+      "value": "340282366920938463463374607431768211455",
+      "data": "0xabababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
+    },
+    "serialized_unsigned": "0x02f902b982a4b188ffffffffffffffff90ffffffffffffffffffffffffffffffff90ffffffffffffffffffffffffffffffff88ffffffffffffffff94ffffffffffffffffffffffffffffffffffffffff90ffffffffffffffffffffffffffffffffb90258ababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababc0",
+    "signing_hash": "0x3a4b4059fefcf75e32751da167d9e0f34352c5ccd886048939e0ad8424c96eda"
+  }
+]

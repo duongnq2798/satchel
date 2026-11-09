@@ -1,0 +1,325 @@
+//! EIP-1559 (type 2) transactions, built inside the contract.
+//!
+//! Satchel never signs an EVM hash it did not compute itself. The owner sends the transaction
+//! fields, the contract RLP-encodes them, hashes them and records `(chain_id, nonce)` before it
+//! asks the MPC network to sign. That record is what lets a buyer prove a transfer is clean.
+
+use near_sdk::json_types::{U64, U128};
+use near_sdk::{env, near, require};
+
+/// Largest `data` field accepted, in bytes. Plenty for token transfers and approvals; keeps the
+/// hashing cost and the event log bounded.
+pub const MAX_DATA_BYTES: usize = 8 * 1024;
+
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Eip1559Tx {
+    pub chain_id: U64,
+    pub nonce: U64,
+    pub max_priority_fee_per_gas: U128,
+    pub max_fee_per_gas: U128,
+    pub gas_limit: U64,
+    /// `0x` + 40 hex characters. Contract creation (no `to`) is not supported.
+    pub to: String,
+    /// Wei.
+    pub value: U128,
+    /// `0x`-prefixed hex, may be `0x` for a plain transfer.
+    #[serde(default = "empty_hex")]
+    pub data: String,
+}
+
+fn empty_hex() -> String {
+    "0x".to_string()
+}
+
+impl Eip1559Tx {
+    /// The 32-byte hash an EVM node checks the signature against:
+    /// `keccak256(0x02 || rlp([chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas,
+    /// gas_limit, to, value, data, access_list]))`, with an empty access list.
+    pub fn signing_hash(&self) -> [u8; 32] {
+        let mut preimage = vec![0x02];
+        preimage.extend_from_slice(&self.unsigned_rlp());
+        env::keccak256_array(&preimage)
+    }
+
+    /// The RLP list of the unsigned fields, without the type byte.
+    pub fn unsigned_rlp(&self) -> Vec<u8> {
+        require!(self.chain_id.0 > 0, "Satchel: chain_id must be positive");
+        require!(
+            self.max_priority_fee_per_gas.0 <= self.max_fee_per_gas.0,
+            "Satchel: max_priority_fee_per_gas is above max_fee_per_gas"
+        );
+        let to = decode_hex(&self.to, "to");
+        require!(to.len() == 20, "Satchel: to must be 20 bytes");
+        let data = decode_hex(&self.data, "data");
+        require!(
+            data.len() <= MAX_DATA_BYTES,
+            "Satchel: data is longer than 8 KiB"
+        );
+
+        let mut fields = Vec::new();
+        rlp_uint(&mut fields, self.chain_id.0.into());
+        rlp_uint(&mut fields, self.nonce.0.into());
+        rlp_uint(&mut fields, self.max_priority_fee_per_gas.0);
+        rlp_uint(&mut fields, self.max_fee_per_gas.0);
+        rlp_uint(&mut fields, self.gas_limit.0.into());
+        rlp_bytes(&mut fields, &to);
+        rlp_uint(&mut fields, self.value.0);
+        rlp_bytes(&mut fields, &data);
+        rlp_list_header(&mut fields, 0); // access list: empty
+
+        let mut out = Vec::with_capacity(fields.len() + 9);
+        rlp_list_header(&mut out, fields.len());
+        out.extend_from_slice(&fields);
+        out
+    }
+}
+
+/// Calls that leave a standing right to move the wallet's assets after the transaction is mined.
+/// A nonce check cannot see these, so the contract records each one it signs.
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalKind {
+    /// `approve(address,uint256)`: ERC-20 allowance, or ERC-721 approval of one token id.
+    Approve,
+    /// `increaseAllowance(address,uint256)` (OpenZeppelin ERC-20).
+    IncreaseAllowance,
+    /// `setApprovalForAll(address,bool)`: ERC-721 / ERC-1155 operator.
+    SetApprovalForAll,
+    /// Uniswap Permit2 `approve(address token,address spender,uint160,uint48)`.
+    Permit2Approve,
+}
+
+pub const SELECTOR_APPROVE: [u8; 4] = [0x09, 0x5e, 0xa7, 0xb3];
+pub const SELECTOR_INCREASE_ALLOWANCE: [u8; 4] = [0x39, 0x50, 0x93, 0x51];
+pub const SELECTOR_SET_APPROVAL_FOR_ALL: [u8; 4] = [0xa2, 0x2c, 0xb4, 0x65];
+pub const SELECTOR_PERMIT2_APPROVE: [u8; 4] = [0x87, 0x51, 0x7c, 0x45];
+
+/// An approval decoded from a transaction's calldata.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DecodedApproval {
+    pub kind: ApprovalKind,
+    pub spender: [u8; 20],
+    /// The token Permit2 approves; `None` for the other kinds, where the token is the `to` address.
+    pub token: Option<[u8; 20]>,
+    /// The second ABI word: amount, token id or the boolean for operators. Permit2: the amount.
+    pub arg: [u8; 32],
+}
+
+/// Calls that move assets out now and leave no standing right behind, by their standard meaning:
+/// ERC-20 `transfer` / `transferFrom` (`transferFrom` is also ERC-721's), ERC-721
+/// `safeTransferFrom(address,address,uint256)`, and WETH `deposit` / `withdraw`.
+pub const ASSET_TRANSFER_SELECTORS: [[u8; 4]; 5] = [
+    [0xa9, 0x05, 0x9c, 0xbb],
+    [0x23, 0xb8, 0x72, 0xdd],
+    [0x42, 0x84, 0x2e, 0x0e],
+    [0xd0, 0xe3, 0x0d, 0xb0],
+    [0x2e, 0x1a, 0x7d, 0x4d],
+];
+
+/// ERC-721 `safeTransferFrom(address,address,uint256,bytes)`. The receiver's hook runs with
+/// `from` = the wallet and data the signer chose, so only an empty `bytes` counts as a plain
+/// asset transfer.
+pub const SELECTOR_ERC721_SAFE_TRANSFER_WITH_DATA: [u8; 4] = [0xb8, 0x8d, 0x4f, 0xde];
+/// ERC-1155 `safeTransferFrom(address,address,uint256,uint256,bytes)`: a plain asset transfer only
+/// with a non-zero amount and empty `bytes`. Batch transfers are never classified.
+pub const SELECTOR_ERC1155_SAFE_TRANSFER: [u8; 4] = [0xf2, 0x42, 0x43, 0x2a];
+
+/// What a transaction does, as far as a buyer's clean-transfer check is concerned. Every call
+/// falls in exactly one class; anything Satchel cannot classify is counted, never ignored.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CallClass {
+    /// Empty calldata: sends `value` and nothing else.
+    ValueTransfer,
+    /// One of `ASSET_TRANSFER_SELECTORS`, or a safe transfer with empty `bytes` (and, for
+    /// ERC-1155, a non-zero amount).
+    AssetTransfer,
+    /// One of the four approval calls, decoded so the buyer can check it was revoked.
+    Approval(DecodedApproval),
+    /// An approval call that grants nothing: `setApprovalForAll(x, false)`, `increaseAllowance(x, 0)`
+    /// or a Permit2 `approve` of 0. Not itemized, so cleaning up never fills the approval list.
+    /// (`approve(x, 0)` is still itemized: on an ERC-721 contract it approves token id 0.)
+    Revocation,
+    /// Anything else (a multicall, a swap, `transferOwnership`…). It may leave a standing right
+    /// Satchel cannot see, so the record counts it.
+    Unclassified([u8; 4]),
+}
+
+/// EVM chains `sign_evm` signs for: mainnets and their public testnets whose nonces a buyer's check
+/// can read. A fixed list keeps the record bounded and rules out signatures for chains that do not
+/// exist yet. Ethereum, Sepolia, Base, Base Sepolia, Arbitrum One, Arbitrum Sepolia, OP Mainnet,
+/// OP Sepolia, Polygon PoS, Polygon Amoy, BNB Smart Chain and its testnet, Avalanche C-Chain, Fuji,
+/// Aurora and Aurora testnet.
+pub const SUPPORTED_CHAINS: [u64; 16] = [
+    1,
+    11_155_111,
+    8_453,
+    84_532,
+    42_161,
+    421_614,
+    10,
+    11_155_420,
+    137,
+    80_002,
+    56,
+    97,
+    43_114,
+    43_113,
+    1_313_161_554,
+    1_313_161_555,
+];
+
+impl Eip1559Tx {
+    /// Classifies the call by its selector. Panics if the selector is an approval but the calldata
+    /// is too short to name the spender: an approval Satchel cannot itemize is refused.
+    pub fn classify(&self) -> CallClass {
+        let data = decode_hex(&self.data, "data");
+        if data.is_empty() {
+            return CallClass::ValueTransfer;
+        }
+        let mut selector = [0u8; 4];
+        let n = data.len().min(4);
+        selector[..n].copy_from_slice(&data[..n]);
+        if data.len() < 4 {
+            return CallClass::Unclassified(selector);
+        }
+        if ASSET_TRANSFER_SELECTORS.contains(&selector) {
+            return CallClass::AssetTransfer;
+        }
+        let args = &data[4..];
+        let plain = match selector {
+            SELECTOR_ERC721_SAFE_TRANSFER_WITH_DATA => Some(bytes_arg_is_empty(args, 3)),
+            SELECTOR_ERC1155_SAFE_TRANSFER => Some(
+                bytes_arg_is_empty(args, 4)
+                    && args.get(96..128).is_some_and(|w| w.iter().any(|b| *b != 0)),
+            ),
+            _ => None,
+        };
+        match plain {
+            Some(true) => return CallClass::AssetTransfer,
+            Some(false) => return CallClass::Unclassified(selector),
+            None => {}
+        }
+        let kind = match selector {
+            SELECTOR_APPROVE => ApprovalKind::Approve,
+            SELECTOR_INCREASE_ALLOWANCE => ApprovalKind::IncreaseAllowance,
+            SELECTOR_SET_APPROVAL_FOR_ALL => ApprovalKind::SetApprovalForAll,
+            SELECTOR_PERMIT2_APPROVE => ApprovalKind::Permit2Approve,
+            _ => return CallClass::Unclassified(selector),
+        };
+        let word = |i: usize| -> [u8; 32] {
+            data.get(4 + 32 * i..4 + 32 * (i + 1))
+                .and_then(|w| w.try_into().ok())
+                .unwrap_or_else(|| env::panic_str("Satchel: approval calldata is too short"))
+        };
+        let address = |w: [u8; 32]| -> [u8; 20] { w[12..].try_into().unwrap() };
+        let grants_nothing = match kind {
+            ApprovalKind::Approve => false,
+            ApprovalKind::IncreaseAllowance | ApprovalKind::SetApprovalForAll => word(1) == [0; 32],
+            ApprovalKind::Permit2Approve => word(2) == [0; 32],
+        };
+        if grants_nothing {
+            // Still decode the spender words, so short calldata is refused the same way.
+            let _ = (word(0), word(1));
+            return CallClass::Revocation;
+        }
+        CallClass::Approval(match kind {
+            ApprovalKind::Permit2Approve => DecodedApproval {
+                kind,
+                token: Some(address(word(0))),
+                spender: address(word(1)),
+                arg: word(2),
+            },
+            _ => DecodedApproval {
+                kind,
+                token: None,
+                spender: address(word(0)),
+                arg: word(1),
+            },
+        })
+    }
+
+    /// keccak256 of the calldata, for the event: the full data can be 8 KiB.
+    pub fn data_hash(&self) -> [u8; 32] {
+        env::keccak256_array(decode_hex(&self.data, "data"))
+    }
+}
+
+/// True when the ABI `bytes` argument whose offset is word `i` of `args` is empty. Malformed or
+/// out-of-range offsets return false, which leaves the call unclassified.
+fn bytes_arg_is_empty(args: &[u8], i: usize) -> bool {
+    let word_as_usize = |at: usize| -> Option<usize> {
+        let w = args.get(at..at.checked_add(32)?)?;
+        if w[..24].iter().any(|b| *b != 0) {
+            return None;
+        }
+        usize::try_from(u64::from_be_bytes(w[24..].try_into().ok()?)).ok()
+    };
+    word_as_usize(32 * i)
+        .and_then(word_as_usize)
+        .is_some_and(|len| len == 0)
+}
+
+fn rlp_uint(out: &mut Vec<u8>, value: u128) {
+    let bytes = value.to_be_bytes();
+    let first = bytes.iter().position(|b| *b != 0).unwrap_or(bytes.len());
+    rlp_bytes(out, &bytes[first..]);
+}
+
+fn rlp_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
+    if bytes.len() == 1 && bytes[0] < 0x80 {
+        out.push(bytes[0]);
+    } else {
+        rlp_length(out, 0x80, bytes.len());
+        out.extend_from_slice(bytes);
+    }
+}
+
+fn rlp_list_header(out: &mut Vec<u8>, payload_len: usize) {
+    rlp_length(out, 0xc0, payload_len);
+}
+
+fn rlp_length(out: &mut Vec<u8>, offset: u8, len: usize) {
+    if len <= 55 {
+        out.push(offset + len as u8);
+    } else {
+        let be = (len as u64).to_be_bytes();
+        let first = be.iter().position(|b| *b != 0).unwrap_or(be.len() - 1);
+        out.push(offset + 55 + (be.len() - first) as u8);
+        out.extend_from_slice(&be[first..]);
+    }
+}
+
+/// Decodes `0x`-prefixed hex. Panics with the field name on bad input.
+pub fn decode_hex(input: &str, field: &str) -> Vec<u8> {
+    let Some(digits) = input.strip_prefix("0x") else {
+        env::panic_str(&format!("Satchel: {field} must start with 0x"))
+    };
+    if digits.len() % 2 != 0 {
+        env::panic_str(&format!("Satchel: {field} has an odd number of hex digits"));
+    }
+    digits
+        .as_bytes()
+        .chunks(2)
+        .map(|pair| (nibble(pair[0], field) << 4) | nibble(pair[1], field))
+        .collect()
+}
+
+fn nibble(c: u8, field: &str) -> u8 {
+    match c {
+        b'0'..=b'9' => c - b'0',
+        b'a'..=b'f' => c - b'a' + 10,
+        b'A'..=b'F' => c - b'A' + 10,
+        _ => env::panic_str(&format!("Satchel: {field} is not hex")),
+    }
+}
+
+pub fn encode_hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(DIGITS[(b >> 4) as usize] as char);
+        out.push(DIGITS[(b & 0x0f) as usize] as char);
+    }
+    out
+}
