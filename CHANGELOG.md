@@ -6,6 +6,13 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Deployed to NEAR mainnet at `v1.satchel-nft.near` from the same reproducible build as testnet
+  (code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph`), initialized with `v1.signer` in the
+  deploy transaction and locked by deleting its only key before any satchel was minted. Record in
+  `deployments/mainnet.json`. `tools/deploy-mainnet.sh` did it: it reads the chain before each step,
+  stops if a name exists without its key or the account runs other code, and asks before it deletes
+  the key. `node scripts/check-claims.mjs --network mainnet` checks six claims, the last that
+  `nft_total_supply()` was 0 at the block that deleted the key.
 - NEAR mainnet in the same web app. Pages under `/mainnet` read and sign on mainnet
   (`v1.satchel-nft.near`, MPC `v1.signer`, the same reproducible build as testnet); every other page
   stays on testnet. A switch in the header moves between them, and any link to the other side loads
@@ -16,7 +23,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 - Documents for reviewers and AI agents:
   - `AGENTS.md`: how to check every claim, with commands and expected output, a map from each rule
     to its code and tests, and how to change the code.
-  - `docs/THREAT_MODEL.md`: 26 attacks (the seller's, a buyer's, the deployer's, an RPC's, the
+  - `docs/THREAT_MODEL.md`: 29 attacks (the seller's, a buyer's, the deployer's, an RPC's, the
     hosted app's), what stops each one, the testnet transaction that shows it, and what is left.
   - `SECURITY.md`: how to report a vulnerability privately, what is in scope, and how a fix ships
     when the contract is locked.

@@ -1,9 +1,10 @@
 # Threat model
 
 What Satchel protects, who might attack it, what stops each attack, and what is left. It covers the
-contract deployed at `v1.satchel-nft.testnet` (commit `87148c6`), the clean transfer report (in the
-web app and `npm run verify`) and the hosted app at <https://satchelnft.xyz>. Every defense names the
-code that enforces it and, where one exists, the transaction on testnet that shows it working.
+contract (commit `87148c6`) deployed at `v1.satchel-nft.testnet` and at `v1.satchel-nft.near` on
+mainnet, the clean transfer report (in the web app and `npm run verify`) and the hosted app at
+<https://satchelnft.xyz>. Every defense names the code that enforces it and, where one exists, the
+transaction on testnet that shows it working.
 [AGENTS.md](../AGENTS.md) has the commands to check them.
 
 ## What is protected
@@ -28,7 +29,7 @@ code that enforces it and, where one exists, the transaction on testnet that sho
 
 - **NEAR's consensus and runtime**, including that a `#[private]` method and a deleted key behave as
   specified.
-- **NEAR's MPC network** (`v1.signer-prod.testnet`). It signs for a key derived from the calling
+- **NEAR's MPC network** (`v1.signer-prod.testnet` on testnet, `v1.signer` on mainnet). It signs for a key derived from the calling
   account and a path, and only when that account asks. If enough MPC nodes colluded, they could sign
   with any derived key; Satchel cannot detect that. The MPC contract can also be upgraded by a
   vote of its participants, which could change how keys are derived or who may ask for a
@@ -66,8 +67,9 @@ code that enforces it and, where one exists, the transaction on testnet that sho
 
 | # | Attack | What stops it | Shown on testnet | What is left |
 |---|---|---|---|---|
-| 11 | Redeploy different code, or sign as the contract account | The account's only key was deleted before the first mint, so no one can sign as it. Check 1 requires 0 access keys | `6FYx6hV5…` deleted the key | |
-| 12 | Deploy code other than the published source | Check 1 requires the code hash to equal the one pinned in `web/src/lib/config.ts`, which comes from the reproducible CI build of `87148c6`. A global contract passes only if it is referenced by that same hash; one referenced by account is refused, since its owner could replace it. `check-claims.mjs` also checks that the NEP-330 metadata names that commit and the pinned image | `node scripts/check-claims.mjs` | Trust in the pinned Docker image |
+| 11 | Redeploy different code, or sign as the contract account | The account's only key was deleted before the first mint, so no one can sign as it. Check 1 requires 0 access keys | `6FYx6hV5…` deleted the key; on mainnet `Dw29Zbe…`, with `nft_total_supply()` 0 at that block | |
+| 11a | Register the contract's name before it is deployed, or deploy other code there before it is locked, so the app hands out addresses that someone else's code signs for | The app signs nothing for a network's contract and shows no address derived from it until check 1 passes there: the account exists, runs the build, has no keys and signs through the canonical MPC contract (`assertDeployment` in `web/src/lib/guard.ts`). `tools/deploy-mainnet.sh` stops if a name exists without its key in the deployer's keychain | `node scripts/check-claims.mjs --network mainnet` | A new contract name (a `v2`) has the same window until it is locked; the app's check covers it |
+| 12 | Deploy code other than the published source | Check 1 requires the code hash to equal the one pinned in `web/src/lib/config.ts`, which comes from the reproducible CI build of `87148c6`. A global contract passes only if it is referenced by that same hash; one referenced by account is refused, since its owner could replace it. `check-claims.mjs` also checks that the NEP-330 metadata names that commit and the pinned image | `node scripts/check-claims.mjs`, and with `--network mainnet` | Trust in the pinned Docker image |
 | 13 | Initialize the contract first, with a fake MPC contract | `new` is `#[private]` and ran in the same transaction as the deploy. Check 1 requires `mpc_contract()` to be the canonical signer | `BeoXbii9…` refused: `Method new is private` | |
 | 14 | Add an admin later | There is no admin and no upgrade method | | The chain list cannot change either: a new chain needs a new contract |
 
@@ -78,6 +80,7 @@ code that enforces it and, where one exists, the transaction on testnet that sho
 | 15 | Two buyers race for the same satchel | The first `buy` removes the listing. The second panics with `token is not listed`, and NEAR refunds its deposit | |
 | 16 | Underpay, or the seller buys their own listing | `buy` requires a deposit of at least the price and refuses the seller; any excess is refunded | |
 | 17 | The seller's payment fails | The NFT moves in the same receipt; the payment is a transfer receipt. If the seller deleted their account, the transfer fails | The NEAR then stays in the contract, which has no admin to return it |
+| 17a | An owner transfers the NFT to a mistyped or unregistered name, which anyone could register later, or to a name no one can ever own | The app refuses a receiver that doesn't exist on the network, and the contract and MPC contract themselves (`assertReceiver` in `web/src/lib/guard.ts`). The contract takes any name | A transfer made outside the app, with the CLI or another wallet, gets no such check |
 
 ### The report
 
@@ -89,6 +92,7 @@ code that enforces it and, where one exists, the transaction on testnet that sho
 | 21 | The hosted web app is changed to show a false report | Running the report from source with `npm run verify`, against RPCs you pick. The wallet shows the `buy` call and its deposit before you sign, so the price cannot change unseen. The record-version pin does not help here: the app chooses the version it passes | A buyer who trusts only the hosted page trusts whoever deploys it |
 | 21a | The hosted web app builds a different call than it shows: another `sign_evm` transaction, another `nft_transfer` receiver | The wallet shows the method, its arguments and the deposit before the owner signs. The app is open source and built by Vercel from `main` | Owners who don't read the wallet's prompt trust the deployment. Wallet scripts load from their publishers' URLs (`wallet-manifest.json`), so a publisher can change them |
 | 21b | A chain splits and both sides keep the same chain id | Nothing: an EIP-1559 signature is valid on any network with the chain id it names, and the report reads one RPC per chain id | A signature could be replayed on a fork the report does not read |
+| 21c | The app mixes networks: signs with an account, a report or a contract from the other network | The network comes from the page's path and is passed to every read and transaction. Wallet sessions and reports are kept per network; the wallet refuses an account from the other network and any receiver but that network's contract; `buy` refuses a report read on the other network; a link to the other network loads a new page | `assertTxFor` in `guard.ts`, tests in `guard.test.ts` and `config.test.ts` |
 
 ### Storage and spam
 
@@ -105,7 +109,7 @@ code that enforces it and, where one exists, the transaction on testnet that sho
 - **The MPC network's own security** and NEAR's consensus.
 - **Wallets** that sign NEAR transactions for buyers and sellers.
 - **Phishing**: a page that imitates satchelnft.xyz, or a different contract named "Satchel". The
-  report reads only `v1.satchel-nft.testnet` and checks its code hash.
+  report reads only `v1.satchel-nft.testnet` or `v1.satchel-nft.near` and checks its code hash.
 
 ## Residual risks, in one list
 
@@ -119,7 +123,8 @@ code that enforces it and, where one exists, the transaction on testnet that sho
 6. A fork that keeps a chain id (row 21b).
 7. The pinned Docker image behind the reproducible build (row 12).
 8. Selector-based classification, if a contract gives a standard selector a non-standard meaning.
-9. A seller's payment lost if they delete their account before it lands.
+9. A seller's payment lost if they delete their account before it lands, and an NFT sent outside
+   the app to a name that doesn't exist (row 17a).
 10. No admin, so stuck NEAR and the chain list cannot be changed.
 11. Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
     version of the record, then two smaller gaps in the fix. All four are fixed and covered by tests.
