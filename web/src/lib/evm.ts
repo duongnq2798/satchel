@@ -11,7 +11,7 @@ import {
   serializeTransaction,
   toHex,
 } from "viem";
-import { type ChainInfo, NETWORK, chainInfo } from "./config";
+import { type ChainInfo, type Network, chainInfo } from "./config";
 import { view } from "./near";
 
 const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -39,11 +39,11 @@ export function addressFromMpcKey(publicKey: string): Address {
   return getAddress(`0x${keccak256(toHex(bytes)).slice(-40)}`);
 }
 
-/** The address a token's key controls, derived by the MPC contract from this contract and the path. */
-export async function tokenAddress(path: string): Promise<Address> {
-  const key = await view<string>(NETWORK.mpc, "derived_public_key", {
+/** The address a token's key controls, derived by `net`'s MPC contract from its Satchel contract and the path. */
+export async function tokenAddress(net: Network, path: string): Promise<Address> {
+  const key = await view<string>(net, net.mpc, "derived_public_key", {
     path,
-    predecessor: NETWORK.contract,
+    predecessor: net.contract,
     domain_id: 0,
   });
   return addressFromMpcKey(key);
@@ -162,7 +162,10 @@ export async function prepareTx(chain: ChainInfo, from: Address, to: Address, va
   const [nonce, block, priority, estimate] = await Promise.all([
     c.getTransactionCount({ address: from, blockTag: "pending" }),
     c.getBlock({ blockTag: "latest" }),
-    c.estimateMaxPriorityFeePerGas().catch(() => 1_000_000_000n),
+    // No guess: a tip below the chain's minimum (25 gwei on Polygon) is refused after the MPC signed.
+    c.estimateMaxPriorityFeePerGas().catch((err: unknown) => {
+      throw new Error(`Couldn't read ${chain.name}'s priority fee, so nothing was signed: ${shortError(err)}`);
+    }),
     c.estimateGas({ account: from, to, value, data }).catch((err: unknown) => {
       throw new Error(`${chain.name} says this transaction would fail, so nothing was signed: ${shortError(err)}`);
     }),

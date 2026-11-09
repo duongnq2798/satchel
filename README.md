@@ -1,72 +1,354 @@
+<div align="center">
+
+<img src="docs/assets/readme-banner.png" alt="Satchel. Sell a wallet. Prove nothing stayed behind. Each satchel is a NEAR NFT that controls one EVM address, signed for by NEAR's MPC network; hand over the NFT and the keys go with it. The card shows Satchel #1 on v1.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, stamped PROVABLY CLEAN, with its four checks passing: the contract can't sign behind the record, no signed transaction is still pending, no approval left behind, nothing the record can't explain." width="100%">
+
 # Satchel
 
-**An NFT that is a wallet on every EVM chain. Transfer the NFT, transfer the keys, and check on
-chain what the seller could have kept back.**
+**An NFT that is one wallet on 16 EVM chains, built on NEAR Chain Signatures. Transfer the NFT and the keys go with it. The contract keeps a public record of what its key signs, so before paying, a buyer can check on chain what the seller could have kept back.**
 
-Satchel is a NEAR NFT contract (NEP-171). Every token controls a secp256k1 key that NEAR's MPC
-network derives from the contract's account and the token's path (Chain Signatures). The token's
-owner, and only the owner, can have the contract sign with that key, so one token is the same
-address on Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and Aurora, mainnets and
-testnets. Give the NFT away, sell it or leave it to someone, and control of that address on every
-one of those chains moves with it in one NEAR transaction.
+[![Contract CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/contract.yml?branch=main&style=flat-square&label=contract%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml)
+[![Web CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/web.yml?branch=main&style=flat-square&label=web%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/web.yml)
+[![Status: not audited](https://img.shields.io/badge/status-not%20audited-8a5a00?style=flat-square)](SECURITY.md)
+[![NEAR: testnet and mainnet](https://img.shields.io/badge/NEAR-testnet%20%2B%20mainnet-17140f?style=flat-square)](#on-chain-proof)
+[![Contract: locked, 0 access keys](https://img.shields.io/badge/contract-locked%2C%200%20access%20keys-2f6b3a?style=flat-square)](#on-chain-proof)
+[![License: MIT](https://img.shields.io/badge/license-MIT-6e6558?style=flat-square)](LICENSE)
 
-**Try it: <https://satchelnft.xyz>** (NEAR testnet and Sepolia; reading needs no wallet).
+<a href="https://satchelnft.xyz"><img src="docs/assets/readme/try-it-live.png" alt="Try it live: satchelnft.xyz, reading needs no wallet" height="48"></a>
+<a href="#how-to-evaluate-satchel-in-5-minutes"><img src="docs/assets/readme/evaluate-in-5-minutes.png" alt="Evaluate in 5 minutes: no wallet, no key, no account" height="48"></a>
+<a href="AGENTS.md#check-the-claims"><img src="docs/assets/readme/check-every-claim.png" alt="Check every claim: 17 claims read from NEAR, with Node 22" height="48"></a>
 
-> **Status: in development for the NEAR Hackathon 2026 (1–14 Nov 2026).** The contract is live on
-> NEAR testnet at [`v1.satchel-nft.testnet`](#live-on-testnet): built reproducibly, locked (no
-> access keys), and checked end to end against NEAR's MPC network. The [web app](#web-app), hosted
-> at [satchelnft.xyz](https://satchelnft.xyz), mints, sends through the MPC network, lists and buys,
-> and computes the clean transfer report in your browser. Four
-> [demo satchels](#see-it-catch-a-dirty-wallet) show what the report passes and what it catches.
-> Not on mainnet yet, not audited. This section is updated as each piece lands.
+**[Live app](https://satchelnft.xyz)** · **[Evaluate in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)** · **[What is shipped](#status)** · **[On-chain proof](#on-chain-proof)** · **[Built on NEAR](#built-on-near)** · **[Threat model](docs/THREAT_MODEL.md)** · **[For AI agents](AGENTS.md)** · **[Security](SECURITY.md)** · **[Changelog](CHANGELOG.md)**
 
-## See it catch a dirty wallet
+<sub>Built for the NEAR Hackathon 2026 · Rust contract on NEAR (near-sdk 5.29.1) · NEAR Chain Signatures · NEP-171, 177, 181, 297 and 330 · Next.js 16 and viem, no backend</sub>
 
-Five satchels on testnet show what the report catches and what the contract refuses. Open
-<https://satchelnft.xyz/#examples>: under "Try to cheat the buyer", pick what the seller does. Four
-of the six moves open a satchel left that way, with its report run in your browser; the other two
-show a call the contract refused on chain. Or read any of them from a terminal, with no wallet and
-no key (Node 22 or later):
+</div>
 
-```bash
-cd web
-npm ci
-npm run verify -- 5
+Selling a wallet is easy to fake. The seller signs a withdrawal and keeps it, sells the wallet, then
+broadcasts the withdrawal and empties it. Or the seller approves an address of their own to spend the
+wallet's tokens, and pulls them out after the sale. A buyer cannot rule either out, so wallets,
+positions and addresses with a history do not change hands safely. Satchel makes the wallet an NFT.
+Each satchel is a NEP-171 token on NEAR whose secp256k1 key NEAR's MPC network derives from the
+contract's account and the token's path (Chain Signatures), so one token is the same address on
+Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche and Aurora, mainnets and testnets. Only
+the token's owner can have the contract sign with that key, and the contract builds every EVM
+transaction it signs through `sign_evm` itself (anything else it signs is counted as opaque). Before
+it asks for a signature it writes down, in a public record, the
+highest nonce it signed on each chain and every approval it granted. A buyer compares that record
+with each chain at a finalized block: if every nonce ever signed is spent, every approval revoked and
+nothing was signed blind, the transfer is provably clean. One NEAR transaction then moves the NFT,
+and with it the address on every one of those chains.
+
+> The NFT moves the keys. The record proves what they signed.
+
+> [!IMPORTANT]
+> **Not audited.** No third party has reviewed this code. The contract is live on NEAR testnet at
+> `v1.satchel-nft.testnet` and on NEAR mainnet at `v1.satchel-nft.near`: the same reproducible build
+> on both, each locked (no access keys) before its first mint. On mainnet a satchel's address holds
+> real funds on eight EVM chains, so keep in one only what you can afford to lose. A testnet
+> satchel's address is a valid address on mainnet chains too, but NEAR's testnet MPC network signs for
+> it: never send real funds to it. The demo satchels and the end-to-end runs are on testnet; the first
+> mainnet satchel is [in progress](#status).
+
+## Contents
+
+- [How to evaluate Satchel in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)
+- [Status](#status)
+- [What Satchel does](#what-satchel-does)
+- [Why it is different](#why-it-is-different)
+- [How a sale works](#how-a-sale-works)
+- [When is a transfer provably clean?](#when-is-a-transfer-provably-clean)
+- [Safety architecture](#safety-architecture)
+- [Built on NEAR](#built-on-near)
+- [On-chain proof](#on-chain-proof)
+- [Contract interface](#contract-interface)
+- [Web app](#web-app)
+- [Quick start with the near CLI](#quick-start-with-the-near-cli)
+- [Where things are in this repository](#where-things-are-in-this-repository)
+- [Documentation](#documentation)
+- [Development](#development)
+- [Limits, stated plainly](#limits-stated-plainly)
+- [Prior work](#prior-work)
+- [Other project by the same builder](#other-project-by-the-same-builder)
+- [License](#license)
+
+## How to evaluate Satchel in 5 minutes
+
+You need Node.js 22 or later and git. No wallet, no key and no account: every step reads public NEAR
+and Sepolia data through public RPC nodes. The timings and outputs below are from a fresh clone on a
+Windows 10 laptop with Node 24.12, on 2026-11-09.
+
+**Before you install anything: try to cheat a buyer in your browser.** Open
+[satchelnft.xyz/#examples](https://satchelnft.xyz/#examples) and pick **Keep a signed withdrawal**.
+Satchel #5's owner had a 10,000 ETH send signed for it and never broadcast it. Your browser reads the
+satchel's record from `v1.satchel-nft.testnet` and Sepolia's nonce for its address at a finalized
+block, and the report says **Not provable**: "A signed transaction may still be pending". The other
+moves open satchels left the other ways (#1 played fair, #3 left an approval behind, #6 had a raw
+payload signed), or show a call the contract refused on chain (signing while listed, buying after
+the record changed).
+
+<p align="center"><img src="docs/assets/readme/app-try-to-cheat.png" alt="The Try to cheat the buyer section of satchelnft.xyz with Keep a signed withdrawal picked. Satchel #5's clean transfer report reads Not provable: the contract can't sign behind the record, a signed transaction may still be pending (Sepolia: signed up to nonce 0, finalized nonce is 0), no approval left behind, nothing the record can't explain. Below, Satchel #4 is for sale for 1 NEAR and reads Provably clean." width="860"></p>
+
+1. **Clone.** Under two seconds here.
+
+   ```bash
+   git clone https://github.com/duongnq2798/satchel.git
+   cd satchel
+   ```
+
+2. **Check both deployments against the chain.** No install.
+   [`scripts/check-claims.mjs`](scripts/check-claims.mjs) reads the contract's keys, code hash,
+   NEP-330 metadata and MPC signer from a public NEAR RPC node, and the transactions that deployed
+   and locked it from an archival one. On testnet it also reads the calls the contract refused. It
+   took about 5 s for testnet and 3 s for mainnet.
+
+   ```bash
+   node scripts/check-claims.mjs                      # NEAR testnet: 11 claims
+   node scripts/check-claims.mjs --network mainnet    # NEAR mainnet: 6 claims
+   ```
+
+   The mainnet run prints:
+
+   ```text
+   [PASS] v1.satchel-nft.near has no access keys, so no one can redeploy it or sign as it
+          0 access keys
+   [PASS] Its code is the reproducible build, not a global contract
+          code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph
+   [PASS] Its NEP-330 metadata names commit 87148c6 and the pinned Docker image
+          https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53
+   [PASS] It signs only through v1.signer
+          mpc_contract() = v1.signer
+   [PASS] It was deployed and initialized in one transaction
+          DeployContract, FunctionCall, new({ mpc_contract: "v1.signer" })
+   [PASS] Its only key was deleted before any satchel was minted
+          DeleteKey at block 223741744, nft_total_supply() = 0 there
+
+   6 of 6 claims hold (https://rpc.mainnet.fastnear.com, archival https://archival-rpc.mainnet.fastnear.com)
+   ```
+
+   The testnet run checks the same five facts about `v1.satchel-nft.testnet`, then that its key was
+   deleted before the first mint (block 276856595, first mint at 276856686) and that the contract
+   refused, on chain, a previous owner signing, a call to `new()` from another account, signing while
+   listed and a `buy` naming an old record version, and what satchel #6's record held when that `buy`
+   was refused. It ends with `11 of 11 claims hold`. Each run exits 0 only when
+   every claim holds; [AGENTS.md](AGENTS.md#1-the-deployment-and-its-history-one-command) says what
+   each line reads.
+
+3. **Ask the chain without our scripts.** Two reads with curl, from the same directory:
+
+   ```bash
+   rpc() { curl -s https://rpc.mainnet.fastnear.com -H 'content-type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":$1}"; }
+   rpc '{"request_type":"view_access_key_list","finality":"final","account_id":"v1.satchel-nft.near"}' | grep -o '"keys":\[[^]]*\]'   # "keys":[]
+   rpc '{"request_type":"view_account","finality":"final","account_id":"v1.satchel-nft.near"}' | grep -o '"code_hash":"[^"]*"'      # "code_hash":"94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph"
+   ```
+
+   That code hash belongs to the wasm the reproducible CI build produced. To hash that wasm
+   yourself, download it with the GitHub CLI, signed in (GitHub asks for a login to download
+   artifacts, even from a public repository; this one is kept until 2027-02-07):
+
+   ```bash
+   gh run download 42547394040 --repo duongnq2798/satchel --name satchel-reproducible-wasm --dir ci-build
+   node scripts/code-hash.mjs ci-build/satchel.wasm    # 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph
+   ```
+
+   Without a GitHub login, rebuild the wasm yourself: check out `87148c6` and run
+   `cargo near build reproducible-wasm` in `contracts/satchel` (cargo-near 0.22.0 and Docker;
+   [AGENTS.md](AGENTS.md#4-the-reproducible-build) has the steps). It was not run for this README.
+
+4. **Run the clean transfer report on the demo satchels.** `npm run verify` builds the report the web
+   app shows, from the same code ([`web/src/lib/report.ts`](web/src/lib/report.ts)), in your
+   terminal. Installing took 2 min 8 s here, and each report 4 to 7 s.
+
+   ```bash
+   cd web
+   npm ci
+   npm run verify -- 1
+   ```
+
+   After npm's own two header lines:
+
+   ```text
+   Satchel #1 on v1.satchel-nft.testnet (testnet)
+   owner buyer.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, record version 6
+
+   [PASS] The contract can't sign behind the record
+          No access keys, so no one can redeploy it or sign as it
+          Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+          Signs only through v1.signer-prod.testnet
+
+   [PASS] No signed transaction is still pending
+          Sepolia: signed up to nonce 3, finalized nonce is 4
+
+   [PASS] No approval left behind
+          No approval was ever signed for this token
+
+   [PASS] Nothing the record can't explain
+          0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+   PROVABLY CLEAN (checked 2026-11-09T08:45:41.192Z)
+   read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+   ```
+
+   Then the satchel that hides a signed send:
+
+   ```bash
+   npm run verify -- 5; echo "exit $?"
+   ```
+
+   ```text
+   [FAIL] A signed transaction may still be pending
+          Sepolia: signed up to nonce 0, finalized nonce is 0. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce 0 is final
+
+   NOT PROVABLE (checked 2026-11-09T08:45:45.827Z)
+   exit 1
+   ```
+
+   (npm's header, the satchel's own two lines, the three passing checks and the RPC line are left
+   out above.) Run it for each demo satchel:
+
+   | Satchel | What its owner did | `npm run verify -- <id>` prints | Exit code |
+   | --- | --- | --- | --- |
+   | #1 | Had six Sepolia transactions signed, at nonces 0 to 3. Four were broadcast (one reverted, which still spends its nonce); the other two were at nonce 0, so they are void | `PROVABLY CLEAN` | 0 |
+   | #5 | Had a 10,000 ETH send signed for it and never broadcast it | `[FAIL] A signed transaction may still be pending`, `NOT PROVABLE` | 1 |
+   | #3 | Approved satchel #2's address, which the same seller owns, to spend its USDC without limit | `[FAIL] An approval is still live`, `NOT PROVABLE` | 1 |
+   | #6 | Listed, delisted, had a raw 32-byte payload signed, then listed again | `[FAIL] The record can't explain everything signed`, `NOT PROVABLE` | 1 |
+   | #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, and `listed by satchel-nft.testnet at record version 0` | 0 |
+
+   `npm run verify -- --network mainnet <id>` reads a mainnet satchel. Until the first one is
+   minted, `npm run verify -- --network mainnet 1` prints `No satchel #1 on v1.satchel-nft.near`
+   and exits 1.
+
+5. **Run every test.** Still in `web`:
+
+   ```bash
+   npm test             # 83 tests in 9 files: 6 s here
+   npm run typecheck    # 9 s here
+   ```
+
+   The contract's 59 unit tests need Rust (rustup installs the pinned 1.99.1 from
+   `contracts/satchel/rust-toolchain.toml` on first use). On Windows, set
+   `AWS_LC_SYS_PREBUILT_NASM=1` first. With the dependencies already compiled, this took 43 s here;
+   a first run compiles them before it starts.
+
+   ```bash
+   cd ../contracts/satchel
+   cargo test           # test result: ok. 59 passed
+   ```
+
+**Reviewing security:** [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) goes through 29 attacks (the
+seller's, a buyer's, the deployer's, an RPC's, the hosted app's), what stops each one, the transaction on testnet that
+shows it where one exists, and what is left. [SECURITY.md](SECURITY.md) says how to report a
+vulnerability. [AGENTS.md](AGENTS.md) maps each rule to its code and its tests, or says it has none.
+
+## Status
+
+What exists at this commit, and what does not yet.
+
+| Component | Status | Where |
+| --- | --- | --- |
+| Contract: a NEP-171 NFT whose tokens each control an MPC-derived key, with the signing record, the sale and the refusals | **Shipped** on NEAR testnet as `v1.satchel-nft.testnet` and on NEAR mainnet as `v1.satchel-nft.near`, both on 2026-11-09, both from commit `87148c6` and locked before their first mint. A locked contract cannot change: a fix would ship as a new account | [`contracts/satchel`](contracts/satchel) |
+| Reproducible build | **Shipped**. CI builds every pull request and every push to `main` or `dev` in the pinned image `sourcescan/cargo-near:0.22.0-rust-1.99.1` and writes the code hash to the run's summary. Both deployments run the build of commit `87148c6`, code hash `94x4MmZK…` | [`.github/workflows/contract.yml`](.github/workflows/contract.yml) |
+| Clean transfer report: four checks, each chain read at a finalized block | **Shipped**, in the browser and as `npm run verify`, from the same code | [`web/src/lib/report.ts`](web/src/lib/report.ts), [`web/scripts/verify.ts`](web/scripts/verify.ts) |
+| Web app at [satchelnft.xyz](https://satchelnft.xyz) | **Shipped**. One deployment serves testnet, and mainnet under `/mainnet`: mint, send through the MPC network on the network's 8 EVM chains, list, delist, transfer, buy, the market and the report | [`web`](web) |
+| Guards before anything is signed | **Shipped**. The app shows no address and signs nothing until the network's contract passes check 1; it refuses an account from the other network, a transaction for another contract, and a receiver that doesn't exist | [`web/src/lib/guard.ts`](web/src/lib/guard.ts) |
+| Demo satchels and two refused calls | **Shipped** on testnet: satchels #1 and #3 to #6 (#2 is retired), every step in an evidence file (two entries written by hand from the run log, one failed retry left out, as [noted below](#on-chain-proof)) | [`tools/demo-gallery.mjs`](tools/demo-gallery.mjs), [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json) |
+| End-to-end run against the real MPC network | **Shipped** on testnet: mint, sign, transfer, the previous owner refused, the new owner signing, a broadcast on Sepolia | [`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`deployments/testnet-e2e.json`](deployments/testnet-e2e.json), [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json) |
+| Claim checker | **Shipped**: 11 claims on testnet, 6 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
+| Mainnet deploy script | **Shipped**, and used for the mainnet deployment. It reads the chain before each step, stops if a name belongs to someone else or the code isn't the build, and asks before it deletes the last key | [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
+| The first satchel on mainnet: minted in the app, about $2 of ETH sent to its address on Base, one send from it, its report clean | **In progress**. The owner signs every mainnet transaction | |
+| npm package `satchel-nft`: the report as a library and a CLI (`npx satchel-nft verify 1`), with read commands and signing commands that use the near CLI's keychain | **Planned**. Nothing is published | |
+| What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Planned**. Today a satchel's page shows its native balance on each of the network's 8 chains | |
+| Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
+
+**Known limitations** (the main ones are in [Limits](#limits-stated-plainly), and every residual risk
+is in the [threat model](docs/THREAT_MODEL.md#residual-risks-in-one-list)): calls are classified by their selector;
+only secp256k1 chains, and only EVM transactions are built by the contract; the report trusts one
+public RPC per chain unless you give it your own; the chain list and the 32-approval cap are fixed
+for the life of a contract.
+
+## What Satchel does
+
+| Piece | What it does |
+| --- | --- |
+| **A satchel** | A NEP-171 token on `v1.satchel-nft.near` (or `v1.satchel-nft.testnet`). Anyone can mint one for 0.1 NEAR, with any excess refunded. Its MPC path is `satchel/<token_id>`, fixed for its lifetime, whoever owns it |
+| **Its address** | NEAR's MPC network derives a secp256k1 key from the Satchel contract's account and that path; the MPC contract's `derived_public_key` view returns it. Its EVM address is the same on all 16 chains the contract signs for. Nobody holds the key: the MPC nodes sign with it only when the Satchel contract asks |
+| **`sign_evm`** | The owner sends the fields of an EIP-1559 transaction. The contract RLP-encodes and hashes it itself, classifies the call, updates the record, then asks the MPC contract to sign that hash. Owner only, 1 yoctoNEAR, at least 50 TGas, never while listed |
+| **`sign_raw`** | Signs any 32-byte payload (a Bitcoin sighash, a message hash). Allowed, and counted as opaque |
+| **The signing record** | Public, per token, and it only grows: for each chain the highest nonce signed and how many signatures; up to 32 approvals itemized and the rest counted; calls it could not classify; opaque signatures; and a version that goes up with every signature |
+| **The sale** | `list` freezes signing and pins the record version. `buy` names the version and the price the buyer checked and fails if either changed; the NFT moves in the same receipt, and the seller is paid in NEAR |
+| **The report** | Four checks against NEAR and every chain in the record, each chain read at a finalized block, in your browser or your terminal. "Provably clean" only when all four pass |
+| **The web app** | [satchelnft.xyz](https://satchelnft.xyz): mint, see a satchel's address and balances, send from it, list, buy, transfer, and read any satchel's report without a wallet |
+
+## Why it is different
+
+- **The key cannot leave with the seller.** Handing over a seed phrase hands over a copy, and the
+  seller keeps theirs. A satchel's key is in no one's hands: the MPC network signs with it only when
+  the contract asks, and the contract asks only for the token's current owner. After the transfer of
+  satchel #1, its previous owner's request was
+  [refused on chain](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU).
+- **What the key signed is on record, not in the seller's word.** The contract builds each EVM
+  transaction itself, so it knows the chain, the nonce and the call. A buyer doesn't need the
+  seller's history, only the record and the chains.
+- **What Satchel can't see into is counted, never guessed.** A raw signature, a multicall, an
+  approval past the 32nd: each one is counted, and the report says "not provable" with the reason.
+  A seller can make a satchel unprovable, but cannot make it look clean.
+- **One transfer, every chain.** The NFT moves on NEAR in one transaction, and the address on all 16
+  chains moves with it. A token-bound account (ERC-6551) lives on one chain, and nothing there lists
+  the approvals or signatures a seller left behind.
+- **The proof doesn't depend on us.** The contract has no access keys and no admin, and its code is
+  the reproducible build. The report runs in your browser or terminal against public RPC nodes, or
+  your own. Each claim about the deployments has a command that checks it.
+
+## How a sale works
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor S as Seller
+    participant C as Satchel contract<br/>v1.satchel-nft.near
+    participant M as MPC contract<br/>v1.signer
+    participant E as EVM chain<br/>(Base, Ethereum, …)
+    actor B as Buyer
+    S->>C: mint, 0.1 NEAR
+    Note over C: token N, MPC path satchel/N
+    S->>C: sign_evm(N, tx), 1 yoctoNEAR
+    C->>C: build and hash the EIP-1559 tx,<br/>classify it, update the record
+    C->>M: sign(path, hash, domain 0)
+    M-->>S: signature, as sign_evm's result
+    S->>E: broadcast
+    S->>C: list(N, price)
+    Note over C: signing frozen,<br/>listing pins record version v
+    B->>C: read the record (views)
+    B->>E: read nonces and allowances<br/>at a finalized block
+    Note over B: four checks pass:<br/>provably clean
+    B->>C: buy(N, v, price), price attached
+    C->>C: record version and price unchanged?
+    C-->>B: the NFT, and the address on every chain
+    C-->>S: the price, in NEAR
+    S-xC: sign_evm(N, …): refused, not the owner
 ```
 
-You should see `[FAIL] A signed transaction may still be pending` and the verdict `NOT PROVABLE`,
-with exit code 1. Run it for each of the five:
+In words:
 
-| Satchel | What its owner did | `npm run verify -- <id>` prints |
-|---|---|---|
-| #1 | Sent four transactions on Sepolia from it, all on chain (one reverted, which still spends its nonce) | `PROVABLY CLEAN`, exit 0 |
-| #5 | Had a 10,000 ETH send signed for it and never broadcast it | `[FAIL] A signed transaction may still be pending`, `NOT PROVABLE`, exit 1 |
-| #3 | Approved satchel #2's address, which the same seller owns, to spend its USDC without limit | `[FAIL] An approval is still live`, `NOT PROVABLE`, exit 1 |
-| #6 | Listed, delisted, had a raw 32-byte payload signed, then listed again | `[FAIL] The record can't explain everything signed`, `NOT PROVABLE`, exit 1 |
-| #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, exit 0, and `listed by satchel-nft.testnet` |
+1. **Mint.** Anyone mints a satchel for 0.1 NEAR. Its key is derived by the MPC network from the
+   contract's account and `satchel/<id>`, so it exists the moment the token does.
+2. **Use it.** The owner calls `sign_evm` with a transaction's fields. The contract builds and
+   hashes the transaction, records the chain and the nonce (and an approval row, or a count if it
+   can't classify the call), logs the call's class in a `satchel` event, and only then calls the MPC
+   contract's `sign`. The contract never handles the signature: the MPC contract's answer is the
+   transaction's result, and the owner (or the web app) broadcasts it.
+3. **List.** `list` freezes signing and pins the record's current version to the listing.
+4. **Check.** The buyer runs the four checks: the contract can't sign behind the record, every
+   nonce ever signed is spent at a finalized block, every approval is revoked, and nothing was
+   signed that the record can't explain.
+5. **Buy.** `buy` names the record version and price the buyer checked. If the seller delisted,
+   signed and relisted in between, or changed the price, the call fails and the buyer keeps their
+   NEAR. Otherwise the NFT moves to the buyer in the same receipt and the seller is paid.
+6. **After.** The address on every chain is now the buyer's to sign for. The seller's next
+   `sign_evm` is refused.
 
-The contract refused two moves outright, and both refusals are on chain:
+## When is a transfer provably clean?
 
-| Move | Call | The contract's answer |
-|---|---|---|
-| Sign while it's listed | the owner of #4 calls `sign_evm` | [`Satchel: signing is frozen while the token is listed`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
-| Change it after the buyer checked | a buyer calls `buy` on #6 naming record version 0, the version before the raw signature | [`Satchel: the signing record changed since you checked it`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv), and the buyer keeps the 1 NEAR |
-
-Satchel #4 can be bought from [its page](https://satchelnft.xyz/satchel/4) with any testnet NEAR
-wallet. If someone has bought it by the time you look, it reads `PROVABLY CLEAN` without the
-listing line. For about 13 minutes after a satchel sends on Sepolia, its report says
-`COULD NOT CHECK EVERYTHING` until that block is final.
-[How they were built](#the-demo-satchels).
-
-## The problem it solves
-
-Selling a wallet is easy to fake. The seller signs a withdrawal, sells the wallet, then broadcasts
-the withdrawal and empties it. Or the seller approves their own address to spend the wallet's
-tokens, sells, and pulls the tokens afterwards. Token-bound accounts on a single chain have the same
-holes. Nobody can safely buy a wallet, a position or an address with history unless they can rule
-those out.
-
-Satchel keeps a public, on-chain **signing record** for every token, so a buyer can check:
+Satchel keeps a public, on-chain **signing record** for every token, built this way:
 
 1. **The contract builds every EVM transaction it signs.** The owner sends the fields (`chain_id`,
    `nonce`, fees, `to`, `value`, `data`); the contract RLP-encodes and hashes them itself
@@ -91,20 +373,20 @@ Satchel keeps a public, on-chain **signing record** for every token, so a buyer 
    and price the buyer verified; if the seller delisted, signed and relisted in between, the purchase
    fails.
 
-### When is a transfer provably clean?
-
-A buyer (or the [Satchel web app](#web-app), which runs these checks) can call a token provably
-clean only when all of these hold:
+A buyer (or the [web app](#web-app), which runs these checks) can call a satchel provably clean only
+when all four hold:
 
 | Check | How |
-|---|---|
-| The contract account cannot sign behind the record | No access keys on the account; code hash equals the reproducible build; not a global contract referenced by account ID; `mpc_contract()` is the canonical signer (`v1.signer` / `v1.signer-prod.testnet`) |
-| No pending signed transaction | For every chain in `record.evm`, the address's nonce at a **finalized** block is above `max_nonce` |
-| No approval left behind | Every row in `record.approvals` is revoked on chain: allowance 0, operator off, Permit2 allowance 0. An `Approve` row can be ERC-20 or ERC-721; ask the contract (ERC-165) and check `allowance` or `getApproved(arg)` |
-| Nothing the record cannot explain | `opaque_signatures`, `approvals_not_itemized` and `unclassified_calls` are all 0 |
+| --- | --- |
+| The contract can't sign behind the record | No access keys on the account; its code hash equals the reproducible build; not a global contract referenced by account ID; `mpc_contract()` is the canonical signer (`v1.signer` on mainnet, `v1.signer-prod.testnet` on testnet) |
+| No signed transaction is still pending | For every chain in `record.evm`, the address's nonce at a **finalized** block is above `max_nonce` |
+| No approval left behind | Every row in `record.approvals` is revoked on chain: allowance 0, operator off, Permit2 allowance 0 or expired. An `Approve` row can be ERC-20 or ERC-721, so the report reads both `allowance` and `getApproved(arg)` and counts the row live if either shows the grant |
+| Nothing the record can't explain | `opaque_signatures`, `approvals_not_itemized` and `unclassified_calls` are all 0 |
 
-If any of them fails, the honest answer is "not provable", with the reason. Many wallets will be
-used for swaps and DeFi and will not be provably clean; the record says so instead of hiding it.
+If any of them fails, the honest answer is "not provable", with the reason. A check that cannot be
+read (an RPC down, a chain the app doesn't know, an RPC serving the wrong chain) is "unknown", never
+a pass. Many wallets will be used for swaps and DeFi and will not be provably clean; the record says
+so instead of hiding it.
 
 **What the record cannot cover:** powers built into an asset itself, which need no signature from
 the wallet. A token the seller deployed or can upgrade, a token with a blacklist or clawback, an ENS
@@ -112,31 +394,87 @@ name whose registry controller is still the seller, an ERC-4907 `user`. The reco
 token's key signed; it says nothing about what the assets inside allow their issuers to do. Value
 the assets as you would anywhere else.
 
-## Contract interface
+## Safety architecture
 
-| Method | Who | Deposit | What it does |
-|---|---|---|---|
-| `new(mpc_contract)` | the contract account itself (`#[private]`) | | Run in the same transaction as the deploy. No admin, nothing to change later |
-| `mint(receiver_id?)` | anyone | 0.1 NEAR (excess refunded) | New token; its path is `satchel/<token_id>` |
-| `sign_evm(token_id, tx)` | owner | 1 yocto, ≥ 50 TGas | Builds and hashes the EIP-1559 tx, updates the record, returns the MPC signature |
-| `sign_raw(token_id, payload)` | owner | 1 yocto, ≥ 50 TGas | Signs 32 bytes, counted as opaque |
-| `list(token_id, price)` / `delist(token_id)` | owner | 1 yocto | Sale in NEAR; signing frozen while listed |
-| `buy(token_id, record_version, price)` | anyone but the seller | ≥ price (excess refunded) | Moves the token in this receipt and sends the seller's payment as a transfer receipt |
-| `nft_transfer`, `nft_transfer_call`, enumeration, metadata | NEP-171/177/181 | | A transfer ends any listing |
-| `satchel(token_id)`, `signing_record`, `listing`, `listings`, `derivation_path`, `mpc_contract`, `evm_signing_hash(tx)` | views | | Everything a buyer needs to check |
+```mermaid
+flowchart LR
+    L["Locked contract<br/>0 keys, reproducible build"] --> R["Record first<br/>written before the MPC request"] --> F["Freeze and pin<br/>a listing freezes signing,<br/>buy names the version"] --> K["Four checks<br/>each chain at a finalized block"] --> G["App guards<br/>no address or signature<br/>until check 1 passes"]
+```
 
-Supported chain IDs (`SUPPORTED_CHAINS`): 1, 11155111, 8453, 84532, 42161, 421614, 10, 11155420, 137,
-80002, 56, 97, 43114, 43113, 1313161554, 1313161555. A fixed list keeps every record checkable and
-rules out signatures for chains that do not exist yet.
+| Layer | What it enforces | Code | Tests |
+| --- | --- | --- | --- |
+| **Locked contract** | No access keys, no admin, no upgrade method: nobody, the deployer included, can redeploy it or sign as it. `new` is private and ran in the deploy transaction | [`lib.rs`](contracts/satchel/src/lib.rs) (`new`), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) | `scripts/check-claims.mjs`, on chain |
+| **The contract builds what it signs** | Every `sign_evm` signature is over an EIP-1559 transaction the contract RLP-encoded and hashed itself; anything else goes through `sign_raw` and is counted as opaque | `Eip1559Tx::signing_hash` in [`evm.rs`](contracts/satchel/src/evm.rs) | `evm_hash_and_rlp_match_viem_for_every_vector`, `evm_signing_hash_view_matches_the_hash_sign_evm_sends` |
+| **Record first** | The record is saved in the `sign_evm` receipt; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm`, `sign_raw`, `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs) | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque` |
+| **Every call classified** | Transfer, asset transfer, approval, revocation or unclassified; selectors are checked against the keccak of their signatures | `Eip1559Tx::classify` in [`evm.rs`](contracts/satchel/src/evm.rs) | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
+| **Approvals itemized, then counted** | 32 distinct approvals listed per token; beyond that, counted, never dropped | `sign_evm`, `MAX_APPROVALS` in [`lib.rs`](contracts/satchel/src/lib.rs) | `approvals_beyond_the_cap_are_counted_not_dropped`, `erc721_approvals_of_two_token_ids_stay_two_rows` |
+| **Owner only; listing freezes signing** | Only the current owner signs, with 1 yoctoNEAR and at least 50 TGas, and never while listed | `assert_can_sign` in [`lib.rs`](contracts/satchel/src/lib.rs) | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer` |
+| **`buy` pins what the buyer checked** | The record version and the price must be the ones the buyer names | `buy` in [`lib.rs`](contracts/satchel/src/lib.rs) | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
+| **Any transfer ends the listing** | `nft_transfer`, `nft_transfer_call` and a bounced transfer each void the listing | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer` in [`lib.rs`](contracts/satchel/src/lib.rs) | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
+| **A fixed chain list** | Only the 16 chain ids in `SUPPORTED_CHAINS` can be signed for, so every record is checkable | `SUPPORTED_CHAINS` in [`evm.rs`](contracts/satchel/src/evm.rs) | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
+| **The four checks** | Each chain read at a finalized block; anything unreadable is "unknown", never a pass | `contractCheck`, `pendingCheck`, `approvalsCheck`, `countersCheck` in [`report.ts`](web/src/lib/report.ts), [`approvals.ts`](web/src/lib/approvals.ts) | [`report.test.ts`](web/src/lib/report.test.ts), [`approvals.test.ts`](web/src/lib/approvals.test.ts) |
+| **App guards** | No address and no signature until the network's contract passes check 1; only this network's contract, from an account on this network; no transfer to an account that doesn't exist | `assertDeployment`, `assertTxFor`, `assertReceiver` in [`guard.ts`](web/src/lib/guard.ts) | [`guard.test.ts`](web/src/lib/guard.test.ts) |
+| **Check before broadcast** | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before it broadcasts | `sendFromSatchel` in [`send.ts`](web/src/lib/send.ts) | [`send.test.ts`](web/src/lib/send.test.ts) |
 
-Events: NEP-171 `nft_mint` and `nft_transfer`, plus NEP-297 events with standard `satchel`:
-`sign_evm` (with the call's class, decoded approval, selector and calldata hash), `sign_raw`,
-`list`, `delist`, `sale`.
+**What a dishonest seller can try**, and what happens:
 
-## Live on testnet
+| The seller tries to | and | Shown by |
+| --- | --- | --- |
+| Keep a signed withdrawal and broadcast it after the sale | Check 2 fails: a nonce was signed that is not yet spent at a finalized block | Satchel #5 on testnet |
+| Approve an address of their own to spend the wallet's tokens | Check 3 fails: the allowance is still granted on chain | Satchel #3 on testnet |
+| Have something signed blind (a permit, a Bitcoin transaction) | Check 4 fails: the opaque signature is counted | Satchel #6 on testnet |
+| Hide an approval in a multicall, or push one past the 32nd row | Check 4 fails: the call is unclassified, or the approval counted | `a_call_satchel_cannot_classify_is_counted`, `approvals_beyond_the_cap_are_counted_not_dropped` |
+| Sign while the satchel is listed | The contract refuses | [`5ZaKqJUx…`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
+| Delist, sign and relist after the buyer checked | `buy` fails and the buyer keeps their NEAR | [`7HQPu9qe…`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv) |
+| Keep signing after the sale | Refused: only the token's owner can sign | [`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) |
+| Swap the contract's code, or sign as the contract | Not possible: the account has no keys, and check 1 would fail if it had | `node scripts/check-claims.mjs` |
+
+What is left (the MPC network itself, the RPCs the report reads, powers built into assets) is in
+[Limits](#limits-stated-plainly) and the [threat model](docs/THREAT_MODEL.md#residual-risks-in-one-list).
+
+## Built on NEAR
+
+| NEAR technology | How Satchel uses it | Where |
+| --- | --- | --- |
+| **Chain Signatures** (MPC contract `v1.signer` on mainnet, `v1.signer-prod.testnet` on testnet) | Every satchel's key is derived with `predecessor` = the Satchel contract, `path` = `satchel/<id>` and domain 0 (secp256k1). `sign_evm` and `sign_raw` call the MPC contract's `sign` with `payload_v2: { Ecdsa: <hash> }`, attaching 1 yoctoNEAR and the rest of the transaction's gas. The app gets a satchel's address from the `derived_public_key` view and recovers the signer from every signature before it broadcasts | `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs), `tokenAddress` in [`evm.ts`](web/src/lib/evm.ts), [`send.ts`](web/src/lib/send.ts) |
+| **NEP-171, NEP-177, NEP-181** (`near-contract-standards` 5.29.1) | The NFT core, its metadata and enumeration. Every transfer path also ends the token's listing, a bounced `nft_transfer_call` included | [`lib.rs`](contracts/satchel/src/lib.rs) |
+| **NEP-297 events** | The standard `nft_mint` and `nft_transfer`, plus Satchel's own `satchel` events: `sign_evm` (with the call's class, a decoded approval, the selector and a calldata hash), `sign_raw`, `list`, `delist` and `sale` | `emit` in [`lib.rs`](contracts/satchel/src/lib.rs) |
+| **NEP-330 source metadata and reproducible builds** | `contract_source_metadata` names commit `87148c6` and the pinned Docker image; cargo-near 0.22.0 builds it in CI, so anyone can rebuild it and compare the code hash | [`Cargo.toml`](contracts/satchel/Cargo.toml), [`contract.yml`](.github/workflows/contract.yml) |
+| **Locked accounts** | The contract was deployed and initialized in one transaction (`new` is `#[private]`), then its only access key was deleted. With no keys, nobody can redeploy it or sign as it, on either network | [`deployments/`](deployments), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
+| **1 yoctoNEAR deposits** | `sign_evm`, `sign_raw`, `list`, `delist` and NEP-171 transfers need exactly 1 yoctoNEAR. A function-call access key (a dapp's login key) cannot attach a deposit, so each of them needs the owner's full-access key: a wallet confirmation | `assert_can_sign`, `list`, `delist` in [`lib.rs`](contracts/satchel/src/lib.rs) |
+| **Receipts** | The record is saved in `sign_evm`'s own receipt, and the MPC call runs in a later one, so a failed or slow signature cannot undo the record: it only makes the record stricter | `sign_evm` in [`lib.rs`](contracts/satchel/src/lib.rs) |
+| **Named accounts** | `v1.satchel-nft.near` is a sub-account of `satchel-nft.near`, which holds no power over it. A contract change would ship as `v2.…` beside it | [`deployments/mainnet.json`](deployments/mainnet.json) |
+| **NEAR Connect** (`@hot-labs/near-connect` 0.11.4) | Wallet selection from a pinned list per network, a separate session on each network, and transactions signed in the user's own wallet | [`wallet.ts`](web/src/lib/wallet.ts), [`wallet-manifest.json`](web/src/lib/wallet-manifest.json) |
+| **FastNEAR RPC** | The public and archival nodes that the app, `npm run verify` and `check-claims` read. For the two commands, `NEAR_RPC` (and `NEAR_ARCHIVAL_RPC`, for `check-claims`) replace them with nodes you trust | [`config.ts`](web/src/lib/config.ts), [`check-claims.mjs`](scripts/check-claims.mjs) |
+
+## On-chain proof
+
+### NEAR mainnet, 2026-11-09
+
+The same build as on testnet, deployed by [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh), with
+every transaction signed by the owner. The record is in
+[`deployments/mainnet.json`](deployments/mainnet.json), and
+`node scripts/check-claims.mjs --network mainnet` checks it.
+
+| Account | Role |
+| --- | --- |
+| [`v1.satchel-nft.near`](https://nearblocks.io/address/v1.satchel-nft.near) | The contract. 0 access keys, code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` (commit [`87148c6`](https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53), [reproducible CI build](https://github.com/duongnq2798/satchel/actions/runs/42547394040)), signs only through `v1.signer` |
+| [`satchel-nft.near`](https://nearblocks.io/address/satchel-nft.near) | The account that created it. It has no power over the contract |
+
+| What happened | Transaction | Result |
+| --- | --- | --- |
+| Created `satchel-nft.near` with 3.5 NEAR | [`ByH8EdoS…`](https://nearblocks.io/txns/ByH8EdoSUJjUwAFfyLiYiQQE9U5MwUvHVZXTehoxc9oN) | |
+| Created `v1.satchel-nft.near` with 3 NEAR, from `satchel-nft.near` | [`BFGbXYUn…`](https://nearblocks.io/txns/BFGbXYUnLJQ7ZbGYde467Uzn481zXF4ymmz1MR3tWg1k) | |
+| Deployed the build and called `new({"mpc_contract":"v1.signer"})`, in one transaction, so nobody could initialize it first | [`3cbRdh9W…`](https://nearblocks.io/txns/3cbRdh9WnftTPbhkLs5fJCBJLh43dTtWywSzuFk8GHK4) | `DeployContract`, `FunctionCall` |
+| Deleted its only key | [`Dw29ZbeR…`](https://nearblocks.io/txns/Dw29ZbeRNSLgyoeXGEdnDhxCMWB7L3w4vhKpYqmN9qqE) | Block 223741744; `nft_total_supply()` read at that block is 0, so no satchel was minted while anyone could still change the code |
+
+Mainnet satchels hold real funds on Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain,
+Avalanche and Aurora, and the contract is not audited: keep in one only what you can afford to lose.
+
+### NEAR testnet, 2026-11-09
 
 | | |
-|---|---|
+| --- | --- |
 | Contract | [`v1.satchel-nft.testnet`](https://testnet.nearblocks.io/address/v1.satchel-nft.testnet) |
 | MPC signer | `v1.signer-prod.testnet` (Chain Signatures) |
 | Source | commit [`87148c6`](https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53), recorded in the wasm's NEP-330 metadata |
@@ -144,8 +482,11 @@ Events: NEP-171 `nft_mint` and `nft_transfer`, plus NEP-297 events with standard
 | Deploy and `new` | one transaction, so nobody could initialize it first: [`7pocx72c…`](https://testnet.nearblocks.io/txns/7pocx72c1bcDbNehTG32T18ukjR82byP3PfF9vmX44Uk) |
 | Locked | its only key deleted in [`6FYx6hV5…`](https://testnet.nearblocks.io/txns/6FYx6hV5PRCfaUd6t4VEkz1bfkknxN8ymyw4nSP6YgAK), before the first mint. No one can redeploy it or sign as it |
 
-The record is in [`deployments/testnet.json`](deployments/testnet.json). To check the first row of
-the [clean-transfer table](#when-is-a-transfer-provably-clean) yourself:
+That CI run was for pull request #2. Its summary prints GitHub's temporary merge commit for the pull
+request; the commit it built, which the wasm records, is its head, `87148c6` (later runs print the
+commit they built). The record is in [`deployments/testnet.json`](deployments/testnet.json), and
+`node scripts/check-claims.mjs` checks it with the refused calls below. To check the first row of the
+[clean-transfer table](#when-is-a-transfer-provably-clean) with the near CLI instead:
 
 1. List the contract's keys. You should see an empty table.
 
@@ -159,22 +500,34 @@ the [clean-transfer table](#when-is-a-transfer-provably-clean) yourself:
    near contract call-function as-read-only v1.satchel-nft.testnet contract_source_metadata json-args '{}' network-config testnet now
    ```
 
-3. Compare code hashes. Download the artifact from the CI run, then run
-   `node scripts/code-hash.mjs satchel.wasm`; it should print the code hash above, and so should
-   the `code_hash` field of the account:
+3. Compare code hashes: hash the CI artifact as in [step 3 of the evaluation](#how-to-evaluate-satchel-in-5-minutes),
+   and read the account's `code_hash`:
 
    ```bash
    curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"v1.satchel-nft.testnet"}}'
    ```
 
-### End-to-end run
+The contract refused two seller moves outright, and both refusals are on chain:
+
+| Move | Call | The contract's answer |
+| --- | --- | --- |
+| Sign while it's listed | the owner of #4 calls `sign_evm` | [`Satchel: signing is frozen while the token is listed`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
+| Change it after the buyer checked | a buyer calls `buy` on #6 naming record version 0, the version before the raw signature | [`Satchel: the signing record changed since you checked it`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv), and the buyer keeps the 1 NEAR |
+
+Satchel #4 can be bought from [its page](https://satchelnft.xyz/satchel/4) with any testnet NEAR
+wallet. If someone has bought it by the time you look, it reads `PROVABLY CLEAN` without the listing
+line. For about 13 minutes after a satchel sends on Sepolia, its report says
+`COULD NOT CHECK EVERYTHING` until that block is final.
+
+<details>
+<summary><b>The end-to-end run against the real MPC network</b> (7 steps, then a broadcast on Sepolia)</summary>
 
 [`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs) runs the whole path against the live contract and
 the real MPC network. Its last run (evidence in
 [`deployments/testnet-e2e.json`](deployments/testnet-e2e.json)):
 
 | Step | Result | Transaction |
-|---|---|---|
+| --- | --- | --- |
 | `mint` as `satchel-nft.testnet` | token `1`, path `satchel/1`, address `0x96DA1468E95Ab31A698891f0150095f86b5a282B` (from `derived_public_key` on the MPC contract) | [`3kBMVhva…`](https://testnet.nearblocks.io/txns/3kBMVhva8pagScLwGJDNwF6Bfbzno9LxAVN5JKENvPxo) |
 | `sign_evm`, Sepolia, nonce 0 | the contract's hash equals viem's; the MPC signature recovers to the token's address | [`EZLXcvf4…`](https://testnet.nearblocks.io/txns/EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo) |
 | `signing_record` | Sepolia `max_nonce` 0, version 1 | view |
@@ -195,13 +548,13 @@ Then the address was funded, and its current owner sent a transaction at nonce 0
 `sign_evm` (evidence in [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json)):
 
 | Step | Result | Transaction |
-|---|---|---|
+| --- | --- | --- |
 | `sign_evm` by `buyer.satchel-nft.testnet`, Sepolia, nonce 0 | record version 3, `max_nonce` still 0 | [`27myw3U1…`](https://testnet.nearblocks.io/txns/27myw3U1iMmPvvGajeao1mqPaoqKu3C6SJQt7VL6FRCd) |
 | broadcast on Sepolia | 1 wei to `0x…dEaD`, success, block 12094728 | [`0x43c37e67…`](https://sepolia.etherscan.io/tx/0x43c37e67eed3c849acfc4b3f525a762d9c862c9fec017b0391c49ee2f89d6965) |
 
 Right after the broadcast the report said "could not confirm": the nonce was spent, but only in a
 block Sepolia had not finalized. Once that block was final, the address's nonce (1) was above every
-nonce ever signed for it (0), so every earlier signature was spent or void, and token 1 reads
+nonce ever signed for it (0), so every earlier signature was spent or void, and token 1 read
 **provably clean**.
 
 To run it yourself, put two testnet accounts in the legacy keychain (`~/.near-credentials`) and:
@@ -216,14 +569,17 @@ You should see `E2E PASS`. To broadcast for real, fund the token's address on Se
 `node e2e-testnet.mjs send <token_id> <owner-account>`; it prints the Etherscan link. Set
 `NEAR_CLI` if `near` is not on your `PATH`.
 
-### The demo satchels
+</details>
+
+<details>
+<summary><b>How the demo satchels were built</b> (17 NEAR transactions and 3 Sepolia sends, and what went wrong)</summary>
 
 [`tools/demo-gallery.mjs`](tools/demo-gallery.mjs) built satchels #2 to #6, with satchel #1
 paying for gas from its own address through `sign_evm` (evidence in
 [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json)):
 
 | Satchel | Step | Transaction |
-|---|---|---|
+| --- | --- | --- |
 | #2 | `mint` | [`8UH5zpRj…`](https://testnet.nearblocks.io/txns/8UH5zpRjnpCYriKEGoyaPtt3vgqZh943uTma372dEBtT) |
 | #2 | `sign_evm`: 0.01 ETH to `0x…dEaD` at nonce 0, never broadcast | [`DSqPLcxY…`](https://testnet.nearblocks.io/txns/DSqPLcxYVGq83S84L9HndBtCm2iMaQ92V6DVXHzWj384) |
 | #5 | `mint` | [`Mo94fZuP…`](https://testnet.nearblocks.io/txns/Mo94fZuPy4FPPgvqro4MJvnbsWj5T63BSpqnLBSsf6K) |
@@ -272,19 +628,77 @@ You should see `GALLERY PASS` and four new token ids. The script writes each ste
 goes, a signed send before it broadcasts it, so a run that stops partway resumes from there with the
 same `--out`, without minting or signing again.
 
+</details>
+
+## Contract interface
+
+| Method | Who | Deposit | What it does |
+| --- | --- | --- | --- |
+| `new(mpc_contract)` | the contract account itself (`#[private]`) | | Run in the same transaction as the deploy. No admin, nothing to change later |
+| `mint(receiver_id?)` | anyone | 0.1 NEAR (excess refunded) | New token; its path is `satchel/<token_id>` |
+| `sign_evm(token_id, tx)` | owner | 1 yocto, ≥ 50 TGas | Builds and hashes the EIP-1559 tx, updates the record, returns the MPC signature |
+| `sign_raw(token_id, payload)` | owner | 1 yocto, ≥ 50 TGas | Signs 32 bytes, counted as opaque |
+| `list(token_id, price)` / `delist(token_id)` | owner | 1 yocto | Sale in NEAR; signing frozen while listed |
+| `buy(token_id, record_version, price)` | anyone but the seller | ≥ price (excess refunded) | Moves the token in this receipt and sends the seller's payment as a transfer receipt |
+| `nft_transfer`, `nft_transfer_call`, enumeration, metadata | NEP-171/177/181 | 1 yocto for transfers | A transfer ends any listing |
+| `satchel(token_id)`, `signing_record`, `listing`, `listings`, `derivation_path`, `mpc_contract`, `evm_signing_hash(tx)` | views | | Everything a buyer needs to check |
+
+The 16 chain ids in `SUPPORTED_CHAINS`. A fixed list keeps every record checkable and rules out
+signatures for chains that do not exist yet. Either contract can sign for any of them; the web app
+sends on the 8 mainnets from `/mainnet` pages and on the 8 testnets from the others. So the testnet
+contract can sign a mainnet transaction too, with a key from NEAR's testnet MPC network: a testnet
+satchel's address must never hold real funds.
+
+| Mainnet | Chain id | Testnet | Chain id |
+| --- | --- | --- | --- |
+| Ethereum | 1 | Sepolia | 11155111 |
+| Base | 8453 | Base Sepolia | 84532 |
+| Arbitrum One | 42161 | Arbitrum Sepolia | 421614 |
+| OP Mainnet | 10 | OP Sepolia | 11155420 |
+| Polygon | 137 | Polygon Amoy | 80002 |
+| BNB Chain | 56 | BNB testnet | 97 |
+| Avalanche | 43114 | Avalanche Fuji | 43113 |
+| Aurora | 1313161554 | Aurora testnet | 1313161555 |
+
+Events: NEP-171 `nft_mint` and `nft_transfer`, plus NEP-297 events with standard `satchel`:
+`sign_evm` (with the call's class, decoded approval, selector and calldata hash), `sign_raw`,
+`list`, `delist`, `sale`.
+
 ## Web app
 
 [`web/`](web) is a Next.js app with no backend, hosted at <https://satchelnft.xyz> (Vercel, built
-from `main`, on NEAR testnet). Every read goes from your browser to a public NEAR RPC and to each
-EVM chain's public RPC; every write is a transaction your NEAR wallet signs.
+from `main`). Pages under `/mainnet` work on NEAR mainnet and the 8 EVM mainnets; every other page
+works on NEAR testnet and the 8 testnets. A switch in the header moves between them. Every read
+goes from your browser to a public NEAR RPC and to each EVM chain's public RPC; every write is a
+transaction your NEAR wallet signs.
+
+<p align="center"><img src="docs/assets/readme/app-landing.png" alt="The satchelnft.xyz landing page on testnet: Sell a wallet. Prove nothing stayed behind. Satchel #1's card shows its address 0x96DA1468E95Ab31A698891f0150095f86b5a282B on Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain, Avalanche and Aurora, the stamp PROVABLY CLEAN checked in your browser, and the hand-over from satchel-nft.testnet to buyer.satchel-nft.testnet in one NEAR transaction." width="860"></p>
 
 | Page | What you can do there |
-|---|---|
-| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the [demo satchels](#see-it-catch-a-dirty-wallet) and the refused calls, a sale step by step, a comparison with seed phrases and token-bound accounts, and a link to every transaction behind a claim |
+| --- | --- |
+| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the demo satchels and the refused calls, a sale step by step, a comparison with seed phrases and token-bound accounts, and a link to every transaction behind a claim |
 | `/satchels` | Connect a NEAR wallet, mint a satchel for 0.1 NEAR, see the ones you own |
 | `/satchel/<id>` | The token's address, its balance on the 8 testnets, the clean transfer report; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy |
 | `/market` | The listed satchels, each with its price and the verdict of its report |
 | `/verify` | Enter a token id and read its report, no wallet needed |
+| `/mainnet`, `/mainnet/satchels`, `/mainnet/satchel/<id>`, `/mainnet/market`, `/mainnet/verify` | The same pages on mainnet, with the deployment's facts read live |
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/readme/app-report-5.png" alt="Satchel #5's page on testnet: its address 0x81149BF1C907579A150e9AB882E951B648853dA3 with 0 balances on the 8 testnets, and its clean transfer report reading Not provable because a transaction signed at nonce 0 on Sepolia may still be pending; the other three checks pass."></td>
+<td width="50%"><img src="docs/assets/readme/app-mainnet.png" alt="The /mainnet page: Satchels that hold real funds, at v1.satchel-nft.near signing through v1.signer. Read live: 0 access keys on the contract, 16 EVM chains, 4 checks, 1 NEAR transaction; code is the reproducible build, signs only through v1.signer, 0 satchels minted and 0 listed."></td>
+</tr>
+<tr>
+<td><sub>A satchel's page: its address on the network's 8 chains and its report, read live. Satchel #5 hides a signed send.</sub></td>
+<td><sub>The mainnet pages read the deployment's facts live: no keys, the reproducible build, the canonical signer.</sub></td>
+</tr>
+</table>
+
+**Before it signs or shows an address**, on either network, the app checks the contract: the account
+exists, runs the reproducible build, has no keys and signs only through the network's canonical MPC
+contract. Until then the account could hold anyone's code, and an address derived from it would be
+theirs to sign for, so the app shows none and signs nothing. A transfer refuses a receiver that
+doesn't exist on the network, since the contract takes any name and an NFT sent to one is lost.
 
 **The report** runs the four checks of the [clean-transfer table](#when-is-a-transfer-provably-clean)
 against NEAR and every chain the record lists. Each chain is read at its own finalized block
@@ -297,15 +711,16 @@ the page. If the seller delists, signs and relists before your transaction lands
 refuses the sale and you keep your NEAR. A satchel that is not provably clean can still be bought,
 after you tick a box that says so.
 
-**Sending** from a satchel: pick a testnet, a recipient and an amount (or raw calldata, under
-Advanced). The app estimates gas, reads the nonce and fees, checks that the contract hashes the same
-transaction, has your wallet call `sign_evm`, recovers the signer from the MPC signature, and only
-then broadcasts. It stops before your wallet opens if the address cannot pay the value plus the
-most the fees can reach (on OP Sepolia and Base Sepolia, the L1 data fee included), and shows that
-fee while your wallet asks.
+**Sending** from a satchel: pick a chain (a testnet, or a mainnet under `/mainnet`), a recipient and
+an amount (or raw calldata, under Advanced). The app estimates gas, reads the nonce and fees, checks
+that the contract hashes the same transaction, has your wallet call `sign_evm`, recovers the signer
+from the MPC signature, and only then broadcasts. It stops before your wallet opens if the address
+cannot pay the value plus the most the fees can reach (on OP Mainnet, Base and their Sepolia testnets,
+the L1 data fee included), and shows that fee while your wallet asks.
 
 **Wallets.** The app lists a pinned set of NEAR wallets. On testnet that is Meteor, Intear,
-Nightly, Ledger and NEAR CLI.
+Nightly, Ledger and NEAR CLI; on mainnet, those and HOT and MyNearWallet. Each network remembers
+its own wallet, and an account from the other network is refused with a message saying so.
 
 To run it yourself:
 
@@ -322,16 +737,11 @@ To run it yourself:
    withdrawal", "Leave an approval behind" and "Sign a raw payload" show #5, #3 and #6 "Not
    provable", each with the failing check picked out; the last two moves show the contract's refusal.
    Below them, #4 is for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full
-   report: all four checks pass, for the reason [above](#end-to-end-run).
+   report, and <http://localhost:3000/mainnet> for the mainnet deployment's facts.
 
-3. Get the same report without a browser:
-
-   ```bash
-   npm run verify -- 1
-   ```
-
-   It prints each check, the verdict (`PROVABLY CLEAN` for token 1) and the RPCs it read from, and
-   exits 0 only when the satchel is provably clean.
+3. Get the same report without a browser: `npm run verify -- 1`, as in
+   [step 4 of the evaluation](#how-to-evaluate-satchel-in-5-minutes). It exits 0 only when the
+   satchel is provably clean.
 
 4. Read from nodes you trust. The report is only as honest as its RPCs: one that lies about a
    nonce or an allowance could make a satchel look clean. The app names the public RPCs it used
@@ -342,27 +752,126 @@ To run it yourself:
    ```
 
    `RPC_<chain id>` works for each of the 16 chains. The app also checks that every EVM RPC
-   answers with the chain id it expects.
+   answers with the chain id it expects, and the CLI that `NEAR_RPC` serves the network it reads:
+   pointed at the wrong network, it stops with exit code 2.
 
-`npm test` runs the unit tests: the address derivation and the full signing round trip against
-the real `sign_evm` result from the E2E run (same hash, same signer, same raw transaction byte for
-byte), each check and the verdict order, every approval kind (a cleared ERC-721 approval included),
-and every guard in the send flow.
-`npm run typecheck` and `npm run build` are the other two steps CI runs.
+## Quick start with the near CLI
 
-## Build and test
+The contract needs no SDK: any NEAR client can call it. These use
+[near-cli-rs](https://github.com/near/near-cli-rs) on testnet. The two views need no account and were
+run for this README.
 
-Rust 1.99.1 (pinned in `rust-toolchain.toml`) and cargo-near 0.22.0.
+Read a satchel: its owner, its MPC path and its signing record.
+
+```bash
+near contract call-function as-read-only v1.satchel-nft.testnet satchel json-args '{"token_id":"1"}' network-config testnet now
+```
+
+```text
+{
+  "listing": null,
+  "owner_id": "buyer.satchel-nft.testnet",
+  "path": "satchel/1",
+  "record": {
+    "approvals": [],
+    "approvals_not_itemized": 0,
+    "evm": [{ "chain_id": "11155111", "max_nonce": "3", "signatures": 6 }],
+    "last_opaque_at": "0",
+    "opaque_signatures": 0,
+    "unclassified_calls": 0,
+    "version": "6"
+  },
+  "token_id": "1"
+}
+```
+
+(The CLI prints `evm` over several lines.) Hash a transaction exactly as `sign_evm` would sign it.
+Numbers are strings, and `data` defaults to `0x`:
+
+```bash
+near contract call-function as-read-only v1.satchel-nft.testnet evm_signing_hash json-args '{"tx":{"chain_id":"11155111","nonce":"4","max_priority_fee_per_gas":"1000000000","max_fee_per_gas":"20000000000","gas_limit":"21000","to":"0x000000000000000000000000000000000000dEaD","value":"1","data":"0x"}}' network-config testnet now
+# "5b62cc6120b69aa2f0ce614fc48e847311a73fc9f2d1b5f9384778d2edc0ba57"
+```
+
+viem's `keccak256(serializeTransaction(...))` gives the same hash for that transaction.
+
+Mint and sign, from a testnet account in your keychain. These two are shown, not run for this README;
+they take the deposits and gas the web app attaches:
+
+```bash
+near contract call-function as-transaction v1.satchel-nft.testnet mint json-args '{}' prepaid-gas '50 Tgas' attached-deposit '0.1 NEAR' sign-as <your-account>.testnet network-config testnet sign-with-keychain send
+near contract call-function as-transaction v1.satchel-nft.testnet sign_evm json-args '{"token_id":"<id>","tx":{"chain_id":"11155111","nonce":"0","max_priority_fee_per_gas":"1000000000","max_fee_per_gas":"20000000000","gas_limit":"21000","to":"0x000000000000000000000000000000000000dEaD","value":"1","data":"0x"}}' prepaid-gas '300 Tgas' attached-deposit '1 yoctoNEAR' sign-as <your-account>.testnet network-config testnet sign-with-keychain send
+```
+
+`sign_evm` returns the MPC signature (`big_r`, `s`, `recovery_id`). [`web/src/lib/send.ts`](web/src/lib/send.ts)
+turns it into a raw transaction, checks that it recovers to the satchel's address and broadcasts it;
+[`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs) does the same from a script. Use a nonce the
+address hasn't spent yet: the record keeps the highest nonce ever signed, so a signature that is
+never broadcast leaves the satchel unprovable until that nonce is spent.
+
+## Where things are in this repository
+
+| Path | What it holds |
+| --- | --- |
+| [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 59 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
+| [`web`](web) | The Next.js 16 app, no backend. [`src/lib`](web/src/lib) holds the report, the guards, the send flow and the wallet connection, with their 83 unit tests; [`scripts/verify.ts`](web/scripts/verify.ts) is `npm run verify` |
+| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install |
+| [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference) and [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
+| [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every testnet run |
+| [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
+| [`.github/workflows`](.github/workflows) | [`ci.yml`](.github/workflows/ci.yml), the pull request gate, which calls [`contract.yml`](.github/workflows/contract.yml) and [`web.yml`](.github/workflows/web.yml) |
+
+## Documentation
+
+| | |
+| --- | --- |
+| **Checking the claims** | [AGENTS.md](AGENTS.md), for AI agents and humans: every claim with the command that checks it, and where each rule lives in the code |
+| **Security** | [Threat model](docs/THREAT_MODEL.md) (29 attacks, what stops each, what is left) · [Security policy](SECURITY.md) (private reporting, scope) |
+| **Evidence** | [Testnet deployment](deployments/testnet.json) · [Mainnet deployment](deployments/mainnet.json) · [End-to-end run](deployments/testnet-e2e.json) · [Sepolia send](deployments/testnet-sepolia-send.json) · [Demo satchels](deployments/testnet-gallery.json) |
+| **This repository** | [Changelog](CHANGELOG.md) · [Pull request CI runs](https://github.com/duongnq2798/satchel/actions/workflows/ci.yml) · [Contract CI runs](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml) · [Web CI runs](https://github.com/duongnq2798/satchel/actions/workflows/web.yml) · [License](LICENSE) |
+
+## Development
+
+Rust 1.99.1 (pinned in [`rust-toolchain.toml`](contracts/satchel/rust-toolchain.toml), target
+`wasm32-unknown-unknown`), near-sdk and near-contract-standards 5.29.1, cargo-near 0.22.0. The web
+app: Node.js 22 or later (CI uses 24), Next.js 16.4, React 19.3, viem 2.57, Tailwind 4, TypeScript
+5.9 and Vitest 3.
 
 ```bash
 cd contracts/satchel
-cargo test                                   # unit tests
+cargo test                                   # 59 unit tests
 cargo near build non-reproducible-wasm       # target/near/satchel.wasm
+
+cd ../../web
+npm ci
+npm run typecheck && npm test && npm run build    # what CI runs: 83 unit tests
 ```
 
 On Windows, set `AWS_LC_SYS_PREBUILT_NASM=1` first: a dependency of near-sdk's test runtime builds
 `aws-lc-sys`, which otherwise needs NASM. Also add `--no-abi` to the build: the ABI step links a host
-DLL against NEAR host functions, which MSVC refuses. CI builds with the ABI on Linux.
+DLL against NEAR host functions, which MSVC refuses. CI builds with the ABI on Linux. A local build is
+not reproducible and is not a source of code hashes: the deployed hash comes from CI's reproducible
+job.
+
+CI runs on GitHub Actions (ubuntu). Every pull request runs [`ci.yml`](.github/workflows/ci.yml),
+which calls the contract and web workflows, then `verify`: the one check `main` and `dev` require
+before a merge, and it passes only when both workflows pass. Pushes to `main` and `dev` run the two
+workflows directly.
+
+| Workflow | Job | What it does | When |
+| --- | --- | --- | --- |
+| Contract | Format, lint, unit tests, wasm build | `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`, then `cargo near build non-reproducible-wasm --locked`; uploads `satchel-wasm` | Every pull request, every push to `main` or `dev` |
+| Contract | Reproducible build and code hash | `cargo near build reproducible-wasm` in the pinned Docker image, then writes the commit and the code hash to the run's summary; uploads `satchel-reproducible-wasm`, kept 90 days. cargo-near's release binary is checked against the sha256 its own installer pins | The same |
+| Web | Typecheck, unit tests, build | `npm ci`, `npm run typecheck`, `npm test`, `npm run build` on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/` or the workflow |
+| CI | verify | Passes only when the contract and web workflows both succeeded; a skipped or cancelled one fails it | Every pull request |
+
+The tests, as of 2026-11-09: 59 Rust unit tests in
+[`tests.rs`](contracts/satchel/src/tests.rs), and 83 web tests in 9 files: `report.test.ts` 20,
+`satchel.test.ts` 10, `send.test.ts` 10, `evm.test.ts` 10, `verify-args.test.ts` 10,
+`approvals.test.ts` 8, `guard.test.ts` 7, `config.test.ts` 6 and `limit.test.ts` 2. Three rules have no
+unit test: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
+`finalizedAt` read live chains, and the sale panel's use of the report's version and price was
+checked by hand on testnet. [AGENTS.md](AGENTS.md#where-each-rule-lives) lists them with the rest.
 
 What the tests pin down:
 
@@ -373,9 +882,14 @@ What the tests pin down:
 - **Every selector is the keccak of its signature**, computed in the test, so a typo cannot hide.
 - **The attacks the record exists for:** ERC-721 approvals of two token ids stay two rows; a
   `multicall` is counted as unclassified; a safe transfer with data, an ERC-1155 transfer of 0 and
-  a batch transfer are unclassified; revocations never take an approval slot; a seller who delists, signs and relists cannot complete a
-  sale against the version the buyer checked; a bounced `nft_transfer_call` voids the listing the
-  receiver made while holding the token; a previous owner cannot sign after a transfer.
+  a batch transfer are unclassified; revocations never take an approval slot; a seller who delists,
+  signs and relists cannot complete a sale against the version the buyer checked; a bounced
+  `nft_transfer_call` voids the listing the receiver made while holding the token; a previous owner
+  cannot sign after a transfer.
+- **The web app's own rules:** the address derivation and the full signing round trip against the
+  real `sign_evm` result from the end-to-end run (same hash, same signer, same raw transaction byte
+  for byte), each check and the verdict order, every approval kind (a cleared ERC-721 approval
+  included), every guard in the send flow, and the guards that keep the two networks apart.
 
 ## Limits, stated plainly
 
@@ -386,8 +900,9 @@ What the tests pin down:
   transfer only counts as plain with empty data.
 - **secp256k1 only** (MPC domain 0): EVM chains through `sign_evm`, Bitcoin and anything else only
   through `sign_raw`, which is opaque. No Ed25519 chains (Solana, NEAR) yet.
-- **The MPC network signs**; Satchel cannot sign without it. If a request fails, the record still
-  shows the nonce, which makes the record stricter, never looser.
+- **The MPC network signs**; Satchel cannot sign without it, and trusts it: if enough MPC nodes
+  colluded, they could sign with any derived key. If a request fails, the record still shows the
+  nonce, which makes the record stricter, never looser.
 - **Per-token limits are permanent.** 32 approvals are itemized; more are only counted. Any owner can
   make a token unprovable for every later owner, and the record shows it.
 - **The chain list is fixed.** There is no admin, so `SUPPORTED_CHAINS` cannot gain a new chain or
@@ -398,9 +913,30 @@ What the tests pin down:
 - **The web app trusts the RPCs it reads.** The checks are only as true as the answers of one public
   RPC per chain and one NEAR RPC. The report names them, and `npm run verify` can read from your own
   nodes instead. It does not yet compare two RPCs or check storage proofs.
-- Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
-  version of the record, then two smaller gaps in the fix; all four are fixed and covered by the
-  tests above.
+- **The hosted app and the wallet scripts it loads are trusted** by anyone who doesn't run
+  `npm run verify` themselves or read their wallet's prompt. A fork that keeps a chain id could replay
+  a signature on a chain the report doesn't read, and an NFT transferred outside the app gets no
+  check that its receiver exists.
+- **Mainnet is new.** The mainnet contract is the same build as on testnet, checked the same way, but
+  the demo satchels and the end-to-end runs are on testnet; the first mainnet mint and send are
+  [in progress](#status).
+- **Not audited** by anyone outside the project. Internal reviews only: two of the contract (one
+  adversarial) found two ways to slip an approval past the first version of the record, then two
+  smaller gaps in the fix, all fixed and tested; the web app and the mainnet path had two each, one of
+  them adversarial ([CHANGELOG](CHANGELOG.md), Security).
+
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) goes through each attack (the seller's, a buyer's, the
+deployer's, an RPC's, the hosted app's), what stops it, the transaction on testnet that shows it
+where one exists, and what is left.
+
+## Prior work
+
+Satchel was designed and built inside the hackathon's build window (1 to 14 November 2026). The
+first contract, its tests and its CI were written in a local working copy in the hours before the
+repository existed, and landed as its second commit,
+[`2503af2`](https://github.com/duongnq2798/satchel/commit/2503af2), five seconds after the first:
+both on 2026-11-09 at 01:02 UTC. Everything since is in the public history, each piece of work on its
+own branch and merged by pull request.
 
 ## Other project by the same builder
 
@@ -410,4 +946,6 @@ names the other. The other entry is **Probarion**, a mandate layer for AI agents
 
 ## License
 
-MIT
+[MIT](LICENSE). NEAR, Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche, Aurora and USDC
+are trademarks of their respective owners; their names say what Satchel is built on and signs for,
+not an endorsement.

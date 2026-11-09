@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NETWORK } from "./config";
+import { MAINNET, TESTNET } from "./config";
 import type { ApprovalRecord, SigningRecord } from "./near";
 import {
   type ChainNonce,
@@ -13,8 +13,8 @@ import {
 
 const LOCKED: ContractFacts = {
   accessKeys: 0,
-  account: { code_hash: NETWORK.build.codeHash },
-  mpcContract: NETWORK.mpc,
+  account: { code_hash: TESTNET.build.codeHash },
+  mpcContract: TESTNET.mpc,
 };
 
 const RECORD: SigningRecord = {
@@ -38,7 +38,7 @@ const ROW: ApprovalRecord = {
 
 describe("contract check", () => {
   it("passes a locked contract running the reproducible build through the canonical signer", () => {
-    expect(contractCheck(LOCKED).status).toBe("pass");
+    expect(contractCheck(TESTNET, LOCKED).status).toBe("pass");
   });
 
   it.each([
@@ -48,12 +48,21 @@ describe("contract check", () => {
     ["global code that is not the build", { ...LOCKED, account: { code_hash: "", global_contract_hash: "abc" } }],
     ["another signer", { ...LOCKED, mpcContract: "evil-signer.testnet" }],
   ])("fails with %s", (_, facts) => {
-    expect(contractCheck(facts as ContractFacts).status).toBe("fail");
+    expect(contractCheck(TESTNET, facts as ContractFacts).status).toBe("fail");
+  });
+
+  it("holds mainnet to mainnet's signer", () => {
+    const mainnet = { ...LOCKED, mpcContract: MAINNET.mpc };
+    expect(contractCheck(MAINNET, mainnet).status).toBe("pass");
+    // The testnet deployment, read as if it were mainnet's, fails on its signer.
+    const check = contractCheck(MAINNET, LOCKED);
+    expect(check.status).toBe("fail");
+    expect(check.lines).toContain("Signs through v1.signer-prod.testnet, not the canonical v1.signer");
   });
 
   it("passes global code pinned to the build's hash", () => {
-    const facts = { ...LOCKED, account: { code_hash: "", global_contract_hash: NETWORK.build.codeHash } };
-    expect(contractCheck(facts).status).toBe("pass");
+    const facts = { ...LOCKED, account: { code_hash: "", global_contract_hash: TESTNET.build.codeHash } };
+    expect(contractCheck(TESTNET, facts).status).toBe("pass");
   });
 });
 

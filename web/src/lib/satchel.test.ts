@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAINNET, TESTNET } from "./config";
 import { failureMessage, outcomeValue, viewErrorMessage } from "./near";
 import { formatNear, parseNear, satchelTx } from "./satchel";
 
@@ -23,8 +24,13 @@ describe("NEAR amounts", () => {
 });
 
 describe("transactions", () => {
+  it("calls the contract of the network it is built for", () => {
+    expect(satchelTx(TESTNET).mint().receiverId).toBe("v1.satchel-nft.testnet");
+    expect(satchelTx(MAINNET).mint().receiverId).toBe("v1.satchel-nft.near");
+  });
+
   it("buys with the price as deposit and pins the record version and price", () => {
-    const tx = satchelTx.buy("1", "4", 3n * 10n ** 24n);
+    const tx = satchelTx(TESTNET).buy("1", "4", 3n * 10n ** 24n);
     expect(tx.actions[0].params).toMatchObject({
       methodName: "buy",
       args: { token_id: "1", record_version: "4", price: "3000000000000000000000000" },
@@ -33,7 +39,7 @@ describe("transactions", () => {
   });
 
   it("signs with one yocto and enough gas for the MPC request", () => {
-    const tx = satchelTx.signEvm("1", {
+    const tx = satchelTx(TESTNET).signEvm("1", {
       chain_id: "11155111",
       nonce: "0",
       max_priority_fee_per_gas: "1",
@@ -48,7 +54,7 @@ describe("transactions", () => {
   });
 
   it("mints with 0.1 NEAR", () => {
-    expect(satchelTx.mint().actions[0].params.deposit).toBe("100000000000000000000000");
+    expect(satchelTx(TESTNET).mint().actions[0].params.deposit).toBe("100000000000000000000000");
   });
 });
 

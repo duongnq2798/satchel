@@ -1,7 +1,8 @@
 "use client";
 
-import { NETWORK, REPO_URL } from "@/lib/config";
+import { REPO_URL } from "@/lib/config";
 import type { Report } from "@/lib/report";
+import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, StatusIcon, VERDICT } from "./ui";
 
 export function ReportCard({
@@ -15,6 +16,7 @@ export function ReportCard({
   error: unknown;
   onRecheck: () => void;
 }) {
+  const net = useNetwork();
   const verdict = report ? VERDICT[report.verdict] : null;
   return (
     <Card className={report?.verdict === "clean" ? "border-ok/40" : report ? "border-warn/40" : ""}>
@@ -56,9 +58,9 @@ export function ReportCard({
       {report && (
         <p className="mt-4 border-t border-line pt-3 text-xs text-muted">
           Record version {report.recordVersion}, checked {new Date(report.checkedAt).toLocaleString()}. Run it yourself,
-          no wallet needed: <code className="font-mono">npm run verify -- {report.tokenId}</code> in{" "}
+          no wallet needed: <code className="font-mono">npm run verify -- {net.id === "mainnet" ? "--network mainnet " : ""}{report.tokenId}</code> in{" "}
           <ExternalLink href={`${REPO_URL}/tree/main/web`}>web/</ExternalLink>. The code hash
-          it expects comes from the <ExternalLink href={NETWORK.build.ciRun}>reproducible CI build</ExternalLink>.
+          it expects comes from the <ExternalLink href={net.build.ciRun}>reproducible CI build</ExternalLink>.
           {report.sources && (
             <>
               {" "}

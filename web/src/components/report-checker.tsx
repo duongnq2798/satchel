@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode, createContext, useCallback, useContext, useMemo, useRef } from "react";
+import { type ReactNode, createContext, useContext, useMemo, useRef } from "react";
 import { limiter } from "@/lib/limit";
 import { type ContractFacts, type Report, buildReport, contractFacts } from "@/lib/report";
+import { useNetwork } from "./network";
 import { Badge, VERDICT, errorMessage } from "./ui";
 import { useAsync } from "./use-async";
 
@@ -13,19 +14,22 @@ type Checker = (tokenId: string) => Promise<Report | null>;
  * and a few reports at a time so the public RPCs don't throttle the page.
  */
 export function useReportChecker(): Checker {
-  const facts = useRef<Promise<ContractFacts> | null>(null);
-  const limit = useRef(limiter(3));
-  return useCallback((tokenId: string) => {
-    if (facts.current === null) {
-      const read = contractFacts();
-      read.catch(() => {
-        facts.current = null;
-      });
-      facts.current = read;
-    }
-    const shared = facts.current;
-    return limit.current(() => buildReport(tokenId, shared));
-  }, []);
+  const net = useNetwork();
+  return useMemo(() => {
+    let facts: Promise<ContractFacts> | null = null;
+    const limit = limiter(3);
+    return (tokenId: string) => {
+      if (facts === null) {
+        const read = contractFacts(net);
+        read.catch(() => {
+          facts = null;
+        });
+        facts = read;
+      }
+      const shared = facts;
+      return limit(() => buildReport(net, tokenId, shared));
+    };
+  }, [net]);
 }
 
 interface Reports {
@@ -41,40 +45,45 @@ const ReportContext = createContext<Reports | null>(null);
  * down, a block not final yet) is dropped, so the next reader reads again.
  */
 export function ReportProvider({ children }: { children: ReactNode }) {
+  const net = useNetwork();
   const check = useReportChecker();
   const pending = useRef(new Map<string, Promise<Report | null>>());
   const settled = useRef(new Map<string, Report | null>());
   const reports = useMemo<Reports>(() => {
-    const drop = (tokenId: string, read: Promise<Report | null>) => {
-      if (pending.current.get(tokenId) === read) pending.current.delete(tokenId);
-      settled.current.delete(tokenId);
+    // Keyed by network too, so a report read on one side is never served on the other.
+    const key = (tokenId: string) => `${net.id}:${tokenId}`;
+    const drop = (k: string, read: Promise<Report | null>) => {
+      if (pending.current.get(k) === read) pending.current.delete(k);
+      settled.current.delete(k);
     };
     return {
       check: (tokenId) => {
-        const cached = pending.current.get(tokenId);
+        const k = key(tokenId);
+        const cached = pending.current.get(k);
         if (cached) return cached;
         const read = check(tokenId);
         read.then(
           (report) => {
-            if (report?.verdict === "unknown") drop(tokenId, read);
-            else settled.current.set(tokenId, report);
+            if (report?.verdict === "unknown") drop(k, read);
+            else settled.current.set(k, report);
           },
-          () => drop(tokenId, read),
+          () => drop(k, read),
         );
-        pending.current.set(tokenId, read);
+        pending.current.set(k, read);
         return read;
       },
-      peek: (tokenId) => settled.current.get(tokenId),
+      peek: (tokenId) => settled.current.get(key(tokenId)),
     };
-  }, [check]);
+  }, [check, net]);
   return <ReportContext.Provider value={reports}>{children}</ReportContext.Provider>;
 }
 
 /** The report for `tokenId`, shared with every other reader under the same `ReportProvider`. */
 export function useReport(tokenId: string) {
   const reports = useContext(ReportContext);
+  const net = useNetwork();
   if (!reports) throw new Error("useReport needs a ReportProvider");
-  return useAsync(() => reports.check(tokenId), tokenId, reports.peek(tokenId));
+  return useAsync(() => reports.check(tokenId), `${net.id}:${tokenId}`, reports.peek(tokenId));
 }
 
 /** A report's verdict as a badge, with the reason on hover when it couldn't be read. */

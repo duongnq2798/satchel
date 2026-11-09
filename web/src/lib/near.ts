@@ -1,4 +1,4 @@
-import { NETWORK } from "./config";
+import type { Network } from "./config";
 
 /** The contract's JSON types (contracts/satchel/src/lib.rs). u64 and u128 arrive as strings. */
 export type ApprovalKind = "Approve" | "IncreaseAllowance" | "SetApprovalForAll" | "Permit2Approve";
@@ -66,19 +66,20 @@ export class NearRpcError extends Error {
   }
 }
 
-let rpcInUse: string = NETWORK.nearRpc;
+let override: string | null = null;
 
-/** The NEAR RPC every read goes to. `npm run verify` can point it at your own node. */
-export function nearRpcUrl(): string {
-  return rpcInUse;
+/** The NEAR RPC every read on `net` goes to. `npm run verify` can point it at your own node. */
+export function nearRpcUrl(net: Network): string {
+  return override ?? net.nearRpc;
 }
 
+/** Sends every NEAR read to `url`. For `npm run verify`, which reads one network per run. */
 export function setNearRpc(url: string) {
-  rpcInUse = url;
+  override = url;
 }
 
-export async function nearRpc<T>(method: string, params: unknown, rpcUrl: string = rpcInUse): Promise<T> {
-  const res = await fetch(rpcUrl, {
+export async function nearRpc<T>(net: Network, method: string, params: unknown): Promise<T> {
+  const res = await fetch(nearRpcUrl(net), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "satchel", method, params }),
@@ -87,6 +88,11 @@ export async function nearRpc<T>(method: string, params: unknown, rpcUrl: string
   const body = (await res.json()) as { result?: T; error?: unknown };
   if (body.error !== undefined) throw new NearRpcError(method, body.error);
   return body.result as T;
+}
+
+/** The chain the NEAR RPC for `net` serves, from its status: "testnet" or "mainnet" for the real ones. */
+export async function nearChainId(net: Network): Promise<string> {
+  return (await nearRpc<{ chain_id: string }>(net, "status", [])).chain_id;
 }
 
 function encodeArgs(args: unknown): string {
@@ -103,8 +109,8 @@ function decodeBase64(value: string): string {
 }
 
 /** Calls a view method at a final block. A panic comes back as `result.error`, not as an RPC error. */
-export async function view<T>(account: string, method: string, args: unknown = {}): Promise<T> {
-  const result = await nearRpc<{ result?: number[]; error?: string }>("query", {
+export async function view<T>(net: Network, account: string, method: string, args: unknown = {}): Promise<T> {
+  const result = await nearRpc<{ result?: number[]; error?: string }>(net, "query", {
     request_type: "call_function",
     finality: "final",
     account_id: account,
@@ -121,12 +127,12 @@ export function viewErrorMessage(method: string, error: string | undefined): str
   return panic ? panic[1] : `${method} failed: ${error ?? "no result"}`;
 }
 
-export async function viewAccount(account: string): Promise<AccountView> {
-  return nearRpc<AccountView>("query", { request_type: "view_account", finality: "final", account_id: account });
+export async function viewAccount(net: Network, account: string): Promise<AccountView> {
+  return nearRpc<AccountView>(net, "query", { request_type: "view_account", finality: "final", account_id: account });
 }
 
-export async function accessKeyCount(account: string): Promise<number> {
-  const result = await nearRpc<{ keys: unknown[] }>("query", {
+export async function accessKeyCount(net: Network, account: string): Promise<number> {
+  const result = await nearRpc<{ keys: unknown[] }>(net, "query", {
     request_type: "view_access_key_list",
     finality: "final",
     account_id: account,
@@ -157,11 +163,11 @@ export function failureMessage(failure: unknown): string {
 }
 
 /** Waits until every receipt of a transaction is final. Wallets often return before MPC answers. */
-export async function finalOutcome(hash: string, signer: string, attempts = 30): Promise<ExecutionOutcome> {
+export async function finalOutcome(net: Network, hash: string, signer: string, attempts = 30): Promise<ExecutionOutcome> {
   let last: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await nearRpc<ExecutionOutcome>("tx", { tx_hash: hash, sender_account_id: signer, wait_until: "FINAL" });
+      return await nearRpc<ExecutionOutcome>(net, "tx", { tx_hash: hash, sender_account_id: signer, wait_until: "FINAL" });
     } catch (err) {
       last = err;
       await new Promise((r) => setTimeout(r, 2000));

@@ -1,18 +1,20 @@
-import { MINT_DEPOSIT, NETWORK, ONE_YOCTO, TGAS } from "./config";
+import { MINT_DEPOSIT, type Network, ONE_YOCTO, TGAS } from "./config";
 import type { ContractTx } from "./evm";
 import { type Listing, type SatchelView, type Token, view } from "./near";
 
-/** Reads from the Satchel contract. */
-export const satchel = {
-  get: (tokenId: string) => view<SatchelView | null>(NETWORK.contract, "satchel", { token_id: tokenId }),
-  tokensFor: (accountId: string) =>
-    view<Token[]>(NETWORK.contract, "nft_tokens_for_owner", { account_id: accountId, from_index: "0", limit: 100 }),
-  listings: (fromIndex = 0, limit = 100) =>
-    view<[string, Listing][]>(NETWORK.contract, "listings", { from_index: fromIndex, limit }),
-  totalSupply: async () => Number(await view<string>(NETWORK.contract, "nft_total_supply")),
-  mpcContract: () => view<string>(NETWORK.contract, "mpc_contract"),
-  signingHash: (tx: ContractTx) => view<string>(NETWORK.contract, "evm_signing_hash", { tx }),
-};
+/** Reads from the Satchel contract on `net`. */
+export function satchel(net: Network) {
+  return {
+    get: (tokenId: string) => view<SatchelView | null>(net, net.contract, "satchel", { token_id: tokenId }),
+    tokensFor: (accountId: string) =>
+      view<Token[]>(net, net.contract, "nft_tokens_for_owner", { account_id: accountId, from_index: "0", limit: 100 }),
+    listings: (fromIndex = 0, limit = 100) =>
+      view<[string, Listing][]>(net, net.contract, "listings", { from_index: fromIndex, limit }),
+    totalSupply: async () => Number(await view<string>(net, net.contract, "nft_total_supply")),
+    mpcContract: () => view<string>(net, net.contract, "mpc_contract"),
+    signingHash: (tx: ContractTx) => view<string>(net, net.contract, "evm_signing_hash", { tx }),
+  };
+}
 
 /** A transaction for the wallet, in near-connect's (wallet-selector) action format. */
 export interface WalletTx {
@@ -23,27 +25,26 @@ export interface WalletTx {
   }[];
 }
 
-function call(methodName: string, args: Record<string, unknown>, deposit: bigint, tgas: bigint): WalletTx {
-  return {
-    receiverId: NETWORK.contract,
+/** Transactions the app asks the wallet to sign on `net`. Gas and deposits match the contract's checks. */
+export function satchelTx(net: Network) {
+  const call = (methodName: string, args: Record<string, unknown>, deposit: bigint, tgas: bigint): WalletTx => ({
+    receiverId: net.contract,
     actions: [{ type: "FunctionCall", params: { methodName, args, gas: (tgas * TGAS).toString(), deposit: deposit.toString() } }],
+  });
+  return {
+    mint: () => call("mint", {}, MINT_DEPOSIT, 50n),
+    /** The contract needs at least 50 TGas; the rest goes to the MPC request and its answer. */
+    signEvm: (tokenId: string, tx: ContractTx) => call("sign_evm", { token_id: tokenId, tx }, ONE_YOCTO, 300n),
+    list: (tokenId: string, priceYocto: bigint) =>
+      call("list", { token_id: tokenId, price: priceYocto.toString() }, ONE_YOCTO, 30n),
+    delist: (tokenId: string) => call("delist", { token_id: tokenId }, ONE_YOCTO, 30n),
+    /** Pins the record version and price the buyer checked; the contract refuses any other. */
+    buy: (tokenId: string, recordVersion: string, priceYocto: bigint) =>
+      call("buy", { token_id: tokenId, record_version: recordVersion, price: priceYocto.toString() }, priceYocto, 100n),
+    transfer: (tokenId: string, receiverId: string) =>
+      call("nft_transfer", { token_id: tokenId, receiver_id: receiverId }, ONE_YOCTO, 30n),
   };
 }
-
-/** Transactions the app asks the wallet to sign. Gas and deposits match the contract's checks. */
-export const satchelTx = {
-  mint: () => call("mint", {}, MINT_DEPOSIT, 50n),
-  /** The contract needs at least 50 TGas; the rest goes to the MPC request and its answer. */
-  signEvm: (tokenId: string, tx: ContractTx) => call("sign_evm", { token_id: tokenId, tx }, ONE_YOCTO, 300n),
-  list: (tokenId: string, priceYocto: bigint) =>
-    call("list", { token_id: tokenId, price: priceYocto.toString() }, ONE_YOCTO, 30n),
-  delist: (tokenId: string) => call("delist", { token_id: tokenId }, ONE_YOCTO, 30n),
-  /** Pins the record version and price the buyer checked; the contract refuses any other. */
-  buy: (tokenId: string, recordVersion: string, priceYocto: bigint) =>
-    call("buy", { token_id: tokenId, record_version: recordVersion, price: priceYocto.toString() }, priceYocto, 100n),
-  transfer: (tokenId: string, receiverId: string) =>
-    call("nft_transfer", { token_id: tokenId, receiver_id: receiverId }, ONE_YOCTO, 30n),
-};
 
 const YOCTO_PER_NEAR = 10n ** 24n;
 

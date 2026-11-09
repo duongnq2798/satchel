@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 import { type Liveness, type ReadAt, approvalLiveness } from "./approvals";
-import { NETWORK, chainInfo } from "./config";
+import { type Network, type NetworkId, chainInfo } from "./config";
 import { client, tokenAddress, verifiedClient } from "./evm";
 import {
   type AccountView,
@@ -30,6 +30,9 @@ export interface Check {
 export type Verdict = "clean" | "not-provable" | "unknown";
 
 export interface Report {
+  /** The network and contract the report read, so a page can't act on one from the other side. */
+  network: NetworkId;
+  contract: string;
   tokenId: string;
   owner: string;
   address: Address;
@@ -48,7 +51,7 @@ export interface ContractFacts {
   mpcContract: string;
 }
 
-export function contractCheck(facts: ContractFacts): Check {
+export function contractCheck(net: Network, facts: ContractFacts): Check {
   const lines: string[] = [];
   let status: Status = "pass";
   const fail = (line: string) => {
@@ -56,20 +59,20 @@ export function contractCheck(facts: ContractFacts): Check {
     lines.push(line);
   };
   if (facts.accessKeys === 0) lines.push("No access keys, so no one can redeploy it or sign as it");
-  else fail(`${facts.accessKeys} access key(s) on ${NETWORK.contract}: whoever holds one can sign around the record`);
+  else fail(`${facts.accessKeys} access key(s) on ${net.contract}: whoever holds one can sign around the record`);
 
   if (facts.account.global_contract_account_id !== undefined) {
     fail(`Runs a global contract referenced by account (${facts.account.global_contract_account_id}), whose code can change`);
-  } else if (facts.account.global_contract_hash !== undefined && facts.account.global_contract_hash !== NETWORK.build.codeHash) {
+  } else if (facts.account.global_contract_hash !== undefined && facts.account.global_contract_hash !== net.build.codeHash) {
     fail(`Runs global contract code ${facts.account.global_contract_hash}, not the reproducible build`);
-  } else if (facts.account.global_contract_hash === undefined && facts.account.code_hash !== NETWORK.build.codeHash) {
-    fail(`Code hash ${facts.account.code_hash} is not the reproducible build (${NETWORK.build.codeHash})`);
+  } else if (facts.account.global_contract_hash === undefined && facts.account.code_hash !== net.build.codeHash) {
+    fail(`Code hash ${facts.account.code_hash} is not the reproducible build (${net.build.codeHash})`);
   } else {
-    lines.push(`Code hash ${NETWORK.build.codeHash} is the reproducible build of commit ${NETWORK.build.commit.slice(0, 7)}`);
+    lines.push(`Code hash ${net.build.codeHash} is the reproducible build of commit ${net.build.commit.slice(0, 7)}`);
   }
 
-  if (facts.mpcContract === NETWORK.mpc) lines.push(`Signs only through ${NETWORK.mpc}`);
-  else fail(`Signs through ${facts.mpcContract}, not the canonical ${NETWORK.mpc}`);
+  if (facts.mpcContract === net.mpc) lines.push(`Signs only through ${net.mpc}`);
+  else fail(`Signs through ${facts.mpcContract}, not the canonical ${net.mpc}`);
 
   return {
     id: "contract",
@@ -191,16 +194,17 @@ async function finalizedAt(chainId: number): Promise<ReadAt | null> {
 }
 
 /** What anyone can read about the deployment itself. One read serves every report on a page. */
-export async function contractFacts(): Promise<ContractFacts> {
+export async function contractFacts(net: Network): Promise<ContractFacts> {
   const [accessKeys, account, mpcContract] = await Promise.all([
-    accessKeyCount(NETWORK.contract),
-    viewAccount(NETWORK.contract),
-    view<string>(NETWORK.contract, "mpc_contract"),
+    accessKeyCount(net, net.contract),
+    viewAccount(net, net.contract),
+    view<string>(net, net.contract, "mpc_contract"),
   ]);
   return { accessKeys, account, mpcContract };
 }
 
 export interface ReportInputs {
+  net: Network;
   view: SatchelView;
   address: Address;
   facts: ContractFacts;
@@ -210,12 +214,14 @@ export interface ReportInputs {
 
 export function assemble(inputs: ReportInputs): Report {
   const checks = [
-    contractCheck(inputs.facts),
+    contractCheck(inputs.net, inputs.facts),
     pendingCheck(inputs.nonces),
     approvalsCheck(inputs.approvals),
     countersCheck(inputs.view.record),
   ];
   return {
+    network: inputs.net.id,
+    contract: inputs.net.contract,
     tokenId: inputs.view.token_id,
     owner: inputs.view.owner_id,
     address: inputs.address,
@@ -231,10 +237,10 @@ export function assemble(inputs: ReportInputs): Report {
  * Reads everything for one token, from NEAR and from each chain its record lists. Pass `facts` to
  * share one read of the contract's own facts across many reports.
  */
-export async function buildReport(tokenId: string, facts?: Promise<ContractFacts>): Promise<Report | null> {
-  const token = await satchel.get(tokenId);
+export async function buildReport(net: Network, tokenId: string, facts?: Promise<ContractFacts>): Promise<Report | null> {
+  const token = await satchel(net).get(tokenId);
   if (token === null) return null;
-  const [address, contract] = await Promise.all([tokenAddress(token.path), facts ?? contractFacts()]);
+  const [address, contract] = await Promise.all([tokenAddress(net, token.path), facts ?? contractFacts(net)]);
 
   const chainIds = new Set<number>([
     ...token.record.evm.map((c) => Number(c.chain_id)),
@@ -272,6 +278,6 @@ export async function buildReport(tokenId: string, facts?: Promise<ContractFacts
     }),
   );
 
-  const sources = [nearRpcUrl(), ...[...chainIds].flatMap((id) => chainInfo(id)?.rpc ?? [])];
-  return { ...assemble({ view: token, address, facts: contract, nonces, approvals }), sources };
+  const sources = [nearRpcUrl(net), ...[...chainIds].flatMap((id) => chainInfo(id)?.rpc ?? [])];
+  return { ...assemble({ net, view: token, address, facts: contract, nonces, approvals }), sources };
 }

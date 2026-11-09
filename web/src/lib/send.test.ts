@@ -1,10 +1,10 @@
 import { keccak256 } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import outcome from "./__fixtures__/sign-evm-outcome.json";
-import { CHAINS } from "./config";
+import { CHAINS, MAINNET, TESTNET } from "./config";
 import { type EvmTx, type MpcSignature, signingHash } from "./evm";
 import { outcomeValue } from "./near";
-import { type SendDeps, type SendRequest, sendFromSatchel } from "./send";
+import { type SendDeps, type SendRequest, liveSendDeps, sendFromSatchel } from "./send";
 
 // The real token 1 transaction and its MPC signature (evm.test.ts has the same vectors).
 const TX: EvmTx = {
@@ -19,6 +19,7 @@ const TX: EvmTx = {
 };
 const SIGNATURE = outcomeValue<MpcSignature>(outcome);
 const REQUEST: SendRequest = {
+  net: TESTNET,
   tokenId: "1",
   from: "0x96DA1468E95Ab31A698891f0150095f86b5a282B",
   chain: CHAINS.find((c) => c.id === 11155111) as SendRequest["chain"],
@@ -92,8 +93,41 @@ describe("sending from a satchel", () => {
     expect(d.broadcast).not.toHaveBeenCalled();
   });
 
+  it("never signs for a chain on the other network", async () => {
+    const d = deps();
+    await expect(sendFromSatchel({ ...REQUEST, net: MAINNET }, d)).rejects.toThrow(/mainnet satchel doesn.t send on Sepolia/);
+    const base = CHAINS.find((c) => c.id === 8453) as SendRequest["chain"];
+    await expect(sendFromSatchel({ ...REQUEST, chain: base }, d)).rejects.toThrow(/testnet satchel doesn.t send on Base/);
+    expect(d.signWithWallet).not.toHaveBeenCalled();
+  });
+
   it("says signing again is safe when the wallet returns no signature", async () => {
     const d = deps({ signWithWallet: async () => ({ hash: "h", signature: null }) });
     await expect(sendFromSatchel(REQUEST, d)).rejects.toThrow(/signing again is safe/);
+  });
+});
+
+describe("liveSendDeps", () => {
+  it("asks the page's own contract for the signing hash", async () => {
+    const asked: Record<string, string>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: { body: string }) => {
+        asked.push({ url, ...(JSON.parse(init.body) as { params: Record<string, string> }).params });
+        return new Response(JSON.stringify({ result: { result: [...new TextEncoder().encode(JSON.stringify("ab"))] } }));
+      }),
+    );
+    try {
+      await liveSendDeps(MAINNET, vi.fn()).contractHash(TX);
+      expect(asked).toEqual([
+        expect.objectContaining({
+          url: "https://rpc.mainnet.fastnear.com",
+          account_id: "v1.satchel-nft.near",
+          method_name: "evm_signing_hash",
+        }),
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

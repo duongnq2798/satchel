@@ -1,0 +1,47 @@
+name: CI
+
+# The gate for every pull request. The "main and dev" ruleset requires one check, `verify`, which
+# passes only when both workflows called below pass. Pushes to `main` and `dev` run those workflows
+# directly, so their badges and run lists stay where they were.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    uses: ./.github/workflows/contract.yml
+
+  web:
+    uses: ./.github/workflows/web.yml
+
+  verify:
+    name: verify
+    needs: [contract, web]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require both workflows to have succeeded
+        env:
+          CONTRACT: ${{ needs.contract.result }}
+          WEB: ${{ needs.web.result }}
+        run: |
+          failed=""
+          echo "| Workflow | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          for pair in "contract=$CONTRACT" "web=$WEB"; do
+            name="${pair%%=*}"
+            result="${pair#*=}"
+            echo "$name: $result"
+            echo "| $name | $result |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$result" != "success" ]; then
+              failed="$failed $name ($result)"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "::error title=verify failed::Not every workflow succeeded:$failed. A skipped or cancelled one counts as a failure."
+            exit 1
+          fi
