@@ -73,6 +73,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The landing page labels each refused call with who made it: the refused `buy` of satchel #6 was
+  the buyer's call, but the page showed it as the seller's.
 - Contract CI downloads the cargo-near 0.22.0 release binary itself, with retries, and checks it
   against the sha256 that cargo-near's own installer pins. GitHub's release downloads sometimes
   answered the runners with a 504: `curl | sh` then installed nothing and passed, the installer's own

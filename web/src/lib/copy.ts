@@ -43,9 +43,10 @@ export interface ReportTrick extends TrickBase {
   check: "pending" | "approvals" | "counters" | null;
 }
 
-/** A call the contract refused on chain: the seller's move and the contract's answer. */
+/** A call the contract refused on chain: who made it, the call, and the contract's answer. */
 export interface RefusedTrick extends TrickBase {
   kind: "refused";
+  caller: "seller" | "buyer";
   call: string;
   reason: string;
 }
@@ -110,6 +111,7 @@ export const TRICKS: readonly Trick[] = [
     tokenId: "4",
     title: "Signing is frozen while it's for sale",
     body: "The seller asked for one more signature while satchel #4 was listed. The contract refused, so what a buyer checks stays true until the sale.",
+    caller: "seller",
     call: 'sign_evm({ token_id: "4", tx: … })',
     reason: "Satchel: signing is frozen while the token is listed",
     txs: [{ label: "The refused call", href: `${NEAR_TX}5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8` }],
@@ -121,6 +123,7 @@ export const TRICKS: readonly Trick[] = [
     tokenId: "6",
     title: "The buyer's check is part of the purchase",
     body: "Satchel #6 was listed clean at record version 0. The seller delisted it, signed a raw payload and listed it again at version 1. A buyer who had checked version 0 tried to buy and was refused, and got their 1 NEAR back.",
+    caller: "buyer",
     call: 'buy({ token_id: "6", record_version: "0", price: 1 NEAR })',
     reason: "Satchel: the signing record changed since you checked it",
     txs: [
