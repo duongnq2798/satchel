@@ -30,6 +30,42 @@ html {
   color: var(--color-ink);
 }
 
+/* The width of the header, the page and the footer: wider while the docs, with their sidebars, are open. */
+:root {
+  --page-max: 72rem;
+}
+body:has([data-docs-shell]) {
+  --page-max: 90rem;
+}
+body:has([data-docs-shell]) main {
+  padding-top: 0;
+}
+
+/*
+ * The docs' dark theme. It is set on <html> only while a docs page is open (components/docs/theme.tsx);
+ * the rest of the site stays light. Each color keeps its role: paper is the background, ink the text.
+ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #15130f;
+  --color-paper-2: #1e1b16;
+  --color-card: #1b1814;
+  --color-ink: #efe8db;
+  --color-ink-2: #c8bfae;
+  --color-muted: #9a907f;
+  --color-line: #37312a;
+  --color-gold: #d6a640;
+  --color-gold-deep: #e2b75a;
+  --color-gold-soft: #3a2f1c;
+  --color-leather: #c08a5f;
+  --color-ok: #86c290;
+  --color-ok-soft: #1b2e1f;
+  --color-warn: #e6b65c;
+  --color-warn-soft: #352a13;
+  --color-bad: #ee8f84;
+  --color-bad-soft: #3a1d19;
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -39,9 +75,12 @@ body {
   background: var(--color-gold-soft);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 2px;
+/* In the base layer, so an element that shows focus its own way (the docs' search box) can say so. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
 }
 
 html {
@@ -131,4 +170,285 @@ html {
   .travel-dot {
     left: calc(100% - 0.75rem);
   }
+}
+
+/* Docs styles sit in the components layer, so a utility class on an element still wins. */
+@layer components {
+/*
+ * Docs pages. Measure about 70 characters, line height 1.75 for body text, headings in the display
+ * face. Markdown elements are styled here so a page's source stays plain Markdown.
+ */
+.docs-prose {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--color-ink-2);
+}
+.docs-prose > * + * {
+  margin-top: 1.1em;
+}
+.docs-prose :where(h2, h3, h4) {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.docs-prose h2 {
+  font-size: 1.65rem;
+  margin-top: 2.6em;
+  padding-top: 1.2em;
+  border-top: 1px solid var(--color-line);
+}
+.docs-prose > h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.docs-prose h3 {
+  font-size: 1.25rem;
+  margin-top: 2em;
+}
+.docs-prose h4 {
+  font-size: 1.05rem;
+  margin-top: 1.6em;
+}
+.docs-prose :where(h2, h3, h4) + * {
+  margin-top: 0.7em;
+}
+.docs-anchor {
+  margin-left: 0.4em;
+  color: var(--color-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.group:hover > .docs-anchor,
+.docs-anchor:focus-visible {
+  opacity: 1;
+}
+.docs-prose strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.docs-prose a:not(.not-prose a, .docs-anchor) {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.docs-prose a:not(.not-prose a, .docs-anchor):hover {
+  text-decoration-thickness: 2px;
+}
+.docs-prose :where(ul, ol):not(.not-prose *) {
+  padding-left: 1.4em;
+}
+.docs-prose ul:not(.not-prose *) {
+  list-style: disc;
+}
+.docs-prose ol:not(.not-prose *) {
+  list-style: decimal;
+}
+.docs-prose li:not(.not-prose *) + li {
+  margin-top: 0.4em;
+}
+.docs-prose li::marker {
+  color: var(--color-muted);
+}
+.docs-prose :where(li) > :where(ul, ol, p) {
+  margin-top: 0.4em;
+}
+.docs-prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-line);
+  border-radius: 0.35rem;
+  padding: 0.08em 0.35em;
+  overflow-wrap: anywhere;
+}
+.docs-prose blockquote {
+  border-left: 3px solid var(--color-gold);
+  padding-left: 1em;
+  color: var(--color-ink-2);
+  font-style: italic;
+}
+.docs-prose hr {
+  border-color: var(--color-line);
+  margin: 2.5em 0;
+}
+.docs-prose img:not(.not-prose img) {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+}
+
+/* Tables scroll sideways on a phone instead of squeezing their columns. */
+.docs-table {
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-card);
+}
+.docs-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.docs-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+  white-space: nowrap;
+}
+.docs-table :where(th, td) {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: top;
+}
+.docs-table tr:last-child td {
+  border-bottom: 0;
+}
+.docs-table td code {
+  white-space: nowrap;
+}
+.docs-table td:first-child code {
+  overflow-wrap: normal;
+}
+
+/* Code blocks. Shiki's token colors are these variables, in both themes. */
+.docs-code {
+  margin: 1.5em 0;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-card);
+  overflow: hidden;
+}
+.docs-code-body pre {
+  overflow-x: auto;
+  padding: 0.9rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--shiki-foreground);
+  background: transparent !important;
+  tab-size: 2;
+}
+.docs-code-body code {
+  font-family: inherit;
+}
+:root {
+  --shiki-foreground: #2b261f;
+  --shiki-background: transparent;
+  --shiki-token-constant: #7a4a12;
+  --shiki-token-string: #3f6b2f;
+  --shiki-token-comment: #8a8072;
+  --shiki-token-keyword: #8b3a2b;
+  --shiki-token-parameter: #2b261f;
+  --shiki-token-function: #6b3f24;
+  --shiki-token-string-expression: #3f6b2f;
+  --shiki-token-punctuation: #6e6558;
+  --shiki-token-link: #a47619;
+  --shiki-ansi-green: #2f6b3a;
+  --shiki-ansi-red: #9b2c24;
+}
+html[data-theme="dark"] {
+  --shiki-foreground: #e8e0d1;
+  --shiki-token-constant: #e8b86a;
+  --shiki-token-string: #a6cf8c;
+  --shiki-token-comment: #8f8676;
+  --shiki-token-keyword: #f09a83;
+  --shiki-token-parameter: #e8e0d1;
+  --shiki-token-function: #e2b75a;
+  --shiki-token-string-expression: #a6cf8c;
+  --shiki-token-punctuation: #a99f8d;
+  --shiki-token-link: #e2b75a;
+}
+
+/* Callouts: a short title line, then Markdown. */
+.docs-callout {
+  font-size: 0.97rem;
+  line-height: 1.65;
+}
+.docs-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.docs-callout-icon {
+  display: inline-flex;
+  width: 1.15rem;
+  height: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.docs-callout-icon[data-type="tip"] {
+  background: var(--color-ok);
+}
+.docs-callout-icon[data-type="warning"] {
+  background: var(--color-warn);
+}
+.docs-callout-icon[data-type="danger"] {
+  background: var(--color-bad);
+}
+.docs-callout-body > * + * {
+  margin-top: 0.6em;
+}
+.docs-callout-body {
+  margin-top: 0.3rem;
+}
+
+/* <Steps> around an ordered list: a numbered rail down the left. */
+.docs-steps > ol {
+  list-style: none !important;
+  padding-left: 0 !important;
+  counter-reset: step;
+}
+.docs-steps > ol > li {
+  position: relative;
+  counter-increment: step;
+  padding-left: 2.75rem;
+  padding-bottom: 0.4rem;
+}
+.docs-steps > ol > li + li {
+  margin-top: 1.4rem !important;
+}
+.docs-steps > ol > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  display: flex;
+  width: 1.85rem;
+  height: 1.85rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.docs-steps > ol > li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 0.9rem;
+  top: 2.3rem;
+  bottom: -1.1rem;
+  width: 1px;
+  background: var(--color-line);
+}
+.docs-steps > ol > li > * + * {
+  margin-top: 0.7em;
+}
 }

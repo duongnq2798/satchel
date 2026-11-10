@@ -249,11 +249,11 @@ the record changed).
 5. **Run every test.** Still at the repository root:
 
    ```bash
-   npm test -w satchel-nft             # 111 tests in 12 files: 8 s here
+   npm test -w satchel-nft             # 114 tests in 12 files: 8 s here
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 3 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 15 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 59 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -898,7 +898,7 @@ all of this with the near CLI's key, checking each step
 | Path | What it holds |
 | --- | --- |
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 59 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
-| [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow and the contract's reads and transactions as a library, with 111 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
+| [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow and the contract's reads and transactions as a library, with 114 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, no backend, built on `satchel-nft`. [`src/lib`](web/src/lib) holds the wallet connection and the network routes, with their 3 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference) and [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
@@ -910,6 +910,7 @@ all of this with the near CLI's key, checking each step
 
 | | |
 | --- | --- |
+| **Documentation center** | [satchelnft.xyz/docs](https://satchelnft.xyz/docs): a quickstart, the concepts, a guide for each thing the app does, tutorials, the library, CLI and contract reference, troubleshooting and a glossary. Its source is [`web/content/docs`](web/content/docs), and [`web/content/README.md`](web/content/README.md) says how to add a page |
 | **Checking the claims** | [AGENTS.md](AGENTS.md), for AI agents and humans: every claim with the command that checks it, and where each rule lives in the code |
 | **Security** | [Threat model](docs/THREAT_MODEL.md) (32 attacks, what stops each, what is left) · [Security policy](SECURITY.md) (private reporting, scope) |
 | **Demo and submission** | [Demo kit](docs/DEMO.md): the 2:00 video script, the recording checklist, the X post, the "What did you build?" text, the form's values and tracks, and what to leave unchanged until judging ends |
@@ -930,7 +931,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 111 package tests, 3 app tests
+npm run typecheck && npm test              # both workspaces: 114 package tests, 15 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -955,10 +956,12 @@ three workflows directly, each when its paths change.
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 
 The tests, as of 2026-11-10: 59 Rust unit tests in
-[`tests.rs`](contracts/satchel/src/tests.rs); 111 package tests in 12 files: `report.test.ts` 20,
-`near-cli.test.ts` 13, `history.test.ts` 13, `satchel.test.ts` 11, `cli-args.test.ts` 10, `evm.test.ts`
+[`tests.rs`](contracts/satchel/src/tests.rs); 114 package tests in 12 files: `report.test.ts` 20,
+`satchel.test.ts` 14, `near-cli.test.ts` 13, `history.test.ts` 13, `cli-args.test.ts` 10, `evm.test.ts`
 10, `send.test.ts` 10, `approvals.test.ts` 8, `guard.test.ts` 7, `contents.test.ts` 4,
-`config.test.ts` 3 and `limit.test.ts` 2; and 3 app tests in `routes.test.ts`. Three rules have no
+`config.test.ts` 3 and `limit.test.ts` 2; and 15 app tests: 3 in
+`routes.test.ts`, and 12 in `docs.test.ts`, which compile every docs page and check its links and
+anchors. Three rules have no
 unit test: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, and the sale panel's use of the report's version and price was
 checked by hand on testnet. [AGENTS.md](AGENTS.md#where-each-rule-lives) lists them with the rest.
@@ -1000,6 +1003,9 @@ What the tests pin down:
 - **The seller's payment can fail** if the seller deletes their account before it lands; the NEAR then
   stays in the contract, which has no admin to return it.
 - `listings` pages can shift between calls, because removing a listing moves the last one into its slot.
+  A page can also come back short, or empty, with more listings after it, because the view drops stale
+  listings after it pages. `satchel(net).allListings()` in `satchel-nft` reads pages up to
+  `nft_total_supply`, which bounds the stored count, and the CLI and the app use it. It is not in 0.1.0.
 - **The web app trusts the RPCs it reads.** The checks are only as true as the answers of one public
   RPC per chain and one NEAR RPC. The report names them, and `satchel-nft verify` can read from your own
   nodes instead. It does not yet compare two RPCs or check storage proofs.

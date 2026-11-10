@@ -1,0 +1,254 @@
+In this tutorial you run a whole Satchel sale from a terminal, on NEAR testnet and Sepolia, with two
+accounts of your own: one sells, one buys. You mint a satchel, fund its address, send from it, list
+it, check it as the buyer, buy it and hand it back. Each step is one `satchel-nft` command, and each
+one shows you the transaction before anything is sent.
+
+Satchel #7 went through these steps on 2026-11-09, as `satchel-nft.testnet` (the seller) and
+`buyer.satchel-nft.testnet` (the buyer). Its transactions are in
+[`deployments/testnet-cli.json`](https://github.com/duongnq2798/satchel/blob/main/deployments/testnet-cli.json),
+and the outputs below come from that run or from read commands run against #7 afterwards. Your ids,
+addresses and hashes will differ.
+
+<SaleDiagram />
+
+## What you need
+
+- **Node.js 22 or later.** `npx` fetches `satchel-nft@0.1.0`; you don't need to clone anything.
+- **[near-cli-rs](https://github.com/near/near-cli-rs)**, the near CLI, installed and on your `PATH`.
+  `satchel-nft` never reads a key: the near CLI signs, and `satchel-nft` checks what it signed.
+- **Two NEAR testnet accounts**, each with its full-access key in the near CLI's keychain:
+  `~/.near-credentials` (the default, `--keychain legacy`) or the OS keychain (`--keychain os`).
+  Create or import them with near-cli-rs. Their names must end in `.testnet`. Below they are
+  `seller.testnet` and `buyer.testnet`; use your own.
+- **Testnet NEAR** on both: 0.1 NEAR for the mint on the seller, the price (0.5 NEAR here) on the
+  buyer, and a little more on each for gas.
+- **A little Sepolia ETH** in any wallet, to fund the satchel's address. Satchel #7 received
+  0.002 ETH, which paid for its send and left 0.00189.
+- **About 30 minutes.** Most of it is waiting about 13 minutes for Sepolia to finalize your send.
+
+<Callout type="warning" title="Testnet only">
+A testnet satchel signs through NEAR's testnet MPC network, `v1.signer-prod.testnet`. The contract
+can sign for mainnet chain ids too, so never send real funds to a testnet satchel's address.
+</Callout>
+
+## Run the sale
+
+<Steps>
+
+1. **Check that the CLI runs.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 --version
+   ```
+
+   It prints `0.1.0`. The first run downloads the package, which can take a minute.
+
+2. **Mint a satchel, as the seller.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 mint --as seller.testnet
+   ```
+
+   The near CLI signs a `mint` call with 0.1 NEAR attached. `satchel-nft` decodes what it signed,
+   shows it to you, and asks `Send it? Type yes to send:`. Type `yes`. It then prints the new token
+   and its address on every EVM chain:
+
+   ```text
+   Minted satchel #<id> to seller.testnet: https://testnet.nearblocks.io/txns/<hash>
+   Its address on every EVM chain: 0x…
+   ```
+
+   Satchel #7's mint was [`FyT2ELA2…`](https://testnet.nearblocks.io/txns/FyT2ELA2jigMegAiVnMVAm3C4ESiVRiMSDJ6CQMBokTh),
+   and its address is `0x65C60dBFc8B3c949AE7Eb104EF47A08286AB9C8E`.
+
+3. **Look at it.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 show <id>
+   ```
+
+   `show` prints the owner, the derivation path, the record version, the address, the listing and a
+   balance on each of the 8 testnets. For a new satchel, every balance is 0 and the record version
+   is 0.
+
+4. **Fund its address on Sepolia.** Send a little Sepolia ETH to the address from step 2, from any
+   wallet. Satchel #7 was funded from satchel #1, which the buyer account owned, with
+   `satchel-nft send 1 --chain sepolia --to 0x65C6…9C8E --value 0.002 --as buyer.satchel-nft.testnet`.
+   Run `show <id>` again until the Sepolia balance appears.
+
+5. **Send from the satchel, as the seller.** This gives the satchel something in its record for the
+   buyer's report to check.
+
+   ```bash
+   npx -y satchel-nft@0.1.0 send <id> --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as seller.testnet
+   ```
+
+   `send` reads the nonce and fees from Sepolia, checks that the address can pay, asks the contract
+   for its `evm_signing_hash` and checks it equals its own hash of the same transaction. Then the
+   near CLI signs `sign_evm`, and the prompt shows what you're sending, the fee cap, and the nonce the
+   contract will record. After you type `yes`, it checks that the MPC signature recovers to the
+   satchel's address and broadcasts it:
+
+   ```text
+   Building the transaction and checking the balance…
+   Checking the contract hashes it the same way…
+   Signing sign_evm with the near CLI…
+   Checking the MPC signature recovers to the satchel's address…
+   Broadcasting 0x…
+   Waiting for the receipt 0x…
+   Sent 0.0001 ETH on Sepolia from satchel #<id>: https://sepolia.etherscan.io/tx/0x…
+   Signed in https://testnet.nearblocks.io/txns/<hash>
+   ```
+
+   The contract wrote nonce 0 for Sepolia into the record before the MPC network signed, so the
+   record version is now 1. Satchel #7's send was
+   [`3u7kDzeB…`](https://testnet.nearblocks.io/txns/3u7kDzeB6zMSdC6Ddbvm55qoGwwoP1YxvMH3T9PvUYAL) on
+   NEAR and [`0xb732020d…`](https://sepolia.etherscan.io/tx/0xb732020d0283ee39eec9a8b27c7049015000ac5a108a2942207a986a6c314e45)
+   on Sepolia.
+
+6. **Read the record.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 record <id>
+   ```
+
+   For satchel #7:
+
+   ```text
+   Satchel #7's signing record on v1.satchel-nft.testnet (testnet), version 1
+
+   Signed through sign_evm:
+     Sepolia (11155111): 1 signature(s), up to nonce 0
+
+   Approvals signed: none
+
+   0 approval(s) over the cap, 0 unclassified call(s), 0 raw signature(s)
+   ```
+
+7. **Wait for Sepolia to finalize the send, then verify.** Check 2 reads Sepolia's nonce at a
+   finalized block, about 13 minutes after a send. Until then the report reads
+   `COULD NOT CHECK EVERYTHING` and exits 1. Then:
+
+   ```bash
+   npx -y satchel-nft@0.1.0 verify <id>
+   ```
+
+   For satchel #7, the report reads:
+
+   ```text
+   Satchel #7 on v1.satchel-nft.testnet (testnet)
+   owner satchel-nft.testnet, address 0x65C60dBFc8B3c949AE7Eb104EF47A08286AB9C8E, record version 1
+
+   [PASS] The contract can't sign behind the record
+          No access keys, so no one can redeploy it or sign as it
+          Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+          Signs only through v1.signer-prod.testnet
+
+   [PASS] No signed transaction is still pending
+          Sepolia: signed up to nonce 0, finalized nonce is 1
+
+   [PASS] No approval left behind
+          No approval was ever signed for this token
+
+   [PASS] Nothing the record can't explain
+          0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+   PROVABLY CLEAN (checked 2026-11-09T17:10:09.749Z)
+   read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+   ```
+
+8. **List it, as the seller.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 list <id> 0.5 --as seller.testnet
+   ```
+
+   The listing pins the current record version, and from now on the contract refuses any signature
+   for this satchel until it is sold, delisted or transferred. Satchel #7 was listed this way twice, both
+   times at record version 1; this is the later listing, run with `--yes` (the one bought in step 9 is
+   [7guTVgDq…](https://testnet.nearblocks.io/txns/7guTVgDqjx1gwCnMjeyMipg9TGMwBHxf5cLhBFap4qC9)):
+
+   ```text
+   The near CLI (C:\Users\<you>\.cargo\bin\near.exe) signed, on NEAR testnet, as satchel-nft.testnet (key ed25519:FqmLsnuhrwC7jFqzHCiNzUcZ6qQ1a23y4jasFJwRpS8w):
+     v1.satchel-nft.testnet.list({"price":"500000000000000000000000","token_id":"7"})
+     deposit 1 yoctoNEAR, gas 30 Tgas
+     Lists satchel #7 for 0.5 NEAR at record version 1.
+     It can't sign anything until it is sold, delisted or transferred.
+   Sending 6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc…
+   Listed satchel #7 for 0.5 NEAR: https://testnet.nearblocks.io/txns/6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc
+   ```
+
+   Without `--yes`, `Send it? Type yes to send:` comes after the transaction and before `Sending`.
+
+9. **Buy it, as the buyer.**
+
+   ```bash
+   npx -y satchel-nft@0.1.0 buy <id> --as buyer.testnet
+   ```
+
+   `buy` runs the clean transfer report first and prints it. It stops, with nothing signed, if the
+   satchel isn't listed, if you are the seller, if the record changed since the listing, or if the
+   report doesn't read `PROVABLY CLEAN`. Otherwise the near CLI signs `buy` with the price attached,
+   naming the record version the report read. The prompt says so:
+
+   ```text
+     Buys satchel #<id> from seller.testnet for 0.5 NEAR.
+     Names record version 1, the one this report read: if anything is signed before the sale, the contract refuses it and refunds you.
+     The report read PROVABLY CLEAN at <time>.
+   ```
+
+   After `yes`, it prints `Bought satchel #<id>: https://testnet.nearblocks.io/txns/<hash>`. Satchel
+   #7 was bought in [`BcrTmMCq…`](https://testnet.nearblocks.io/txns/BcrTmMCqdYGdCXDHH4fZqUHCy8bYdnUXLx3JS94jKUHX),
+   6 seconds after its report read `PROVABLY CLEAN` at record version 1.
+
+10. **Check who owns it now.** `show <id>` prints the buyer as the owner, and `not listed`. The
+    buyer now controls the satchel's address on every chain; the seller can't sign with it any more.
+
+11. **Hand it back (optional).** As the buyer:
+
+    ```bash
+    npx -y satchel-nft@0.1.0 transfer <id> seller.testnet --as buyer.testnet
+    ```
+
+    `transfer` checks that the receiver exists on NEAR testnet before it signs, then prints
+    `Sent satchel #<id> to seller.testnet: https://testnet.nearblocks.io/txns/<hash>`. Satchel #7 went
+    back in [`8TKVW1K3…`](https://testnet.nearblocks.io/txns/8TKVW1K3KwZ91PDJcjXmEQ8XA7vfq1AeH4B7FqHpsETH).
+
+</Steps>
+
+## What the CLI refuses before signing
+
+These were run during satchel #7's sale, without `--yes`, so none of them could sign. Each one
+stopped before the near CLI was asked for anything.
+
+| Command | It printed | Exit |
+| --- | --- | --- |
+| `buy 6 --as buyer.satchel-nft.testnet` | `Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.` | 1 |
+| `buy 7 --as buyer.satchel-nft.testnet`, before Sepolia finalized #7's send | `Not buying: the report reads COULD NOT CHECK EVERYTHING. Pass --accept-not-clean to buy it anyway.` | 1 |
+| `buy 4 --as satchel-nft.testnet` | `satchel-nft.testnet is the seller` | 1 |
+| `transfer 7 no-such-account-zz.testnet --as satchel-nft.testnet` | `no-such-account-zz.testnet doesn't exist on NEAR testnet, so a satchel sent there could be lost. Ask for an account that exists.` | 1 |
+| `list 7 1 --as buyer.satchel-nft.testnet` | `satchel-nft.testnet owns satchel #7, not buyer.satchel-nft.testnet` | 1 |
+| `mint --as satchel-nft.testnet`, with no terminal and no `--yes` | `There is no terminal to ask in, or stderr is redirected. In Git Bash's mintty window, try PowerShell or cmd; or pass --yes to sign without asking. Nothing was signed.` | 2 |
+| `mint --as satchel-nft.near` | `satchel-nft.near is not a NEAR testnet account` | 2 |
+
+The contract enforces the same rules on chain, whatever client calls it: see
+[Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer) for two calls it refused.
+
+## If something goes wrong
+
+| What you see | Why | What to do |
+| --- | --- | --- |
+| `No near in PATH's absolute folders…` (`near.exe` on Windows), or `No near CLI at <path>` | The near CLI isn't installed, or isn't where you said | Install near-cli-rs, or pass `--near-cli <path>` or set `NEAR_CLI`. On Windows, give the path of `near.exe`: npm's `near.cmd` is a script, and the CLI refuses it |
+| `There is no terminal to ask in…` | Git Bash's own window (mintty) gives Node no terminal, or stderr is redirected | Run the command from PowerShell or cmd, or pass `--yes` once you have read what it will sign |
+| `Not sent.` | You typed anything but `yes`, or the input ended | Run it again and type `yes` |
+| `Not buying: the report reads COULD NOT CHECK EVERYTHING…` | The seller's last send isn't final on Sepolia yet, or an RPC didn't answer | Wait a few minutes and run `verify <id>` until it reads `PROVABLY CLEAN` |
+| `Satchel #<id> was listed at record version … and is now at …; the contract refuses that sale` | The listing's version doesn't match the record; signing is frozen while listed, so this shouldn't happen | Read the new report. The seller has to list again for a sale at the new version |
+| Exit code 3 | It sent a transaction but couldn't read what happened to it | Open the transaction it names before you run the command again. After a `send`, the signature for that nonce is public, so anyone can broadcast it until the nonce is spent |
+
+## Next steps
+
+- [CLI reference](/docs/developers/cli): every command, option and exit code.
+- [The signing record](/docs/concepts/signing-record): what `record` prints, field by field.
+- [Listings and sales](/docs/concepts/listings-and-sales): why listing freezes signing and `buy`
+  names a version.
+- [Automate with the CLI](/docs/advanced/automation): the same steps in a script, with `--json`.
