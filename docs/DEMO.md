@@ -3,7 +3,8 @@
 What the builder needs to record Satchel's demo video, post it on X and submit Satchel to the NEAR
 Hackathon 2026. The rules quoted here come from [nearhackathon.com](https://nearhackathon.com) and its
 [HACKATHON.md](https://nearhackathon.com/HACKATHON.md), read on 2026-11-10. Every screen and line
-below is what satchelnft.xyz and `satchel-nft` showed that day.
+below is what satchelnft.xyz and `satchel-nft` showed that day, except the open holder room at 1:30:
+near-cli-rs and curl opened a testnet room, and no browser wallet, and no mainnet room, had yet.
 
 `node scripts/check-demo-kit.mjs` checks the numbers this kit depends on: the form text's length, the
 X post's length, tags and question, the script's timing and the pages it opens. CI runs it on every
@@ -30,19 +31,44 @@ pull request.
 
 - **Browser.** A fresh Chrome profile or a guest window, so no extension or bookmark shows. Set the
   window to 1280 × 720, or record at 1920 × 1080 with the page zoomed to 150 %. Every scene below
-  was laid out at 1280 × 720.
+  but the open room at 1:30 was laid out at 1280 × 720; lay that one out in the rehearsal.
 - **Open three tabs, each about ten seconds before its take:**
   [satchelnft.xyz](https://satchelnft.xyz) (start at the top; the take scrolls down to "Try to cheat
   the buyer."), [satchelnft.xyz/satchel/7](https://satchelnft.xyz/satchel/7) and
-  [satchelnft.xyz/mainnet/satchel/1](https://satchelnft.xyz/mainnet/satchel/1). The landing page reads
-  all six examples while it loads, so each click in "Try to cheat the buyer" answers at once.
-  Satchel #7's page took 2.4 s for "What's inside", 3.0 s for its report and 4.3 s for its history
-  on 2026-11-10; mainnet satchel #1's took about 7 s.
+  [satchelnft.xyz/mainnet/satchel/1](https://satchelnft.xyz/mainnet/satchel/1). The fourth, the
+  holder room of your own satchel (`/satchel/<id>/room`, or `/mainnet/satchel/<id>/room` for a
+  mainnet one), goes in a window of its own: see "A wallet for the 1:30 scene" below. The landing
+  page reads all six examples while it loads, so each click in "Try to cheat the buyer" answers at
+  once. Satchel #7's page took 2.4 s for "What's inside", 3.0 s for its report and 4.3 s for its
+  history on 2026-11-10; mainnet satchel #1's took about 7 s.
 - **Terminal.** bash (Git Bash on Windows), Node 22 or later, font size 18 or larger. Run
   `npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"` once before recording: the first run downloads
   the package (86 s and 93 s in two runs here), later ones take 6 to 12 s. The CLI doesn't print its
   exit code, so the `echo` shows it. In the edit, cut the wait.
-- **No wallet is needed** for the script below. The optional scene after it needs one.
+- **A wallet for the 1:30 scene, in a window of its own.** The room opens only for the account that
+  owns the satchel right now, so record it with a wallet that owns one.
+  - **Use a second fresh Chrome profile** for the room, and never connect a wallet in the window
+    with the other three tabs. A connected wallet stays connected in every satchelnft.xyz tab of its
+    profile on its network (testnet pages and `/mainnet` pages keep separate connections), and on a
+    satchel that account owns, the page shows "Owned by you", "Send from this satchel" and "Sell or
+    transfer". `satchel-nft.testnet` owns #7, and `satchel-nft.near` owns mainnet #1: the takes of
+    those two must not show them. The optional mint take shows them on its new satchel, which is
+    fine.
+  - **The wallet.** Every wallet the app offers says it signs messages (NEP-413): Meteor, Intear,
+    Nightly, Ledger and NEAR CLI on testnet, and HOT and MyNearWallet as well on mainnet; one that
+    can't gets a message saying so. Meteor and Intear (and MyNearWallet on mainnet) are web wallets:
+    import the account into one in that profile before any take that uses it. Nightly is an
+    extension only, so it needs a profile with Nightly installed, and its icon then shows in the
+    toolbar. HOT, mainnet only, lists its extension, its phone app and Telegram.
+  - **No satchel yet?** If none of your accounts owns one, mint one in that profile at
+    [satchelnft.xyz/satchels](https://satchelnft.xyz/satchels) (0.1 testnet NEAR plus gas), or
+    record the optional mainnet mint below there; a new satchel touches none of the demo satchels
+    above.
+  - **Rehearse once:** connect the wallet in the room's tab, click **Open the room**, approve, then
+    reload the tab. The page held the signature only in memory and the server stores nothing, so
+    the take starts at **Open the room** again, with the wallet still connected. In the take, don't
+    click **Check again**: it resends the signature without asking the wallet.
+  - The other scenes need no wallet, except the optional mint.
 - **Captions.** X starts videos muted, so burn the "Caption" column into the video.
 - **Export** MP4 (H.264, 30 fps, 1280 × 720 or 1920 × 1080). Keep it at 2:00: X plays up to 2:20
   for an account without Premium.
@@ -59,9 +85,10 @@ cell against its time.
 | 0:22–0:46 | "Try to cheat the buyer." | Click **Keep a signed withdrawal**. Point at "A signed transaction may still be pending" | A 10,000 ETH send, signed and kept: caught | Try to cheat a buyer. This seller kept a signed 10,000 ETH send. Before anything is signed, the contract records it: the highest nonce it signed on each chain, every approval, and a count of anything else. The buyer's browser compares that record with Sepolia and flags it: not provable. |
 | 0:46–1:02 | Same section | Click **Leave an approval behind**, then **Play fair** | Approval left live: caught. Nothing kept: provably clean | An approval left for the seller's other address is caught too. Satchel #1 has spent every nonce it signed, approved nothing and signed nothing raw, so it reads provably clean. |
 | 1:02–1:18 | Same section | Click **Change it after the buyer checked**. Point at the refused `buy` | Changed after the check: the buy is refused | Listing freezes signing, and the purchase names the record version the buyer checked. This seller changed it after the check, so the contract refused the buy and refunded. |
-| 1:18–1:36 | satchelnft.xyz/satchel/7 | Scroll through "What's inside", the report, then "History" | What it holds, the four checks, its history | This satchel's page shows what it holds on the eight testnets, the four checks, and its history: minted, sent, listed, sold. One NEAR transaction moved the NFT and its address on every chain. |
-| 1:36–1:50 | satchelnft.xyz/mainnet/satchel/1 | Point at Base, 0.00184 ETH, then "Provably clean" | Live on NEAR mainnet. The contract has 0 access keys | It's live on mainnet. This satchel sent real ETH on Base and reads provably clean, and the contract has no access keys, so no one can change it, us included. |
-| 1:50–2:00 | A terminal: `npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
+| 1:18–1:30 | satchelnft.xyz/satchel/7 | Scroll through "What's inside", the report, then "History" | What it holds, the four checks, its history | This satchel's page shows what it holds on eight testnets, the four checks, and its history. One NEAR transaction moved the NFT and its address on every chain. |
+| 1:30–1:42 | The holder room of a satchel your wallet owns, `/satchel/<id>/room` (see "Before you record") | Scroll to **Open the room**, click it and approve the message in the wallet; cut the wait. Scroll to "Checked at" in the card "You hold satchel #…", point at it, then scroll to "Handover kit" | Only the current holder gets in, checked at a final NEAR block | Only the current holder opens this room: the wallet signs a message, the server checks the owner at a final NEAR block. Sell it, and the buyer gets in. |
+| 1:42–1:52 | satchelnft.xyz/mainnet/satchel/1 | Point at Base, 0.00184 ETH, then "Provably clean" | Live on NEAR mainnet. The contract has 0 access keys | Live on mainnet: this satchel sent real ETH on Base and reads provably clean. The contract has no keys; no one can change it. |
+| 1:52–2:00 | A terminal: `npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
 
 What each scene shows, so the edit can't drift from the chain:
 
@@ -74,19 +101,36 @@ What each scene shows, so the edit can't drift from the chain:
   again at version 1. A `buy` naming version 0 was refused on chain, and the 1 NEAR came back.
 - **1:18.** Satchel #7: minted, sent once on Sepolia, listed, delisted, listed, sold to
   `buyer.satchel-nft.testnet`, handed back, listed and delisted, each with the `satchel-nft` CLI.
-- **1:36.** Mainnet satchel #1: one send on Base at nonce 0, "Base: signed up to nonce 0, finalized
+- **1:30.** Your own satchel's holder room. The card "You hold satchel #…" lists your account, the
+  satchel, the network, "Checked at" with the final NEAR block the server read the key and the owner
+  at, and the key. For a satchel that has signed nothing, "Handover kit" says "The satchel reads
+  clean". On 2026-11-10 the same request, a `POST /api/room` on satchelnft.xyz signed with
+  near-cli-rs for satchel #4, opened the room for its owner at block 277,055,444 and was refused with
+  a 403 naming the owner for `buyer.satchel-nft.testnet`. With the page 1280 × 630 px, about what a
+  1280 × 720 window leaves under the browser's bars, the card with **Open the room** starts 536 px
+  down, so the take scrolls to the button; the holder card and the kit open in its place. No browser
+  wallet had opened a room by then, nor any client a mainnet one, so rehearse it as "Before you
+  record" says and record only once it opens.
+- **1:42.** Mainnet satchel #1: one send on Base at nonce 0, "Base: signed up to nonce 0, finalized
   nonce is 1", and 0.00184 ETH left.
-- **1:50.** Satchel #5 again, from the terminal; the command exits 1.
+- **1:52.** Satchel #5 again, from the terminal; the command exits 1.
 
 ## Optional scene: mint one live (mainnet, 0.1 NEAR)
 
-This replaces 1:18–1:36 when you want a wallet in the video. It needs a mainnet wallet with about
+This replaces 1:18–1:30 when you want a mint in the video. It needs a mainnet wallet with about
 0.2 NEAR: the mint costs 0.1 NEAR, plus gas. It adds a satchel and touches none of the demo
-satchels.
+satchels. Record it in the room's profile, not in the window with the other tabs, and in this order,
+so the 1:30 scene opens the new satchel's room on mainnet:
+
+1. Record the mint take, with no wallet connected yet in that profile.
+2. Off camera, open the new satchel's `/mainnet/satchel/<id>/room` and rehearse as "Before you
+   record" says: open the room, then reload.
+3. Record the 1:30 take in that tab. On this path the main window needs only the landing page and
+   mainnet satchel #1.
 
 | Time | Screen | Do | Caption | Say |
 | --- | --- | --- | --- | --- |
-| 1:18–1:36 | satchelnft.xyz/mainnet/satchels | Click **Connect wallet** and sign in, click **Mint a satchel · 0.1 NEAR** and approve in the wallet; the app opens the new satchel. Cut the waits in the edit | Minted live on mainnet: empty, provably clean | One click mints a satchel on mainnet. Its address shows empty on all eight mainnets, and its report reads provably clean: it has signed nothing yet. Sell the NFT, and one NEAR transaction moves that address on every chain. |
+| 1:18–1:30 | satchelnft.xyz/mainnet/satchels | Click **Connect wallet** and sign in, click **Mint a satchel · 0.1 NEAR** and approve in the wallet; the app opens the new satchel. Cut the waits in the edit | Minted live on mainnet: empty, provably clean | One click mints a satchel on mainnet. Its address is empty on all eight mainnets, and its report reads provably clean: it has signed nothing yet. |
 
 ## The X post
 

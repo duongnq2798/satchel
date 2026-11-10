@@ -1,8 +1,9 @@
 // Checks the demo kit (docs/DEMO.md and docs/submission/) against the hackathon's limits: the
 // "What did you build?" text fits the form, the X post fits one post, tags the event and asks a
 // question, the video script runs from 0:00 to 2:00 with no gap and no scene with more words than a
-// speaker says in its time, and every satchelnft.xyz page it opens is a route the app has (it reads
-// no network, so it doesn't check that a satchel id was minted).
+// speaker says in its time, and every page it opens, a satchelnft.xyz link or a path such as
+// `/satchel/<id>/room`, is a route the app has (it reads no network, so it doesn't check that a
+// satchel id was minted).
 // Node 22 or later, no install. Usage: node scripts/check-demo-kit.mjs
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 
@@ -106,21 +107,24 @@ const rushed = [...rows, ...optional]
   .map((r) => `${r.label}: ${r.words} words in ${r.to - r.from} s`);
 check(rows.length > 0 && rushed.length === 0, "No scene has more than 2.5 spoken words a second", rushed.length ? rushed.join("; ") : "all fit");
 
-// Every satchelnft.xyz page the kit opens is a route under web/src/app. A dynamic folder takes only
-// what its page takes: a satchel id is digits.
+// Every page the kit opens is a route under web/src/app: each satchelnft.xyz link, and each path
+// written alone in backticks, as `/satchel/<id>/room` for a satchel the recorder picks. A dynamic
+// folder takes only what its page takes: a satchel id is digits, or the placeholder `<id>`.
 function routeExists(path) {
   let dir = new URL("web/src/app/", root);
   for (const segment of path.split("/").filter(Boolean)) {
     const entries = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory());
-    const next = entries.find((e) => e.name === segment) ?? (/^\d{1,19}$/.test(segment) ? entries.find((e) => e.name === "[id]") : undefined);
+    const next = entries.find((e) => e.name === segment) ?? (/^(?:\d{1,19}|<id>)$/.test(segment) ? entries.find((e) => e.name === "[id]") : undefined);
     if (!next) return false;
     dir = new URL(`${next.name}/`, dir);
   }
   return existsSync(new URL("page.tsx", dir));
 }
-const pages = [...new Set([...demo.matchAll(/satchelnft\.xyz(\/[\w\-/]*)?/gi)].map((m) => m[1]?.replace(/\/$/, "") || "/"))];
+const linked = [...demo.matchAll(/satchelnft\.xyz(\/[\w\-/]*)?/gi)].map((m) => m[1]?.replace(/\/$/, "") || "/");
+const named = [...demo.matchAll(/`(\/[\w\-/<>]*)`/g)].map((m) => m[1].replace(/\/$/, "") || "/");
+const pages = [...new Set([...linked, ...named])];
 const missing = pages.filter((p) => !routeExists(p));
-check(pages.length > 0 && missing.length === 0, "Every satchelnft.xyz page in docs/DEMO.md is a route the app has", missing.length ? `missing: ${missing.join(", ")}` : pages.join(", "));
+check(pages.length > 0 && missing.length === 0, "Every page docs/DEMO.md opens is a route the app has", missing.length ? `missing: ${missing.join(", ")}` : pages.join(", "));
 
 for (const r of results) console.log(`${r.ok ? "[PASS]" : "[FAIL]"} ${r.claim}\n       ${r.detail}`);
 const failed = results.filter((r) => !r.ok).length;
