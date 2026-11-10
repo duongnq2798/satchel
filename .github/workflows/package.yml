@@ -60,8 +60,8 @@ jobs:
       - name: Run the release on npm
         working-directory: ${{ runner.temp }}
         run: |
-          # 0.1.0 was packed on Windows, so its launcher's first line ends in CRLF. npm strips the CR
-          # when it links the command on Linux and macOS; this checks that the release starts here. Its
-          # own cache, so setup-node's saved ~/.npm never hands it an install with the CR already gone.
+          # The release the docs pin, run from outside the checkout and with its own cache: inside the
+          # checkout npx would run the local build, and setup-node's saved ~/.npm could hand it an
+          # install from an earlier run.
           mkdir from-npm && cd from-npm
-          test "$(npx --cache "$RUNNER_TEMP/npx-cache" -y satchel-nft@0.1.0 --version)" = 0.1.0
+          test "$(npx --cache "$RUNNER_TEMP/npx-cache" -y satchel-nft@0.2.0 --version)" = 0.2.0

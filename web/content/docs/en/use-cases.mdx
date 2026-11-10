@@ -33,7 +33,7 @@ the listing's price. satchelnft.xyz's [market](https://satchelnft.xyz/market) do
 does the CLI's `market` command:
 
 ```bash
-npx -y satchel-nft@0.1.0 market
+npx -y satchel-nft@0.2.0 market
 ```
 
 ```text
@@ -75,7 +75,7 @@ script never sends twice blindly. `buy` goes ahead only when the report is clean
 read.
 
 ```bash
-if npx -y satchel-nft@0.1.0 verify 4 --json > report.json; then
+if npx -y satchel-nft@0.2.0 verify 4 --json > report.json; then
   echo "satchel #4 is provably clean"
 fi
 ```

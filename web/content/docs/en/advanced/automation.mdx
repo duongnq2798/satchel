@@ -7,7 +7,7 @@ makes. Read [Sign commands without a person](#sign-commands-without-a-person) be
 ## What you need
 
 - Node.js 22 or later.
-- `satchel-nft`, pinned: `npx -y satchel-nft@0.1.0`, or `npm install satchel-nft@0.1.0` in your
+- `satchel-nft`, pinned: `npx -y satchel-nft@0.2.0`, or `npm install satchel-nft@0.2.0` in your
   project.
 - For sign commands only: near-cli-rs and the signing account's key in its keychain. Read commands
   need no key.
@@ -32,7 +32,7 @@ when you try again later.
 <Tab>
 
 ```bash title="check.sh"
-npx -y satchel-nft@0.1.0 verify 1 --json > report.json
+npx -y satchel-nft@0.2.0 verify 1 --json > report.json
 case $? in
   0) echo "clean at record version $(node -p 'require("./report.json").recordVersion')" ;;
   1) echo "not clean: $(node -p 'require("./report.json").verdict ?? require("./report.json").error')"; exit 1 ;;
@@ -44,7 +44,7 @@ esac
 <Tab>
 
 ```powershell title="check.ps1"
-$json = npx -y satchel-nft@0.1.0 verify 1 --json | Out-String
+$json = npx -y satchel-nft@0.2.0 verify 1 --json | Out-String
 $code = $LASTEXITCODE
 $report = $json | ConvertFrom-Json
 switch ($code) {
@@ -66,9 +66,9 @@ versions) are decimal strings; parse them with `BigInt`, never `Number`.
 | Command | Top-level fields |
 | --- | --- |
 | `verify` | `network`, `contract`, `tokenId`, `owner`, `address`, `recordVersion`, `listing`, `checks`, `verdict`, `checkedAt`, `sources` |
-| `show` | `network`, `contract`, `tokenId`, `owner`, `path`, `address`, `recordVersion`, `listing`, `balances` |
+| `show` | `network`, `contract`, `tokenId`, `owner`, `path`, `address`, `recordVersion`, `listing`, `balances` (one per chain, each with a `tokens` array) |
 | `record` | `network`, `contract`, `tokenId`, `owner`, `record` |
-| `history` (not in 0.1.0) | `network`, `contract`, `tokenId`, `entries`, `scanned`, `complete`, `source`, `signatures` |
+| `history` | `network`, `contract`, `tokenId`, `entries`, `scanned`, `complete`, `source`, `signatures` |
 | `market` | `network`, `contract`, `listings` (each with `verdict` and the `recordVersion` its report read) |
 
 The [CLI reference](/docs/developers/cli) shows each one in full.
@@ -135,7 +135,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npx -y satchel-nft@0.1.0 verify --network mainnet 1
+      - run: npx -y satchel-nft@0.2.0 verify --network mainnet 1
 ```
 
 The job's log holds the whole report, with the nodes it read. A failed run can mean two things: the

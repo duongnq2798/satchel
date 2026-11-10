@@ -22,7 +22,7 @@ The report lists the RPCs it read at the bottom. If one of them is down, run it 
 your own:
 
 ```bash
-RPC_11155111=https://your-sepolia-node.example npx -y satchel-nft@0.1.0 verify 5
+RPC_11155111=https://your-sepolia-node.example npx -y satchel-nft@0.2.0 verify 5
 ```
 
 If `NEAR_RPC` points at the other network's node, the CLI stops with
@@ -156,7 +156,7 @@ Neither is part of the report, so nothing here changes a verdict.
 
 The CLI's sign commands (`mint`, `list`, `delist`, `buy`, `transfer`, `send`) sign through the
 near CLI, [near-cli-rs](https://github.com/near/near-cli-rs). The read-only commands (`verify`, `show`,
-`record`, `market`) don't need it.
+`history`, `record`, `market`) and `dao finish` don't need it.
 
 | You see | Cause | Fix |
 | --- | --- | --- |

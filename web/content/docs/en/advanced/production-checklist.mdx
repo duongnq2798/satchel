@@ -14,7 +14,7 @@ it is a valid address on mainnet chains too, but NEAR's testnet MPC network sign
 | | Item | For |
 | --- | --- | --- |
 | 1 | [Verify the deployment you integrate with](#1-verify-the-deployment-you-integrate-with) | Builders, evaluators |
-| 2 | [Pin `satchel-nft@0.1.0` and check it](#2-pin-satchel-nft010-and-check-it) | Builders |
+| 2 | [Pin `satchel-nft@0.2.0` and check it](#2-pin-satchel-nft020-and-check-it) | Builders |
 | 3 | [Read from nodes you trust](#3-read-from-nodes-you-trust) | Builders, buyers |
 | 4 | [Check the network of every report](#4-check-the-network-of-every-report) | Builders |
 | 5 | [Wait for finality](#5-wait-for-finality) | Everyone |
@@ -49,34 +49,34 @@ You should see `11 of 11 claims hold` and exit code 0. The [security model](/doc
 has curl reads that need none of Satchel's code. In your own code, `contractFacts(MAINNET)` and `contractCheck`
 from the library run the same check, and `assertDeployment(MAINNET)` throws unless it passes.
 
-### 2. Pin `satchel-nft@0.1.0` and check it
+### 2. Pin `satchel-nft@0.2.0` and check it
 
-**What.** Run and depend on exactly version 0.1.0, not a range and not `latest`.
+**What.** Run and depend on exactly version 0.2.0, not a range and not `latest`.
 
-**Why.** 0.1.0 was published from the owner's npm account without npm provenance. A later version holds whatever
+**Why.** 0.2.0 was published from the owner's npm account without npm provenance. A later version holds whatever
 its publisher put in it. npm also lists a `0.0.0-stage` placeholder that is not the package.
 
 **How.** Name the version in every `npx` call, and save it exactly in a project:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1
-npm install --save-exact satchel-nft@0.1.0
+npx -y satchel-nft@0.2.0 verify 1
+npm install --save-exact satchel-nft@0.2.0
 ```
 
 npm records the release's commit and checksum:
 
 ```bash
-npm view satchel-nft@0.1.0 gitHead dist.shasum
+npm view satchel-nft@0.2.0 gitHead dist.shasum
 ```
 
 ```text
-gitHead = '728ed74e978fb0cd81808ada8febdb02633d73b7'
-dist.shasum = '599980b6445558157e28f7bae7872b0756988150'
+gitHead = '2dd420925c16fc7b9f6ef56bb35d14a489386316'
+dist.shasum = 'b9822a7ac13476566bc6772ccda08979e5802480'
 ```
 
 To check the files themselves, follow the [threat model's npm entry](/docs/security/threat-model#what-satchel-trusts):
-unpack `npm pack satchel-nft@0.1.0`, strip its Windows line endings, and compare `bin/`, `package.json`,
-`README.md` and `LICENSE` with commit `728ed74`, and `dist/` with what `npm run build -w satchel-nft` builds from it.
+unpack `npm pack satchel-nft@0.2.0` and compare `bin/`, `package.json`,
+`README.md` and `LICENSE` with commit `2dd4209`, and `dist/` with what `npm run build -w satchel-nft` builds from it.
 
 ### 3. Read from nodes you trust
 
@@ -88,7 +88,7 @@ clean. The defaults are public nodes, named in every report.
 **How.** The CLI reads `NEAR_RPC` and `RPC_<chain id>`:
 
 ```bash
-NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.1.0 verify --network mainnet 1
+NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.2.0 verify --network mainnet 1
 ```
 
 A NEAR RPC that serves the other network stops the CLI with exit code 2. An EVM RPC that answers with another chain
@@ -148,7 +148,7 @@ funded 92 seconds before it was minted; anyone who minted #1 in between would ha
 **How.** Mint, check the owner, then fund the address the app or `show` gives you:
 
 ```bash
-npx -y satchel-nft@0.1.0 show --network mainnet <id>
+npx -y satchel-nft@0.2.0 show --network mainnet <id>
 ```
 
 [Mint and fund a satchel](/docs/guides/mint-and-fund) walks through it in the app.
@@ -233,7 +233,7 @@ may send it twice: for a `send`, that can mean paying twice, and the signature a
 **How.** Read the transaction it names (`nearTx` or `evmTx` with `--json`) on the explorer before doing anything else:
 
 ```bash
-npx -y satchel-nft@0.1.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as <you>.testnet --json
+npx -y satchel-nft@0.2.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as <you>.testnet --json
 code=$?
 if [ "$code" -eq 3 ]; then echo "Outcome unknown: check the transaction before retrying"; exit 3; fi
 ```

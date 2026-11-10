@@ -15,7 +15,7 @@ prints `PROVABLY CLEAN`, `NOT PROVABLE` or `COULD NOT CHECK EVERYTHING`, and exi
 Satchel #1 on testnet, which signed seven Sepolia transactions and reads clean:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1
+npx -y satchel-nft@0.2.0 verify 1
 ```
 
 ```text
@@ -173,7 +173,7 @@ Each chain's RPC must also say it serves the chain id it is configured for, or e
 | `address` | `0x…` string | Its EVM address, derived from the MPC network's root key as the MPC contract's `derived_public_key` does |
 | `recordVersion` | string | The record version the checks were run against. A purchase must name this |
 | `listing` | object or `null` | `seller`, `price` (yoctoNEAR), `record_version`, `listed_at` |
-| `checks` | four `{ id, status, title, lines }` | `id` is `contract`, `pending`, `approvals` or `counters`; `status` is `pass`, `fail` or `unknown` |
+| `checks` | four `{ id, status, title, lines }` | `id` is `contract`, `pending`, `approvals` or `counters`; `status` is `pass`, `fail` or `unknown`. `pending` and `approvals` also list each chain's `{ chainId, status }` in `chains` |
 | `verdict` | `"clean" \| "not-provable" \| "unknown"` | As above |
 | `checkedAt` | ISO 8601 string | When the report was built |
 | `sources` | string list | Every RPC it read: the NEAR RPC, then one per chain in the record |
@@ -215,13 +215,11 @@ refuses an EVM RPC that answers for the wrong chain. It does not compare several
 read from nodes you trust, set `NEAR_RPC` and `RPC_<chain id>`:
 
 ```bash
-NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
 ```
 
-The app, and the CLI from the next npm release, derive a satchel's address from the MPC network's root key
-pinned in the package ([how](/docs/concepts/satchels-and-addresses#derive-it-yourself)), so no RPC answer
-changes it. `satchel-nft` 0.1.0, the version above, still reads it through the NEAR RPC, from the MPC
-contract's `derived_public_key` view.
+The app and the CLI derive a satchel's address from the MPC network's root key pinned in the package
+([how](/docs/concepts/satchels-and-addresses#derive-it-yourself)), so no RPC answer changes it.
 
 Two things on a satchel's page are not part of the report, and it reads neither. **What's inside** reads
 USDC, USDT and WETH at one listed address per chain. **History** comes from FastNEAR's transaction index, a

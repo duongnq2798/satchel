@@ -133,7 +133,7 @@ again from the app spends it: the app uses the next unspent nonce, which is that
 `satchel-nft send` runs the same flow and checks, with the near CLI signing `sign_evm` from its keychain:
 
 ```bash
-npx -y satchel-nft@0.1.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as satchel-nft.testnet
+npx -y satchel-nft@0.2.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as satchel-nft.testnet
 ```
 
 `--chain` takes a chain id or its name (`8453`, `base`, `"Base Sepolia"`); `--data` takes calldata. Before
