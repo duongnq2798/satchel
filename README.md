@@ -266,7 +266,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 20 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 27 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 61 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -304,7 +304,7 @@ What exists at this commit, and what does not yet.
 | What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Shipped** on 2026-11-10. Above the report, a satchel's page shows its native balance on each of the network's 8 chains, and its USDC, USDT and WETH where a deployment is listed: 22 on the mainnets, 11 on the testnets (no testnet USDT). Each comes from Circle, Tether, USDT0 or the chain itself, except WETH on Sepolia, from Uniswap's deployment list; the sources are in `contents.ts`. After `npm ci` and `npm run build -w satchel-nft`, `node scripts/check-tokens.mjs` reads every one's code, symbol and decimals back from its chain. Below the report, its history: mint, transfers, signatures, listings and sales from FastNEAR's transaction index, each linked to its transaction. The report reads neither. In the CLI, `show` prints the same balances and `history <id>` the timeline; both come with the next npm release, not 0.1.0 | [`contents.ts`](packages/satchel-nft/src/contents.ts), [`history.ts`](packages/satchel-nft/src/history.ts), [`check-tokens.mjs`](scripts/check-tokens.mjs) |
 | A satchel's address derived without an RPC | **Shipped** on 2026-11-10. The app and the CLI compute each satchel's key from the MPC network's root key, pinned in the package, the contract and the path, as the MPC contract does, so no RPC answer changes a satchel's address. Which satchel is yours (the id a mint returns, the tokens you own) still comes from the NEAR RPC, or for a mint from the wallet. The tests derive the keys of the 9 satchels in their fixture (testnet #1 to #8, mainnet #1) and get what the MPC contract's `derived_public_key` returned, and `check-claims.mjs` compares the pinned root key with the chain. `satchel-nft` 0.1.0 on npm still reads the address through the NEAR RPC; the next release derives it | [`evm.ts`](packages/satchel-nft/src/evm.ts), [`derived-keys.json`](packages/satchel-nft/src/__fixtures__/derived-keys.json) |
 | A satchel owned by a Sputnik DAO: its council votes what it signs, and a vote hands it on | **Shipped** on testnet on 2026-11-10, with no contract change. `satchel-club.sputnikv2.testnet` owned satchel #8: a vote passed a `sign_evm` proposal, the contract built the Sepolia transaction from the proposal's arguments and recorded it, `v1.signer-prod.testnet` signed, `satchel-nft dao finish` broadcast it after checking the hash and the signer, and the report read `PROVABLY CLEAN`. A second vote gave the satchel to `buyer.satchel-nft.testnet` with `nft_transfer`. The package builds the proposals, checks open proposals for a nonce already in use, and reads the signature from the vote's receipts; `dao finish` comes with the next npm release, not 0.1.0. Not run on mainnet, and no DAO sale yet | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`deployments/testnet-dao.json`](deployments/testnet-dao.json), [`check-dao.mjs`](scripts/check-dao.mjs), [the walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) |
-| Holder room: a page only a satchel's current holder can open, with a holder card and a handover kit | **Shipped** on 2026-11-10. The holder's wallet signs a NEP-413 message; the app's one server route, `/api/room`, checks the signature, that the key is a full-access key of the account and that the account owns the satchel, at one final NEAR block, on every request, and stores nothing. The kit says what to do before selling, from the satchel's report. Run on 2026-11-10 with messages signed by near-cli-rs, first against a local build, then against satchelnft.xyz: `satchel-nft.testnet` opened satchel #4's room (200, block 277055444 on satchelnft.xyz), and `buyer.satchel-nft.testnet` got the 403 that names the owner ([below](#holder-room)). No browser wallet has opened it yet | [`holder.ts`](packages/satchel-nft/src/holder.ts), [`nep413.ts`](packages/satchel-nft/src/nep413.ts), [`kit.ts`](packages/satchel-nft/src/kit.ts), [`route.ts`](web/src/app/api/room/route.ts) |
+| Holder room: a page only a satchel's current holder can open, with a holder card and a handover kit | **Shipped** on 2026-11-10. The holder's wallet signs a NEP-413 message; the app's one server route, `/api/room`, checks the signature, that the key is a full-access key of the account and that the account owns the satchel, at one final NEAR block, on every request, and stores nothing. The kit says what to do before selling, from the satchel's report. Run on 2026-11-10 with messages signed by near-cli-rs, first against a local build, then against satchelnft.xyz: `satchel-nft.testnet` opened satchel #4's room (200, block 277055444 on satchelnft.xyz), and `buyer.satchel-nft.testnet` got the 403 that names the owner ([below](#holder-room)). In a browser, Meteor's Chrome extension opened mainnet satchel #1's room for `satchel-nft.near` (200, block 223915441) | [`holder.ts`](packages/satchel-nft/src/holder.ts), [`nep413.ts`](packages/satchel-nft/src/nep413.ts), [`kit.ts`](packages/satchel-nft/src/kit.ts), [`route.ts`](web/src/app/api/room/route.ts) |
 | Demo kit: the video script, the X post and the submission text | **Written** on 2026-11-10, and checked against the hackathon's limits by `node scripts/check-demo-kit.mjs`. Its 1:30 scene opens the holder room with a wallet. The video isn't recorded yet | [`docs/DEMO.md`](docs/DEMO.md), [`docs/submission`](docs/submission) |
 | Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
 
@@ -1039,7 +1039,11 @@ JSON. The 405, the 401 and these signed requests were run on 2026-11-10 against 
 and `satchel-nft.testnet`, #4's owner, got the holder card at block 277051372 and the kit (200).
 Once `main` deployed, the `GET` and the two signed requests ran against satchelnft.xyz the same
 day: 405, then 200 with the holder card at block 277055444 and the kit "The satchel reads clean",
-and the 403 at block 277055452. No browser wallet has opened the room yet.
+and the 403 at block 277055452. In a browser, Meteor's Chrome extension, connected as
+`satchel-nft.near`, opened mainnet satchel #1's room on satchelnft.xyz the same day: 200 with the
+holder card at block 223915441 and the kit "The satchel reads clean". **Check again** sent the same
+signature without asking the wallet (200, block 223915478), and a reload went back to **Open the
+room**, still connected.
 [`holder.test.ts`](packages/satchel-nft/src/holder.test.ts) covers each refusal with a fake RPC.
 
 **Limits.**
@@ -1121,7 +1125,7 @@ all of this with the near CLI's key, checking each step
 | --- | --- |
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 61 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 191 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
-| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader and the docs loader, with their 20 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
+| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader and the docs loader, with their 27 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference) and [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every testnet run |
@@ -1153,7 +1157,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 191 package tests, 20 app tests
+npm run typecheck && npm test              # both workspaces: 191 package tests, 27 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1182,11 +1186,12 @@ The tests, as of 2026-11-10: 61 Rust unit tests in
 `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13,
 `history.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;
-and 20 app tests: 3 in `routes.test.ts`, 5 in `room-request.test.ts`, and 12 in `docs.test.ts`,
-which compile every docs page and check its links and anchors. Three rules have no
-unit test: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
-`finalizedAt` read live chains, and the sale panel's use of the report's version and price was
-checked by hand on testnet. [AGENTS.md](AGENTS.md#where-each-rule-lives) lists them with the rest.
+and 27 app tests: 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`, and 12 in `docs.test.ts`,
+which compile every docs page and check its links and anchors. Some rules have no
+unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
+`finalizedAt` read live chains, the sale panel's use of the report's version and price was
+checked by hand on testnet, and nothing tests that a finished connect or a disconnect ends the
+page's wait for a saved wallet. [AGENTS.md](AGENTS.md#where-each-rule-lives) lists each of them with the rest.
 
 What the tests pin down:
 
