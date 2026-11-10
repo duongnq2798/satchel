@@ -11,6 +11,7 @@ import { formatEther } from "viem";
 import { type CliArgs, USAGE, parseCli, sendInputs } from "./cli-args.js";
 import { CHAINS, NETWORKS, type Network, chainInfo, nearTxUrl } from "./config.js";
 import { contents } from "./contents.js";
+import { type FinishStep, finishSignEvm, liveFinishDeps } from "./dao.js";
 import { type MpcSignature, formatAmount, formatBalance, tokenAddress } from "./evm.js";
 import { assertDeployment, assertReceiver, assertTxFor } from "./guard.js";
 import { describeEntry, signatureCounts, tokenHistory } from "./history.js";
@@ -413,9 +414,72 @@ async function send(net: Network, args: CliArgs): Promise<number> {
   return result.status === "success" ? 0 : 1;
 }
 
+const FINISH_NOTES: Record<FinishStep, string> = {
+  read: "Reading the NEAR transaction and its receipts",
+  hash: "Checking the contract hashed this transaction",
+  recover: "Checking the MPC signature recovers to the satchel's address",
+  broadcast: "Broadcasting",
+  confirm: "Waiting for the receipt",
+};
+
+/** dao finish: broadcasts what a DAO vote had the contract sign, once it has checked out. */
+async function dao(net: Network, args: CliArgs): Promise<number> {
+  assertCanAsk(args);
+  // Like send: the address is derived for this contract, so it must be the pinned deployment.
+  await assertDeployment(net);
+  let reached: FinishStep = "read";
+  let evmTx = "";
+  const approve: Parameters<typeof liveFinishDeps>[1] = async (found) => {
+    note(`
+${found.caller} had satchel #${found.tokenId} sign, in ${nearTxUrl(net, found.nearTx)}:`);
+    note(`  ${formatEther(found.tx.value)} ${found.chain.symbol} on ${found.chain.name} from ${found.from} to ${found.tx.to}`);
+    if (found.tx.data !== "0x") note(`  data ${found.tx.data.length > 74 ? `${found.tx.data.slice(0, 74)}…` : found.tx.data}`);
+    note(`  nonce ${found.tx.nonce}, fees up to ${formatEther(found.fee)} ${found.chain.symbol}, hash ${found.hash}`);
+    note("  The signature is public: anyone can broadcast it until that nonce is spent.");
+    if (net.id === "mainnet") note("  This is NEAR mainnet: real funds on that chain.");
+    await confirm(args);
+  };
+  const result = await finishSignEvm(net, args.nearTx as string, liveFinishDeps(net, approve), (step, detail) => {
+    reached = step;
+    if ((step === "broadcast" || step === "confirm") && detail) evmTx = detail;
+    note(`${FINISH_NOTES[step]}${(step === "broadcast" || step === "confirm") && detail ? ` ${detail}` : ""}…`);
+  }).catch((err: unknown) => {
+    if (err instanceof Exit) throw err;
+    const message = err instanceof Error ? err.message : String(err);
+    if (reached === "broadcast" || reached === "confirm") {
+      throw new Exit(3, `Broadcast ${evmTx}, but ${message}. Check it on an explorer before you run this again.`, { status: "unknown", evmTx });
+    }
+    throw new Exit(1, message);
+  });
+  const evmUrl = `${result.chain.explorer}/tx/${result.hash}`;
+  const verb = result.status === "success" ? (result.alreadyMined ? "Already mined:" : "Sent") : "Reverted:";
+  done(
+    args,
+    net,
+    {
+      tokenId: result.tokenId,
+      caller: result.caller,
+      chainId: result.chain.id,
+      from: result.from,
+      to: result.tx.to,
+      value: result.tx.value.toString(),
+      nonce: result.tx.nonce,
+      nearTx: result.nearTx,
+      evmTx: result.hash,
+      status: result.status,
+      alreadyMined: result.alreadyMined,
+    },
+    [
+      `${verb} ${formatEther(result.tx.value)} ${result.chain.symbol} on ${result.chain.name} from satchel #${result.tokenId}: ${evmUrl}`,
+      `Signed in ${nearTxUrl(net, result.nearTx)}`,
+    ],
+  );
+  return result.status === "success" ? 0 : 1;
+}
+
 // ---- Main -------------------------------------------------------------------------------------
 
-const COMMANDS = { verify, show, record, history, market, mint, list, delist, buy, transfer, send } as const;
+const COMMANDS = { verify, show, record, history, market, mint, list, delist, buy, transfer, send, dao } as const;
 
 async function main(argv: string[]): Promise<number> {
   const parsed = parseCli(argv);

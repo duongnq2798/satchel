@@ -30,7 +30,7 @@ tests. On mainnet a satchel holds real funds: keep in one only what you can affo
 | CLI signing | The near CLI only signs. `satchel-nft` runs it by its absolute path, decodes what it signed, compares signer, receiver, method, arguments, gas and deposit with what it asked for, shows it, and sends only after `yes` or `--yes` | `resolveNearCli`, `decodeSignedTx`, `assertSignedAsAsked` in `near-cli.ts`; `submit` in `cli.ts` | `near-cli.test.ts`, and on testnet (`deployments/testnet-cli.json`) |
 | The holder room's gate | A NEP-413 signature over a message the server writes itself, at most 5 minutes old; a full-access key of the account and the account as the satchel's owner, both read at one final NEAR block, on every request | `checkHolder` in `holder.ts`, `verifyNep413` in `nep413.ts`, `web/src/app/api/room/route.ts` | `holder.test.ts`, `nep413.test.ts` (against vectors near-cli-rs signed), `room-request.test.ts` |
 
-The contract's tests are in `contracts/satchel/src/tests.rs` (61), the package's next to each file (163).
+The contract's tests are in `contracts/satchel/src/tests.rs` (61), the package's next to each file (191).
 [Check every claim](/docs/security/check-every-claim#where-each-rule-lives) maps each rule to its code and tests,
 and says which rules have no unit test and how they were checked instead.
 

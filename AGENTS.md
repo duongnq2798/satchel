@@ -43,7 +43,7 @@ testnet over JSON-RPC and checks:
 | Its NEP-330 metadata names commit `87148c6` and the pinned Docker image | `contract_source_metadata` |
 | It signs only through `v1.signer-prod.testnet` | `mpc_contract()` |
 | The package derives every satchel's address from that MPC contract's root key, and pins that key | `public_key({ domain_id: 0 })` on `v1.signer-prod.testnet` equals `mpcRootKey` in `packages/satchel-nft/src/config.ts` |
-| The keys the package's tests derive are the ones the MPC contract gives for each satchel | `derived_public_key` for `satchel/1` to `satchel/7` equals `packages/satchel-nft/src/__fixtures__/derived-keys.json`, the keys `evm.test.ts` derives from the pinned root key |
+| The keys the package's tests derive are the ones the MPC contract gives for each satchel | `derived_public_key` for `satchel/1` to `satchel/8` equals `packages/satchel-nft/src/__fixtures__/derived-keys.json`, the keys `evm.test.ts` derives from the pinned root key |
 | Deployed and initialized in one transaction | tx `7pocx72c…`: `DeployContract` then `new({ mpc_contract: "v1.signer-prod.testnet" })` |
 | Its only key was deleted before the first mint | tx `6FYx6hV5…` is a `DeleteKey`, in an earlier block than satchel #1's mint |
 | The previous owner cannot sign after a transfer | tx `GqFsnmFL…` failed: `Satchel: only the token's owner can do this` |
@@ -83,6 +83,33 @@ The last three read `deployments/mainnet-first-send.json`, satchel #1's first se
   fee the record names, and that block is finalized. This one reads Base through `BASE_RPC`
   (`https://base-rpc.publicnode.com` by default) and fails until Base finalizes the block, about
   20 minutes after a send.
+
+A Sputnik DAO owned satchel #8 on testnet. That run has its own record,
+`deployments/testnet-dao.json`, and its own script:
+
+```bash
+node scripts/check-dao.mjs
+```
+
+You should see `5 of 5 claims hold`. It checks that:
+
+- `satchel-club.sputnikv2.testnet` was created by the `sputnikv2.testnet` factory (tx `7fsqT1cc…`),
+  its `version()` is `2.3.1`, and `get_policy` has only group roles, whose one member is
+  `satchel-nft.testnet`, a bond of 0 and a one-hour proposal period;
+- tx `GorSCms2…` minted satchel #8 to the DAO (`nft_mint`);
+- tx `5wqriE9U…` filed proposal 0 (`add_proposal` returned 0, with the kind `get_proposal` shows),
+  and vote `2ryQpsJR…` ran it as filed (method, arguments, deposit and gas), the proposal is
+  `Approved`, the DAO called `sign_evm` for #8 on Sepolia, the contract logged it at record version
+  1 and asked `v1.signer-prod.testnet` to sign `satchel/8` over the hash `evm_signing_hash` gives,
+  and the one signature is in a receipt the MPC contract ran, while the vote returned nothing;
+- Sepolia transaction `0x27e3262b…` has the fields `sign_evm` was given and the r, s and parity
+  the MPC contract returned, comes from `0x2aA82C50…A5F0`, succeeded in block 12102812, and that
+  block is finalized;
+- tx `A5YMQQp2…` filed proposal 1 and vote `6GSVLR17…` ran it as filed, an `nft_transfer` of #8 to
+  `buyer.satchel-nft.testnet`,
+  the contract logged it from the DAO, and right after it the record was still at version 1.
+
+`SEPOLIA_RPC` replaces the Sepolia node.
 
 ### 2. The clean transfer report for each demo satchel
 
@@ -130,7 +157,7 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  163 passed (163)` for `satchel-nft`, then
+Each runs in both workspaces. You should see `Tests  191 passed (191)` for `satchel-nft`, then
 `Tests  20 passed (20)` for the app, then no type errors.
 
 ```bash
@@ -213,12 +240,13 @@ of these checks.
 | Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `packages/satchel-nft/src/approvals.ts` | `approvals.test.ts` |
 | Check 4: nothing the record can't explain | `countersCheck` in `report.ts` | `report.test.ts` |
 | Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `packages/satchel-nft/src/evm.ts` | none yet |
-| A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: the keys of testnet satchels #1 to #7 and mainnet #1, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
+| A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: the keys of testnet satchels #1 to #8 and mainnet #1, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
 | The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `packages/satchel-nft/src/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
 | The wallet signs only for this network's contract, from an account on this network | `assertTxFor` in `guard.ts` | `guard.test.ts` |
 | A transfer refuses a receiver that doesn't exist on the network, the contract and the MPC contract | `assertReceiver` in `guard.ts` | `guard.test.ts` |
 | A purchase takes its record version and price from the report the buyer read, read on the same network | `web/src/components/sale-panel.tsx` | manual, on testnet |
 | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
+| `dao finish` broadcasts what a DAO's vote had a satchel sign only when the vote ran one `sign_evm` on this network's contract, one MPC signature is in its receipts, the contract's `evm_signing_hash` equals viem's hash, the signature recovers to the satchel's address, the nonce is the next one and the address can pay | `finishSignEvm`, `signatureFromReceipts`, `signEvmCalls` in `packages/satchel-nft/src/dao.ts`; `fromContractTx` in `evm.ts` | `dao.test.ts`, with the receipts of the testnet vote in `__fixtures__/dao-vote-outcome.json`; on chain, `node scripts/check-dao.mjs` |
 | The CLI sends only the transaction it asked the near CLI to sign: one function call, from the `--as` account, to this network's contract, with the method, arguments, gas and deposit it asked for | `decodeSignedTx`, `assertSignedAsAsked`, `signAndSend` in `packages/satchel-nft/src/near-cli.ts` | `near-cli.test.ts` |
 | The CLI runs the near CLI by its absolute path, found in PATH's absolute folders, never in the current folder | `resolveNearCli` in `near-cli.ts` | `near-cli.test.ts` |
 | The CLI's and the app's market list every live listing: pages are read until they cover `nft_total_supply`, since a page of the `listings` view can be short or empty with more after it | `allListings` in `packages/satchel-nft/src/satchel.ts`, used by `market` in `cli.ts`, `web/src/app/market/page.tsx` and `web/src/components/live-stats.tsx` | `satchel.test.ts` |

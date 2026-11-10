@@ -136,14 +136,15 @@ only past transactions, the contract's keys and code and the MPC keys, so it doe
 to a satchel.
 Until 2026-11-25:
 
-- Don't sign anything with testnet satchels #1, #3, #5, #6 or #7, or with mainnet satchel #1. A new
-  signature changes the report lines quoted in the README; one with satchel #5 at nonce 0 would end
-  the "signed and kept" example.
-- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #7 or mainnet #1. The
+- Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchel #1. A
+  new signature changes the report lines quoted in the README; one with satchel #5 at nonce 0 would
+  end the "signed and kept" example.
+- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1. The
   landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's example
   says #2's address belongs to the same seller; the README and the 1:18 scene show #7's history; #4
   is for sale for 1 NEAR at record version 0 and #6 at record version 1, and `list` on a listed
-  satchel replaces its price; `satchel-nft.near` owns mainnet #1.
+  satchel replaces its price; `buyer.satchel-nft.testnet` owns #8, as the DAO walkthrough ends;
+  `satchel-nft.near` owns mainnet #1.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
 If one of these has to change, run `npx -y satchel-nft@0.1.0 verify <id>` for testnet #1, #3, #4,

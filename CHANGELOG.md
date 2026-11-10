@@ -6,6 +6,30 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A satchel a Sputnik DAO owns, on testnet, with no contract change.
+  `satchel-club.sputnikv2.testnet` (`sputnikdao2` 2.3.1, one council member) owned satchel #8. A
+  FunctionCall proposal had the DAO call `sign_evm` with 1 yoctoNEAR and 150 Tgas; the vote that
+  approved it made the call, the contract hashed the Sepolia transaction from the proposal's
+  arguments and recorded it, and `v1.signer-prod.testnet` signed. The signature is in one of the
+  vote's receipts, not in what the vote returns, so `satchel-nft dao finish <near tx>` reads every
+  receipt (`signatureFromReceipts`, `signEvmCalls` in `dao.ts`), checks that the contract's
+  `evm_signing_hash` equals viem's hash and that the signature recovers to the satchel's address,
+  checks the nonce and the balance, asks, and broadcasts. It needs no key: the signature is public.
+  It asks FastNEAR's transaction index for the vote's signer, and reads a vote older than a day or
+  two from FastNEAR's archival node.
+  On Sepolia the send got status 1 and `verify 8` read `PROVABLY CLEAN`; a second proposal had
+  the DAO call `nft_transfer` to `buyer.satchel-nft.testnet`, and the report still reads clean.
+  `daoProposal(net)` builds both proposals, `daoVote` the vote with the proposal's kind, and
+  `sputnikDao(net, id).openProposals()` with `nonceClash` finds an open proposal that already has
+  the satchel sign that nonce. `fromContractTx` (`evm.ts`) turns `sign_evm`'s JSON transaction
+  back into viem's, refusing what the contract would refuse. Every transaction is in
+  [`deployments/testnet-dao.json`](deployments/testnet-dao.json), read back from the chains, and
+  `node scripts/check-dao.mjs` checks five claims about the run against NEAR testnet and Sepolia
+  (the DAO's version, sole council member, bond and period; the mint to the DAO; both proposals as
+  filed and the votes that ran them; and the Sepolia send, its fields and signature); the docs have
+  [a walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) and `dao finish` in the
+  CLI reference. 28 new tests, with the vote's receipts as a fixture, and
+  `derived-keys.json` has the key of `satchel/8`. Not in 0.1.0, and not run on mainnet.
 - The holder room: `/satchel/<id>/room` (and `/mainnet/satchel/<id>/room`), a page only the account
   that owns a satchel right now can open, linked from the satchel's page. The holder's wallet signs a
   NEP-413 message (NEAR Connect's `signMessage`) naming the satchel, the network, the contract, the
@@ -25,7 +49,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `handoverKit` (`kit.ts`), `finalBlock`, `viewAt`, `accessKeyAt`, `rpcFor` and `RPC_TIMEOUT_MS`
   (`near.ts`) and `nearBlockUrl` (`config.ts`), and the report's pending and approvals checks gain
   `chains`, the chain and status behind each line; none is in 0.1.0 on npm. 35 new package tests
-  (163 in all), the NEP-413 ones against two signatures near-cli-rs made, and 5 app tests (20). The docs gain a guide, "Open the holder room" (37 pages), and a section in the
+  (191 in all, with the DAO entry's 28), the NEP-413 ones against two signatures near-cli-rs made, and 5 app tests (20). The docs gain a guide, "Open the holder room" (38 pages with the DAO walkthrough), and a section in the
   security model; the threat model adds rows 24 to 28 (38 attacks) and residual risk 13. AGENTS.md
   adds the checks for it. The README and "Run the web app yourself" no longer say the app has no
   backend: it has one stateless server route.
@@ -34,7 +58,6 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   file cargo-near's `cargo near new` template writes, with Satchel's name, description, repository
   and dependencies; the package's and the app's npm dependencies and fonts; the test and
   CI tools; and that Claude Code wrote most of the code, tests and docs, with no human audit.
-
 - Two contract tests for a sale in the middle of a payout (61 in all). In
   `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record`, the seller has a send signed, lists,
   and a buyer buys before the MPC network answers: the record the buyer bought still names that
@@ -62,8 +85,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   NEAR RPC can no longer change the address of a given satchel. Which satchel is yours (the id a mint
   returns, the tokens an account owns) still comes from the NEAR RPC, or for a mint from the wallet,
   and the threat model says so (row 21g). The token page says under the address that it was derived
-  in the browser. The tests derive the keys of all 8 satchels on both networks and get
-  what `derived_public_key` returned (`__fixtures__/derived-keys.json`, 14 new tests, 128 in all), and
+  in the browser. The tests derive the keys of testnet satchels #1 to #7 and mainnet #1 and
+  get what `derived_public_key` returned (`__fixtures__/derived-keys.json`, 14 new tests, 128 in all), and
   `check-claims.mjs` has two new claims on each network: the pinned root key is the MPC contract's
   `public_key`, and the fixture's keys are its `derived_public_key` (13 claims on testnet, 11 on
   mainnet). The package now depends on `@noble/curves` and `@noble/hashes`, which viem already
@@ -270,9 +293,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   A long seller account wraps instead of running out of the panel.
 - Counts that had gone stale: the threat model has 33 attacks, not 32 (README); the app has 15 unit
   tests, not 3 (README); the docs' security page said 59 contract and 94 package tests (now 61 and
-  128). The README banner said the checks run "with npm run verify", which only works inside `web`;
+  191). The README banner said the checks run "with npm run verify", which only works inside `web`;
   it now says `npx satchel-nft verify`. The README, AGENTS.md, threat model row 21g and the docs
-  name the 8 satchels the derived-key fixture covers (testnet #1 to #7, mainnet #1) instead of "all
+  name the 9 satchels the derived-key fixture covers (testnet #1 to #8, mainnet #1) instead of "all
   8 satchels", which stopped being true once testnet satchel #8 was minted.
 - The README's quick-start output for satchel #1 showed its record before its last signature
   (`max_nonce` 3, 6 signatures, version 6). It now shows what the chain returns: `max_nonce` 4,

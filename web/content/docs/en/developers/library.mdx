@@ -361,6 +361,68 @@ interface SendDeps {
 }
 ```
 
+## A satchel a DAO owns
+
+From `dao.ts`, in this repository and not in 0.1.0. A Sputnik DAO that owns a satchel signs
+through proposals: the vote that passes one has the DAO call the Satchel contract.
+[A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel) uses each of these on testnet.
+
+```ts
+// add_proposal arguments: the DAO calls net.contract with 1 yoctoNEAR. Attach the DAO's proposal_bond.
+function daoProposal(net: Network): {
+  signEvm(tokenId: string, tx: ContractTx, description?: string): { proposal: { description: string; kind: FunctionCallKind } };
+  transfer(tokenId: string, receiverId: string, description?: string): { proposal: { description: string; kind: FunctionCallKind } };
+};
+const DAO_SIGN_EVM_GAS: bigint; // 150 Tgas, attached to sign_evm as is
+const DAO_TRANSFER_GAS: bigint; // 30 Tgas, for nft_transfer
+const DAO_VOTE_GAS: bigint; // 300 Tgas, for the vote that runs the proposal
+
+// act_proposal arguments, with the proposal's kind as get_proposal returned it.
+function daoVote(id: number, kind: DaoProposalKind, action?: "VoteApprove" | "VoteReject"): { id: number; action: string; proposal: DaoProposalKind };
+
+// Reads: get_policy, get_proposal, get_last_proposal_id, get_proposals, and the proposals that can
+// still run (in progress or failed, inside the proposal period).
+function sputnikDao(net: Network, daoId: string): {
+  policy(): Promise<DaoPolicy>;
+  proposal(id: number): Promise<DaoProposal>;
+  lastProposalId(): Promise<number>;
+  proposals(fromIndex: number, limit: number): Promise<DaoProposal[]>;
+  openProposals(nowMs?: number): Promise<DaoProposal[]>;
+};
+
+// The open proposal that already has tokenId sign that nonce on that chain, or null. Numbers
+// compare as the contract reads them: "+1", "01" and "1" are one nonce.
+function nonceClash(net: Network, open: DaoProposal[], tokenId: string, chainId: string, nonce: string): DaoProposal | null;
+function proposedSignatures(net: Network, proposal: DaoProposal): { tokenId: string; tx: ContractTx }[];
+```
+
+A vote returns nothing, so `outcomeValue` finds no signature in it. These read every receipt of a
+transaction as `EXPERIMENTAL_tx_status` returns it (`TxStatus`):
+
+```ts
+// The MPC signature in a receipt net.mpc ran, or null; two different ones throw.
+function signatureFromReceipts(net: Network, tx: TxStatus): MpcSignature | null;
+// The sign_evm calls the receipts made on net.contract: caller, token, transaction, outcome.
+function signEvmCalls(net: Network, tx: TxStatus): SignEvmCall[];
+// From net's NEAR RPC, or FastNEAR's archival node (NEAR_ARCHIVAL_RPC) once the regular one dropped it.
+function readTxStatus(net: Network, hash: string): Promise<TxStatus>;
+
+// The flow `satchel-nft dao finish` runs: read, hash, recover, then broadcast and confirm.
+type FinishStep = "read" | "hash" | "recover" | "broadcast" | "confirm";
+function finishSignEvm(net: Network, nearTx: string, deps: FinishDeps, onStep?: (step: FinishStep, detail?: string) => void): Promise<FinishResult>;
+function liveFinishDeps(net: Network, approve: (found: FoundSignature) => Promise<void>): FinishDeps;
+```
+
+`finishSignEvm` throws, with nothing broadcast, when the contract hashes the transaction to
+something else than viem, when the signature recovers to another address than the satchel's, when
+the nonce is already spent, when earlier nonces are unspent, or when the address can't pay.
+A transaction someone already broadcast comes back with `alreadyMined: true`. `FoundSignature.fee`
+is the most it can pay on top of the value: gas at the fee cap, plus the L1 data fee on OP Stack
+chains. `approve` runs last, before the broadcast: throw from it to stop. `fromContractTx` (in
+`evm.ts`) turns `sign_evm`'s JSON transaction back into an `EvmTx`, reading numbers as near-sdk's
+`U64` and `U128` do (`contractUint`: a leading + and zeros allowed) and refusing what the contract
+would refuse, calldata over 8 KiB included.
+
 ## EVM helpers
 
 From `evm.ts`.
@@ -426,7 +488,7 @@ From `near.ts`. Every NEAR read in the library goes through `nearRpc`.
 
 | Export | Signature | What it does |
 | --- | --- | --- |
-| `nearRpc(net, method, params)` | `<T>(net: Network, method: string, params: unknown) => Promise<T>` | One JSON-RPC call. Throws `NearRpcError` on an HTTP error or an RPC error |
+| `nearRpc(net, method, params, signal?, url?)` | `<T>(net: Network, method: string, params: unknown, signal?: AbortSignal, url?: string) => Promise<T>` | One JSON-RPC call, to `url` or else `nearRpcUrl(net)`; `signal` can abort it. Throws `NearRpcError` on an HTTP error or an RPC error |
 | `view(net, account, method, args?)` | `<T>(net, account: string, method: string, args?: unknown) => Promise<T>` | A view call at a final block. A contract panic throws an `Error` whose message is the panic, like `evm_signing_hash`'s `Satchel: to must be 20 bytes` |
 | `viewAccount(net, account)` | `=> Promise<AccountView>` | `amount`, `code_hash`, `storage_usage` and any global contract fields |
 | `accessKeyCount(net, account)` | `=> Promise<number>` | |
@@ -529,6 +591,7 @@ if (counts.history !== counts.record) console.log("The index and the record disa
 - [Build a feed of clean listings](/docs/tutorials/clean-listings-feed): a complete script with
   `listings`, `totalSupply`, `contractFacts`, `buildReport` and `limiter`.
 - [CLI reference](/docs/developers/cli): the same code as commands.
+- [A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel): the DAO helpers on testnet.
 - [Contract reference](/docs/developers/contract): the methods these transactions call.
 - [Errors and exit codes](/docs/developers/errors): every `Satchel: …` message `outcomeValue` and
   `view` can throw.

@@ -142,6 +142,58 @@ export function toContractTx(tx: EvmTx): ContractTx {
   };
 }
 
+const U64_MAX = 0xffffffffffffffffn;
+const U128_MAX = (1n << 128n) - 1n;
+/** The contract's `MAX_DATA_BYTES`: it refuses longer calldata. */
+const MAX_DATA_BYTES = 8 * 1024;
+
+/**
+ * A number as near-sdk's `U64` and `U128` read it from JSON: a decimal string, where a leading +
+ * and leading zeros are allowed, at most `max`. Null for anything the contract refuses.
+ */
+export function contractUint(text: unknown, max: bigint = U64_MAX): bigint | null {
+  if (typeof text !== "string" || !/^\+?\d+$/.test(text)) return null;
+  const value = BigInt(text);
+  return value <= max ? value : null;
+}
+
+/**
+ * The transaction `sign_evm` was given, from its JSON arguments: what a DAO proposal or a receipt
+ * carries. Throws on what the contract would refuse to sign: a number that is not a decimal of its
+ * size, a tip above the fee cap, a `to` that is not an address, `data` that is not whole bytes or
+ * is longer than 8 KiB.
+ */
+export function fromContractTx(tx: ContractTx): EvmTx {
+  const int = (name: keyof ContractTx, max: bigint) => {
+    const value = contractUint(tx[name], max);
+    if (value === null) throw new Error(`sign_evm's ${name} is not a number the contract takes: ${JSON.stringify(tx[name])}`);
+    return value;
+  };
+  const chainId = int("chain_id", U64_MAX);
+  const nonce = int("nonce", U64_MAX);
+  const tip = int("max_priority_fee_per_gas", U128_MAX);
+  const cap = int("max_fee_per_gas", U128_MAX);
+  // The contract takes any u64; a chain id or nonce past 2^53 can't be sent from here.
+  if (chainId === 0n || chainId > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`sign_evm's chain_id ${chainId} can't be sent`);
+  if (nonce > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`sign_evm's nonce ${nonce} can't be sent`);
+  if (tip > cap) throw new Error("sign_evm's max_priority_fee_per_gas is above its max_fee_per_gas");
+  if (typeof tx.to !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(tx.to)) throw new Error(`sign_evm's to is not an address: ${JSON.stringify(tx.to)}`);
+  // The contract reads a missing `data` as 0x.
+  const data = tx.data ?? "0x";
+  if (typeof data !== "string" || !/^0x(?:[0-9a-fA-F]{2})*$/.test(data)) throw new Error("sign_evm's data is not 0x followed by whole bytes");
+  if (data.length - 2 > 2 * MAX_DATA_BYTES) throw new Error(`sign_evm's data is longer than the contract's ${MAX_DATA_BYTES} bytes`);
+  return {
+    chainId: Number(chainId),
+    nonce: Number(nonce),
+    maxPriorityFeePerGas: tip,
+    maxFeePerGas: cap,
+    gas: int("gas_limit", U64_MAX),
+    to: getAddress(tx.to.toLowerCase()),
+    value: int("value", U128_MAX),
+    data: data.toLowerCase() as Hex,
+  };
+}
+
 function serializable(tx: EvmTx): TransactionSerializableEIP1559 {
   return { type: "eip1559", ...tx, accessList: [] };
 }

@@ -95,6 +95,21 @@ describe("parseCli", () => {
       data: "0x",
     });
   });
+
+  it("finishes a DAO's sign_evm from the NEAR transaction hash, with no signer", () => {
+    const hash = "2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M";
+    expect(run(["dao", "finish", hash])).toMatchObject({ command: "dao", nearTx: hash, yes: false, network: "testnet" });
+    expect(run(["dao", "finish", hash, "--yes", "--json"])).toMatchObject({ yes: true, json: true });
+    expect(error(["dao"])).toBe("usage: satchel-nft dao finish <near tx>");
+    expect(error(["dao", "finish"])).toBe("usage: satchel-nft dao finish <near tx>");
+    expect(error(["dao", "vote", hash])).toBe("dao takes finish, not vote");
+    expect(error(["dao", "finish", "0x27e3"])).toMatch(/not a NEAR transaction hash/);
+    expect(error(["dao", "finish", `${hash.slice(0, 42)}0l`])).toMatch(/not a NEAR transaction hash/);
+    // Leading zero bytes encode as 1s, so a hash can be as short as 32 characters.
+    expect(run(["dao", "finish", "1".repeat(32)]).nearTx).toBe("1".repeat(32));
+    expect(error(["dao", "finish", "1".repeat(31)])).toMatch(/not a NEAR transaction hash/);
+    expect(error(["dao", "finish", hash, "--as", "a.testnet"])).toMatch(/does not take --as/);
+  });
 });
 
 describe("sendInputs", () => {

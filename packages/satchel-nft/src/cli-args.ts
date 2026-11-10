@@ -23,11 +23,17 @@ Sign with a key in the near CLI's keychain, as --as <account>:
   send <id> --chain <chain> --to <0x address> --value <amount> [--data <0x calldata>]
                               send from its address on one of the network's EVM chains
 
+For a satchel a Sputnik DAO owns, no keys needed:
+  dao finish <near tx>        read the MPC signature from the receipts of the vote that ran
+                              sign_evm, check the contract hashed that transaction and the
+                              signature recovers to the satchel's address, then broadcast it
+
 Options:
   --network testnet|mainnet   the NEAR network (default testnet)
   --json                      print JSON, for scripts and bots
   --as <account>              the NEAR account that signs
-  --yes                       sign without asking; needed when there is no terminal to ask in
+  --yes                       sign (dao finish: broadcast) without asking; needed when there is
+                              no terminal to ask in
   --accept-not-clean          let buy go ahead when the report does not read PROVABLY CLEAN
   --keychain legacy|os        where the near CLI keeps the key: ~/.near-credentials (default)
                               or the OS keychain
@@ -42,7 +48,7 @@ could not run, 3 it sent a transaction but could not read its outcome: check it 
 
 export const READ_COMMANDS = ["verify", "show", "record", "history", "market"] as const;
 export const SIGN_COMMANDS = ["mint", "list", "delist", "buy", "transfer", "send"] as const;
-export type CommandName = (typeof READ_COMMANDS)[number] | (typeof SIGN_COMMANDS)[number];
+export type CommandName = (typeof READ_COMMANDS)[number] | (typeof SIGN_COMMANDS)[number] | "dao";
 
 export interface CliArgs {
   command: CommandName;
@@ -51,6 +57,8 @@ export interface CliArgs {
   tokenId?: string;
   /** list: the price in NEAR, as typed. */
   price?: string;
+  /** dao finish: the NEAR transaction that ran sign_evm. */
+  nearTx?: string;
   /** transfer: the receiving account. */
   receiver?: string;
   /** Sign commands: the signing account, `--as`. */
@@ -81,6 +89,7 @@ const SHAPE: Record<CommandName, { positionals: string[]; options: string[] }> =
   buy: { positionals: ["id"], options: ["accept-not-clean"] },
   transfer: { positionals: ["id", "account"], options: [] },
   send: { positionals: ["id"], options: ["chain", "to", "value", "data"] },
+  dao: { positionals: ["action", "tx"], options: ["yes"] },
 };
 const SIGN_OPTIONS = ["as", "yes", "keychain", "near-cli"];
 
@@ -129,7 +138,7 @@ export function parseCli(argv: string[]): Parsed {
   const stray = Object.keys(values).filter((key) => !allowed.has(key));
   if (stray.length > 0) return { kind: "error", message: `${name} does not take --${stray.join(", --")}` };
   if (rest.length !== shape.positionals.length) {
-    const want = shape.positionals.map((p) => `<${p}>`).join(" ");
+    const want = name === "dao" ? "finish <near tx>" : shape.positionals.map((p) => `<${p}>`).join(" ");
     return { kind: "error", message: `usage: satchel-nft ${name}${want ? ` ${want}` : ""}` };
   }
 
@@ -152,6 +161,12 @@ export function parseCli(argv: string[]): Parsed {
     const id = tokenIdArg(rest[0]);
     if (id === null) return { kind: "error", message: `A token id is a whole number, like 1, not ${rest[0]}` };
     args.tokenId = id;
+  }
+  if (name === "dao") {
+    if (rest[0] !== "finish") return { kind: "error", message: `dao takes finish, not ${rest[0]}` };
+    // A NEAR transaction hash: 32 bytes in base58, so 32 to 44 characters (leading zero bytes are 1s).
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(rest[1])) return { kind: "error", message: `${rest[1]} is not a NEAR transaction hash` };
+    args.nearTx = rest[1];
   }
   if (name === "list") args.price = rest[1];
   if (name === "transfer") args.receiver = rest[1];

@@ -82,8 +82,8 @@ so the report never trusts the contract to describe itself.
 | `build.commit` | `87148c6b6f97f3121cac13c93e22d7d153453b53` | the same |
 
 In this repository (not in 0.1.0), `Network` also has `txApi`, FastNEAR's transaction index
-(`https://tx.test.fastnear.com`, `https://tx.main.fastnear.com`). Only a satchel's history reads it;
-the report doesn't. It also has `mpcRootKey`, the MPC contract's root public key, which every
+(`https://tx.test.fastnear.com`, `https://tx.main.fastnear.com`). A satchel's history reads it, and
+`dao finish` asks it for a vote's signer; the report doesn't. It also has `mpcRootKey`, the MPC contract's root public key, which every
 satchel's key is [derived from](/docs/concepts/satchels-and-addresses#derive-it-yourself).
 
 `CHAINS` lists the 16 EVM chains the contract can sign for, each with its chain id, coin, default
