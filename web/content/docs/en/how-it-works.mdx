@@ -49,7 +49,8 @@ No one holds a satchel's key. NEAR's MPC network derives it from two things: the
 `v1.satchel-nft.near` (`v1.satchel-nft.testnet` on testnet), and the path `satchel/<token_id>`. Both are fixed for the token's life, so the
 key, and the address it controls, never change, whoever owns the token. You can read the public key
 from the MPC contract's `derived_public_key` view; the address is the last 20 bytes of its keccak hash,
-the same on every EVM chain.
+the same on every EVM chain. The app and the CLI don't need to ask: they compute the same key from the
+MPC network's root key, pinned in the package, so no RPC answer chooses the address.
 
 Only the Satchel contract can ask for a signature from that key, and its code allows it only for the
 token's current owner. Transferring the NFT is therefore transferring the address, on all 16 chains at

@@ -33,7 +33,7 @@ the first time. Run every command from the repository root.
 node scripts/check-claims.mjs
 ```
 
-You should see 11 `[PASS]` lines, then `11 of 11 claims hold`, with exit code 0. It reads NEAR
+You should see 13 `[PASS]` lines, then `13 of 13 claims hold`, with exit code 0. It reads NEAR
 testnet over JSON-RPC and checks:
 
 | Claim (README) | What the script reads |
@@ -42,6 +42,8 @@ testnet over JSON-RPC and checks:
 | Its code is the reproducible build, not a global contract | `view_account`: `code_hash` equals `deployments/testnet.json`, no global contract fields |
 | Its NEP-330 metadata names commit `87148c6` and the pinned Docker image | `contract_source_metadata` |
 | It signs only through `v1.signer-prod.testnet` | `mpc_contract()` |
+| The package derives every satchel's address from that MPC contract's root key, and pins that key | `public_key({ domain_id: 0 })` on `v1.signer-prod.testnet` equals `mpcRootKey` in `packages/satchel-nft/src/config.ts` |
+| The keys the package's tests derive are the ones the MPC contract gives for each satchel | `derived_public_key` for `satchel/1` to `satchel/7` equals `packages/satchel-nft/src/__fixtures__/derived-keys.json`, the keys `evm.test.ts` derives from the pinned root key |
 | Deployed and initialized in one transaction | tx `7pocx72c…`: `DeployContract` then `new({ mpc_contract: "v1.signer-prod.testnet" })` |
 | Its only key was deleted before the first mint | tx `6FYx6hV5…` is a `DeleteKey`, in an earlier block than satchel #1's mint |
 | The previous owner cannot sign after a transfer | tx `GqFsnmFL…` failed: `Satchel: only the token's owner can do this` |
@@ -63,8 +65,8 @@ The mainnet deployment has its own record, `deployments/mainnet.json`:
 node scripts/check-claims.mjs --network mainnet
 ```
 
-You should see `9 of 9 claims hold`. The first five are the rows above for `v1.satchel-nft.near`
-(signer `v1.signer`, deploy-and-init tx `3cbRdh9W…`). The sixth reads `nft_total_supply()` at the
+You should see `11 of 11 claims hold`. The first seven are the rows above for `v1.satchel-nft.near`
+(signer `v1.signer`, its root key, satchel #1's derived key, deploy-and-init tx `3cbRdh9W…`). The eighth reads `nft_total_supply()` at the
 block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
 satchel was minted while the key existed. The refused calls are testnet only.
 
@@ -181,6 +183,7 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `packages/satchel-nft/src/approvals.ts` | `approvals.test.ts` |
 | Check 4: nothing the record can't explain | `countersCheck` in `report.ts` | `report.test.ts` |
 | Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `packages/satchel-nft/src/evm.ts` | none yet |
+| A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: all 8 satchels' keys, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
 | The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `packages/satchel-nft/src/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
 | The wallet signs only for this network's contract, from an account on this network | `assertTxFor` in `guard.ts` | `guard.test.ts` |
 | A transfer refuses a receiver that doesn't exist on the network, the contract and the MPC contract | `assertReceiver` in `guard.ts` | `guard.test.ts` |

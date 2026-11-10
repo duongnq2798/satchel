@@ -1,6 +1,7 @@
 // Checks the README's on-chain claims about a deployment against NEAR RPC: the contract's lock, code
-// and signer, the transactions that deployed and locked it; on testnet, the calls it refused; on
-// mainnet, satchel #1 and its first send on Base. Node 22 or later, no install, no wallet, no key.
+// and signer, the transactions that deployed and locked it, the MPC root key the package derives
+// addresses from; on testnet, the calls it refused; on mainnet, satchel #1 and its first send on
+// Base. Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
 // BASE_RPC replaces the Base node the mainnet run reads.
@@ -44,6 +45,18 @@ async function rpc(url, method, params) {
 }
 
 const query = (params) => rpc(RPC, "query", { finality: "final", account_id: CONTRACT, ...params });
+
+/** Calls a view method of another account now. */
+async function viewOn(account, method, args) {
+  const { result } = await rpc(RPC, "query", {
+    finality: "final",
+    account_id: account,
+    request_type: "call_function",
+    method_name: method,
+    args_base64: Buffer.from(JSON.stringify(args)).toString("base64"),
+  });
+  return JSON.parse(Buffer.from(result).toString());
+}
 
 /** Calls a view method now, or at `blockId` on the archival node. */
 async function view(method, args = {}, blockId) {
@@ -125,6 +138,30 @@ const DEPLOYMENT = [
       const mpc = await view("mpc_contract");
       if (mpc !== deployment.mpc_contract) throw new Error(`mpc_contract() is ${mpc}`);
       return `mpc_contract() = ${mpc}`;
+    },
+  },
+  {
+    claim: `The package derives every satchel's address from ${deployment.mpc_contract}'s root key, and pins that key`,
+    check: async () => {
+      const config = readFileSync(new URL("../packages/satchel-nft/src/config.ts", import.meta.url), "utf8");
+      const block = config.match(new RegExp(`export const ${NETWORK.toUpperCase()}: Network = \\{([\\s\\S]*?)\\n\\};`))?.[1] ?? "";
+      const pinned = block.match(/mpcRootKey:\s*"([^"]+)"/)?.[1];
+      const root = await viewOn(deployment.mpc_contract, "public_key", { domain_id: 0 });
+      if (pinned !== root) throw new Error(`config.ts pins ${pinned}, public_key({ domain_id: 0 }) is ${root}`);
+      return `public_key({ domain_id: 0 }) = ${root.slice(0, 22)}…, as config.ts pins it`;
+    },
+  },
+  {
+    claim: `The keys the package's tests derive are the ones ${deployment.mpc_contract} gives for each satchel`,
+    check: async () => {
+      const fixture = new URL("../packages/satchel-nft/src/__fixtures__/derived-keys.json", import.meta.url);
+      const { contract, keys } = JSON.parse(readFileSync(fixture, "utf8"))[NETWORK];
+      if (contract !== CONTRACT) throw new Error(`the fixture is for ${contract}`);
+      for (const [path, key] of Object.entries(keys)) {
+        const chain = await viewOn(deployment.mpc_contract, "derived_public_key", { path, predecessor: CONTRACT, domain_id: 0 });
+        if (chain !== key) throw new Error(`${path}: derived_public_key is ${chain}, the fixture has ${key}`);
+      }
+      return `derived_public_key matches for ${Object.keys(keys).join(", ")}`;
     },
   },
   {

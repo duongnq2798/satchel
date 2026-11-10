@@ -1,0 +1,26 @@
+{
+  "read": "2026-11-10",
+  "source": "the MPC contract's public_key and derived_public_key views (domain 0), at final",
+  "testnet": {
+    "mpc": "v1.signer-prod.testnet",
+    "contract": "v1.satchel-nft.testnet",
+    "rootKey": "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3",
+    "keys": {
+      "satchel/1": "secp256k1:uB6uEeQBAQdZZ4mTgDpaSSfyBXUWcNixrep15KX8UwSGa9iUkfywL1xQQog9MZ76YbKQWe5hiMbuDhXVJnuBykT",
+      "satchel/2": "secp256k1:3mYGLaNADHdGuxZhHRPTTZGJEkTLdS2RMwHxub2Bvzi8QNkkuA7PysTWNMejBoJVuv2dBUDiRhC7eQSMXigdpPzL",
+      "satchel/3": "secp256k1:52x1d1cRWFe2xyi1Bw36FigtGFBgZj7FrcyQpMhNKDqbnwqdRpMK58k6dCgdzjWcX3ZeFJXj8AXdJWghDKVcgsHW",
+      "satchel/4": "secp256k1:hoNZSpJjSMwcBELNSMRtWk2z8pJFFQE6ycnTjQSNuEWbm8W7To5LBAyMyeNCsM8dLyCWb9A9F7rYxCMF59Tc1EA",
+      "satchel/5": "secp256k1:nWPQi5tTotXz3aTjB7vDSsWWYov1ncJNeg8h5W9mkTpaGuJk6xu2yUP7FFKvFiuGspXAkhXMTc3MTousk1WLyEx",
+      "satchel/6": "secp256k1:5nBxsPDEmJ4Wh7vHzmYrogK3gcxQf6H9Kip7z3ZCgT5T82d9JyvYjYPXFKRnbNoB9gL82P5ZQLnTAZsnan3nL6tH",
+      "satchel/7": "secp256k1:2HBP3mFx1CgnbGABdXCNoj7cJyJnvc2MrJSbTp7XRZcbnUzaRb8pkQffixHgniopisJ8AQy37L9w2c24wMzNMqhR"
+    }
+  },
+  "mainnet": {
+    "mpc": "v1.signer",
+    "contract": "v1.satchel-nft.near",
+    "rootKey": "secp256k1:3tFRbMqmoa6AAALMrEFAYCEoHcqKxeW38YptwowBVBtXK1vo36HDbUWuR6EZmoK4JcH6HDkNMGGqP1ouV7VZUWya",
+    "keys": {
+      "satchel/1": "secp256k1:4BdmZcZd6Eq4hyTcGLQDXwSFpaUBjbSjE8p13hVCkXTmep98supGSJLEPHKEoMV9vyazCpDWGQPdZTXYXWh1KT9K"
+    }
+  }
+}

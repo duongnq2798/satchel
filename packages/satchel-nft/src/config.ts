@@ -9,6 +9,12 @@ export interface Network {
   contract: string;
   /** The canonical Chain Signatures contract. `mpc_contract()` must return this. */
   mpc: string;
+  /**
+   * `mpc`'s secp256k1 root public key (domain 0), as its `public_key` view returns it. Every
+   * satchel's key is derived from it in this package (`deriveMpcKey`), so no RPC answer decides an
+   * address.
+   */
+  mpcRootKey: string;
   nearRpc: string;
   nearExplorer: string;
   /**
@@ -31,6 +37,9 @@ export const TESTNET: Network = {
   id: "testnet",
   contract: "v1.satchel-nft.testnet",
   mpc: "v1.signer-prod.testnet",
+  // public_key({ domain_id: 0 }) on v1.signer-prod.testnet, read 2026-11-10.
+  mpcRootKey:
+    "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3",
   nearRpc: "https://rpc.testnet.fastnear.com",
   nearExplorer: "https://testnet.nearblocks.io",
   txApi: "https://tx.test.fastnear.com",
@@ -41,6 +50,9 @@ export const MAINNET: Network = {
   id: "mainnet",
   contract: "v1.satchel-nft.near",
   mpc: "v1.signer",
+  // public_key({ domain_id: 0 }) on v1.signer, read 2026-11-10.
+  mpcRootKey:
+    "secp256k1:3tFRbMqmoa6AAALMrEFAYCEoHcqKxeW38YptwowBVBtXK1vo36HDbUWuR6EZmoK4JcH6HDkNMGGqP1ouV7VZUWya",
   nearRpc: "https://rpc.mainnet.fastnear.com",
   nearExplorer: "https://nearblocks.io",
   txApi: "https://tx.main.fastnear.com",

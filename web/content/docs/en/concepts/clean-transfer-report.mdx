@@ -170,7 +170,7 @@ Each chain's RPC must also say it serves the chain id it is configured for, or e
 | `contract` | string | The Satchel contract it read |
 | `tokenId` | string | The satchel's id |
 | `owner` | string | Its owner when read |
-| `address` | `0x…` string | Its EVM address, from the MPC contract's `derived_public_key` |
+| `address` | `0x…` string | Its EVM address, derived from the MPC network's root key as the MPC contract's `derived_public_key` does |
 | `recordVersion` | string | The record version the checks were run against. A purchase must name this |
 | `listing` | object or `null` | `seller`, `price` (yoctoNEAR), `record_version`, `listed_at` |
 | `checks` | four `{ id, status, title, lines }` | `id` is `contract`, `pending`, `approvals` or `counters`; `status` is `pass`, `fail` or `unknown` |
@@ -218,7 +218,9 @@ read from nodes you trust, set `NEAR_RPC` and `RPC_<chain id>`:
 NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
 ```
 
-A satchel's address also comes through the NEAR RPC, from the MPC contract's `derived_public_key` view.
+A satchel's address doesn't come from an RPC: the app and the CLI derive it from the MPC network's root key,
+pinned in the package ([how](/docs/concepts/satchels-and-addresses#derive-it-yourself)). `satchel-nft` 0.1.0 on
+npm still reads it through the NEAR RPC, from the MPC contract's `derived_public_key` view.
 
 Two things on a satchel's page are not part of the report, and it reads neither. **What's inside** reads
 USDC, USDT and WETH at one listed address per chain. **History** comes from FastNEAR's transaction index, a

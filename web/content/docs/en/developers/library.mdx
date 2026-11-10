@@ -366,7 +366,7 @@ From `evm.ts`.
 
 | Export | Signature | What it does |
 | --- | --- | --- |
-| `tokenAddress(net, path)` | `(net: Network, path: string) => Promise<Address>` | A satchel's EVM address: the MPC contract's `derived_public_key` for the Satchel contract, the path and domain 0 |
+| `tokenAddress(net, path)` | `(net: Network, path: string) => Promise<Address>` | A satchel's EVM address: the key the MPC network derives for the Satchel contract, the path and domain 0. In 0.1.0 it reads the MPC contract's `derived_public_key` through the NEAR RPC; in this repository it computes the key from `net.mpcRootKey` and reads nothing |
 | `addressFromMpcKey(publicKey)` | `(publicKey: string) => Address` | `secp256k1:<base58>` to a checksummed address. Throws on another curve or a key that isn't 64 bytes |
 | `base58Decode(text)` | `(text: string) => Uint8Array` | |
 | `prepareTx(chain, from, to, value, data)` | `=> Promise<EvmTx>` | The next transaction from `from`: pending nonce, `maxFeePerGas` of twice the base fee plus the tip, gas estimated (21000 when the estimate is 21000 or less, else the estimate plus 20%). Throws, signing nothing, if the chain says it would fail |
@@ -503,7 +503,11 @@ From `contents.ts`, `history.ts` and `evm.ts`.
 | `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
 
 `Network` also gains `txApi`: `https://tx.test.fastnear.com` on testnet,
-`https://tx.main.fastnear.com` on mainnet.
+`https://tx.main.fastnear.com` on mainnet, and `mpcRootKey`, the MPC contract's root public key.
+`deriveMpcKey(rootKey, predecessor, path)`, from `evm.ts`, returns the `secp256k1:` key the MPC
+network holds for `path` when `predecessor` asks, as its `derived_public_key` view does, and throws if
+the root key isn't a point on the curve ([how it works](/docs/concepts/satchels-and-addresses#derive-it-yourself)).
+`base58Encode(bytes)` is `base58Decode`'s inverse.
 
 ```ts title="history.ts"
 import { TESTNET, describeEntry, satchel, signatureCounts, tokenHistory } from "satchel-nft";

@@ -6,6 +6,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A satchel's address no longer comes from an RPC. The package derives each satchel's key itself, as
+  the MPC contract's `derived_public_key` view does: the MPC network's root key plus `t·G`, where `t`
+  is the SHA3-256 hash of `near-mpc-recovery v0.1.0 epsilon derivation:`, the Satchel contract, a comma
+  and the path (`deriveMpcKey` in `evm.ts`). The root key of each network is pinned in `config.ts`
+  (`mpcRootKey`), so `tokenAddress`, which the app, the CLI and the report use, reads nothing: a lying
+  NEAR RPC can no longer choose the address an owner funds or the one a report reads. The token page
+  says so under the address. The tests derive the keys of all 8 satchels on both networks and get
+  what `derived_public_key` returned (`__fixtures__/derived-keys.json`, 14 new tests, 128 in all), and
+  `check-claims.mjs` has two new claims on each network: the pinned root key is the MPC contract's
+  `public_key`, and the fixture's keys are its `derived_public_key` (13 claims on testnet, 11 on
+  mainnet). The package now depends on `@noble/curves` and `@noble/hashes`, which viem already
+  installs. Not in 0.1.0.
 - A demo kit, [`docs/DEMO.md`](docs/DEMO.md): a 2:00 video script with a caption and a
   voice-over line per scene, timed against how long each page took to load on satchelnft.xyz; a
   recording checklist; the X post ([`docs/submission/x-post.txt`](docs/submission/x-post.txt))
