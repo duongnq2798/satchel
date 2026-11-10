@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { type NetworkId, type WalletTx, accountOnNetwork, assertDeployment, assertTxFor } from "satchel-nft";
-import { connectedAccount, connector, runTx, signIn as connect } from "@/lib/wallet";
+import { fromSameWallet, restoreAccount } from "@/lib/restore";
+import { connectedAccount, connector, runTx, savedWallet, signIn as connect } from "@/lib/wallet";
 import { useNetwork } from "./network";
 
 interface WalletState {
@@ -31,17 +32,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ready: false,
   });
   const { accountId, ready } = session.net === net.id ? session : { accountId: null, ready: false };
+  // Once a connect has finished or the user disconnects, a saved wallet's late answer must not undo it.
+  const stopRestore = useRef(() => {});
 
   useEffect(() => {
     let live = true;
     const set = (accountId: string | null) => live && setSession({ net: net.id, accountId, ready: true });
     setSession({ net: net.id, accountId: null, ready: false });
-    connectedAccount(net).then(set);
+    // A locked extension wallet may not answer until it is unlocked: offer "Connect wallet" meanwhile.
+    const stop = restoreAccount(() => fromSameWallet(() => savedWallet(net), () => connectedAccount(net)), set);
+    stopRestore.current = stop;
     const onSignIn = (e: { accounts: { accountId: string }[] }) => {
+      stop();
       const id = e.accounts[0]?.accountId ?? null;
       set(id !== null && accountOnNetwork(net, id) ? id : null);
     };
-    const onSignOut = () => set(null);
+    const onSignOut = () => {
+      stop();
+      set(null);
+    };
     const made = connector(net);
     made
       .then((c) => {
@@ -51,6 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       .catch(() => set(null));
     return () => {
       live = false;
+      stop();
       made.then(
         (c) => {
           c.off("wallet:signIn", onSignIn);
@@ -62,10 +72,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [net]);
 
   const signIn = useCallback(async () => {
+    // Only a connect that finished stops the restore: a closed picker leaves it running.
     const id = await connect(net);
+    stopRestore.current();
     setSession({ net: net.id, accountId: id, ready: true });
   }, [net]);
   const signOut = useCallback(async () => {
+    stopRestore.current();
     // A wallet whose session already ended can throw here; the app is signed out either way.
     try {
       await (await connector(net)).disconnect();
