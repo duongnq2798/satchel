@@ -1,0 +1,202 @@
+Find what you see, then follow the fix. Most problems fall into three groups: a report that isn't
+clean yet, a send or a purchase that stopped, and a terminal setup that can't sign. For the exact
+text of every message, see [Errors](/docs/developers/errors).
+
+Two rules hold everywhere. A message that says `Nothing was signed` means nothing changed and you
+can try again. A message that says something was **sent** or **broadcast** means look at the
+explorer link before you do anything twice.
+
+## The report reads couldn't check everything
+
+<Verdict v="unknown" /> means no check failed, but one couldn't be read. In the CLI the check is
+marked `[????]` and `verify` exits 1.
+
+| Line in the report | Cause | Fix |
+| --- | --- | --- |
+| `<chain>: signed up to nonce N; a transaction at that nonce is in a recent block that is not finalized yet. Check again once it is` | The satchel sent recently, and the chain hasn't finalized that block | Wait, then click **Check again**. About 13 minutes on Sepolia. Satchel #1's send on Base mainnet read clean 21 minutes after it was sent |
+| `<chain>: could not read the nonce at a finalized block` | The chain's RPC didn't answer, or it serves a different chain id than it should | Try again later. In a terminal, set `RPC_<chain id>` to a node you trust, and check it is the right chain |
+| `… could not read the chain at a finalized block` | The same, for an approval row | The same |
+| `… could not read allowance or getApproved`, `could not read isApprovedForAll`, `could not read the Permit2 allowance` | The token contract's view call failed at the finalized block | Try again. If it repeats, the token may not implement the call; the report can't prove that approval is gone |
+
+The report lists the RPCs it read at the bottom. If one of them is down, run it from a terminal with
+your own:
+
+```bash
+RPC_11155111=https://your-sepolia-node.example npx -y satchel-nft@0.1.0 verify 5
+```
+
+If `NEAR_RPC` points at the other network's node, the CLI stops with
+`https://rpc.mainnet.fastnear.com serves NEAR mainnet, not testnet` and exits 2. Use a node for the
+network you passed with `--network`.
+
+## The report reads not provable
+
+<Verdict v="not-provable" /> means a check failed. Whether it can be fixed depends on which one.
+[Sell a satchel](/docs/guides/sell) has the full steps for a seller.
+
+### A signed transaction may still be pending
+
+The line reads `signed up to nonce N, finalized nonce is M. That signature is public in its NEAR
+receipt, …`. The contract signed a transaction at nonce N that no final block has used. Anyone who
+reads the receipt can still broadcast it, so a buyer can't know what it will do.
+
+The owner fixes it by spending that nonce: send any transaction from the satchel on that chain, such
+as a tiny amount to yourself. The app and the CLI use the next unspent nonce, which is the open one.
+Once that block is final, check again. Testnet satchel #5 shows this state.
+
+### An approval is still live
+
+The line names the chain, the kind, the token contract, the spender and what is still granted, such
+as `allowance of <amount> still granted` or `operator still approved`. Testnet satchel #3 shows
+this state.
+
+The owner fixes it by revoking from the satchel: send to the token contract with an amount of 0 and
+the revoking call as calldata (**Calldata (advanced)** in the app, `--data` in the CLI).
+
+| Granted with | Revoke with |
+| --- | --- |
+| ERC-20 `approve` or `increaseAllowance` | `approve(spender, 0)`. It adds a new approval row that reads `allowance is 0` and uses one of the 32 slots |
+| ERC-721 `approve(spender, tokenId)` | `approve(0x0000000000000000000000000000000000000000, tokenId)` |
+| `setApprovalForAll(operator, true)` | `setApprovalForAll(operator, false)` |
+| Permit2 `approve` | Permit2 `approve` with amount 0, or wait for its expiration |
+
+Don't use `increaseAllowance(spender, 0)`: the record logs it as a revocation, but it clears nothing
+on chain. The revoking send is itself a new nonce, so wait for it to be final too.
+
+### The record can't explain everything signed
+
+The line counts raw signatures, unclassified calls, or approvals signed after the 32 slots were
+full. There is no fix. These counters only grow, so the satchel can't read clean again, for any
+owner. Testnet satchel #6 shows this state.
+
+A buyer can still buy it, knowingly ([below](#a-purchase-was-refused)). An owner who plans to sell
+should send only plain transfers, asset transfers, approvals they will revoke, and revocations.
+
+### The contract could sign behind the record
+
+Check 1 failed: the contract account has keys, different code or a different MPC contract. This
+should never happen on `v1.satchel-nft.testnet` or `v1.satchel-nft.near`. The app then signs
+nothing and shows no address. [Report it](/docs/security/report-a-vulnerability), and check the
+deployment with [Check every claim](/docs/security/check-every-claim).
+
+## A send stopped before the wallet opened
+
+Each of these ends with nothing signed. Fix the cause and send again.
+
+| You see | Cause | Fix |
+| --- | --- | --- |
+| `This satchel holds <n> wei on <chain> and the transaction can cost up to <m>. Fund <address> first.` | The balance doesn't cover the value plus the highest fees could reach. On OP Mainnet, Base and their Sepolia testnets that includes the L1 data fee | Send the chain's coin to the address, or send less |
+| `<chain> says this transaction would fail, so nothing was signed: …` | Gas estimation failed: the call would revert | Check the recipient, the amount and the calldata. A token transfer fails if the satchel doesn't hold the tokens |
+| `Couldn't read <chain>'s priority fee, so nothing was signed: …` | The chain's RPC didn't answer | Try again. In the CLI, set `RPC_<chain id>` |
+| `<rpc> serves chain <a>, not <b>` | The EVM RPC is for another chain | Fix `RPC_<chain id>` |
+| `A <network> satchel doesn't send on <chain> from this app. Nothing was signed.` | The chain belongs to the other network | Pick a chain of this network |
+| `The contract would sign 0x…, not 0x…. Nothing was signed.` | The contract and viem disagree on the transaction's hash | Report it: this should never happen |
+
+## A send failed after the wallet
+
+| You see | What happened | Fix |
+| --- | --- | --- |
+| `Satchel: signing is frozen while the token is listed` | The contract refused `sign_evm`: the satchel is listed. Nothing was recorded or signed | Delist it first |
+| `Satchel: only the token's owner can do this` | The contract refused `sign_evm`: the signing account doesn't own the satchel. Nothing was recorded or signed | Connect the owner, or pass the owner to `--as` |
+| `sign_evm (<hash>) finished without a signature. Your record shows the nonce; signing again is safe.` | The contract recorded the nonce, but the transaction returned no signature. If the MPC request itself fails, you see its failure message instead | Send again. The record already counts that nonce, so the satchel reads not provable on that chain until a transaction at that nonce is final, and sending again spends it |
+| `The signature recovers to <address>, not this satchel's <address>. Nothing was broadcast.` | The signature isn't from this satchel's key | Nothing was broadcast. [Report it](/docs/security/report-a-vulnerability) |
+| An error after the broadcast, or exit code 3 from `satchel-nft send` | The transaction may already be on the chain | Open the explorer link in the message **before** you send again. Until a transaction at that nonce is final, the signature is public and anyone can broadcast it |
+| `Included, but the transaction reverted.` | It was mined and failed. The nonce is spent and the gas is paid | Fix the call. The value didn't move |
+
+## A purchase was refused
+
+The contract refuses a purchase before it moves anything, and refunds what you attached.
+
+| You see | Cause | Fix |
+| --- | --- | --- |
+| `Satchel: the signing record changed since you checked it` | The seller signed after you read the report, so the version you named is old | Read the report again and decide on what it says now |
+| `Satchel: the price changed` | The seller relisted at another price | Read the listing and the report again |
+| `Satchel: token is not listed` | Someone bought it first, or the seller delisted or transferred it | Nothing to buy |
+| `Satchel: the seller cannot buy` | You are the seller | Delist instead |
+| `Satchel: attach at least the price` | The deposit is below the price | Attach the price |
+| `Wait for the report on this listing first` | You pressed Buy before the report finished | Wait for it |
+| `Check again: the page and the report read different record versions` | The record changed while the page loaded | Click **Check again** |
+| `Tick the box above to buy a satchel that is not provably clean` | The report isn't clean | Read why. Tick the box only if you accept it |
+| `Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.` | The CLI ran the report first | The same choice, in the terminal |
+| `Satchel #<id> was listed at record version <a> and is now at <b>; the contract refuses that sale` | The listing's version doesn't match the record. Signing is frozen while listed, so this shouldn't happen; the contract would refuse the sale | The seller has to delist and list again. If it repeats, [report it](/docs/security/report-a-vulnerability) |
+
+## A transfer was refused
+
+| You see | Cause | Fix |
+| --- | --- | --- |
+| `<account> doesn't exist on NEAR <network>, so a satchel sent there could be lost. Ask for an account that exists.` | The receiver account doesn't exist | Ask for the right account. Check the network suffix: `.testnet` or `.near` |
+| `<account> can never transfer a satchel out` | The receiver is the Satchel contract or the MPC contract | Pick a person's account |
+| `Enter the receiver's NEAR account, like friend.testnet` | Not a valid account id | Fix it |
+| `Approval extension is disabled` | The caller doesn't own the satchel | Sign as the owner |
+
+## The history or the balances look wrong
+
+Neither is part of the report, so nothing here changes a verdict.
+
+| You see | Why | What to do |
+| --- | --- | --- |
+| `The history couldn't be shown. The report doesn't use it.` | The History card failed to render | Reload the page. The report above it is unaffected |
+| `https://tx.test.fastnear.com/v0/account answered <status>` | FastNEAR's transaction index refused or rate-limited the read | Click **Try again** in a minute |
+| `… of the contract's transactions, not all of them, so the oldest are missing.` | The history reads the contract's 1,000 newest transactions at most | Look up older ones on the explorer. The signing record holds every signature |
+| `It shows <n> signature(s); the contract's record counts <m>. The record is what the report checks.` | The index left a transaction out, or hasn't caught up | Trust the record: `satchel-nft record <id>` prints it |
+| A token you sent isn't in **What's inside** | Only USDC, USDT and WETH at their listed addresses are read, and a zero balance is hidden | Open the chain's explorer from the page; it shows every token |
+| `<symbol> unavailable` | That chain's RPC didn't answer | Click **Check again** on the report |
+
+## Wallet problems
+
+| You see | Cause | Fix |
+| --- | --- | --- |
+| `<account> is not a NEAR testnet account: switch to Mainnet to use it, or pick a testnet account` | The wallet connected an account from the other network | Switch networks in the header, or connect an account of this network |
+| `Requires attached deposit of exactly 1 yoctoNEAR` | The call went through a key that can't attach a deposit | Sign with your wallet's full-access key. [Wallets](/docs/guides/wallets) explains why |
+| `The wallet did not return a transaction hash` | The wallet didn't report what it did | Check your wallet's activity before you try again |
+| The wallet picker closes and nothing happens | You closed it or rejected the connection | Nothing to fix |
+
+## The CLI can't sign
+
+The CLI's sign commands (`mint`, `list`, `delist`, `buy`, `transfer`, `send`) sign through the
+near CLI, [near-cli-rs](https://github.com/near/near-cli-rs). The read-only commands (`verify`, `show`,
+`record`, `market`) don't need it.
+
+| You see | Cause | Fix |
+| --- | --- | --- |
+| `No near.exe in PATH's absolute folders. Install near-cli-rs, or pass --near-cli <path to it>` | The near CLI isn't installed or isn't on `PATH` (the message says `near` on macOS and Linux) | Install near-cli-rs, or pass its path with `--near-cli` or `NEAR_CLI` |
+| `<path> is a script: pass the path of near.exe itself with --near-cli` | On Windows, npm installs `near.cmd`, a script the CLI won't run | Pass the path of `near.exe` itself |
+| `The near CLI did not sign. Its output ends with: …` | Usually the key for `--as` isn't in the keychain | `--keychain legacy`, the default, reads `~/.near-credentials`; `--keychain os` reads the OS keychain. Use the one that holds the key |
+| `There is no terminal to ask in, or stderr is redirected. …` | The CLI asks for `yes` on the terminal and found none. Git Bash's mintty window is one case | Run it in PowerShell or cmd, or pass `--yes` to sign without asking |
+| `<command> signs: name the NEAR account with --as <account>` | A sign command without `--as` | Add `--as <your account>` |
+| Exit code 3 and `Sent <hash>, but its outcome couldn't be read` | The transaction was sent and the RPC stopped answering | Open the link in the message before you run the command again |
+
+## Building the contract on Windows
+
+| You see | Cause | Fix |
+| --- | --- | --- |
+| `cargo test` fails building `aws-lc-sys`, asking for NASM | A dependency of near-sdk's test runtime builds `aws-lc-sys` | Set `AWS_LC_SYS_PREBUILT_NASM=1` first |
+| `cargo near build non-reproducible-wasm` fails linking the ABI | The ABI step links a host DLL, which MSVC refuses | Add `--no-abi`. A local build isn't reproducible anyway: the deployed hash comes from CI |
+
+<Tabs labels={["PowerShell", "Git Bash"]}>
+<Tab>
+
+```powershell
+$env:AWS_LC_SYS_PREBUILT_NASM=1
+cd contracts/satchel
+cargo test
+```
+
+</Tab>
+<Tab>
+
+```bash
+export AWS_LC_SYS_PREBUILT_NASM=1
+cd contracts/satchel
+cargo test
+```
+
+</Tab>
+</Tabs>
+
+## Related
+
+- [Errors](/docs/developers/errors): every message, by where it comes from.
+- [FAQ](/docs/faq): short answers to common questions.
+- [RPCs, finality and rate limits](/docs/developers/rpc-and-finality): using your own nodes.
+- [Report a vulnerability](/docs/security/report-a-vulnerability): if a check that should never fail does.

@@ -8,17 +8,20 @@ import { appPath, networkForPath, switchPath } from "@/lib/routes";
 import { useNetwork } from "./network";
 import { ConnectButton } from "./wallet";
 
-/** How it works and Developers are sections of the landing page, which shows the testnet examples. */
+/** How it works is a section of the landing page, which shows the testnet examples. The docs serve both networks. */
 const NAV = [
   { href: "/#how", label: "How it works", perNetwork: false },
   { href: "/market", label: "Market", perNetwork: true },
   { href: "/satchels", label: "Your satchels", perNetwork: true },
   { href: "/verify", label: "Verify", perNetwork: true },
-  { href: "/#developers", label: "Developers", perNetwork: false },
+  { href: "/docs", label: "Docs", perNetwork: false },
 ];
 
 export function NetworkBanner() {
   const net = useNetwork();
+  // The docs belong to neither network; each page says which one it is about.
+  const docs = usePathname()?.startsWith("/docs");
+  if (docs) return null;
   return net.id === "mainnet" ? (
     <div className="bg-leather px-4 py-1.5 text-center text-xs text-paper">
       NEAR mainnet. Satchels here hold real funds. Not audited: keep in one only what you can afford to lose.
@@ -90,7 +93,7 @@ export function SiteHeader() {
   const net = useNetwork();
   return (
     <header className="z-40 border-b border-line bg-paper/90 backdrop-blur md:sticky md:top-0">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+      <div className="mx-auto flex max-w-(--page-max) flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <Link href={appPath(net, "/")} className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
             <img src="/icon.svg" alt="" className="size-7" />

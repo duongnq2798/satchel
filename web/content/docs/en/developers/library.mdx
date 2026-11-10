@@ -1,0 +1,527 @@
+`satchel-nft` is the code the web app and the CLI run. Install it, import from `"satchel-nft"`, and you
+get the same report, the same reads, the same transactions and the same checks. This page lists every
+export of version 0.1.0, grouped by what you use it for, with its signature as it is in the
+[source](https://github.com/duongnq2798/satchel/tree/main/packages/satchel-nft/src).
+
+```bash
+npm install satchel-nft@0.1.0
+```
+
+- **ES module only**, with types (`dist/index.d.ts`). Use `import`, not `require`.
+- **Node 22 or later**, as `engines` says. The one dependency is [viem](https://viem.sh) `^2.57.17`.
+- **Browsers too.** The library reads with `fetch` and the standard `TextEncoder`, `btoa` and `atob`,
+  so it runs in a browser bundle: the Next.js app at satchelnft.xyz imports it directly. The CLI's
+  modules (`cli.ts`, `near-cli.ts`) use Node's child processes and are not exported.
+- **Numbers.** The contract's `u64` and `u128` values arrive as decimal strings (`"1"`,
+  `"500000000000000000000000"`). EVM amounts in the library are `bigint` wei.
+
+## Start here: one report
+
+```ts title="report.ts"
+import { MAINNET, buildReport } from "satchel-nft";
+
+const report = await buildReport(MAINNET, "1");
+if (report === null) throw new Error("No such satchel");
+
+console.log(report.verdict); // "clean" | "not-provable" | "unknown"
+for (const check of report.checks) {
+  console.log(`[${check.status}] ${check.title}`);
+  for (const line of check.lines) console.log(`  ${line}`);
+}
+if (report.listing) {
+  // A purchase must name this version: the contract refuses any other.
+  console.log("listed at record version", report.listing.record_version);
+}
+```
+
+Run it with `npx tsx report.ts`, or compile it as any TypeScript. `buildReport` never throws for a
+check it can't read: that check reads `"unknown"`. It throws only when it can't read from NEAR what
+every check needs (the token, its address from the MPC contract, or the contract's own facts), for
+example when the NEAR RPC is down.
+
+## Networks and chains
+
+From `config.ts`.
+
+| Export | Signature | What it is |
+| --- | --- | --- |
+| `TESTNET`, `MAINNET` | `Network` | The two deployments: `contract`, `mpc`, `nearRpc`, `nearExplorer`, and `build` (`codeHash`, `commit`, `ciRun`) |
+| `NETWORKS` | `Record<NetworkId, Network>` | `{ testnet: TESTNET, mainnet: MAINNET }` |
+| `NetworkId` | `"testnet" \| "mainnet"` | |
+| `CHAINS` | `readonly ChainInfo[]` | The contract's 16 `SUPPORTED_CHAINS`, in its order: `id`, `name`, `symbol`, `testnet`, `rpc`, `explorer`, and `finalityLag` on Aurora |
+| `sendChains(net)` | `(net: Network) => readonly ChainInfo[]` | The 8 testnets for `TESTNET`, the 8 mainnets for `MAINNET` |
+| `chainInfo(id)` | `(id: number) => ChainInfo \| undefined` | One chain by id |
+| `accountOnNetwork(net, accountId)` | `(net: Network, accountId: string) => boolean` | Whether an account can belong to `net`: `.testnet` names on testnet, any other name on mainnet, implicit accounts on both |
+| `isAccountId(text)` | `(text: string) => boolean` | A well-formed NEAR account id, 2 to 64 characters |
+| `nearTxUrl(net, hash)`, `nearAccountUrl(net, account)` | `=> string` | NearBlocks links |
+| `MINT_DEPOSIT` | `bigint` | `100_000_000_000_000_000_000_000n` yoctoNEAR, 0.1 NEAR |
+| `ONE_YOCTO`, `TGAS` | `bigint` | `1n`, and `1_000_000_000_000n` gas |
+| `REPO_URL` | `string` | `https://github.com/duongnq2798/satchel` |
+
+## The clean transfer report
+
+From `report.ts`. `buildReport` gathers what the four pure check functions read; they decide.
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `buildReport(net, tokenId, facts?)` | `(net: Network, tokenId: string, facts?: Promise<ContractFacts>) => Promise<Report \| null>` | Reads the token, its address, the contract's facts, and each chain in its record at a finalized block, then runs the four checks. `null` if the token doesn't exist. Pass `facts` to share one read of the contract across many reports |
+| `contractFacts(net)` | `(net: Network) => Promise<ContractFacts>` | The contract's access key count, its account (`code_hash` and any global contract fields) and `mpc_contract()` |
+| `contractCheck(net, facts)` | `(net: Network, facts: ContractFacts) => Check` | Check 1: no access keys, the reproducible build's code hash, the canonical MPC contract |
+| `pendingCheck(nonces)` | `(nonces: ChainNonce[]) => Check` | Check 2: on each chain, the finalized nonce is above the highest nonce signed |
+| `approvalsCheck(states)` | `(states: ApprovalState[]) => Check` | Check 3: no recorded approval is still live |
+| `countersCheck(record)` | `(record: SigningRecord) => Check` | Check 4: no raw signatures, unclassified calls or approvals over the cap |
+| `verdict(checks)` | `(checks: Check[]) => Verdict` | `"not-provable"` if any check failed, else `"unknown"` if any is unknown, else `"clean"` |
+| `assemble(inputs)` | `(inputs: ReportInputs) => Report` | Runs the four checks on inputs you already read. Useful for tests and for reports from your own data |
+
+The types:
+
+```ts
+type Status = "pass" | "fail" | "unknown";
+type Verdict = "clean" | "not-provable" | "unknown";
+
+interface Check {
+  id: "contract" | "pending" | "approvals" | "counters";
+  status: Status;
+  title: string; // "No signed transaction is still pending", or its failing form
+  lines: string[]; // one line per fact, as the CLI prints them
+}
+
+interface Report {
+  network: NetworkId;
+  contract: string;
+  tokenId: string;
+  owner: string;
+  address: Address; // the satchel's EVM address
+  recordVersion: string;
+  listing: Listing | null;
+  checks: Check[]; // always in the order contract, pending, approvals, counters
+  verdict: Verdict;
+  checkedAt: string; // ISO time
+  sources?: string[]; // every RPC the report read
+}
+
+interface ContractFacts {
+  accessKeys: number;
+  account: Pick<AccountView, "code_hash" | "global_contract_hash" | "global_contract_account_id">;
+  mpcContract: string;
+}
+
+interface ChainNonce {
+  chainId: number;
+  maxNonce: bigint;
+  finalizedNonce: bigint | null; // null: could not be read
+  latestNonce?: bigint | null; // tells "not final yet" from "still open"
+  blockNumber: bigint | null;
+}
+
+interface ApprovalState {
+  row: ApprovalRecord;
+  liveness: Liveness;
+}
+
+interface ReportInputs {
+  net: Network;
+  view: SatchelView;
+  address: Address;
+  facts: ContractFacts;
+  nonces: ChainNonce[];
+  approvals: ApprovalState[];
+}
+```
+
+[The clean transfer report](/docs/concepts/clean-transfer-report) explains what each check proves.
+
+## Reading the contract
+
+From `satchel.ts`. `satchel(net)` returns the contract's reads, each a view call at a final block.
+
+| Method | Returns | Contract view |
+| --- | --- | --- |
+| `get(tokenId)` | `Promise<SatchelView \| null>` | `satchel`. Throws if the RPC answers about another token or another path, since addresses and transactions are built from it |
+| `tokensFor(accountId)` | `Promise<Token[]>` | `nft_tokens_for_owner`, the first 100 |
+| `listings(fromIndex = 0, limit = 100)` | `Promise<[string, Listing][]>` | `listings`: one page, at most 100 per call. The view drops stale listings after it pages, so a page can be short, or empty, with more listings after it: don't stop at a short page |
+| `allListings()` | `Promise<[string, Listing][]>` | `listings`, page after page until the pages cover `nft_total_supply`, a listing that shows up twice kept once: every live listing. In this repository, not in 0.1.0 |
+| `totalSupply()` | `Promise<number>` | `nft_total_supply` |
+| `mpcContract()` | `Promise<string>` | `mpc_contract` |
+| `signingHash(tx)` | `Promise<string>` | `evm_signing_hash`: the hex hash `sign_evm` would sign for a `ContractTx`, without `0x` |
+
+The contract's JSON types, from `near.ts`:
+
+```ts
+interface SatchelView {
+  token_id: string;
+  owner_id: string;
+  path: string; // "satchel/<token_id>"
+  record: SigningRecord;
+  listing: Listing | null;
+}
+
+interface SigningRecord {
+  evm: { chain_id: string; max_nonce: string; signatures: number }[];
+  approvals: ApprovalRecord[]; // at most 32
+  approvals_not_itemized: number;
+  unclassified_calls: number;
+  opaque_signatures: number;
+  last_opaque_at: string; // nanoseconds, "0" if never
+  version: string; // goes up with every signature
+}
+
+type ApprovalKind = "Approve" | "IncreaseAllowance" | "SetApprovalForAll" | "Permit2Approve";
+
+interface ApprovalRecord {
+  chain_id: string;
+  contract: string; // the contract the call went to
+  kind: ApprovalKind;
+  spender: string;
+  token: string | null; // Permit2's token
+  arg: string; // the amount, the ERC-721 token id, or the operator flag
+}
+
+interface Listing {
+  seller: string;
+  price: string; // yoctoNEAR
+  record_version: string;
+  listed_at: string; // nanoseconds
+}
+
+interface Token {
+  token_id: string;
+  owner_id: string;
+  metadata?: { title?: string | null } | null;
+}
+```
+
+[The signing record](/docs/concepts/signing-record) explains each field.
+
+## Transactions for a wallet
+
+`satchelTx(net)` builds each write as a `WalletTx`: one `FunctionCall` to `net.contract`, with the gas
+and the deposit the contract checks. Pass it to a near-connect or wallet-selector wallet's
+`signAndSendTransaction`, or to anything that takes that shape.
+
+| Method | Contract call | Deposit | Gas |
+| --- | --- | --- | --- |
+| `mint()` | `mint({})` | `MINT_DEPOSIT`, 0.1 NEAR | 50 Tgas |
+| `signEvm(tokenId, tx: ContractTx)` | `sign_evm({ token_id, tx })` | 1 yoctoNEAR | 300 Tgas |
+| `list(tokenId, priceYocto: bigint)` | `list({ token_id, price })` | 1 yoctoNEAR | 30 Tgas |
+| `delist(tokenId)` | `delist({ token_id })` | 1 yoctoNEAR | 30 Tgas |
+| `buy(tokenId, recordVersion: string, priceYocto: bigint)` | `buy({ token_id, record_version, price })` | the price | 100 Tgas |
+| `transfer(tokenId, receiverId)` | `nft_transfer({ token_id, receiver_id })` | 1 yoctoNEAR | 30 Tgas |
+
+```ts
+interface WalletTx {
+  receiverId: string;
+  actions: {
+    type: "FunctionCall";
+    params: { methodName: string; args: Record<string, unknown>; gas: string; deposit: string };
+  }[];
+}
+```
+
+Two helpers convert NEAR amounts:
+
+- `parseNear(input: string): bigint`: `"1.5"` to yoctoNEAR. Throws `Enter an amount in NEAR, like 2.5`
+  on anything but a positive decimal with at most 24 places, and `The price must be above 0` on 0.
+- `formatNear(yocto: string | bigint, digits = 4): string`: yoctoNEAR to NEAR, trailing zeros
+  dropped: `formatNear("500000000000000000000000")` is `"0.5"`.
+
+A purchase that is safe to send names the version and price from a report you just read:
+
+```ts title="buy.ts"
+import { TESTNET, buildReport, satchelTx } from "satchel-nft";
+
+const report = await buildReport(TESTNET, "4");
+if (!report?.listing) throw new Error("Not for sale");
+if (report.verdict !== "clean") throw new Error(`The report reads ${report.verdict}`);
+if (report.listing.record_version !== report.recordVersion) throw new Error("The record changed after listing");
+
+const tx = satchelTx(TESTNET).buy(report.tokenId, report.recordVersion, BigInt(report.listing.price));
+// await wallet.signAndSendTransaction({ signerId, receiverId: tx.receiverId, actions: tx.actions });
+```
+
+If anything is signed between this report and the purchase, the contract refuses the `buy` with
+`Satchel: the signing record changed since you checked it`, and NEAR refunds the deposit.
+
+## Guards to run before signing
+
+From `guard.ts`. The app and the CLI run these before they sign anything; run them too.
+
+| Export | Signature | Throws when |
+| --- | --- | --- |
+| `assertDeployment(net)` | `(net: Network) => Promise<void>` | The contract doesn't exist, can't be read, or fails check 1. Until it passes, its account could hold anyone's code, and an address derived from it would be theirs. Don't show an address or sign before it resolves |
+| `deploymentCheck(net)` | `(net: Network) => Promise<Check>` | Never for a failed check: it returns check 1. A pass is cached for the page's lifetime; anything else is read again next time |
+| `assertTxFor(net, tx, accountId)` | `(net: Network, tx: WalletTx, accountId: string \| null) => asserts accountId is string` | No account, an account from the other network, or a transaction for any receiver but `net.contract` |
+| `assertReceiver(net, receiver)` | `(net: Network, receiver: string) => Promise<void>` | A malformed name, the Satchel or MPC contract itself, or an account that doesn't exist on `net`. The contract takes any name, and a satchel sent to one that doesn't exist could be lost |
+
+## Sending from a satchel
+
+From `send.ts`. `sendFromSatchel` runs the whole send and stops before any step that would spend
+something if a check fails:
+
+1. **build**: the chain must be one of `sendChains(net)`; the balance must cover the value, then the
+   most the transaction can cost (gas at the fee cap, the value, and on OP Mainnet, Base and their
+   Sepolia testnets the L1 data fee, doubled);
+2. **hash**: the contract's `evm_signing_hash` must equal viem's hash of the same transaction;
+3. **wallet**: your `signWithWallet` calls `sign_evm`; it must return a signature;
+4. **recover**: the MPC signature must recover to the satchel's address;
+5. **broadcast** and **confirm**: the raw transaction goes to the chain's RPC, then it waits up to
+   180 seconds for the receipt.
+
+```ts
+type SendStep = "build" | "hash" | "wallet" | "recover" | "broadcast" | "confirm";
+
+interface SendRequest {
+  net: Network;
+  tokenId: string;
+  from: Address; // the satchel's address, from tokenAddress
+  chain: ChainInfo;
+  to: Address;
+  value: bigint; // wei
+  data: Hex; // "0x" for a plain send
+}
+
+interface SendResult {
+  nearTx: string;
+  evmTx: Hex;
+  status: "success" | "reverted";
+}
+
+function sendFromSatchel(
+  request: SendRequest,
+  deps: SendDeps,
+  onStep?: (step: SendStep, detail?: string) => void,
+): Promise<SendResult>;
+
+function liveSendDeps(
+  net: Network,
+  signWithWallet: (tx: WalletTx) => Promise<{ hash: string; signature: MpcSignature | null }>,
+): SendDeps;
+```
+
+`onStep` gets a detail on four steps: on `wallet`, the most the fees can cost in wei (show it while
+the wallet asks); on `recover`, the NEAR transaction hash; on `broadcast` and `confirm`, the EVM
+transaction hash, known before it is broadcast.
+
+`liveSendDeps` wires the real RPCs; you supply only `signWithWallet`. It must have the wallet send
+the `WalletTx`, wait until every receipt is final (wallets often return before the MPC network
+answers), and return the hash and the value `sign_evm` resolved to. This is how the app does it:
+
+```ts title="send.ts"
+import { type MpcSignature, type WalletTx, TESTNET, chainInfo, finalOutcome, liveSendDeps, outcomeValue, satchel, sendFromSatchel, tokenAddress } from "satchel-nft";
+import { parseEther } from "viem";
+
+async function signWithWallet(tx: WalletTx) {
+  const sent = await wallet.signAndSendTransaction({ signerId, receiverId: tx.receiverId, actions: tx.actions });
+  const hash = sent.transaction.hash;
+  const settled = sent.final_execution_status === "FINAL" ? sent : await finalOutcome(TESTNET, hash, signerId);
+  return { hash, signature: outcomeValue<MpcSignature>(settled) };
+}
+
+const view = await satchel(TESTNET).get("7");
+if (!view) throw new Error("No such satchel");
+const result = await sendFromSatchel(
+  {
+    net: TESTNET,
+    tokenId: "7",
+    from: await tokenAddress(TESTNET, view.path),
+    chain: chainInfo(11155111)!,
+    to: "0x000000000000000000000000000000000000dEaD",
+    value: parseEther("0.0001"),
+    data: "0x",
+  },
+  liveSendDeps(TESTNET, signWithWallet),
+  (step, detail) => console.log(step, detail ?? ""),
+);
+console.log(result.status, result.evmTx);
+```
+
+`wallet` and `signerId` are your wallet connection. Run `assertDeployment(TESTNET)` before you show
+`from` or sign.
+
+<Callout type="warning" title="After the signature, the transaction is public">
+Once `sign_evm` returns, the signature is in its NEAR receipt, and anyone can broadcast that
+transaction. If `broadcast` or `confirm` throws, don't send again blindly: check the hash `onStep`
+gave you on its chain first, or you may pay twice. Until a transaction at that nonce is final, the
+satchel's report can't read clean.
+</Callout>
+
+`SendDeps` is every outside call the flow makes, so you can test it without a chain or replace one
+piece:
+
+```ts
+interface SendDeps {
+  prepare: (r: SendRequest) => Promise<EvmTx>;
+  extraFee: (tx: EvmTx) => Promise<bigint>; // the OP Stack's L1 data fee
+  balance: (chainId: number, address: Address) => Promise<bigint>;
+  contractHash: (tx: EvmTx) => Promise<string>;
+  signWithWallet: (tx: WalletTx) => Promise<{ hash: string; signature: MpcSignature | null }>;
+  broadcast: (chainId: number, raw: Hex) => Promise<Hex>;
+  confirm: (chainId: number, hash: Hex) => Promise<"success" | "reverted">;
+}
+```
+
+## EVM helpers
+
+From `evm.ts`.
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `tokenAddress(net, path)` | `(net: Network, path: string) => Promise<Address>` | A satchel's EVM address: the MPC contract's `derived_public_key` for the Satchel contract, the path and domain 0 |
+| `addressFromMpcKey(publicKey)` | `(publicKey: string) => Address` | `secp256k1:<base58>` to a checksummed address. Throws on another curve or a key that isn't 64 bytes |
+| `base58Decode(text)` | `(text: string) => Uint8Array` | |
+| `prepareTx(chain, from, to, value, data)` | `=> Promise<EvmTx>` | The next transaction from `from`: pending nonce, `maxFeePerGas` of twice the base fee plus the tip, gas estimated (21000 when the estimate is 21000 or less, else the estimate plus 20%). Throws, signing nothing, if the chain says it would fail |
+| `l1Fee(tx)` | `(tx: EvmTx) => Promise<bigint>` | The OP Stack's L1 data fee, doubled; 0 on other chains |
+| `maxCost(tx, extraFee = 0n)` | `(tx: EvmTx, extraFee?: bigint) => bigint` | `gas × maxFeePerGas + value + extraFee` |
+| `signingHash(tx)` | `(tx: EvmTx) => Hex` | The EIP-1559 hash the key signs, the same the contract computes |
+| `toContractTx(tx)` | `(tx: EvmTx) => ContractTx` | viem's fields to `sign_evm`'s, numbers as strings |
+| `toEvmSignature(mpc)` | `(mpc: MpcSignature) => { r; s; yParity }` | The MPC answer as an EVM signature, `s` normalized to the low half |
+| `recoverSigner(tx, signature)` | `=> Promise<Address>` | |
+| `signedRawTx(tx, signature)` | `=> Hex` | The raw transaction to broadcast |
+| `client(chainId)` | `(chainId: number) => PublicClient` | A cached viem client for one of `CHAINS`. Throws for any other chain id |
+| `verifiedClient(chainId)` | `(chainId: number) => Promise<PublicClient>` | The same client, once its RPC has answered with that chain id |
+| `formatBalance(wei)` | `(wei: bigint) => string` | `"0.00184"`, `"< 0.00001"` or `"0"` |
+
+```ts
+interface EvmTx {
+  chainId: number;
+  nonce: number;
+  maxPriorityFeePerGas: bigint;
+  maxFeePerGas: bigint;
+  gas: bigint;
+  to: Address;
+  value: bigint;
+  data: Hex;
+}
+
+/** EvmTx as sign_evm takes it: every number a decimal string. */
+interface ContractTx {
+  chain_id: string;
+  nonce: string;
+  max_priority_fee_per_gas: string;
+  max_fee_per_gas: string;
+  gas_limit: string;
+  to: string;
+  value: string;
+  data: string;
+}
+
+interface MpcSignature {
+  scheme?: string;
+  big_r: { affine_point: string };
+  s: { scalar: string };
+  recovery_id: number;
+}
+```
+
+## NEAR RPC helpers
+
+From `near.ts`. Every NEAR read in the library goes through `nearRpc`.
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `nearRpc(net, method, params)` | `<T>(net: Network, method: string, params: unknown) => Promise<T>` | One JSON-RPC call. Throws `NearRpcError` on an HTTP error or an RPC error |
+| `view(net, account, method, args?)` | `<T>(net, account: string, method: string, args?: unknown) => Promise<T>` | A view call at a final block. A contract panic throws an `Error` whose message is the panic, like `evm_signing_hash`'s `Satchel: to must be 20 bytes` |
+| `viewAccount(net, account)` | `=> Promise<AccountView>` | `amount`, `code_hash`, `storage_usage` and any global contract fields |
+| `accessKeyCount(net, account)` | `=> Promise<number>` | |
+| `nearChainId(net)` | `=> Promise<string>` | The RPC's chain: `"testnet"` or `"mainnet"`. The CLI stops if it isn't `net.id` |
+| `nearRpcUrl(net)` | `(net: Network) => string` | The NEAR RPC in use |
+| `setNearRpc(url)` | `(url: string) => void` | Sends every NEAR read, on either network, to `url` |
+| `finalOutcome(net, hash, signer, attempts = 30)` | `=> Promise<ExecutionOutcome>` | Polls `tx` with `wait_until: "FINAL"` every 2 seconds until every receipt has finished |
+| `outcomeValue(outcome)` | `<T>(outcome: ExecutionOutcome) => T \| null` | The value a finished transaction returned. Throws the contract's `Satchel: …` reason on a failure, and throws if it hasn't finished |
+| `finished(outcome)`, `failureMessage(failure)`, `viewErrorMessage(method, error)` | | The pieces `outcomeValue` and `view` use |
+
+`NearRpcError` has `method` and `cause`, and its message reads `NEAR RPC <method> failed: <cause>`.
+
+## Using your own nodes
+
+The report is only as honest as the RPCs it reads. In the library:
+
+- **NEAR:** call `setNearRpc(url)` before any read. It applies to every network, so read one network
+  per process, as the CLI does.
+- **EVM chains:** set a chain's `rpc` before its first read; `client()` keeps the client it makes. The
+  CLI does exactly this with its `RPC_<chain id>` variables:
+
+```ts
+import { CHAINS, setNearRpc } from "satchel-nft";
+
+if (process.env.NEAR_RPC) setNearRpc(process.env.NEAR_RPC);
+for (const chain of CHAINS) {
+  const url = process.env[`RPC_${chain.id}`];
+  if (url) chain.rpc = url;
+}
+```
+
+`verifiedClient` refuses an RPC that answers with another chain id, so a node for the wrong chain
+makes its checks read `"unknown"`, never `"pass"`. [RPCs, finality and rate
+limits](/docs/developers/rpc-and-finality) covers finality and choosing nodes.
+
+## Approvals and the limiter
+
+- `approvalLiveness(c, wallet, row, at)`, from `approvals.ts`, reads whether one recorded approval is
+  still live at the block `at.blockNumber`. It returns `Liveness`: `live` is `true`, `false`, or `null`
+  when it couldn't be read, which never passes. An `Approve` row is read both as an ERC-20 allowance
+  and as an ERC-721 `getApproved`, and is live if either shows the grant. A Permit2 allowance past its
+  expiration (against `at.now`, seconds) is not live.
+
+  ```ts
+  interface Liveness { live: boolean | null; detail: string }
+  interface ReadAt { blockNumber: bigint; now: bigint }
+  ```
+
+- `limiter(n)`, from `limit.ts`, returns a function that runs at most `n` tasks at once and queues
+  the rest. A page of reports would otherwise send hundreds of requests to a public RPC at once and
+  get rate limited. The CLI's `market` runs three reports at a time:
+
+  ```ts
+  const limit = limiter(3);
+  const reports = await Promise.all(ids.map((id) => limit(() => buildReport(TESTNET, id, facts))));
+  ```
+
+## What a satchel holds, and its history
+
+<Callout type="note" title="Not in 0.1.0">
+These exports are in this repository's `packages/satchel-nft` and come with the next release. The
+report reads none of them: they are for display.
+</Callout>
+
+From `contents.ts`, `history.ts` and `evm.ts`.
+
+| Export | Signature | What it is |
+| --- | --- | --- |
+| `TOKENS` | `Readonly<Record<number, readonly TokenInfo[]>>` | USDC, USDT and WETH by chain id, where the issuer or the chain lists a deployment (Uniswap's list, for WETH on Sepolia): 22 on the mainnets, 11 on the testnets. The source of each is in [`contents.ts`](https://github.com/duongnq2798/satchel/blob/dev/packages/satchel-nft/src/contents.ts) |
+| `TokenInfo` | `{ kind, symbol, address, decimals }` | `kind` is `"USDC" \| "USDT" \| "WETH"`; `symbol` is what the token's contract reports, like `"USD₮0"` |
+| `contents(net, address)` | `=> Promise<ChainContents[]>` | What an address holds on each of `sendChains(net)`, read now |
+| `chainContents(chain, address)` | `(chain: ChainInfo, address: Address) => Promise<ChainContents>` | The same for one chain |
+| `ChainContents` | `{ chain, native, tokens: { token, amount }[] }` | `native` and each `amount` are `bigint`, or `null` when the RPC didn't answer |
+| `formatAmount(amount, decimals)` | `(amount: bigint, decimals: number) => string` | Like `formatBalance`, for any number of decimals |
+| `tokenHistory(net, tokenId, maxTransactions?)` | `=> Promise<History>` | The events the contract logged about a token, oldest first, from FastNEAR's transaction index (`net.txApi`). Reads at most `maxTransactions` (default 1,000) of the contract's newest transactions |
+| `History` | `{ entries, scanned, complete, source }` | `complete` is `false` when the index holds more transactions than were read |
+| `HistoryEntry` | `HistoryEvent & { tx, block, at, caller }` | One event, with its NEAR transaction, block, time in ms and the calling account |
+| `HistoryEvent` | union on `kind` | `mint`, `transfer`, `sign_evm`, `sign_raw`, `list`, `delist`, `sale`, with the fields the contract logged |
+| `eventsIn(net, tx, tokenId)` | `(net, tx: IndexedTx, tokenId: string) => HistoryEntry[]` | The events in one indexed transaction: only the contract's own logs, from receipts that succeeded, and a sale without the transfer it also logs |
+| `describeEntry(entry)` | `(e: HistoryEntry) => string` | One line, like `satchel-nft.testnet listed it for 0.5 NEAR` |
+| `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
+
+`Network` also gains `txApi`: `https://tx.test.fastnear.com` on testnet,
+`https://tx.main.fastnear.com` on mainnet.
+
+```ts title="history.ts"
+import { TESTNET, describeEntry, satchel, signatureCounts, tokenHistory } from "satchel-nft";
+
+const view = await satchel(TESTNET).get("7");
+if (view === null) throw new Error("No such satchel");
+const history = await tokenHistory(TESTNET, view.token_id);
+for (const entry of history.entries) console.log(describeEntry(entry));
+
+const counts = signatureCounts(history, view.record);
+if (counts.history !== counts.record) console.log("The index and the record disagree; trust the record.");
+```
+
+## Related
+
+- [Build a feed of clean listings](/docs/tutorials/clean-listings-feed): a complete script with
+  `listings`, `totalSupply`, `contractFacts`, `buildReport` and `limiter`.
+- [CLI reference](/docs/developers/cli): the same code as commands.
+- [Contract reference](/docs/developers/contract): the methods these transactions call.
+- [Errors and exit codes](/docs/developers/errors): every `Satchel: …` message `outcomeValue` and
+  `view` can throw.

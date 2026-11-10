@@ -128,8 +128,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  111 passed (111)` for `satchel-nft`, then
-`Tests  3 passed (3)` for the app, then no type errors.
+Each runs in both workspaces. You should see `Tests  114 passed (114)` for `satchel-nft`, then
+`Tests  15 passed (15)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -188,6 +188,7 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
 | The CLI sends only the transaction it asked the near CLI to sign: one function call, from the `--as` account, to this network's contract, with the method, arguments, gas and deposit it asked for | `decodeSignedTx`, `assertSignedAsAsked`, `signAndSend` in `packages/satchel-nft/src/near-cli.ts` | `near-cli.test.ts` |
 | The CLI runs the near CLI by its absolute path, found in PATH's absolute folders, never in the current folder | `resolveNearCli` in `near-cli.ts` | `near-cli.test.ts` |
+| The CLI's and the app's market list every live listing: pages are read until they cover `nft_total_supply`, since a page of the `listings` view can be short or empty with more after it | `allListings` in `packages/satchel-nft/src/satchel.ts`, used by `market` in `cli.ts`, `web/src/app/market/page.tsx` and `web/src/components/live-stats.tsx` | `satchel.test.ts` |
 | Nothing is built from a token view about another token, and a transaction counts as done only once its status is final | `satchel(net).get` in `satchel.ts`, `finished` in `near.ts` | `satchel.test.ts` |
 | A transaction the CLI sent but couldn't read back exits 3 with its hash, not as a failure that invites a retry | `OutcomeUnknown` in `near-cli.ts`, `submit` and `send` in `cli.ts` | none: it needs an RPC that fails after the send |
 | The CLI asks before it sends, and refuses to sign without a terminal unless given `--yes` | `submit`, `confirm` in `packages/satchel-nft/src/cli.ts` | manual, on testnet ([`deployments/testnet-cli.json`](deployments/testnet-cli.json)) |
@@ -223,6 +224,8 @@ The full list, with what stops each attack and what is left, is in
   - At the repository root: `npm run typecheck`, `npm test` (both workspaces); then in
     `web`, `npm run build`.
   - For the package: `npm pack -w satchel-nft --dry-run` lists what npm would publish.
+  - For the demo kit: `node scripts/check-demo-kit.mjs`, after any change to `docs/DEMO.md` or
+    `docs/submission/`. The web workflow runs it.
 - **The deployed contract is locked**, with no keys and no admin. A contract change ships only as a
   new account (for example `v2.satchel-nft.testnet`) with a new code hash. Deploy that from the CI
   reproducible artifact (`tools/deploy-mainnet.sh` shows the steps on mainnet), then update
@@ -232,3 +235,7 @@ The full list, with what stops each attack and what is left, is in
   keychain (`~/.near-credentials` unless `--keychain os`); neither reads a key. Never commit a key, a seed phrase or an RPC key.
 - **Docs:** keep [README.md](README.md), [CHANGELOG.md](CHANGELOG.md) (under Unreleased) and the
   package's [README](packages/satchel-nft/README.md), which npm shows, in step with the change. A claim the README makes should be checkable by a command, like the ones above.
+  The documentation at <https://satchelnft.xyz/docs> is `web/content/docs`, ordered by
+  `web/src/lib/docs/nav.ts`; a page that describes what you changed changes with it.
+  [`web/content/README.md`](web/content/README.md) says how, and `docs.test.ts` fails on a page
+  without a file or a link to a page or heading that doesn't exist.

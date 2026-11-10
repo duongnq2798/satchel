@@ -1,0 +1,148 @@
+Sending from a satchel is two transactions. Your NEAR wallet approves one call, `sign_evm`, to the Satchel
+contract. The contract builds and hashes the EVM transaction, writes its nonce into the satchel's public
+[signing record](/docs/concepts/signing-record), and asks NEAR's MPC network to sign it. The app then
+broadcasts the signed transaction on the EVM chain. You need no EVM wallet, and the satchel pays the gas.
+
+<Callout type="danger" title="Mainnet sends move real funds">
+On `/mainnet` pages, a send moves real coins and can't be undone. Satchel is not audited: keep in a
+satchel only what you can afford to lose.
+</Callout>
+
+## What you need
+
+- A satchel you own, **not listed**. The send panel appears only on the page of a satchel you own that is
+  not for sale: a listed satchel can't sign. [Delist it](/docs/guides/sell#delist) first if it is.
+- A balance on the chain you send from, enough for the value plus the most the fees can reach.
+  [Fund it](/docs/guides/mint-and-fund) first.
+- Your NEAR wallet, connected to the same network ([Connect a NEAR wallet](/docs/guides/wallets)).
+
+## Send
+
+<Steps>
+
+1. **Open your satchel's page** (`/satchel/<id>`, or `/mainnet/satchel/<id>`) and find **Send from this
+   satchel**.
+
+2. **Fill in the form.**
+
+   | Field | What to enter |
+   | --- | --- |
+   | Chain | One of the network's 8 chains. Testnet pages list only testnets; `/mainnet` pages only mainnets |
+   | To | The recipient's `0x` address. Checksummed, if it mixes upper and lower case |
+   | Amount | In the chain's coin: ETH, POL, BNB, tBNB or AVAX. Empty means 0 |
+   | Calldata (advanced) | `0x` for a plain transfer, the default. To call a contract, its ABI-encoded calldata |
+
+3. **Click Sign and send.** The panel lists the steps as they run, and marks each one done (✓), running
+   (…) or failed (✗):
+
+   ```text
+   Build the transaction and check the balance
+   Check the contract hashes it the same way
+   Approve sign_evm in your wallet; NEAR's MPC network signs
+   Check the signature recovers to this satchel's address
+   Broadcast
+   Wait for the receipt
+   ```
+
+4. **Approve `sign_evm` in your wallet** when it opens: 1 yoctoNEAR deposit, 300 TGas. While the wallet asks,
+   the panel shows the most the satchel can pay, as `(fees up to 0.000… ETH, paid by the satchel)`. Read
+   the wallet's prompt: its arguments are the EVM transaction the contract will sign.
+
+5. **Wait for the result.** `Sent.` when the transaction succeeded, or `Included, but the transaction
+   reverted.` when it was mined and failed (a reverted transaction still spends its nonce and its gas).
+   The panel links to the transaction on the chain's explorer (**View on Sepolia**) and to the call on
+   NEAR (**sign_evm on NEAR**). The links stay up even if a later step fails.
+
+</Steps>
+
+## The checks before anything is signed
+
+Each check runs before the step that would spend anything. The same code, `sendFromSatchel` in the
+`satchel-nft` package, runs in the app and in the CLI.
+
+| Step | What is checked | If it fails |
+| --- | --- | --- |
+| Build | The chain is one of this network's 8. The chain's RPC answers with that chain's id. The balance covers the value; then, with gas estimated, it covers the value plus gas at the fee cap plus, on OP Mainnet, Base, OP Sepolia and Base Sepolia, twice the current L1 data fee | Nothing is signed |
+| Hash | The contract's `evm_signing_hash` for the transaction equals the hash viem computes in your browser | `The contract would sign 0x…, not 0x…. Nothing was signed.` |
+| Wallet | Your wallet calls `sign_evm`. The contract checks that you own the satchel, that it isn't listed, and that the chain is supported, then records the nonce and asks the MPC network | The contract refuses the call; see [errors](/docs/developers/errors) |
+| Recover | The MPC signature recovers to the satchel's own address | `The signature recovers to 0x…, not this satchel's 0x…. Nothing was broadcast.` |
+| Broadcast | The app sends the signed transaction to the chain's RPC | The error is shown, with the links |
+| Confirm | The app waits up to 3 minutes for the receipt | The error is shown; check the explorer link |
+
+How the transaction is built:
+
+- **Nonce:** the address's next nonce, counting pending transactions.
+- **Gas:** estimated for this exact transaction, plus 20% (21,000 when the estimate is 21,000 or less). A
+  send to a contract runs its code and needs more than 21,000; a send to an address that has never been
+  used can too. When the demo satchels were funded on Sepolia, each such send used 204,600 gas.
+- **Fees:** the priority fee the chain suggests, and a fee cap of twice the latest base fee plus that
+  priority fee. The headroom is there because the MPC signature takes a few NEAR blocks to arrive.
+
+## What a send does to the record
+
+`sign_evm` writes to the satchel's record **before** the MPC network signs, in the same receipt, and nothing
+that happens to the signature afterwards can undo it:
+
+- the chain's highest nonce signed (`max_nonce`) and its signature count;
+- the call's class: a value transfer (empty calldata), an asset transfer, an approval (itemized, up to 32),
+  a revocation (logged, not itemized), or unclassified (counted);
+- the record version, which goes up by one.
+
+So a send always leaves a trace that a buyer will check. A plain transfer of coins is harmless to the
+report once its nonce is spent and final. Calldata is where you can hurt your satchel's report for good.
+The panel warns you under **Calldata (advanced)**:
+
+```text
+The contract classifies the call. Approvals are itemized and must be revoked before a clean sale; anything
+it can't classify makes this satchel unprovable for every later owner.
+```
+
+[The signing record](/docs/concepts/signing-record) lists exactly which calls are classified how.
+
+## After you send: the pending window
+
+The MPC signature is public in the NEAR receipt of your `sign_evm` call. Until a transaction at that nonce
+is in a **finalized** block on the chain, anyone could broadcast the signed transaction. So right after a
+send, the satchel's report reads <Verdict v="unknown" /> for that chain:
+
+```text
+Sepolia: signed up to nonce 4; a transaction at that nonce is in a recent block that is not finalized yet. Check again once it is
+```
+
+Wait for the chain to finalize the block, then click **Check again**. On Sepolia this takes about 13
+minutes; when satchel #1 sent on Base mainnet, its report read clean 21 minutes after the send.
+
+## If something goes wrong
+
+| You see | What it means | What to do |
+| --- | --- | --- |
+| `This satchel holds … wei on Sepolia and the transaction can cost up to …. Fund 0x… first.` | The balance doesn't cover the value plus the most the fees can reach | Fund the address, or send less. Nothing was signed |
+| `Sepolia says this transaction would fail, so nothing was signed: …` | Gas estimation failed: the call would revert, or the address can't pay | Check the recipient, amount and calldata |
+| `Couldn't read Sepolia's priority fee, so nothing was signed: …` | The chain's RPC didn't answer | Try again later |
+| `Enter the recipient's 0x address` / `Enter an amount in ETH` / `Calldata must be 0x followed by whole bytes` | The form is invalid | Fix the field |
+| `sign_evm (…) finished without a signature. Your record shows the nonce; signing again is safe.` | The contract recorded the nonce, but the transaction returned no signature. If the MPC request itself fails, you see its failure message instead | Send again. The record already counts that nonce, and the next send uses it |
+| An error after **Broadcast** | The transaction may still have reached the chain | Open the explorer link **before** you send again, or you may pay twice |
+| `Satchel: signing is frozen while the token is listed` | The satchel is listed | Delist it first |
+| `Satchel: only the token's owner can do this` | The connected account doesn't own the satchel | Connect the owner's account |
+
+A signed transaction you never broadcast keeps the satchel unprovable until its nonce is spent. Sending
+again from the app spends it: the app uses the next unspent nonce, which is that one.
+
+## In a terminal
+
+`satchel-nft send` runs the same flow and checks, with the near CLI signing `sign_evm` from its keychain:
+
+```bash
+npx -y satchel-nft@0.1.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as satchel-nft.testnet
+```
+
+`--chain` takes a chain id or its name (`8453`, `base`, `"Base Sepolia"`); `--data` takes calldata. Before
+you type `yes`, it shows the value, the recipient, the fee cap and the nonce the contract will record. If the
+broadcast or its receipt fails, it exits 3 with the transaction's hash and its nonce: check that hash before
+you send again. The [CLI reference](/docs/developers/cli) has every option.
+
+## Next steps
+
+- [Sell a satchel](/docs/guides/sell)
+- [The clean transfer report](/docs/concepts/clean-transfer-report)
+- [Errors and exit codes](/docs/developers/errors)

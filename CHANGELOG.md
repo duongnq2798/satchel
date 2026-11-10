@@ -6,6 +6,27 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A demo kit, [`docs/DEMO.md`](docs/DEMO.md): a 2:00 video script with a caption and a
+  voice-over line per scene, timed against how long each page took to load on satchelnft.xyz; a
+  recording checklist; the X post ([`docs/submission/x-post.txt`](docs/submission/x-post.txt))
+  and the "What did you build?" text
+  ([`docs/submission/what-did-you-build.txt`](docs/submission/what-did-you-build.txt)); the
+  submission form's values, with the Website field left empty because the organizers made it a
+  spam trap; the tracks and why; and what to leave unchanged until judging ends.
+  `node scripts/check-demo-kit.mjs` checks the form text's length; the post's length, close to
+  X's count, its tags as whole tags and its question; that the script's tables are well formed
+  (the optional scene too), the scenes run 0:00 to 2:00 and none says more than 2.5 words a
+  second; and that every satchelnft.xyz page it opens is a route the app has. The web workflow
+  runs it.
+- A documentation center at `/docs` (satchelnft.xyz/docs): 36 pages in 8 sections, from a
+  quickstart and the concepts to a guide for each thing the app does, three tutorials, the library,
+  CLI, contract, events, errors and RPC reference, an advanced section, security, troubleshooting,
+  a FAQ and a glossary. AGENTS.md, the threat model, SECURITY.md and this changelog render there
+  from the repository files. Pages are MDX in `web/content/docs`, built at build time with Shiki
+  highlighting; the site has full-text search (Ctrl K), a table of contents per page, breadcrumbs,
+  previous and next links, a light and a dark theme, a page-feedback prompt, a sitemap, `robots.txt`,
+  `llms.txt` and structured data. `docs.test.ts` compiles every page and fails on a broken link or
+  anchor. Every page was checked against the contract, the package and the app's source.
 - What's inside a satchel, and its history. Above the report, a satchel's page now shows, beside the
   native balance on each of the network's 8 chains, its USDC, USDT and WETH where a deployment is
   listed: 22 on the mainnets, 11 on the testnets (`TOKENS` in `contents.ts`, each with its source).
@@ -164,6 +185,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The README's quick-start output for satchel #1 showed its record before its last signature
+  (`max_nonce` 3, 6 signatures, version 6). It now shows what the chain returns: `max_nonce` 4,
+  7 signatures, version 7.
+- `satchel-nft market`, the web app's market and its "listed now" count could miss listings. The
+  contract's `listings` view pages its stored listings and only then drops the stale ones (seller no
+  longer owns the token), so a page can come back short, or empty, with more listings after it. The
+  CLI stopped at the first page under 100 rows and the app read only the first page. The package now
+  has `satchel(net).allListings()`, which reads pages until they cover `nft_total_supply` (each
+  stored listing is keyed by a token, and tokens are never burned) and keeps a listing that shows up
+  twice once; the CLI and the app use it. The deployed contract is unchanged. It is not in 0.1.0.
+  3 new unit tests, 114 in all.
 - The npm package's files kept Windows line endings in a Windows checkout, so 0.1.0, packed there,
   ships CRLF in five files, the end of its launcher's first line among them. npm strips that CR when
   it links the command on Linux and macOS, so `npx` runs it, and CI now checks that on Linux. The

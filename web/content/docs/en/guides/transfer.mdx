@@ -1,0 +1,93 @@
+A transfer is a plain NEP-171 `nft_transfer`: no payment, no listing. It moves the satchel to another NEAR
+account, and with it the only right to have the contract sign for the satchel's address. Everything the
+address holds on all 16 chains changes hands in that one NEAR transaction, and nothing on the EVM chains
+moves.
+
+<Callout type="danger" title="A transfer can't be undone">
+Only the new owner can send the satchel back. On mainnet, the address may hold real funds; check the
+receiver's account name character by character.
+</Callout>
+
+## What you need
+
+- A satchel you own, **not listed**. The app shows **Transfer the NFT** only on a satchel that isn't for
+  sale; [delist it](/docs/guides/sell#delist) first if it is.
+- The receiver's NEAR account on the same network: `friend.testnet` on testnet, `friend.near` on mainnet.
+- Your NEAR wallet, connected ([Connect a NEAR wallet](/docs/guides/wallets)).
+
+## Transfer
+
+<Steps>
+
+1. **Open the satchel's page** (`/satchel/<id>`, or `/mainnet/satchel/<id>`) and find **Sell or transfer**.
+
+2. **Enter the receiver's account** in the field that reads `Receiver, like friend.testnet` (or
+   `friend.near` on mainnet), and click **Transfer the NFT**.
+
+3. **The app checks the receiver** before your wallet opens. See
+   [the receiver check](#the-receiver-check).
+
+4. **Approve `nft_transfer` in your wallet**: 1 yoctoNEAR, 30 TGas. Its arguments are the token id and the
+   receiver; check the receiver once more there.
+
+5. **Done.** The page reads again and links to the transaction. The satchel now shows its new owner, and
+   it no longer appears in your satchels.
+
+</Steps>
+
+## The receiver check
+
+The contract accepts any account name, including one that doesn't exist yet. An NFT sent to such a name is
+lost: no one may ever own that name, or anyone could register it later and take the satchel with everything
+its address holds. So before it signs, the app refuses:
+
+| The app says | Why |
+| --- | --- |
+| `Enter the receiver's NEAR account, like friend.testnet` | The name isn't a valid NEAR account id |
+| `v1.satchel-nft.testnet can never transfer a satchel out` | The receiver is the Satchel contract or the MPC contract, which can never send it on |
+| `bob.testnet doesn't exist on NEAR testnet, so a satchel sent there could be lost. Ask for an account that exists.` | No such account on this network. A `.near` name on testnet, or a typo, ends here |
+| `Couldn't check that bob.testnet exists, so nothing was signed: …` | The NEAR RPC didn't answer. Try again |
+
+<Callout type="warning" title="Transfers made elsewhere get no check">
+The check runs in the app and in the `satchel-nft` CLI. A transfer made another way, with the near CLI or
+another wallet or marketplace, calls the contract directly, and the contract takes any name.
+</Callout>
+
+## What moves, and what stays
+
+| | After the transfer |
+| --- | --- |
+| The NFT | Owned by the receiver |
+| The address | The same `0x` address on all 16 chains: it comes from the path `satchel/<id>`, which never changes |
+| The right to sign | The receiver's alone. Your next `sign_evm` is refused: `Satchel: only the token's owner can do this` |
+| The coins and tokens at the address | Untouched, now controlled by the receiver |
+| The signing record | Unchanged. It belongs to the token and only grows; the receiver inherits it |
+| Any listing | Ended. Every transfer path removes the token's listing |
+
+Because the record stays with the token, a satchel you give away carries its history. If you are on the
+receiving end of a satchel, read its report at [Verify](/verify) first, as you would before buying.
+
+## In a terminal
+
+```bash
+npx -y satchel-nft@0.1.0 transfer 7 friend.testnet --as alice.testnet
+```
+
+Use your own satchel's id and your own account for `--as`: as written, it is refused, because
+`alice.testnet` doesn't own satchel #7.
+
+It refuses an account that doesn't own the satchel, then runs the same receiver check, then shows what it
+will sign:
+
+```text
+Gives satchel #7, and whatever its address holds on every chain, to friend.testnet.
+```
+
+After you type `yes`, it prints `Sent satchel #7 to friend.testnet:` and the transaction's link. A refused
+receiver exits with code 1 and nothing signed. The [CLI reference](/docs/developers/cli) has every option.
+
+## Next steps
+
+- [Sell a satchel](/docs/guides/sell), to be paid for it instead
+- [Satchels and their addresses](/docs/concepts/satchels-and-addresses)
+- [Listings and sales](/docs/concepts/listings-and-sales)

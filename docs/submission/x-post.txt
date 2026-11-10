@@ -1,0 +1,7 @@
+Sold wallets can still be drained by the seller.
+
+Satchel: a NEAR NFT that is a wallet on 8 EVM chains (Chain Signatures), with proof nothing stayed behind. What would you sell?
+
+Built at NEAR HACKATHON @NEARProtocol #NEARHackathon
+satchelnft.xyz
+github.com/duongnq2798/satchel

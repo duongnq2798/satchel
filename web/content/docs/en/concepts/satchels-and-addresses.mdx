@@ -1,0 +1,135 @@
+A satchel is two things at once: an NFT on NEAR, and an EVM address that NFT controls. The NFT is an
+ordinary NEP-171 token you can hold, list and transfer. The address is derived by NEAR's MPC network
+from the Satchel contract's account and a path fixed to the token, so it never changes, whoever owns
+the token, and no one ever holds its private key.
+
+## The token
+
+Anyone can mint a satchel by calling `mint` on the Satchel contract with 0.1 NEAR attached; anything
+above that is refunded. The 0.1 NEAR pays for the token's storage, including its signing record. Token
+ids count up from 1, one contract per network, so satchel #1 on testnet and satchel #1 on mainnet are
+different tokens.
+
+Every satchel's metadata is set at mint and follows one pattern. This is satchel #1 on testnet, as the
+contract's `nft_token` view returns it:
+
+```json
+{
+  "token_id": "1",
+  "owner_id": "buyer.satchel-nft.testnet",
+  "metadata": {
+    "title": "Satchel #1",
+    "description": "A wallet on every chain. Whoever owns this NFT controls the addresses its keys derive.",
+    "copies": 1,
+    "issued_at": "1794189151923",
+    "extra": "{\"path\":\"satchel/1\"}"
+  }
+}
+```
+
+(Fields that are `null` are left out above.) `extra` names the token's MPC path. The contract's own
+`satchel(token_id)` view returns the owner, the path, the [signing record](/docs/concepts/signing-record)
+and the listing in one call.
+
+## The path and the key
+
+Each token's path is `satchel/<token_id>`: `satchel/1`, `satchel/2` and so on. The contract's
+`derivation_path(token_id)` view returns it, and it can't change.
+
+NEAR's MPC network (Chain Signatures) derives a secp256k1 key from two inputs: the account that asks
+for a signature, and the path. For a satchel, the account is the Satchel contract
+(`v1.satchel-nft.near` or `v1.satchel-nft.testnet`) and the path is the token's. The MPC contract's
+`derived_public_key` view returns the public key for any pair, without anyone signing:
+
+```bash title="Satchel #1's public key on testnet"
+curl -s https://rpc.testnet.fastnear.com -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"v1.signer-prod.testnet","method_name":"derived_public_key","args_base64":"'$(printf '{"path":"satchel/1","predecessor":"v1.satchel-nft.testnet","domain_id":0}' | base64 | tr -d '\n')'"}}'
+```
+
+The `result` field holds the bytes of a JSON string:
+
+```text
+"secp256k1:uB6uEeQBAQdZZ4mTgDpaSSfyBXUWcNixrep15KX8UwSGa9iUkfywL1xQQog9MZ76YbKQWe5hiMbuDhXVJnuBykT"
+```
+
+The EVM address is the last 20 bytes of the keccak-256 hash of that 64-byte key, which for satchel #1
+on testnet is `0x96DA1468E95Ab31A698891f0150095f86b5a282B`. The `satchel-nft` library does both steps in
+one call:
+
+```ts
+import { TESTNET, tokenAddress } from "satchel-nft";
+
+const address = await tokenAddress(TESTNET, "satchel/1");
+// "0x96DA1468E95Ab31A698891f0150095f86b5a282B"
+```
+
+The private key is never assembled. The MPC nodes each hold a share and sign together, and only when
+the account that the key was derived for, the Satchel contract, asks.
+
+## One address on 16 chains
+
+An EVM address is the same on every EVM chain, so a satchel's address exists on all 16 chains the
+contract signs for: Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain, Avalanche and Aurora,
+and a testnet of each. Funds on any of them are controlled by the same key. [Networks and
+chains](/docs/concepts/networks-and-chains) lists the chain ids and which ones the app sends on.
+
+## Ownership is signing rights
+
+The contract asks the MPC network to sign for a token only from `sign_evm` and `sign_raw`, and both
+start by checking that the caller owns the token, attached exactly 1 yoctoNEAR, prepaid at least 50 TGas,
+and that the token isn't listed. So:
+
+- **whoever owns the NFT is the only one who can move what's at its address**, on every chain;
+- **transferring the NFT transfers the address.** The moment `nft_transfer` lands, the new owner can
+  sign and the previous one can't. Testnet transaction
+  [`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) is a
+  previous owner's `sign_evm`, refused with `Satchel: only the token's owner can do this`;
+- **a dapp login key can't sign for it.** The 1 yoctoNEAR deposit means a function-call access key, the
+  kind a dapp gets when you log in, can't make the call: only the owner's full-access key, through their
+  wallet, can.
+
+What the key signed before you owned the satchel stays in its record, and may still be valid on chain.
+That is what the [clean transfer report](/docs/concepts/clean-transfer-report) checks.
+
+## The address exists before the token
+
+Because the address depends only on the contract's account and the path, you can compute it for a
+token id that hasn't been minted yet. That is useful, and it is also a trap: `mint` is open to anyone,
+and it takes the next id. If you send funds to the address of the next id and someone else mints first,
+the satchel, and your funds, are theirs.
+
+This happened in miniature on mainnet: satchel #1's address was funded on Base 92 seconds before #1 was
+minted, by its intended owner. Nobody else minted in between, but nothing stopped them.
+
+<Callout type="warning" title="Mint first, then fund">
+Fund a satchel's address only after its mint has landed and the satchel's page, or `satchel-nft show
+<id>`, names you as the owner. [Mint and fund a satchel](/docs/guides/mint-and-fund) walks through it.
+</Callout>
+
+## Testnet satchels and real funds
+
+A testnet satchel's address is a valid address on every EVM mainnet too, and the testnet contract can
+sign for mainnet chain ids: `SUPPORTED_CHAINS` is the same on both. But a testnet satchel's key is
+derived by NEAR's testnet MPC network, `v1.signer-prod.testnet`, which is not meant to secure real value.
+The app only sends on the 8 testnets from testnet pages, and on the 8 mainnets from `/mainnet` pages.
+
+<Callout type="danger" title="Never send real funds to a testnet satchel">
+Use mainnet satchels, at [satchelnft.xyz/mainnet](https://satchelnft.xyz/mainnet), for anything of
+value, and keep in one only what you can afford to lose: Satchel is not audited.
+</Callout>
+
+## What this doesn't cover
+
+- **Non-EVM chains.** The key is secp256k1 (MPC domain 0). The contract builds only EIP-1559 EVM
+  transactions. Bitcoin, or anything else, can be signed only through `sign_raw`, which is counted as
+  opaque and makes the satchel unprovable. Ed25519 chains, such as Solana and NEAR, aren't supported.
+- **Deriving the address without the RPC.** The app and the CLI read the address from
+  `derived_public_key` through one NEAR RPC. They don't derive it locally from the MPC network's root
+  key yet, so a lying NEAR RPC could show the wrong address. The [threat model](/docs/security/threat-model)
+  lists this as a residual risk.
+
+## Related
+
+- [The signing record](/docs/concepts/signing-record): what the key has signed, on record.
+- [Networks and chains](/docs/concepts/networks-and-chains): the deployments and the 16 chains.
+- [Mint and fund a satchel](/docs/guides/mint-and-fund): your first satchel, in the right order.
+- [Contract reference](/docs/developers/contract): `mint`, `satchel`, `derivation_path` and the rest.

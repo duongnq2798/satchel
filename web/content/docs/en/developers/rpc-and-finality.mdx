@@ -1,0 +1,256 @@
+Every answer Satchel gives comes from an RPC node: one NEAR node and one node per EVM chain. This
+page lists the nodes the app, the CLI and the library read by default, how each read is pinned so a
+report can't count something that may still be undone, what happens when a node is slow or wrong,
+and how to use your own.
+
+## The default nodes
+
+The defaults live in `packages/satchel-nft/src/config.ts`. The web app, the CLI and the library use
+the same list.
+
+| Network | NEAR RPC | Explorer |
+| --- | --- | --- |
+| Testnet | `https://rpc.testnet.fastnear.com` | testnet.nearblocks.io |
+| Mainnet | `https://rpc.mainnet.fastnear.com` | nearblocks.io |
+
+| Chain | Id | RPC |
+| --- | --- | --- |
+| Ethereum | 1 | `https://ethereum-rpc.publicnode.com` |
+| Sepolia | 11155111 | `https://ethereum-sepolia-rpc.publicnode.com` |
+| Base | 8453 | `https://base-rpc.publicnode.com` |
+| Base Sepolia | 84532 | `https://base-sepolia-rpc.publicnode.com` |
+| Arbitrum One | 42161 | `https://arb1.arbitrum.io/rpc` |
+| Arbitrum Sepolia | 421614 | `https://sepolia-rollup.arbitrum.io/rpc` |
+| OP Mainnet | 10 | `https://mainnet.optimism.io` |
+| OP Sepolia | 11155420 | `https://optimism-sepolia-rpc.publicnode.com` |
+| Polygon | 137 | `https://polygon-bor-rpc.publicnode.com` |
+| Polygon Amoy | 80002 | `https://polygon-amoy-bor-rpc.publicnode.com` |
+| BNB Chain | 56 | `https://bsc-rpc.publicnode.com` |
+| BNB testnet | 97 | `https://bsc-testnet-rpc.publicnode.com` |
+| Avalanche | 43114 | `https://avalanche-c-chain-rpc.publicnode.com` |
+| Avalanche Fuji | 43113 | `https://avalanche-fuji-c-chain-rpc.publicnode.com` |
+| Aurora | 1313161554 | `https://mainnet.aurora.dev` |
+| Aurora testnet | 1313161555 | `https://testnet.aurora.dev` |
+
+These are free public nodes. Nobody signs up, and any of them can be slow, rate limited or down.
+
+## What the report trusts
+
+The report trusts its nodes. It doesn't compare two nodes and doesn't check storage proofs, so a node
+that lies about a nonce or an allowance could make a satchel look clean. It names every node it read
+in its last line, `read from …`, and in `sources` in its JSON, so you can see whom you trusted and
+read again from a node you run. The [threat model](/docs/security/threat-model#what-satchel-trusts)
+lists this with the other things Satchel trusts.
+
+Two checks catch a node that serves the wrong network:
+
+- **NEAR.** Before it runs any command, the CLI asks its NEAR node for its `chain_id`. A node that
+  serves the other network stops it with exit code 2:
+
+  ```bash
+  NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.1.0 verify 1
+  ```
+
+  ```text
+  https://rpc.mainnet.fastnear.com serves NEAR mainnet, not testnet
+  ```
+
+- **EVM.** Before the report pins a chain, or before a send builds a transaction, the node must
+  report the chain id it is configured for (`eth_chainId`). If it doesn't, the report reads that
+  chain as unknown, and a send stops with `<rpc> serves chain <id>, not <expected>`.
+
+`show`'s balances are the exception: they are a convenience, read without the chain id check. So
+are the token balances on a satchel's page.
+
+A satchel's history, on its page and from `satchel-nft history` (not in 0.1.0), reads a fourth
+source: FastNEAR's transaction index, `https://tx.test.fastnear.com` or `https://tx.main.fastnear.com`
+(`txApi` in `config.ts`). It keeps only events the Satchel contract logged in receipts that
+succeeded, but an index that leaves transactions out changes what the history shows. The report
+never reads it.
+
+## How each read is pinned
+
+The report must never pass a check because of something that could still be undone. So every read is
+taken at a block that is final.
+
+### NEAR
+
+Every NEAR view (the satchel, its record and listing, the contract's keys, code hash and MPC
+contract, the address the MPC contract derives) asks for `finality: "final"`. The satchel, its record
+and its listing come from one `satchel` call, so they are always consistent with each other. The
+contract's facts are separate calls and can come from a slightly later final block.
+
+### EVM chains
+
+For each chain the satchel's record lists, the report:
+
+1. asks the node for its `finalized` block (Aurora: 10 blocks before it, below);
+2. reads the address's nonce at that block, and every recorded approval (`allowance`, `getApproved`,
+   `isApprovedForAll`, Permit2's `allowance`) at that same block;
+3. reads the nonce at the latest block too, only to tell a transaction that hasn't been finalized yet
+   from one that may still be broadcast.
+
+A signed nonce `N` is spent once the nonce at the finalized block is above `N`. If the latest block
+shows it spent but the finalized one doesn't yet, check 2 reads as unknown, and the verdict is
+`COULD NOT CHECK EVERYTHING` until the block is final:
+
+```text
+[????] Could not confirm every signed nonce is spent
+       Sepolia: signed up to nonce 0; a transaction at that nonce is in a recent block that is not finalized yet. Check again once it is
+```
+
+If neither block shows it spent, the check fails: the signature is public, so anyone can still
+broadcast that transaction.
+
+Permit2 allowances expire, so the report compares an expiry with the finalized block's own
+timestamp, not with your clock.
+
+The report reads every chain in the record, not only the 8 of its network. The testnet contract can
+sign for chain 1 too, so a testnet satchel's report can read Ethereum mainnet.
+
+### How long finality takes
+
+How long a block takes to be finalized depends on the chain. Two waits are measured in this
+repository:
+
+| Chain | Measured | Where |
+| --- | --- | --- |
+| Sepolia | about 13 minutes after a send, the report reads `COULD NOT CHECK EVERYTHING` | [Check every claim](/docs/security/check-every-claim) |
+| Base | about 20 minutes, before `check-claims.mjs --network mainnet` can confirm the first send | [Check every claim](/docs/security/check-every-claim) |
+
+For any other chain, build the report again after a while; it never counts a block that isn't
+finalized.
+
+### Aurora
+
+Aurora's RPC answers `finalized` with its latest block. Its blocks follow NEAR's, which are final
+within a few blocks, so the report reads 10 blocks before the block it is given (`finalityLag` in
+`config.ts`) on Aurora and Aurora testnet.
+
+### Archival reads
+
+The public nodes keep only recent state. `scripts/check-claims.mjs` reads old transactions and state
+from FastNEAR's archival nodes, `https://archival-rpc.testnet.fastnear.com` and
+`https://archival-rpc.mainnet.fastnear.com`, so its answers don't change when someone uses a demo
+satchel later. The report itself needs only current state.
+
+## Timeouts, retries and unknowns
+
+| Where | Behavior |
+| --- | --- |
+| EVM reads | viem's HTTP transport, 15 s timeout, one retry |
+| NEAR reads | One `fetch` per read, no retry. An HTTP error or an RPC error fails the read with `NEAR RPC <method> failed: …` |
+| A NEAR transaction the CLI sends | `send_tx` without waiting, then `tx` with `wait_until: "FINAL"`, up to 30 tries 2 s apart. If it still can't read the outcome, the CLI exits 3 with the hash |
+| An EVM receipt after `send` | Waits up to 180 s. If it can't read it, the CLI exits 3 with the hash and nonce |
+
+A read that fails is never a pass. In the report, an EVM read that fails makes its check `unknown`
+(`[????]`), and the verdict `COULD NOT CHECK EVERYTHING`; `verify` exits 1. A NEAR read that fails
+stops the report, and the CLI exits 2. Either way, try again later or from another node.
+
+## Rate limits
+
+A page of reports can hit a public node with many requests at once. Satchel spreads them out:
+
+- `satchel-nft market` and the app's market page build at most **3 reports at once**, with the
+  library's `limiter(3)`.
+- They read the contract's own facts **once**, with `contractFacts`, and share that read across every
+  report on the page.
+- `market` reads listings 100 at a time, the most the contract's `listings` view returns.
+  A page can be short with more after it, so read until the pages cover `nft_total_supply`
+  ([Build a feed of clean listings](/docs/tutorials/clean-listings-feed) shows how).
+
+Do the same in your own code. Build one report per satchel you show, not one per render:
+
+```ts title="feed.ts"
+import { TESTNET, buildReport, contractFacts, limiter, satchel } from "satchel-nft";
+
+const run = limiter(3);
+const facts = contractFacts(TESTNET); // one read, shared by every report below
+const listings = await satchel(TESTNET).listings(0, 100); // the first page only: see the tutorial below
+const reports = await Promise.all(
+  listings.map(([tokenId]) => run(() => buildReport(TESTNET, tokenId, facts).catch(() => null))),
+);
+```
+
+[Build a feed of clean listings](/docs/tutorials/clean-listings-feed) builds a full one.
+
+## Use your own nodes
+
+### CLI
+
+| Variable | What it changes |
+| --- | --- |
+| `NEAR_RPC` | Every NEAR read, and the node a sign command sends its transaction to |
+| `RPC_<chain id>` | One EVM chain, for example `RPC_8453` for Base |
+
+<Tabs labels={["bash", "PowerShell"]}>
+<Tab>
+
+```bash
+NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+```
+
+</Tab>
+<Tab>
+
+```powershell
+$env:NEAR_RPC = "https://<your-near-node>"
+$env:RPC_11155111 = "https://<your-sepolia-node>"
+npx -y satchel-nft@0.1.0 verify 1
+```
+
+</Tab>
+</Tabs>
+
+The report's `read from` line then names your nodes. A NEAR node for the wrong network stops the
+command; an EVM node for the wrong chain makes that chain unknown.
+
+<Callout type="warning" title="Keep keys out of RPC URLs">
+Many RPC providers put an API key in the URL. The report prints every URL it read, in text and in
+JSON, so a key in a URL ends up in your logs. Never commit one.
+</Callout>
+
+### Library
+
+```ts
+import { CHAINS, MAINNET, buildReport, setNearRpc } from "satchel-nft";
+
+setNearRpc("https://<your-near-mainnet-node>");
+const base = CHAINS.find((c) => c.id === 8453)!;
+base.rpc = "https://<your-base-node>";
+
+const report = await buildReport(MAINNET, "1");
+```
+
+`setNearRpc` sends every NEAR read in the process to one node, whatever network you pass, so use it
+for one network per process. The library makes one EVM client per chain and keeps it, so set a
+chain's `rpc` before the first read on that chain. The CLI does exactly this from its environment
+variables.
+
+### Web app
+
+The app reads from the defaults in `config.ts` and has no setting to change them. To use your own
+nodes in a browser, [run the app yourself](/docs/advanced/run-the-app) with a changed `config.ts`.
+
+### check-claims.mjs
+
+`node scripts/check-claims.mjs` reads `NEAR_RPC` (default `https://rpc.<network>.fastnear.com`),
+`NEAR_ARCHIVAL_RPC` (default `https://archival-rpc.<network>.fastnear.com`) and, for mainnet's Base
+claims, `BASE_RPC` (default `https://base-rpc.publicnode.com`).
+
+## Testnet and mainnet
+
+The rules are the same on both networks. The difference is what a wrong answer costs: on mainnet, a
+report you trusted from a node that lied could cost you real NEAR. For a mainnet purchase, run
+`verify` again from nodes you run, or from a second provider, before you buy:
+
+```bash
+NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.1.0 verify --network mainnet 1
+```
+
+## Related
+
+- [CLI reference](/docs/developers/cli): every command and environment variable.
+- [The clean transfer report](/docs/concepts/clean-transfer-report): the four checks these reads feed.
+- [Run the app yourself](/docs/advanced/run-the-app): change the app's nodes.
+- [Production checklist](/docs/advanced/production-checklist): before you depend on Satchel.

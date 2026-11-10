@@ -1,0 +1,179 @@
+Every satchel has one signing record, kept by the contract next to the token. Anyone can read it with a
+view call, without a wallet. It is the evidence the [clean transfer report](/docs/concepts/clean-transfer-report)
+checks against each chain: it says what the token's key may have signed, so a buyer knows what to look for.
+
+The record is not the seller's account of their history. The contract writes it itself, in the same
+receipt that asks NEAR's MPC network for the signature, so nothing the key signs through Satchel can skip it.
+
+## Read a record
+
+`satchel-nft record <id>` prints a token's record as the contract returns it. It needs no key. Satchel #1 on
+testnet, which has signed seven Sepolia transactions:
+
+```bash
+npx -y satchel-nft@0.1.0 record 1
+```
+
+```text
+Satchel #1's signing record on v1.satchel-nft.testnet (testnet), version 7
+
+Signed through sign_evm:
+  Sepolia (11155111): 7 signature(s), up to nonce 4
+
+Approvals signed: none
+
+0 approval(s) over the cap, 0 unclassified call(s), 0 raw signature(s)
+```
+
+Satchel #3, whose seller approved an address of their own to spend its USDC without limit:
+
+```text
+Satchel #3's signing record on v1.satchel-nft.testnet (testnet), version 1
+
+Signed through sign_evm:
+  Sepolia (11155111): 1 signature(s), up to nonce 0
+
+Approvals signed:
+  Sepolia (11155111): Approve on 0x1c7d4b196cb0c7b01d743fbc6116a902379c7238 for 0xac30961c59543fe2d8258b8c71c75320feb7c235, argument 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+
+0 approval(s) over the cap, 0 unclassified call(s), 0 raw signature(s)
+```
+
+Satchel #6, which had a raw 32-byte payload signed:
+
+```text
+Satchel #6's signing record on v1.satchel-nft.testnet (testnet), version 1
+
+Signed through sign_evm: nothing
+
+Approvals signed: none
+
+0 approval(s) over the cap, 0 unclassified call(s), 1 raw signature(s), the last at 2026-11-09T05:08:34.752Z
+```
+
+Add `--network mainnet` to read a mainnet satchel, and `--json` for the raw fields. The contract's own views
+return the same data: `signing_record(token_id)` returns the record alone, and `satchel(token_id)` returns it
+with the owner, the MPC path and the listing. See the [contract reference](/docs/developers/contract).
+
+## Every field
+
+The record is the contract's `SigningRecord` (`contracts/satchel/src/lib.rs`). Over JSON, `u64` values arrive
+as strings; the counters are plain numbers.
+
+| Field | Type | What it holds |
+| --- | --- | --- |
+| `evm` | list of `{ chain_id, max_nonce, signatures }` | One row per chain the token ever signed for through `sign_evm`. `max_nonce` is the highest nonce signed on that chain, `signatures` how many signatures on it |
+| `approvals` | list of approval rows, at most 32 | Every distinct approval signed through `sign_evm`, decoded. See [Approval rows](#approval-rows) |
+| `approvals_not_itemized` | number | Approvals signed after the list held 32 rows. They are counted, not listed |
+| `unclassified_calls` | number | `sign_evm` calls the contract could not classify: a multicall, a swap, `transferOwnership` |
+| `opaque_signatures` | number | Signatures over payloads the contract did not build, through `sign_raw` |
+| `last_opaque_at` | `u64` string | Block time of the latest opaque signature, in nanoseconds. `"0"` if there was none |
+| `version` | `u64` string | Goes up by one with every signature, `sign_evm` or `sign_raw`. A listing pins it, and `buy` must name it |
+
+A token that has never signed has the empty record: no rows, every counter 0, version `"0"`.
+
+## What `sign_evm` writes
+
+The owner sends the fields of an EIP-1559 transaction (`chain_id`, `nonce`, the two fee caps, `gas_limit`,
+`to`, `value`, `data`). Before it asks for a signature, the contract:
+
+1. refuses a chain id outside its fixed list of 16 (`Satchel: chain_id is not one of the supported chains`);
+2. RLP-encodes and hashes the transaction itself, so it knows exactly what will be signed;
+3. updates the chain's row: `max_nonce` becomes the larger of the old value and this nonce, and `signatures`
+   goes up by one. A chain seen for the first time gets a new row;
+4. classifies the call (below) and updates `approvals`, `approvals_not_itemized` or `unclassified_calls`;
+5. adds 1 to `version`, saves the record, and logs a `sign_evm` event with the class;
+6. only then calls the MPC contract's `sign` for the token's path, `satchel/<token_id>`.
+
+`max_nonce` only moves up. Signing nonce 3 after nonce 5 leaves it at 5, which is what a buyer needs: the
+report has to see the address's nonce above every nonce ever signed.
+
+### The five call classes
+
+Every `sign_evm` call falls in exactly one class, decided by its calldata's first four bytes (the selector).
+The selectors below are the contract's (`contracts/satchel/src/evm.rs`), and a unit test checks each one is the
+keccak of its signature.
+
+| Class | Calls | Selectors | Effect on the record |
+| --- | --- | --- | --- |
+| Value transfer | Empty calldata: sends `value` and nothing else | none | Nonce row only |
+| Asset transfer | ERC-20 `transfer(address,uint256)`; `transferFrom(address,address,uint256)` (ERC-20 and ERC-721); ERC-721 `safeTransferFrom(address,address,uint256)`; WETH `deposit()` and `withdraw(uint256)`; ERC-721 `safeTransferFrom(address,address,uint256,bytes)` with empty bytes; ERC-1155 `safeTransferFrom(address,address,uint256,uint256,bytes)` with a non-zero amount and empty bytes | `0xa9059cbb`, `0x23b872dd`, `0x42842e0e`, `0xd0e30db0`, `0x2e1a7d4d`, `0xb88d4fde`, `0xf242432a` | Nonce row only |
+| Approval | ERC-20 `approve(address,uint256)` and ERC-721 `approve` (same selector); `increaseAllowance(address,uint256)`; `setApprovalForAll(address,bool)`; Uniswap Permit2 `approve(address,address,uint160,uint48)` | `0x095ea7b3`, `0x39509351`, `0xa22cb465`, `0x87517c45` | A decoded row in `approvals`, or 1 more in `approvals_not_itemized` |
+| Revocation | An approval call that grants nothing: `setApprovalForAll(x, false)`, `increaseAllowance(x, 0)`, a Permit2 `approve` of amount 0 | as above | Nonce row only, logged in the event. Cleaning up never fills the approval list |
+| Unclassified | Anything else, including calldata shorter than 4 bytes, a safe transfer with data, an ERC-1155 transfer of 0, and any batch transfer | any other | 1 more in `unclassified_calls` |
+
+A safe transfer with data runs the receiver's hook with data the signer chose, so it is not counted as plain.
+`approve(x, 0)` is not a revocation: on an ERC-721 contract it approves token id 0, so it is itemized like any
+other approval.
+
+An approval selector with calldata too short to name the spender is refused outright, with
+`Satchel: approval calldata is too short`: an approval the contract can't itemize is never signed.
+
+### Approval rows
+
+Each row in `approvals` is the contract's `ApprovalRecord`:
+
+| Field | What it holds |
+| --- | --- |
+| `chain_id` | The chain the approval was signed for |
+| `contract` | The contract the transaction called (`to`), lowercase `0x` hex. For Permit2, the Permit2 contract |
+| `kind` | `Approve`, `IncreaseAllowance`, `SetApprovalForAll` or `Permit2Approve` |
+| `spender` | The address that was granted the right |
+| `token` | Permit2 only: the token it approves. `null` for the other kinds |
+| `arg` | The second argument as a 32-byte hex word: the amount, the ERC-721 token id, or the operator boolean. For Permit2, the amount |
+
+Only an identical row is merged. Two token ids, two amounts or two spenders stay two rows, so every
+approval a buyer must see revoked is listed.
+
+### The 32-row cap
+
+The contract itemizes at most 32 distinct approvals per token (`MAX_APPROVALS`). A new approval after that is
+counted in `approvals_not_itemized` instead of being dropped. A buyer can't check those one by one, so the
+report's fourth check fails on any of them. The cap bounds the record's storage, which the 0.1 NEAR mint deposit
+pays for.
+
+## What `sign_raw` writes
+
+`sign_raw(token_id, payload)` signs any 32-byte payload: a Bitcoin sighash, a message hash, an EIP-712 digest.
+The contract can't know what such bytes authorize, so it adds 1 to `opaque_signatures`, sets `last_opaque_at`
+to the block time, adds 1 to `version`, logs a `sign_raw` event, and then asks the MPC network to sign.
+
+`sign_raw` is allowed, and it is the only way to sign bytes the contract didn't build. Every opaque signature
+makes the report's fourth check fail for good: a satchel that ever signed raw bytes can never read provably clean.
+
+## Written before the signature
+
+The record is saved in `sign_evm`'s (or `sign_raw`'s) own receipt. The MPC contract's `sign` runs in a later
+receipt. On NEAR a later receipt can't undo an earlier one, so whatever happens to the signature request (it
+fails, it times out, it succeeds later), the record already shows the nonce, the approval or the counter.
+
+That makes a failed request stricter, never looser. A timed-out request may still produce a signature, since the
+MPC nodes' answers are public; the record counted it either way. If you sign a nonce and never broadcast it, the
+record keeps it, and the satchel stays unprovable until a transaction at that nonce is final on that chain.
+
+## Why it only grows
+
+Nothing in the contract removes a row, lowers a counter or resets the version. Not a transfer, not a sale, not a
+relist. The record describes the token's key, not its current owner, so every later owner inherits it.
+
+- A buyer doesn't need the seller's word about the past: the whole history of what the key signed through
+  Satchel is there.
+- A seller can't wash a satchel by moving it to another account and back.
+- The flip side: any owner can make a token unprovable for every later owner, with one raw signature or one
+  unclassified call. The record shows it; it never hides it.
+
+## What the record can't cover
+
+- **Powers built into an asset.** An upgradable token, a blacklist, an issuer's clawback, an ENS name whose
+  controller is still the seller: none needs a signature from the wallet, so none is in the record.
+- **What a classified call means on a non-standard contract.** Calls are classified by selector, assuming the
+  called contract gives it its standard meaning.
+- **Signatures made outside Satchel.** No key exists outside the MPC network, and only this contract can ask it to
+  sign for `satchel/<id>`. The [threat model](/docs/security/threat-model) covers what that trusts.
+
+## Related
+
+- [The clean transfer report](/docs/concepts/clean-transfer-report): the four checks that read the record against each chain.
+- [Listings and sales](/docs/concepts/listings-and-sales): how a listing pins the record's version.
+- [Contract reference](/docs/developers/contract): `sign_evm`, `sign_raw` and the views.
+- [Events](/docs/developers/events): the `sign_evm` and `sign_raw` events each signature logs.
