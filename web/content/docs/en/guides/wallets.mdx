@@ -1,7 +1,7 @@
 You don't need a wallet to read anything on satchelnft.xyz: every report, address and balance is
-public. You need a NEAR wallet to mint, send, list, delist, buy or transfer. You never need an EVM
-wallet: your NEAR wallet approves a call to the Satchel contract, and NEAR's MPC network signs the EVM
-transaction for the satchel's address.
+public. You need a NEAR wallet to mint, send, list, delist, buy or transfer, and to open a satchel's
+holder room. You never need an EVM wallet: your NEAR wallet approves a call to the Satchel contract,
+and NEAR's MPC network signs the EVM transaction for the satchel's address.
 
 ## What you need
 
@@ -83,12 +83,21 @@ For `sign_evm`, the arguments are the EVM transaction itself: `chain_id`, `nonce
 price. This is what protects you if the hosted app were ever changed to build a different call than it
 shows ([threat model, row 21a](/docs/security/threat-model#the-report)).
 
+**One message, not a transaction.** To open a satchel's [holder room](/docs/guides/holder-room), the app
+asks your wallet to sign a NEP-413 message instead: five lines naming the satchel, the network, the
+contract, your account and the time, for the recipient `satchelnft.xyz`. Nothing is sent to NEAR and it
+costs nothing. [The message](/docs/guides/holder-room#the-message) shows it in full.
+
 ## Why every action needs a full-access key
 
 `sign_evm`, `list`, `delist` and `nft_transfer` require exactly 1 yoctoNEAR, `mint` 0.1 NEAR and `buy`
 the price. A function-call access key (the limited key a dapp may add when you log in) can't attach a
 deposit. So every one of these calls needs the owner's full-access key, which means a confirmation in
 your wallet each time. A dapp login key on your account can't sign, list or move your satchel.
+
+The holder room's message needs a full-access key too, for another reason: a login key can sign a
+NEP-413 message, so the room takes only a full-access key, and a site you once logged in to can't open
+it as you ([why a full-access key](/docs/guides/holder-room#how-the-server-checks)).
 
 ## Without a browser
 

@@ -7,7 +7,7 @@ import { DOCS, PAGES, findPage, neighbours } from "./nav";
 import { highlight, search, stem, terms } from "./search";
 
 /** Paths of the app outside the docs that a docs page may link to. */
-const APP_ROUTES = [/^\/$/, /^\/(mainnet\/?)?$/, /^\/(mainnet\/)?(market|satchels|verify)$/, /^\/(mainnet\/)?satchel\/\d+$/, /^\/llms\.txt$/];
+const APP_ROUTES = [/^\/$/, /^\/(mainnet\/?)?$/, /^\/(mainnet\/)?(market|satchels|verify)$/, /^\/(mainnet\/)?satchel\/\d+(\/room)?$/, /^\/llms\.txt$/];
 
 describe("the docs' structure", () => {
   it("gives every page a unique slug, a title and a short description", () => {

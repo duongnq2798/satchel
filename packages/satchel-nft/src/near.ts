@@ -78,11 +78,13 @@ export function setNearRpc(url: string) {
   override = url;
 }
 
-export async function nearRpc<T>(net: Network, method: string, params: unknown): Promise<T> {
+/** `signal`, if given, can abort the read; without one it waits as long as `fetch` does. */
+export async function nearRpc<T>(net: Network, method: string, params: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(nearRpcUrl(net), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "satchel", method, params }),
+    signal,
   });
   if (!res.ok) throw new NearRpcError(method, `HTTP ${res.status}`);
   const body = (await res.json()) as { result?: T; error?: unknown };
@@ -138,6 +140,98 @@ export async function accessKeyCount(net: Network, account: string): Promise<num
     account_id: account,
   });
   return result.keys.length;
+}
+
+/** One NEAR JSON-RPC call. Reads pinned to a block take one, so a test can answer them. */
+export type RpcCall = <T>(method: string, params: unknown) => Promise<T>;
+
+/** How long a read through `rpcFor` waits for the node. */
+export const RPC_TIMEOUT_MS = 10_000;
+
+/**
+ * `nearRpc` for `net`, as an `RpcCall` that gives up after `timeoutMs`: a node that never answers
+ * fails like one that errs, while the caller still has time to say so.
+ */
+export function rpcFor(net: Network, timeoutMs = RPC_TIMEOUT_MS): RpcCall {
+  return async (method, params) => {
+    try {
+      return await nearRpc(net, method, params, AbortSignal.timeout(timeoutMs));
+    } catch (err) {
+      if ((err as { name?: unknown } | null)?.name === "TimeoutError") throw new NearRpcError(method, `no answer in ${timeoutMs / 1000} s`);
+      throw err;
+    }
+  };
+}
+
+/** A final NEAR block: every read pinned to it sees the same state. */
+export interface BlockRef {
+  height: number;
+  hash: string;
+  /** The block's time, ISO 8601. */
+  timestamp: string;
+}
+
+export async function finalBlock(rpc: RpcCall): Promise<BlockRef> {
+  const { header } = await rpc<{ header: { height: number; hash: string; timestamp: number; timestamp_nanosec?: string } }>(
+    "block",
+    { finality: "final" },
+  );
+  // `timestamp` is nanoseconds, past what a JSON number holds exactly; `timestamp_nanosec` is the same as a string.
+  const nanos = BigInt(header.timestamp_nanosec ?? header.timestamp);
+  return { height: header.height, hash: header.hash, timestamp: new Date(Number(nanos / 1_000_000n)).toISOString() };
+}
+
+/** Throws unless a query's answer names the block it was asked for. */
+function assertAtBlock(method: string, blockHash: string, answered: string | undefined) {
+  if (answered !== undefined && answered !== blockHash) {
+    throw new NearRpcError(method, `answered at block ${answered}, not ${blockHash}`);
+  }
+}
+
+/** Calls a view method at the block `blockHash`, like `view` does at a final one. */
+export async function viewAt<T>(rpc: RpcCall, blockHash: string, account: string, method: string, args: unknown = {}): Promise<T> {
+  const result = await rpc<{ result?: number[]; error?: string; block_hash?: string }>("query", {
+    request_type: "call_function",
+    block_id: blockHash,
+    account_id: account,
+    method_name: method,
+    args_base64: encodeArgs(args),
+  });
+  assertAtBlock(method, blockHash, result.block_hash);
+  if (result.result === undefined) throw new Error(viewErrorMessage(method, result.error));
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(result.result))) as T;
+}
+
+export type AccessKeyPermission =
+  | "FullAccess"
+  | { FunctionCall: { allowance: string | null; receiver_id: string; method_names: string[] } };
+
+/**
+ * `publicKey` on `account` at the block `blockHash`, or null if the account has no such key there.
+ * A node says so either as `result.error` ("… does not exist while viewing") or as an
+ * UNKNOWN_ACCESS_KEY (or UNKNOWN_ACCOUNT) error; anything else it answers throws.
+ */
+export async function accessKeyAt(
+  rpc: RpcCall,
+  blockHash: string,
+  account: string,
+  publicKey: string,
+): Promise<{ permission: AccessKeyPermission } | null> {
+  let result: { permission?: AccessKeyPermission; error?: string; block_hash?: string };
+  try {
+    result = await rpc("query", { request_type: "view_access_key", block_id: blockHash, account_id: account, public_key: publicKey });
+  } catch (err) {
+    const name = err instanceof NearRpcError ? (err.cause as { cause?: { name?: unknown } } | null)?.cause?.name : undefined;
+    if (name === "UNKNOWN_ACCESS_KEY" || name === "UNKNOWN_ACCOUNT") return null;
+    throw err;
+  }
+  assertAtBlock("view_access_key", blockHash, result.block_hash);
+  if (result.error !== undefined) {
+    if (/does not exist/.test(result.error)) return null;
+    throw new NearRpcError("view_access_key", result.error);
+  }
+  if (result.permission === undefined) throw new NearRpcError("view_access_key", "no permission in the answer");
+  return { permission: result.permission };
 }
 
 /**

@@ -6,6 +6,29 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The holder room: `/satchel/<id>/room` (and `/mainnet/satchel/<id>/room`), a page only the account
+  that owns a satchel right now can open, linked from the satchel's page. The holder's wallet signs a
+  NEP-413 message (NEAR Connect's `signMessage`) naming the satchel, the network, the contract, the
+  account and the time, for the recipient `satchelnft.xyz`. The app's one server route, `/api/room`
+  (POST only, 4 KB body limit, `no-store`), writes the message again, verifies the ed25519 signature
+  strictly, then reads at one final NEAR block that the key is a full-access key of the account and
+  that the account owns the satchel, on every request; it stores nothing. A proof is refused 5
+  minutes after its `Issued` time, each NEAR read after 10 seconds without an answer (a 502), and a
+  report that takes over 20 seconds still leaves the holder card. Inside: a holder card (account,
+  satchel, network, the block read, the key) and a handover kit, what to do before selling, one step
+  per check of the satchel's report that doesn't pass, or one step to list it when all four pass. The
+  kit names only the chains still open, says where the full approval addresses are, offers no fix
+  while check 1 fails (the app and the CLI then sign nothing), and says plainly when a chain is one
+  the app and the CLI don't send on. The track brief's gated page is now met in the README and the
+  demo kit. The package exports `checkHolder`, `roomMessage`, `ROOM_RECIPIENT`, `ROOM_WINDOW_MS` and
+  `ROOM_SKEW_MS` (`holder.ts`), `verifyNep413`, `nep413Hash` and the base64 helpers (`nep413.ts`),
+  `handoverKit` (`kit.ts`), `finalBlock`, `viewAt`, `accessKeyAt`, `rpcFor` and `RPC_TIMEOUT_MS`
+  (`near.ts`) and `nearBlockUrl` (`config.ts`), and the report's pending and approvals checks gain
+  `chains`, the chain and status behind each line; none is in 0.1.0 on npm. 35 new package tests
+  (163 in all), the NEP-413 ones against two signatures near-cli-rs made, and 5 app tests (20). The docs gain a guide, "Open the holder room" (37 pages), and a section in the
+  security model; the threat model adds rows 24 to 28 (38 attacks) and residual risk 13. AGENTS.md
+  adds the checks for it. The README and "Run the web app yourself" no longer say the app has no
+  backend: it has one stateless server route.
 - The README lists the libraries, templates and AI-written code Satchel uses, as the hackathon's
   rules ask (HACKATHON.md, Q-005): the contract's crates and cargo-near, and that `Cargo.toml` is the
   file cargo-near's `cargo near new` template writes, with Satchel's name, description, repository

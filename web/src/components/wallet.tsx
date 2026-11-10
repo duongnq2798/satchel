@@ -91,7 +91,8 @@ export function useWallet(): WalletState {
   return state;
 }
 
-export function ConnectButton() {
+/** `align` is the side the sign-in error opens toward: right in the header, left where the button starts a line. */
+export function ConnectButton({ align = "right" }: { align?: "left" | "right" }) {
   const { accountId, ready, signIn, signOut } = useWallet();
   const net = useNetwork();
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +115,10 @@ export function ConnectButton() {
           Connect wallet
         </button>
         {error && (
-          <span role="alert" className="absolute top-full right-0 z-50 mt-2 w-72 rounded-xl bg-bad-soft px-3 py-2 text-xs text-bad">
+          <span
+            role="alert"
+            className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-bad-soft px-3 py-2 text-xs text-bad`}
+          >
             {error}
           </span>
         )}
