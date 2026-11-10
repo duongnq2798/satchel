@@ -166,7 +166,7 @@ cargo test
 cd ../..
 ```
 
-You should see `test result: ok. 59 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
+You should see `test result: ok. 61 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
 rustup installs it on first use. On Windows, a dependency (`aws-lc-sys`) needs NASM unless you set
 `AWS_LC_SYS_PREBUILT_NASM=1` first: `$env:AWS_LC_SYS_PREBUILT_NASM=1` in PowerShell, `export
 AWS_LC_SYS_PREBUILT_NASM=1` in Git Bash.
@@ -198,10 +198,10 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | Rule | Code | Tests (`contracts/satchel/src/tests.rs` unless named) |
 |---|---|---|
 | The contract builds and hashes every EVM transaction it signs (EIP-1559) | `Eip1559Tx::signing_hash` in `contracts/satchel/src/evm.rs` | `evm_hash_and_rlp_match_viem_for_every_vector`, `evm_signing_hash_view_matches_the_hash_sign_evm_sends` |
-| The record is written before the MPC request | `sign_evm`, `sign_raw`, `request_signature` in `contracts/satchel/src/lib.rs`. The record is saved when the `sign_evm` receipt succeeds; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque` (both show the record and the MPC call; the order follows from NEAR's receipts) |
+| The record is written before the MPC request | `sign_evm`, `sign_raw`, `request_signature` in `contracts/satchel/src/lib.rs`. The record is saved when the `sign_evm` receipt succeeds; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` (they show the record and the MPC call; the order follows from NEAR's receipts) |
 | Every call is classified: transfer, asset transfer, approval, revocation or unclassified | `Eip1559Tx::classify` in `evm.rs` | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
 | 32 approvals are itemized, more are counted | `sign_evm`, `MAX_APPROVALS` | `approvals_beyond_the_cap_are_counted_not_dropped` |
-| Only the owner signs; listing freezes signing | `assert_can_sign` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer` |
+| Only the owner signs; listing freezes signing | `assert_can_sign` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | `buy` pins the record version and price | `buy` | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
 | Any transfer ends the listing, a bounced `nft_transfer_call` too | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
 | Only 16 chain ids can be signed for | `SUPPORTED_CHAINS` in `contracts/satchel/src/evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |

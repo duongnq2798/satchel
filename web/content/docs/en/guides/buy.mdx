@@ -40,9 +40,10 @@ On `/mainnet` pages you pay real NEAR for an address that may hold real funds. S
    Neither card is part of the report. The history comes from FastNEAR's transaction index, and the card warns
    when it counts a different number of signatures than the record, which is what the report checks.
 
-4. **Click Buy for … NEAR** in the **For sale** card, and approve `buy` in your wallet. Its arguments are the
-   token id, the record version and the price; its deposit is the price; gas is 100 TGas. If you aren't
-   connected, the button reads **Connect to buy**.
+4. **Click Buy for … NEAR** in the **For sale** card below the report, and approve `buy` in your wallet.
+   The bar under the satchel's title shows the same price, and its **Go to buy** link scrolls down to this
+   card. The call's arguments are the token id, the record version and the price; its deposit is the
+   price; gas is 100 TGas. If you aren't connected, the button reads **Connect to buy**.
 
 5. **Done.** When the purchase is final, the page reads again: **Owned by you**, and a link to the
    transaction. The address on every chain is now yours to sign for.
@@ -66,7 +67,7 @@ The **For sale** card guards the same way before your wallet opens:
 | The card says | Why | What to do |
 | --- | --- | --- |
 | `Waiting for the report on this listing…` | The report hasn't finished, or it read a different listing | Wait. The buy button won't proceed until the report is in |
-| `The record changed while this page loaded. Check again before you buy.` | The page and the report read different record versions | Click **Check again** on the report and read it again |
+| `The listing or its record changed while this page loaded. Check again before you buy.` | The page and the report read a different price, seller or record version (for example, the seller relisted at a new price) | Click **Check again** on the report and read it again |
 | `Tick the box above to buy a satchel that is not provably clean` | The verdict isn't clean and you haven't accepted it | Read the report. Tick the box only if you accept the risk |
 
 ## Buying a satchel that isn't provably clean

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CHAINS, buildReport, chainInfo, nearAccountUrl, nearTxUrl, satchel, tokenAddress } from "satchel-nft";
+import { CHAINS, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, tokenAddress } from "satchel-nft";
 import { Contents } from "./contents";
 import { DeploymentNote, useDeployment } from "./deployment";
 import { History } from "./history";
 import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
-import { BuyPanel, OwnerSale } from "./sale-panel";
+import { BuyPanel, OwnerSale, checkedListing } from "./sale-panel";
 import { SendPanel } from "./send-panel";
 import { Badge, Button, Card, CopyButton, ErrorNote, ExternalLink, Mono, VERDICT } from "./ui";
 import { useAsync } from "./use-async";
@@ -56,6 +56,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
   const { view, address } = token.data;
   const isOwner = accountId === view.owner_id;
   const record = view.record;
+  const listing = view.listing && (checkedListing(view, report.data ?? undefined, net)?.listing ?? view.listing);
 
   return (
     <div className="space-y-6">
@@ -74,6 +75,22 @@ export function TokenView({ tokenId }: { tokenId: string }) {
         </div>
       </div>
       <ErrorNote error={token.error} />
+
+      {listing && !isOwner && (
+        // The price where a buyer lands, from the same listing the buy panel shows; the purchase stays in that panel.
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-gold/60!">
+          <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
+            For sale: <strong className="font-display text-lg">{formatNear(listing.price)} NEAR</strong>, sold by{" "}
+            {listing.seller}. Read the report, then buy.
+          </p>
+          <a
+            href="#buy"
+            className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
+          >
+            Go to buy
+          </a>
+        </Card>
+      )}
 
       <Card>
         <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, controlled by whoever owns this NFT</p>
@@ -111,7 +128,11 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           Done. <ExternalLink href={nearTxUrl(net, lastTx)}>View the transaction</ExternalLink>
         </p>
       )}
-      {view.listing && !isOwner && <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />}
+      {view.listing && !isOwner && (
+        <div id="buy" className="scroll-mt-24">
+          <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />
+        </div>
+      )}
       {isOwner && !view.listing && deployment.data && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} />}
       {isOwner && <OwnerSale token={view} onDone={reloadAll} />}
 

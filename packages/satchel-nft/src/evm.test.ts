@@ -60,8 +60,8 @@ describe("token address", () => {
   });
 });
 
-// Testnet satchels #1 to #8 and mainnet #1, with the root key and the derived keys the MPC
-// contracts returned for them (__fixtures__/derived-keys.json).
+// Every satchel minted on each network by 2026-11-10 (testnet #1 to #8, mainnet #1), with the root key
+// and the derived keys the MPC contracts returned for them (__fixtures__/derived-keys.json).
 describe("deriving a satchel's key locally", () => {
   afterEach(() => vi.restoreAllMocks());
 

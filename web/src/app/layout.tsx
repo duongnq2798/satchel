@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://satchelnft.xyz"),
   title: { default: "Satchel: an NFT that is one wallet on 16 EVM chains", template: "%s · Satchel" },
   description:
-    "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Sell the NFT and the keys move with it; a public signing record proves what the seller could have kept back.",
+    "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Sell the NFT and the wallet moves with it; a public signing record proves what the seller could have kept back.",
   icons: { icon: "/icon.svg" },
 };
 

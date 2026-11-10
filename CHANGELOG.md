@@ -29,6 +29,25 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   docs have [a walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) and `dao
   finish` in the CLI reference. 28 new tests, 156 in all, with the vote's receipts as a fixture, and
   `derived-keys.json` has the key of `satchel/8`. Not in 0.1.0, and not run on mainnet.
+- Two contract tests for a sale in the middle of a payout (61 in all). In
+  `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record`, the seller has a send signed, lists,
+  and a buyer buys before the MPC network answers: the record the buyer bought still names that
+  send's nonce, so the report can't read clean until a transaction at that nonce is final, and the
+  buyer can sign at once. In `the_seller_cannot_sign_while_their_payment_is_in_flight`, the seller
+  is refused once `buy` has run, while their NEAR is still a pending transfer. A unit test can't run
+  the MPC call, so both pin the state each step leaves, not the race between receipts. The deployed
+  contract is unchanged.
+- The README goes through the NFT track's brief point by point: what a satchel does for owning money,
+  earning royalties (not built in: any address can be a payee, and a satchel pays none), holding
+  inventory and carrying access rights, then the track's example prompt requirement by requirement
+  (met, partly or not yet, with where to look), why an MPC address rather than a NEAR sub-account,
+  the prior work on keys tied to NFTs (NEAR's NFT Chain Keys, Lit PKPs, ERC-6551, another entry in
+  this hackathon) and how Satchel's record differs, why a satchel can't launder an existing wallet,
+  and that the contract takes no fee. Limits adds that tokens have no picture. The demo kit's track
+  rationale now says the history requirement is only partly met, as the README does.
+- A satchel's page, for a visitor while it is listed, shows the price and the seller under its title,
+  with a link down to the buy panel. The bar shows the listing the buy panel shows, and the purchase
+  still happens only in that panel.
 - A satchel's address no longer comes from an RPC. The package derives each satchel's key itself, as
   the MPC contract's `derived_public_key` view does: the MPC network's root key plus `t·G`, where `t`
   is the SHA3-256 hash of `near-mpc-recovery v0.1.0 epsilon derivation:`, the Satchel contract, a comma
@@ -208,6 +227,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- "Transfer the NFT and the keys go with it" said a key changes hands, when no one ever holds one.
+  The README, the banner, the home page, the docs home and the site's description now say the
+  wallet, or the right to sign for it, goes with the NFT. The contract crate's `Cargo.toml`
+  description keeps the old words: the contract is left as deployed from commit `87148c6`. The
+  README's headline says the 16 chains are 8 mainnets and a testnet of each, and the evaluation
+  section says which of its steps fit in five minutes. The "What did you build?" text opens with the
+  site and what a satchel is.
+- The buy panel also checks that the listing's price and seller, as the page read them, match the
+  ones the report checked, not only the record version. Before, a relist at a new price kept the
+  record version, so the panel offered the report's price while the page held another; the
+  contract would still have refused a purchase at the old price. The buy guide, the errors
+  reference and troubleshooting quote the new messages, and the buy guide mentions the price bar.
 - The web app runs on `satchel-nft`: its report, guards, send flow and contract calls moved from
   `web/src/lib` into the package, with their tests, so the app and the command run one copy of the
   code. The repository root is an npm workspace (the package and the app, one lockfile); the app
@@ -222,6 +253,16 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The README's step 5 ran the package's tests with no install before it, which only worked after
+  step 4's optional install. It now says to run `npm ci -w satchel-nft` first if you skipped it.
+- The buy panel's gold border never showed, because the card's own border color won; it shows now.
+  A long seller account wraps instead of running out of the panel.
+- Counts that had gone stale: the threat model has 33 attacks, not 32 (README); the app has 15 unit
+  tests, not 3 (README); the docs' security page said 59 contract and 94 package tests (now 61 and
+  156). The README banner said the checks run "with npm run verify", which only works inside `web`;
+  it now says `npx satchel-nft verify`. The README, AGENTS.md, threat model row 21g and the docs
+  name the 9 satchels the derived-key fixture covers (testnet #1 to #8, mainnet #1) instead of "all
+  8 satchels", which stopped being true once testnet satchel #8 was minted.
 - The README's quick-start output for satchel #1 showed its record before its last signature
   (`max_nonce` 3, 6 signatures, version 6). It now shows what the chain returns: `max_nonce` 4,
   7 signatures, version 7.
