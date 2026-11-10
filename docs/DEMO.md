@@ -43,8 +43,8 @@ pull request.
   once. Satchel #7's page took 2.4 s for "What's inside", 3.0 s for its report and 4.3 s for its
   history on 2026-11-10; mainnet satchel #1's took about 7 s.
 - **Terminal.** bash (Git Bash on Windows), Node 22 or later, font size 18 or larger. Run
-  `npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"` once before recording: the first run downloads
-  the package (86 s and 93 s in two runs here), later ones take 6 to 12 s. The CLI doesn't print its
+  `npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"` once before recording: the first run downloads
+  the package (142 s and 230 s in two runs here), later ones take 6 to 11 s. The CLI doesn't print its
   exit code, so the `echo` shows it. In the edit, cut the wait.
 - **A wallet for the 1:30 scene, in a window of its own.** The room opens only for the account that
   owns the satchel right now, so record it with a wallet that owns one.
@@ -91,7 +91,7 @@ cell against its time.
 | 1:18–1:30 | satchelnft.xyz/satchel/7 | Scroll through "What's inside", the report, then "History" | What it holds, the four checks, its history | This satchel's page shows what it holds on eight testnets, the four checks, and its history. One NEAR transaction moved the NFT and its address on every chain. |
 | 1:30–1:42 | The holder room of a satchel your wallet owns, `/satchel/<id>/room` (see "Before you record") | Scroll to **Open the room**, click it and approve the message in the wallet; cut the wait. Scroll to "Checked at" in the card "You hold satchel #…", point at it, then scroll to "Handover kit" | Only the current holder gets in, checked at a final NEAR block | Only the current holder opens this room: the wallet signs a message, the server checks the owner at a final NEAR block. Sell it, and the buyer gets in. |
 | 1:42–1:52 | satchelnft.xyz/mainnet/satchel/1 | Point at Base, 0.00184 ETH, then "Provably clean" | Live on NEAR mainnet. The contract has 0 access keys | Live on mainnet: this satchel sent real ETH on Base and reads provably clean. The contract has no keys; no one can change it. |
-| 1:52–2:00 | A terminal: `npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
+| 1:52–2:00 | A terminal: `npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
 
 What each scene shows, so the edit can't drift from the chain:
 
@@ -196,8 +196,8 @@ Until 2026-11-25:
   `satchel-nft.near` owns mainnet #1.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
-If one of these has to change, run `npx -y satchel-nft@0.1.0 verify <id>` for testnet #1, #3, #4,
-#5, #6 and #7, `npx -y satchel-nft@0.1.0 verify --network mainnet 1`, and the README's quick-start
+If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
+#5, #6 and #7, `npx -y satchel-nft@0.2.0 verify --network mainnet 1`, and the README's quick-start
 `satchel` view for #1. Then update the README's quoted outputs, AGENTS.md's table,
 `web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx` and this kit's scene notes in the
 same pull request.

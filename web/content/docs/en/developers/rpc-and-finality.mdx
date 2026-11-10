@@ -1,9 +1,8 @@
 Every answer Satchel gives, except a satchel's address, comes from an RPC node: one NEAR node and one
-node per EVM chain. The address is derived from a root key pinned in the package (0.1.0 reads it from
-the NEAR node too). This
-page lists the nodes the app, the CLI and the library read by default, how each read is pinned so a
-report can't count something that may still be undone, what happens when a node is slow or wrong,
-and how to use your own.
+node per EVM chain. The address is derived from a root key pinned in the package (0.1.0 read it from
+the NEAR node too). This page lists the nodes the app, the CLI and the library read by default, how
+each read is pinned so a report can't count something that may still be undone, what happens when a
+node is slow or wrong, and how to use your own.
 
 ## The default nodes
 
@@ -50,7 +49,7 @@ Two checks catch a node that serves the wrong network:
   serves the other network stops it with exit code 2:
 
   ```bash
-  NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.1.0 verify 1
+  NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.2.0 verify 1
   ```
 
   ```text
@@ -64,9 +63,9 @@ Two checks catch a node that serves the wrong network:
 `show`'s balances are the exception: they are a convenience, read without the chain id check. So
 are the token balances on a satchel's page.
 
-A satchel's history, on its page and from `satchel-nft history` (not in 0.1.0), reads a fourth
-source: FastNEAR's transaction index, `https://tx.test.fastnear.com` or `https://tx.main.fastnear.com`
-(`txApi` in `config.ts`). It keeps only events the Satchel contract logged in receipts that
+A satchel's history, on its page and from `satchel-nft history`, reads a fourth source: FastNEAR's
+transaction index, `https://tx.test.fastnear.com` or `https://tx.main.fastnear.com` (`txApi` in
+`config.ts`). It keeps only events the Satchel contract logged in receipts that
 succeeded, but an index that leaves transactions out changes what the history shows. The report
 never reads it.
 
@@ -79,9 +78,10 @@ taken at a block that is final.
 
 Every NEAR view (the satchel, its record and listing, the contract's keys, code hash and MPC
 contract) asks for `finality: "final"`. A satchel's address is not a view: the package derives it
-from the pinned root key (0.1.0 reads it from the MPC contract's `derived_public_key`, at final too). The satchel, its record
-and its listing come from one `satchel` call, so they are always consistent with each other. The
-contract's facts are separate calls and can come from a slightly later final block.
+from the pinned root key (0.1.0 read it from the MPC contract's `derived_public_key`, at final too).
+The satchel, its record and its listing come from one `satchel` call, so they are always consistent
+with each other. The contract's facts are separate calls and can come from a slightly later final
+block.
 
 ### EVM chains
 
@@ -159,8 +159,9 @@ A page of reports can hit a public node with many requests at once. Satchel spre
 - They read the contract's own facts **once**, with `contractFacts`, and share that read across every
   report on the page.
 - `market` reads listings 100 at a time, the most the contract's `listings` view returns.
-  A page can be short with more after it, so read until the pages cover `nft_total_supply`
-  ([Build a feed of clean listings](/docs/tutorials/clean-listings-feed) shows how).
+  A page can be short with more after it, so it reads until the pages cover `nft_total_supply`, as
+  `satchel(net).allListings()` does
+  ([Build a feed of clean listings](/docs/tutorials/clean-listings-feed) shows how by hand).
 
 Do the same in your own code. Build one report per satchel you show, not one per render:
 
@@ -169,7 +170,7 @@ import { TESTNET, buildReport, contractFacts, limiter, satchel } from "satchel-n
 
 const run = limiter(3);
 const facts = contractFacts(TESTNET); // one read, shared by every report below
-const listings = await satchel(TESTNET).listings(0, 100); // the first page only: see the tutorial below
+const listings = await satchel(TESTNET).allListings(); // every live listing, 100 per page
 const reports = await Promise.all(
   listings.map(([tokenId]) => run(() => buildReport(TESTNET, tokenId, facts).catch(() => null))),
 );
@@ -190,7 +191,7 @@ const reports = await Promise.all(
 <Tab>
 
 ```bash
-NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
 ```
 
 </Tab>
@@ -199,7 +200,7 @@ NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -
 ```powershell
 $env:NEAR_RPC = "https://<your-near-node>"
 $env:RPC_11155111 = "https://<your-sepolia-node>"
-npx -y satchel-nft@0.1.0 verify 1
+npx -y satchel-nft@0.2.0 verify 1
 ```
 
 </Tab>
@@ -248,7 +249,7 @@ report you trusted from a node that lied could cost you real NEAR. For a mainnet
 `verify` again from nodes you run, or from a second provider, before you buy:
 
 ```bash
-NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.1.0 verify --network mainnet 1
+NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.2.0 verify --network mainnet 1
 ```
 
 ## Related

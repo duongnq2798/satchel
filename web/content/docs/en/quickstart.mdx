@@ -45,17 +45,17 @@ chain. [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer) walks throug
 ## In your terminal
 
 The npm package [`satchel-nft`](https://www.npmjs.com/package/satchel-nft) is the code the web app runs.
-Its command `satchel-nft verify` builds the same report. One difference: 0.1.0, the version below, reads
-a satchel's address from the MPC contract's `derived_public_key` through the NEAR RPC; the app, and the
-next release, derive the same address from the MPC network's root key.
+Its command `satchel-nft verify` builds the same report, and derives a satchel's address the same way,
+from the MPC network's root key.
 
 <Steps>
 
 1. **Run the report for satchel #1.** `-y` lets `npx` install the package without asking. The first run
-   downloads it, which can take a minute or more; later runs take seconds.
+   downloads it, which took 142 s and 230 s in two runs on 2026-11-10; each report after that took
+   6 to 11 s.
 
    ```bash
-   npx -y satchel-nft@0.1.0 verify 1
+   npx -y satchel-nft@0.2.0 verify 1
    ```
 
    ```text
@@ -83,7 +83,7 @@ next release, derive the same address from the MPC network's root key.
 2. **Run it for satchel #5, and print the exit code.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"
+   npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"
    ```
 
    ```text
@@ -109,13 +109,13 @@ next release, derive the same address from the MPC network's root key.
    exit 1
    ```
 
-   In PowerShell, print the code with `npx -y satchel-nft@0.1.0 verify 5; $LASTEXITCODE` instead.
+   In PowerShell, print the code with `npx -y satchel-nft@0.2.0 verify 5; $LASTEXITCODE` instead.
 
 3. **Read a satchel on mainnet.** `--network mainnet` reads `v1.satchel-nft.near` and the 8 EVM mainnets.
    Satchel #1 on mainnet has sent once, on Base:
 
    ```bash
-   npx -y satchel-nft@0.1.0 verify --network mainnet 1
+   npx -y satchel-nft@0.2.0 verify --network mainnet 1
    ```
 
    ```text
@@ -177,7 +177,7 @@ Add `--json` to get the report as JSON. [CLI reference](/docs/developers/cli) ha
   finalized block. On Sepolia that is about 13 minutes behind; on Base it took about 20 minutes for
   mainnet satchel #1. Run it again later.
 - **A check says it couldn't read a chain.** A public RPC was down or rate limited you. Run it again, or
-  read from your own node: `RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1`.
+  read from your own node: `RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1`.
   See [RPCs, finality and rate limits](/docs/developers/rpc-and-finality).
 - **The command fails before printing a report.** `satchel-nft` needs Node.js 22 or later; check with
   `node --version`.

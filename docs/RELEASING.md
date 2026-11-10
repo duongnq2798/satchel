@@ -1,12 +1,18 @@
 # Releasing satchel-nft
 
-The npm package `satchel-nft` is published by its owner, from the owner's npm account. 0.1.0 was
-published on 2026-11-09 from commit `728ed74`, which npm records as its `gitHead`. This file is the
-checklist for 0.2.0, the version `packages/satchel-nft/package.json` now names. Its README, which
-npm shows, says what changed under "What changed in 0.2.0".
+The npm package `satchel-nft` is published by its owner, from the owner's npm account, without npm
+provenance. npm records the commit as `gitHead`:
 
-Until 0.2.0 is on npm, every pinned command in this repository keeps `satchel-nft@0.1.0`, because
-that is the version npm can serve.
+| Version | Published | `gitHead` | `dist.shasum` |
+| --- | --- | --- | --- |
+| 0.1.0 | 2026-11-09 | `728ed74` | `599980b6445558157e28f7bae7872b0756988150` |
+| 0.2.0 | 2026-11-10 | `2dd4209` | `b9822a7ac13476566bc6772ccda08979e5802480` |
+
+This is the checklist 0.2.0 went through. The package's README, which npm shows, says what changed
+under "What changed in 0.2.0". For a later version, bump `packages/satchel-nft/package.json` and its
+lockfile entry in a pull request, then follow the same steps with that version in place of 0.2.0,
+and 0.2.0 in place of 0.1.0. Until the new version is on npm, every pinned command keeps the version
+npm serves.
 
 ## 1. Pick the commit
 
@@ -47,6 +53,10 @@ npm publish -w satchel-nft
 ```
 
 `prepack` builds `dist` from the checkout first.
+
+The owner's account has two-factor authentication for writes, confirmed in the browser. npm 11
+offers that only when it runs in a real console, such as PowerShell. Git Bash's terminal isn't one
+to npm, so there `npm publish` stops with `EOTP` and asks for an authenticator code instead.
 
 ## 4. Check what npm holds
 

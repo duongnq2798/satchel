@@ -52,8 +52,8 @@ The `result` field holds the bytes of a JSON string:
 ```
 
 The EVM address is the last 20 bytes of the keccak-256 hash of that 64-byte key, which for satchel #1
-on testnet is `0x96DA1468E95Ab31A698891f0150095f86b5a282B`. The `satchel-nft` library does both steps in
-one call:
+on testnet is `0x96DA1468E95Ab31A698891f0150095f86b5a282B`. The `satchel-nft` library computes the same
+address in one call, without reading the view:
 
 ```ts
 import { TESTNET, tokenAddress } from "satchel-nft";
@@ -72,10 +72,9 @@ The view does public math, so you don't have to ask it. The MPC network has one 
 secp256k1's generator and `t` is the SHA3-256 hash of `near-mpc-recovery v0.1.0 epsilon derivation:`,
 the account that asks, a comma and the path.
 
-The app and the CLI compute every satchel's key this way, from the root key pinned in
+The app, the CLI and `tokenAddress` compute every satchel's key this way, from the root key pinned in
 [`config.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/config.ts)
-(`mpcRootKey`), so no RPC answer changes a satchel's address. In this repository (not in 0.1.0, whose
-`tokenAddress` reads the view):
+(`mpcRootKey`), so no RPC answer changes a satchel's address. The library exports each step:
 
 ```ts title="Satchel #1's key, without a read"
 import { TESTNET, addressFromMpcKey, deriveMpcKey } from "satchel-nft";
@@ -147,9 +146,9 @@ value, and keep in one only what you can afford to lose: Satchel is not audited.
 - **Non-EVM chains.** The key is secp256k1 (MPC domain 0). The contract builds only EIP-1559 EVM
   transactions. Bitcoin, or anything else, can be signed only through `sign_raw`, which is counted as
   opaque and makes the satchel unprovable. Ed25519 chains, such as Solana and NEAR, aren't supported.
-- **`satchel-nft` 0.1.0.** The version on npm still reads the address from `derived_public_key`
-  through one NEAR RPC, so a lying NEAR RPC could show it another address. The next release derives
-  it as above.
+- **`satchel-nft` 0.1.0.** That older release, still on npm, reads the address from
+  `derived_public_key` through one NEAR RPC, so a lying NEAR RPC could show it another address.
+  0.2.0 derives it as above.
 - **Which satchel is yours.** The id a mint returns, the satchels your account owns and each one's
   owner still come from the NEAR RPC (a mint's id may come from the wallet instead). A lying NEAR RPC
   or wallet can name a satchel someone else owns, and the

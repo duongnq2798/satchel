@@ -42,12 +42,13 @@ ran.
 - **About 6.2 testnet NEAR**: the factory deploys the whole DAO contract to the new account, about
   540 KB of storage, so the DAO is created with 6 NEAR. A mint is 0.1 NEAR.
 - **A little Sepolia ETH**, to fund the satchel's address. Satchel #8 received 0.02.
-- **A clone of this repository**, built: `dao finish` and the DAO helpers are in this repository's
-  code, not in `satchel-nft` 0.1.0 on npm.
+- **Node.js 22 or later.** `npx` fetches `satchel-nft@0.2.0`, which has `dao finish` and the DAO
+  helpers. The script in step 4 imports the same package: install it in an empty folder and run the
+  script there.
 
   ```bash
-  npm ci
-  npm run build -w satchel-nft
+  npm init -y
+  npm install --save-exact satchel-nft@0.2.0
   ```
 
 <Callout type="warning" title="Testnet only">
@@ -99,14 +100,15 @@ A testnet satchel signs through NEAR's testnet MPC network. Never send real fund
    already own into a DAO, use `nft_transfer`, never `nft_transfer_call`. A Sputnik DAO has no
    `nft_on_transfer`, so the contract would hand the token back.
 
-3. **Fund its address.** `node packages/satchel-nft/bin/satchel-nft.js show 8` prints it:
+3. **Fund its address.** `npx -y satchel-nft@0.2.0 show 8` prints it:
    `0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0`. The package derives it from the MPC network's
    pinned root key, the contract and the path `satchel/8`, without asking an RPC. Send it a little
    Sepolia ETH from any wallet.
 
 4. **Build the proposal.** The `satchel-nft` library builds the `add_proposal` arguments and checks
    that no open proposal already signs the same nonce. Run a script like this one, which builds the
-   arguments proposal 0 was filed with, from the repository root as `node propose.mjs`:
+   arguments proposal 0 was filed with, as `node propose.mjs` in the folder where you installed
+   `satchel-nft`:
 
    ```ts title="propose.mjs"
    import { writeFileSync } from "node:fs";
@@ -190,7 +192,7 @@ A testnet satchel signs through NEAR's testnet MPC network. Never send real fund
 7. **Finish it.** Give `dao finish` the vote's hash:
 
    ```bash
-   node packages/satchel-nft/bin/satchel-nft.js dao finish 2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M
+   npx -y satchel-nft@0.2.0 dao finish 2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M
    ```
 
    It reads the vote with all its receipts, finds the one `sign_evm` call and the MPC answer, and
@@ -220,7 +222,7 @@ A testnet satchel signs through NEAR's testnet MPC network. Never send real fund
 8. **Verify.** About 13 minutes after the send, when Sepolia has finalized it:
 
    ```bash
-   node packages/satchel-nft/bin/satchel-nft.js verify 8
+   npx -y satchel-nft@0.2.0 verify 8
    ```
 
    ```text

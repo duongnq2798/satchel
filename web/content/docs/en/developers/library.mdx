@@ -1,14 +1,15 @@
 `satchel-nft` is the code the web app and the CLI run. Install it, import from `"satchel-nft"`, and you
-get the same report, the same reads, the same transactions and the same checks. This page lists every
-export of version 0.1.0, grouped by what you use it for, with its signature as it is in the
+get the same report, the same reads, the same transactions and the same checks. This page lists the
+exports of version 0.2.0, grouped by what you use it for, with each signature as it is in the
 [source](https://github.com/duongnq2798/satchel/tree/main/packages/satchel-nft/src).
 
 ```bash
-npm install satchel-nft@0.1.0
+npm install satchel-nft@0.2.0
 ```
 
 - **ES module only**, with types (`dist/index.d.ts`). Use `import`, not `require`.
-- **Node 22 or later**, as `engines` says. The one dependency is [viem](https://viem.sh) `^2.57.17`.
+- **Node 22 or later**, as `engines` says. The dependencies are [viem](https://viem.sh) `^2.57.17`,
+  and `@noble/curves` `^1.9.1` and `@noble/hashes` `^1.8.0` for the key derivation and NEP-413.
 - **Browsers too.** The library reads with `fetch` and the standard `TextEncoder`, `btoa` and `atob`,
   so it runs in a browser bundle: the Next.js app at satchelnft.xyz imports it directly. The CLI's
   modules (`cli.ts`, `near-cli.ts`) use Node's child processes and are not exported.
@@ -36,8 +37,8 @@ if (report.listing) {
 
 Run it with `npx tsx report.ts`, or compile it as any TypeScript. `buildReport` never throws for a
 check it can't read: that check reads `"unknown"`. It throws only when it can't read from NEAR what
-every check needs (the token, its address from the MPC contract, or the contract's own facts), for
-example when the NEAR RPC is down.
+every check needs (the token or the contract's own facts), for example when the NEAR RPC is down.
+The address needs no read: it is derived from the root key pinned in `net`.
 
 ## Networks and chains
 
@@ -45,7 +46,8 @@ From `config.ts`.
 
 | Export | Signature | What it is |
 | --- | --- | --- |
-| `TESTNET`, `MAINNET` | `Network` | The two deployments: `contract`, `mpc`, `nearRpc`, `nearExplorer`, and `build` (`codeHash`, `commit`, `ciRun`) |
+| `TESTNET`, `MAINNET` | `Network` | The two deployments: `id`, `contract`, `mpc`, `mpcRootKey`, `nearRpc`, `nearExplorer`, `txApi`, and `build` (`codeHash`, `commit`, `ciRun`) |
+| `NEAR_ARCHIVAL_RPC` | `Record<NetworkId, string>` | FastNEAR's archival node for each network, where `dao finish` reads a vote older than the regular node keeps |
 | `NETWORKS` | `Record<NetworkId, Network>` | `{ testnet: TESTNET, mainnet: MAINNET }` |
 | `NetworkId` | `"testnet" \| "mainnet"` | |
 | `CHAINS` | `readonly ChainInfo[]` | The contract's 16 `SUPPORTED_CHAINS`, in its order: `id`, `name`, `symbol`, `testnet`, `rpc`, `explorer`, and `finalityLag` on Aurora |
@@ -84,7 +86,7 @@ interface Check {
   status: Status;
   title: string; // "No signed transaction is still pending", or its failing form
   lines: string[]; // one line per fact, as the CLI prints them
-  chains?: { chainId: number; status: Status }[]; // checks 2 and 3, not in 0.1.0: the chain behind each line
+  chains?: { chainId: number; status: Status }[]; // checks 2 and 3, since 0.2.0: the chain behind each line
 }
 
 interface Report {
@@ -141,7 +143,7 @@ From `satchel.ts`. `satchel(net)` returns the contract's reads, each a view call
 | `get(tokenId)` | `Promise<SatchelView \| null>` | `satchel`. Throws if the RPC answers about another token or another path, since addresses and transactions are built from it |
 | `tokensFor(accountId)` | `Promise<Token[]>` | `nft_tokens_for_owner`, the first 100 |
 | `listings(fromIndex = 0, limit = 100)` | `Promise<[string, Listing][]>` | `listings`: one page, at most 100 per call. The view drops stale listings after it pages, so a page can be short, or empty, with more listings after it: don't stop at a short page |
-| `allListings()` | `Promise<[string, Listing][]>` | `listings`, page after page until the pages cover `nft_total_supply`, a listing that shows up twice kept once: every live listing. In this repository, not in 0.1.0 |
+| `allListings()` | `Promise<[string, Listing][]>` | `listings`, page after page until the pages cover `nft_total_supply`, a listing that shows up twice kept once: every live listing. Since 0.2.0 |
 | `totalSupply()` | `Promise<number>` | `nft_total_supply` |
 | `mpcContract()` | `Promise<string>` | `mpc_contract` |
 | `signingHash(tx)` | `Promise<string>` | `evm_signing_hash`: the hex hash `sign_evm` would sign for a `ContractTx`, without `0x` |
@@ -363,7 +365,7 @@ interface SendDeps {
 
 ## A satchel a DAO owns
 
-From `dao.ts`, in this repository and not in 0.1.0. A Sputnik DAO that owns a satchel signs
+From `dao.ts`, since 0.2.0. A Sputnik DAO that owns a satchel signs
 through proposals: the vote that passes one has the DAO call the Satchel contract.
 [A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel) uses each of these on testnet.
 
@@ -429,7 +431,7 @@ From `evm.ts`.
 
 | Export | Signature | What it does |
 | --- | --- | --- |
-| `tokenAddress(net, path)` | `(net: Network, path: string) => Promise<Address>` | A satchel's EVM address: the key the MPC network derives for the Satchel contract, the path and domain 0. In 0.1.0 it reads the MPC contract's `derived_public_key` through the NEAR RPC; in this repository it computes the key from `net.mpcRootKey` and reads nothing |
+| `tokenAddress(net, path)` | `(net: Network, path: string) => Promise<Address>` | A satchel's EVM address: the key the MPC network derives for the Satchel contract, the path and domain 0. It computes the key from `net.mpcRootKey` and reads nothing, so no RPC can change it (0.1.0 read the MPC contract's `derived_public_key` through the NEAR RPC) |
 | `addressFromMpcKey(publicKey)` | `(publicKey: string) => Address` | `secp256k1:<base58>` to a checksummed address. Throws on another curve or a key that isn't 64 bytes |
 | `base58Decode(text)` | `(text: string) => Uint8Array` | |
 | `prepareTx(chain, from, to, value, data)` | `=> Promise<EvmTx>` | The next transaction from `from`: pending nonce, `maxFeePerGas` of twice the base fee plus the tip, gas estimated (21000 when the estimate is 21000 or less, else the estimate plus 20%). Throws, signing nothing, if the chain says it would fail |
@@ -444,7 +446,7 @@ From `evm.ts`.
 | `verifiedClient(chainId)` | `(chainId: number) => Promise<PublicClient>` | The same client, once its RPC has answered with that chain id |
 | `formatBalance(wei)` | `(wei: bigint) => string` | `"0.00184"`, `"< 0.00001"` or `"0"` |
 
-Not in 0.1.0: `Network` has `mpcRootKey`, the MPC contract's root public key for domain 0, and
+Since 0.2.0, `Network` has `mpcRootKey`, the MPC contract's root public key for domain 0, and
 `deriveMpcKey(rootKey, predecessor, path)` returns the `secp256k1:` key the MPC network holds for
 `path` when `predecessor` asks, as its `derived_public_key` view does. It throws if the root key isn't
 a point on the curve ([how it works](/docs/concepts/satchels-and-addresses#derive-it-yourself)).
@@ -498,6 +500,10 @@ From `near.ts`. Every NEAR read in the library goes through `nearRpc`.
 | `finalOutcome(net, hash, signer, attempts = 30)` | `=> Promise<ExecutionOutcome>` | Polls `tx` with `wait_until: "FINAL"` every 2 seconds until every receipt has finished |
 | `outcomeValue(outcome)` | `<T>(outcome: ExecutionOutcome) => T \| null` | The value a finished transaction returned. Throws the contract's `Satchel: …` reason on a failure, and throws if it hasn't finished |
 | `finished(outcome)`, `failureMessage(failure)`, `viewErrorMessage(method, error)` | | The pieces `outcomeValue` and `view` use |
+| `rpcFor(net, timeoutMs?)` | `(net: Network, timeoutMs?: number) => RpcCall` | `nearRpc` for `net` as an `RpcCall`, `<T>(method, params) => Promise<T>`, that gives up after `timeoutMs` (default `RPC_TIMEOUT_MS`, 10 s). Since 0.2.0 |
+| `finalBlock(rpc)` | `(rpc: RpcCall) => Promise<BlockRef>` | A final block's `height`, `hash` and `timestamp` (ISO 8601), so several reads can be pinned to it. Since 0.2.0 |
+| `viewAt(rpc, blockHash, account, method, args?)` | `<T>(…) => Promise<T>` | `view`, at that block. Throws if the node answers for another block. Since 0.2.0 |
+| `accessKeyAt(rpc, blockHash, account, publicKey)` | `=> Promise<{ permission: AccessKeyPermission } \| null>` | One access key at that block: `"FullAccess"` or a `FunctionCall` permission, or `null` if the account has no such key there. Since 0.2.0 |
 
 `NearRpcError` has `method` and `cause`, and its message reads `NEAR RPC <method> failed: <cause>`.
 
@@ -548,16 +554,15 @@ limits](/docs/developers/rpc-and-finality) covers finality and choosing nodes.
 
 ## What a satchel holds, and its history
 
-<Callout type="note" title="Not in 0.1.0">
-These exports are in this repository's `packages/satchel-nft` and come with the next release. The
-report reads none of them: they are for display.
+<Callout type="note" title="Since 0.2.0">
+These exports came in 0.2.0. The report reads none of them: they are for display.
 </Callout>
 
 From `contents.ts`, `history.ts` and `evm.ts`.
 
 | Export | Signature | What it is |
 | --- | --- | --- |
-| `TOKENS` | `Readonly<Record<number, readonly TokenInfo[]>>` | USDC, USDT and WETH by chain id, where the issuer or the chain lists a deployment (Uniswap's list, for WETH on Sepolia): 22 on the mainnets, 11 on the testnets. The source of each is in [`contents.ts`](https://github.com/duongnq2798/satchel/blob/dev/packages/satchel-nft/src/contents.ts) |
+| `TOKENS` | `Readonly<Record<number, readonly TokenInfo[]>>` | USDC, USDT and WETH by chain id, where the issuer or the chain lists a deployment (Uniswap's list, for WETH on Sepolia): 22 on the mainnets, 11 on the testnets. The source of each is in [`contents.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/contents.ts) |
 | `TokenInfo` | `{ kind, symbol, address, decimals }` | `kind` is `"USDC" \| "USDT" \| "WETH"`; `symbol` is what the token's contract reports, like `"USD₮0"` |
 | `contents(net, address)` | `=> Promise<ChainContents[]>` | What an address holds on each of `sendChains(net)`, read now |
 | `chainContents(chain, address)` | `(chain: ChainInfo, address: Address) => Promise<ChainContents>` | The same for one chain |
@@ -571,7 +576,7 @@ From `contents.ts`, `history.ts` and `evm.ts`.
 | `describeEntry(entry)` | `(e: HistoryEntry) => string` | One line, like `satchel-nft.testnet listed it for 0.5 NEAR` |
 | `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
 
-`Network` also gains `txApi`: `https://tx.test.fastnear.com` on testnet,
+`tokenHistory` reads `Network`'s `txApi`: `https://tx.test.fastnear.com` on testnet,
 `https://tx.main.fastnear.com` on mainnet.
 
 ```ts title="history.ts"
@@ -585,6 +590,20 @@ for (const entry of history.entries) console.log(describeEntry(entry));
 const counts = signatureCounts(history, view.record);
 if (counts.history !== counts.record) console.log("The index and the record disagree; trust the record.");
 ```
+
+## The holder room and the handover kit
+
+From `holder.ts`, `nep413.ts` and `kit.ts`, since 0.2.0. [The holder room](/docs/guides/holder-room)
+runs `checkHolder` on every request.
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `roomMessage(net, tokenId, accountId, issuedAt)` | `=> string` | The message the holder's wallet signs to open the room. The server builds it again from the proof; the client never sends it |
+| `checkHolder(net, proof, options?)` | `(net: Network, proof: RoomProof, options?: { now?: number; rpc?: RpcCall }) => Promise<HolderCheck>` | Whether a NEP-413 proof opens satchel #`proof.tokenId`'s room: the shapes, a proof at most 5 minutes old (`ROOM_WINDOW_MS`), the signature for `ROOM_RECIPIENT` (`"satchelnft.xyz"`), then, at one final NEAR block, a full-access key of the account and the account as the satchel's owner. A refusal comes back as `{ ok: false, status, reason }`, with an HTTP status: 400, 401, 403, 404 or 502 |
+| `RoomProof` | `{ tokenId, accountId, publicKey, signature, nonce, issuedAt }` | What a client sends. Every field is a string; `nonce` is 32 bytes in base64 |
+| `nep413Hash(payload)` | `(payload: Nep413Payload) => Uint8Array` | The 32 bytes a wallet signs for a NEP-413 message. Throws on a nonce that isn't 32 bytes |
+| `verifyNep413(signed)` | `(signed: Nep413Signed) => boolean` | Whether an `ed25519:` key signed that message, nonce and recipient, with strict RFC 8032 verification. Malformed input is `false`, never a throw |
+| `handoverKit(report)` | `(report: Report) => KitStep[]` | What to do before selling a satchel: one step for each check of its report that doesn't pass, or one step when all four do. Each step has an `action` (`fix`, `wait`, `disclose`, `not-yours` or `list`), what the check found, what it means and what to do. Its commands pin `satchel-nft@0.1.0`, which has each of them |
 
 ## Related
 

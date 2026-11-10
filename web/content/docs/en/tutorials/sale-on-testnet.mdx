@@ -13,7 +13,7 @@ addresses and hashes will differ.
 
 ## What you need
 
-- **Node.js 22 or later.** `npx` fetches `satchel-nft@0.1.0`; you don't need to clone anything.
+- **Node.js 22 or later.** `npx` fetches `satchel-nft@0.2.0`; you don't need to clone anything.
 - **[near-cli-rs](https://github.com/near/near-cli-rs)**, the near CLI, installed and on your `PATH`.
   `satchel-nft` never reads a key: the near CLI signs, and `satchel-nft` checks what it signed.
 - **Two NEAR testnet accounts**, each with its full-access key in the near CLI's keychain:
@@ -38,15 +38,16 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
 1. **Check that the CLI runs.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 --version
+   npx -y satchel-nft@0.2.0 --version
    ```
 
-   It prints `0.1.0`. The first run downloads the package, which can take a minute.
+   It prints `0.2.0`. The first run downloads the package, which can take a few minutes: a first
+   `verify` took 142 s and 230 s in two runs on 2026-11-10.
 
 2. **Mint a satchel, as the seller.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 mint --as seller.testnet
+   npx -y satchel-nft@0.2.0 mint --as seller.testnet
    ```
 
    The near CLI signs a `mint` call with 0.1 NEAR attached. `satchel-nft` decodes what it signed,
@@ -64,12 +65,12 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
 3. **Look at it.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 show <id>
+   npx -y satchel-nft@0.2.0 show <id>
    ```
 
    `show` prints the owner, the derivation path, the record version, the address, the listing and a
-   balance on each of the 8 testnets. For a new satchel, every balance is 0 and the record version
-   is 0.
+   balance on each of the 8 testnets, with USDC, USDT and WETH where it holds some. For a new
+   satchel, every balance is 0 and the record version is 0.
 
 4. **Fund its address on Sepolia.** Send a little Sepolia ETH to the address from step 2, from any
    wallet. Satchel #7 was funded from satchel #1, which the buyer account owned, with
@@ -80,7 +81,7 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
    buyer's report to check.
 
    ```bash
-   npx -y satchel-nft@0.1.0 send <id> --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as seller.testnet
+   npx -y satchel-nft@0.2.0 send <id> --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as seller.testnet
    ```
 
    `send` reads the nonce and fees from Sepolia, checks that the address can pay, asks the contract
@@ -109,7 +110,7 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
 6. **Read the record.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 record <id>
+   npx -y satchel-nft@0.2.0 record <id>
    ```
 
    For satchel #7:
@@ -130,7 +131,7 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
    `COULD NOT CHECK EVERYTHING` and exits 1. Then:
 
    ```bash
-   npx -y satchel-nft@0.1.0 verify <id>
+   npx -y satchel-nft@0.2.0 verify <id>
    ```
 
    For satchel #7, the report reads:
@@ -160,7 +161,7 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
 8. **List it, as the seller.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 list <id> 0.5 --as seller.testnet
+   npx -y satchel-nft@0.2.0 list <id> 0.5 --as seller.testnet
    ```
 
    The listing pins the current record version, and from now on the contract refuses any signature
@@ -183,7 +184,7 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
 9. **Buy it, as the buyer.**
 
    ```bash
-   npx -y satchel-nft@0.1.0 buy <id> --as buyer.testnet
+   npx -y satchel-nft@0.2.0 buy <id> --as buyer.testnet
    ```
 
    `buy` runs the clean transfer report first and prints it. It stops, with nothing signed, if the
@@ -207,7 +208,7 @@ can sign for mainnet chain ids too, so never send real funds to a testnet satche
 11. **Hand it back (optional).** As the buyer:
 
     ```bash
-    npx -y satchel-nft@0.1.0 transfer <id> seller.testnet --as buyer.testnet
+    npx -y satchel-nft@0.2.0 transfer <id> seller.testnet --as buyer.testnet
     ```
 
     `transfer` checks that the receiver exists on NEAR testnet before it signs, then prints

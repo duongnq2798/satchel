@@ -12,19 +12,19 @@ You need Node.js 22 or later. The sign commands also need near-cli-rs; the read 
 Run a pinned release without installing it. `-y` lets `npx` fetch it without asking:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1
+npx -y satchel-nft@0.2.0 verify 1
 ```
 
 Or install it once and call it by name:
 
 ```bash
-npm install -g satchel-nft@0.1.0
-satchel-nft --version    # 0.1.0
+npm install -g satchel-nft@0.2.0
+satchel-nft --version    # 0.2.0
 ```
 
-Pin the version. A later release holds whatever its publisher put in it, and 0.1.0 was published
+Pin the version. A later release holds whatever its publisher put in it, and 0.2.0 was published
 without npm provenance; the [threat model](/docs/security/threat-model#what-satchel-trusts) says how
-to check that the release matches commit `728ed74`.
+to check that the release matches commit `2dd4209`.
 
 To run the code of a checkout instead, build the package at the repository root:
 
@@ -41,9 +41,9 @@ node packages/satchel-nft/bin/satchel-nft.js verify 1
 | Command | Signs? | What it does |
 | --- | --- | --- |
 | [`verify <id>`](#verify) | No | The clean transfer report. Exits 0 only when it reads `PROVABLY CLEAN` |
-| [`show <id>`](#show) | No | Owner, path, address, listing, and the native balance on each of the network's 8 EVM chains; from this repository, its USDC, USDT and WETH too |
+| [`show <id>`](#show) | No | Owner, path, address, listing, and what it holds on each of the network's 8 EVM chains: the native coin, and USDC, USDT and WETH |
 | [`record <id>`](#record) | No | The signing record, as the contract returns it |
-| [`history <id>`](#history) | No | Its mint, owners, signatures, listings and sales, from FastNEAR's transaction index. In this repository, not in 0.1.0 |
+| [`history <id>`](#history) | No | Its mint, owners, signatures, listings and sales, from FastNEAR's transaction index. Since 0.2.0 |
 | [`market`](#market) | No | Every listing, with its report's verdict |
 | [`mint`](#mint) | Yes | Mints a satchel for 0.1 NEAR |
 | [`list <id> <price>`](#list-and-delist) | Yes | Lists it for `<price>` NEAR. It can't sign until it is sold, delisted or transferred |
@@ -51,10 +51,10 @@ node packages/satchel-nft/bin/satchel-nft.js verify 1
 | [`buy <id>`](#buy) | Yes | Buys it at its listed price, only if its report reads `PROVABLY CLEAN` |
 | [`transfer <id> <account>`](#transfer) | Yes | Gives it to another NEAR account |
 | [`send <id> --chain … --to … --value …`](#send) | Yes | Sends from its address on one of the network's EVM chains |
-| [`dao finish <near tx>`](#dao-finish) | No | Broadcasts what a DAO's vote had a satchel sign, once the hash and the signature check out. In this repository, not in 0.1.0 |
+| [`dao finish <near tx>`](#dao-finish) | No | Broadcasts what a DAO's vote had a satchel sign, once the hash and the signature check out. Since 0.2.0 |
 
-`history`, `dao finish` and the tokens `show` prints are in this repository's code and come with
-the next npm release; to run them now, build the checkout as shown above.
+`history`, `dao finish` and the tokens `show` prints came in 0.2.0. 0.1.0 is still on npm and has
+none of them, so pin `@0.2.0`.
 
 Every command reads NEAR testnet unless you pass `--network mainnet`. A token id is a whole number
 up to the `u64` maximum, like `1` (leading zeros are dropped, so `007` is `7`); anything else stops
@@ -73,7 +73,7 @@ the contract's own facts from NEAR, then, for every chain the satchel's record l
 nonce and every recorded approval at that chain's finalized block.
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1
+npx -y satchel-nft@0.2.0 verify 1
 ```
 
 ```text
@@ -106,7 +106,7 @@ names every RPC the report read.
 The same report on mainnet:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify --network mainnet 1
+npx -y satchel-nft@0.2.0 verify --network mainnet 1
 ```
 
 ```text
@@ -134,7 +134,7 @@ read from https://rpc.mainnet.fastnear.com, https://base-rpc.publicnode.com
 With `--json` it prints the library's `Report` object. This is satchel #5, which hides a signed send:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 5 --json
+npx -y satchel-nft@0.2.0 verify 5 --json
 ```
 
 ```json
@@ -163,13 +163,15 @@ npx -y satchel-nft@0.1.0 verify 5 --json
       "title": "A signed transaction may still be pending",
       "lines": [
         "Sepolia: signed up to nonce 0, finalized nonce is 0. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce 0 is final"
-      ]
+      ],
+      "chains": [{ "chainId": 11155111, "status": "fail" }]
     },
     {
       "id": "approvals",
       "status": "pass",
       "title": "No approval left behind",
-      "lines": ["No approval was ever signed for this token"]
+      "lines": ["No approval was ever signed for this token"],
+      "chains": []
     },
     {
       "id": "counters",
@@ -192,6 +194,7 @@ npx -y satchel-nft@0.1.0 verify 5 --json
 | `listing` | object or `null` | `seller`, `price` (yoctoNEAR), `record_version`, `listed_at` (nanoseconds) |
 | `checks[].id` | `"contract"`, `"pending"`, `"approvals"`, `"counters"` | Checks 1 to 4, in order |
 | `checks[].status` | `"pass"`, `"fail"`, `"unknown"` | `unknown` means it could not be read, never a pass |
+| `checks[].chains` | object[] | Checks 2 and 3 only: for each line about a chain, its `chainId` and how that line reads (`status`) |
 | `verdict` | `"clean"`, `"not-provable"`, `"unknown"` | `clean` only when all four pass |
 | `checkedAt` | ISO 8601 string | When the report was built |
 | `sources` | string[] | Every RPC the report read |
@@ -204,12 +207,12 @@ Exit code: 0 when the verdict is `clean`, 1 for `not-provable`, `unknown` or no 
 satchel-nft show <id> [--network testnet|mainnet] [--json]
 ```
 
-Prints the satchel's owner, MPC path, record version, address and listing, and the native balance
-of its address on each chain its network sends on. It shows no address until the contract passes
-check 1, as the app does.
+Prints the satchel's owner, MPC path, record version, address and listing, and what its address
+holds on each chain its network sends on: the native coin, and USDC, USDT and WETH. It shows no
+address until the contract passes check 1, as the app does.
 
 ```bash
-npx -y satchel-nft@0.1.0 show 1
+npx -y satchel-nft@0.2.0 show 1
 ```
 
 ```text
@@ -227,6 +230,7 @@ BNB testnet       0 tBNB
 Avalanche Fuji    0 AVAX
 Aurora testnet    0 ETH
 
+USDC, USDT and WETH are read at the addresses their issuers or the chains list (Uniswap's, for WETH on Sepolia); other tokens aren't.
 Before you buy it: satchel-nft verify 1
 ```
 
@@ -243,8 +247,26 @@ A balance it could not read prints `unavailable`. With `--json`:
   "recordVersion": "7",
   "listing": null,
   "balances": [
-    { "chainId": 11155111, "name": "Sepolia", "symbol": "ETH", "wei": "43999999555298599" },
-    { "chainId": 84532, "name": "Base Sepolia", "symbol": "ETH", "wei": "0" }
+    {
+      "chainId": 11155111,
+      "name": "Sepolia",
+      "symbol": "ETH",
+      "wei": "43999999555298599",
+      "tokens": [
+        { "kind": "USDC", "symbol": "USDC", "address": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", "decimals": 6, "amount": "0" },
+        { "kind": "WETH", "symbol": "WETH", "address": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", "decimals": 18, "amount": "0" }
+      ]
+    },
+    {
+      "chainId": 84532,
+      "name": "Base Sepolia",
+      "symbol": "ETH",
+      "wei": "0",
+      "tokens": [
+        { "kind": "USDC", "symbol": "USDC", "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e", "decimals": 6, "amount": "0" },
+        { "kind": "WETH", "symbol": "WETH", "address": "0x4200000000000000000000000000000000000006", "decimals": 18, "amount": "0" }
+      ]
+    }
   ]
 }
 ```
@@ -252,18 +274,14 @@ A balance it could not read prints `unavailable`. With `--json`:
 (Six more `balances` entries are left out above.) `wei` is a decimal string, or `null` when that
 chain could not be read.
 
-Built from this repository, `show` also reads USDC, USDT and WETH at the one address per chain that
-their issuer or the chain lists (Uniswap's deployment list, for WETH on Sepolia): 22 deployments on
-the mainnets, 11 on the testnets. On each chain's line it prints, after the native coin, every token
-that holds something or couldn't be read, with the symbol its contract reports (`USD₮0` on
-Arbitrum, `WETH.e` on Avalanche). A zero balance is left out, and tokens at any other address
-aren't read; the chain's explorer shows them. A last line says so:
+`show` reads USDC, USDT and WETH at the one address per chain that their issuer or the chain lists
+(Uniswap's deployment list, for WETH on Sepolia): 22 deployments on the mainnets, 11 on the
+testnets. On each chain's line it prints, after the native coin, every token that holds something
+or couldn't be read, with the symbol its contract reports (`USD₮0` on Arbitrum, `WETH.e` on
+Avalanche). A zero balance is left out, and tokens at any other address aren't read; the chain's
+explorer shows them. The line under the balances says so.
 
-```text
-USDC, USDT and WETH are read at the addresses their issuers or the chains list (Uniswap's, for WETH on Sepolia); other tokens aren't.
-```
-
-With `--json`, each `balances` entry gains `tokens`: one object per listed token, with `kind`
+With `--json`, each `balances` entry has `tokens`: one object per listed token, with `kind`
 (`USDC`, `USDT` or `WETH`), `symbol`, `address`, `decimals` and `amount`, a decimal string in the
 token's smallest unit or `null`. None of these balances is part of the report.
 
@@ -277,7 +295,7 @@ Prints the [signing record](/docs/concepts/signing-record) as the contract retur
 reading any EVM chain.
 
 ```bash
-npx -y satchel-nft@0.1.0 record 6
+npx -y satchel-nft@0.2.0 record 6
 ```
 
 ```text
@@ -294,7 +312,7 @@ With `--json`, `record` is the contract's `SigningRecord`. Satchel #3, which lef
 behind:
 
 ```bash
-npx -y satchel-nft@0.1.0 record 3 --json
+npx -y satchel-nft@0.2.0 record 3 --json
 ```
 
 ```json
@@ -333,11 +351,10 @@ satchel-nft history <id> [--network testnet|mainnet] [--json]
 ```
 
 Lists everything the Satchel contract logged about the satchel, oldest first: its mint, transfers,
-signatures, listings, delistings and sales, each with its NEAR transaction. It is in this
-repository's code, not in 0.1.0; build the checkout first, then:
+signatures, listings, delistings and sales, each with its NEAR transaction. It came in 0.2.0.
 
 ```bash
-node packages/satchel-nft/bin/satchel-nft.js history 7
+npx -y satchel-nft@0.2.0 history 7
 ```
 
 ```text
@@ -353,7 +370,7 @@ Satchel #7's history on v1.satchel-nft.testnet (testnet), oldest first
 2026-11-09 15:33Z  satchel-nft.testnet listed it for 0.5 NEAR  https://testnet.nearblocks.io/txns/6nsbk52HkRK7KV2SbcauHJxX84jaUm1WFsQMgmMrSSMc
 2026-11-09 15:33Z  satchel-nft.testnet delisted it  https://testnet.nearblocks.io/txns/G2EC3pQ7gF51nVjpsFNdefwvTe7Y43yzskACqVSeJUU8
 
-Read from https://tx.test.fastnear.com: 39 of the contract's transactions.
+Read from https://tx.test.fastnear.com: 42 of the contract's transactions.
 ```
 
 The history comes from FastNEAR's transaction index (`tx.test.fastnear.com`, `tx.main.fastnear.com`
@@ -393,7 +410,7 @@ With `--json` (two of the nine entries shown):
       "caller": "satchel-nft.testnet"
     }
   ],
-  "scanned": 39,
+  "scanned": 42,
   "complete": true,
   "source": "https://tx.test.fastnear.com",
   "signatures": { "history": 1, "record": 1 }
@@ -414,13 +431,12 @@ Reads every listing, 100 at a time, and builds each listed satchel's report, thr
 sharing one read of the contract's own facts. A report that fails to build counts as `unknown`.
 
 The contract's `listings` view drops stale listings (seller no longer owns the token) after it
-pages, so a page can be short, or empty, with more listings after it. In this repository `market`
-reads pages until they cover `nft_total_supply`, so it lists every live listing. 0.1.0 stops at the
-first page under 100 rows, so it can miss listings once the contract holds more than 100, stale
-ones included.
+pages, so a page can be short, or empty, with more listings after it. `market` reads pages until
+they cover `nft_total_supply`, so it lists every live listing. 0.1.0 stopped at the first page under
+100 rows, so it could miss listings once the contract held more than 100, stale ones included.
 
 ```bash
-npx -y satchel-nft@0.1.0 market
+npx -y satchel-nft@0.2.0 market
 ```
 
 ```text
@@ -445,6 +461,15 @@ With `--json`, each listing carries the contract's listing fields plus `verdict`
       "listed_at": "1794197407046137608",
       "verdict": "clean",
       "recordVersion": "0"
+    },
+    {
+      "tokenId": "6",
+      "seller": "satchel-nft.testnet",
+      "price": "1000000000000000000000000",
+      "record_version": "1",
+      "listed_at": "1794200923994130462",
+      "verdict": "not-provable",
+      "recordVersion": "1"
     }
   ]
 }
@@ -693,7 +718,7 @@ On Windows, give the path of `near.exe` itself. npm's `near.cmd` is a script tha
 shell, and `satchel-nft` refuses `.cmd`, `.bat` and `.ps1` files:
 
 ```powershell
-npx -y satchel-nft@0.1.0 list 7 0.5 --as satchel-nft.testnet --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
+npx -y satchel-nft@0.2.0 list 7 0.5 --as satchel-nft.testnet --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
 ```
 
 If none is found, the command stops with
@@ -712,7 +737,7 @@ in, run it from PowerShell or cmd, or pass `--yes`.
 | `NEAR_CLI` | The near CLI to sign with, when `--near-cli` isn't given |
 
 ```bash
-NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
 ```
 
 [RPCs, finality and rate limits](/docs/developers/rpc-and-finality) has the default nodes and how

@@ -121,10 +121,10 @@ npm run build -w satchel-nft
 npx satchel-nft verify 1
 ```
 
-Outside a clone, `npx -y satchel-nft@0.1.0 verify 1` runs the release on npm, published from
-commit `728ed74` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). This
-checkout's package is 0.2.0, which isn't on npm yet, so inside the repository that pinned command
-still fetches 0.1.0 from npm.
+Outside a clone, `npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from
+commit `2dd4209` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside the
+repository that pinned command runs this checkout's build instead, because the checkout's package
+is also 0.2.0.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
 that runs on it. Inside the repository, `npx satchel-nft` runs this checkout's build, never a
