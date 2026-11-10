@@ -256,6 +256,23 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The 2:00 video script shows the holder room. A new 1:30–1:42 scene opens the room of a satchel
+  the recording wallet owns: the wallet signs the message, the card "You hold satchel #…" shows the
+  final block the owner was read at, then "Handover kit". The #7 page scene now runs 1:18–1:30 and
+  mainnet satchel #1 1:42–1:52, each with a shorter line to say, and the terminal 1:52–2:00 with
+  the same line. "Before you record" replaces "No wallet is needed" with the wallet that scene
+  needs, in a second fresh Chrome profile: a connected wallet stays connected in every satchelnft.xyz
+  tab of its profile on its network, and the #7 and mainnet #1 takes must not show an owner's send
+  and sale controls. The bullet lists the wallets the app offers (each says it signs messages), which are web
+  wallets and which need an extension, and a rehearsal, then a reload so the take signs again,
+  since no browser wallet had opened a room yet. The kit's opening and the browser bullet say the
+  open room is the one screen not yet seen in a browser. The optional mainnet mint now replaces
+  1:18–1:30 and is recorded in the room's profile, mint take first, so the 1:30 scene can open the
+  new satchel's room. `check-demo-kit.mjs` also checks paths written alone, such as
+  `/satchel/<id>/room`, against the app's routes: 13 of 13.
+- The README's holder room section and Status row add the signed run against satchelnft.xyz after
+  `main` deployed: 200 for satchel #4's owner at block 277055444, the 403 for another account, and
+  405 for a `GET`.
 - The demo kit follows HACKATHON.md more closely. Its rules table adds: submit through the form or
   the API, not both, and by the API only after the full JSON payload has been printed and the
   builder has said yes; never commit the payload; read the consent notice word for word; read the
