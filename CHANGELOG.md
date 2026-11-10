@@ -256,6 +256,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- A browser wallet has opened the holder room: Meteor's Chrome extension, connected as
+  `satchel-nft.near`, opened mainnet satchel #1's room on satchelnft.xyz (200, the holder card at
+  block 223915441, "The satchel reads clean"). **Check again** sent the same signature without
+  asking the wallet (200, block 223915478), and a reload went back to **Open the room**, still
+  connected. The README's holder room section and Status row, the demo kit's opening and its 1:30
+  note, and the holder room guide say so; the kit no longer calls the open room the one screen not
+  yet seen, and its note gives where the card, "Checked at" and "Handover kit" sat in a window
+  1920 px wide. The kit and the guide add: unlock an extension wallet before opening the page.
 - The 2:00 video script shows the holder room. A new 1:30–1:42 scene opens the room of a satchel
   the recording wallet owns: the wallet signs the message, the card "You hold satchel #…" shows the
   final block the owner was read at, then "Handover kit". The #7 page scene now runs 1:18–1:30 and
@@ -304,6 +312,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- A page with a saved wallet connection showed "Looking for your wallet…" and the header's
+  placeholder for as long as the wallet didn't answer. Meteor's extension, locked, once didn't
+  answer for over 17 seconds, until it was unlocked; later loads with it locked answered within 2
+  seconds. After 8 seconds the page now offers **Connect wallet** (checked with Meteor's script
+  held back: the switch came at 8.3 s, in the room and the header); it still takes an
+  account the wallet names later, unless the user has connected or disconnected since, or another
+  wallet was saved meanwhile by a connect that failed inside it (`restoreAccount` and
+  `fromSameWallet` in `web/src/lib/restore.ts`, 7 tests). Closing the wallet picker leaves the
+  wait running, so the page still gets there (checked the same way: **Connect to buy** clicked at
+  3.1 s, the picker closed at 4.3 s, **Connect wallet** at 8.2 s). The app has 27 unit tests, as
+  the README and AGENTS.md now say; the README no longer counts the rules without one.
+  Troubleshooting has a row for it, and AGENTS.md's rules table one more line.
 - The README's step 5 ran the package's tests with no install before it, which only worked after
   step 4's optional install. It now says to run `npm ci -w satchel-nft` first if you skipped it.
 - The buy panel's gold border never showed, because the card's own border color won; it shows now.

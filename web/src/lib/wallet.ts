@@ -43,12 +43,18 @@ interface Connector {
  */
 function networkStorage(net: Network) {
   const key = (name: string) => `satchel:${net.id}:${name}`;
-  const local = () => (typeof window === "undefined" ? null : window.localStorage);
   return {
     get: async (name: string) => local()?.getItem(key(name)) ?? null,
     set: async (name: string, value: string) => local()?.setItem(key(name), value),
     remove: async (name: string) => local()?.removeItem(key(name)),
   };
+}
+
+const local = () => (typeof window === "undefined" ? null : window.localStorage);
+
+/** The id of the wallet near-connect has saved for `net` (in `networkStorage`), if any. */
+export function savedWallet(net: Network): string | null {
+  return local()?.getItem(`satchel:${net.id}:selected-wallet`) ?? null;
 }
 
 const pending = new Map<NetworkId, Promise<Connector>>();

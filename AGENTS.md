@@ -158,7 +158,7 @@ npm run typecheck
 ```
 
 Each runs in both workspaces. You should see `Tests  191 passed (191)` for `satchel-nft`, then
-`Tests  20 passed (20)` for the app, then no type errors.
+`Tests  27 passed (27)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -243,6 +243,7 @@ of these checks.
 | A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: the keys of testnet satchels #1 to #8 and mainnet #1, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
 | The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `packages/satchel-nft/src/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
 | The wallet signs only for this network's contract, from an account on this network | `assertTxFor` in `guard.ts` | `guard.test.ts` |
+| A page waits at most 8 s for a saved wallet to name its account before it offers "Connect wallet". An account named later still counts, unless a connect has finished, the user has disconnected, another wallet has been saved or the page has switched network since; closing the wallet picker leaves the wait running | `restoreAccount`, `fromSameWallet` in `web/src/lib/restore.ts`, used by `WalletProvider` in `web/src/components/wallet.tsx` | `restore.test.ts`: the wait, a late account, a late none, stop, another wallet saved. `WalletProvider`'s use of them has no test: that a finished connect, a disconnect or a network switch stops the wait, and that a closed picker doesn't |
 | A transfer refuses a receiver that doesn't exist on the network, the contract and the MPC contract | `assertReceiver` in `guard.ts` | `guard.test.ts` |
 | A purchase takes its record version and price from the report the buyer read, read on the same network | `web/src/components/sale-panel.tsx` | manual, on testnet |
 | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |

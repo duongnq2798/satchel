@@ -3,8 +3,9 @@
 What the builder needs to record Satchel's demo video, post it on X and submit Satchel to the NEAR
 Hackathon 2026. The rules quoted here come from [nearhackathon.com](https://nearhackathon.com) and its
 [HACKATHON.md](https://nearhackathon.com/HACKATHON.md), read on 2026-11-10. Every screen and line
-below is what satchelnft.xyz and `satchel-nft` showed that day, except the open holder room at 1:30:
-near-cli-rs and curl opened a testnet room, and no browser wallet, and no mainnet room, had yet.
+below is what satchelnft.xyz and `satchel-nft` showed that day. The open holder room at 1:30 was
+seen on mainnet satchel #1, opened with Meteor's Chrome extension; testnet rooms were opened with
+near-cli-rs and curl.
 
 `node scripts/check-demo-kit.mjs` checks the numbers this kit depends on: the form text's length, the
 X post's length, tags and question, the script's timing and the pages it opens. CI runs it on every
@@ -64,6 +65,8 @@ pull request.
     [satchelnft.xyz/satchels](https://satchelnft.xyz/satchels) (0.1 testnet NEAR plus gas), or
     record the optional mainnet mint below there; a new satchel touches none of the demo satchels
     above.
+  - **Unlock the wallet before you open the room's tab.** Once, with Meteor's extension locked, the
+    page stayed at "Looking for your wallet…" until it was unlocked.
   - **Rehearse once:** connect the wallet in the room's tab, click **Open the room**, approve, then
     reload the tab. The page held the signature only in memory and the server stores nothing, so
     the take starts at **Open the room** again, with the wallet still connected. In the take, don't
@@ -108,9 +111,11 @@ What each scene shows, so the edit can't drift from the chain:
   near-cli-rs for satchel #4, opened the room for its owner at block 277,055,444 and was refused with
   a 403 naming the owner for `buyer.satchel-nft.testnet`. With the page 1280 × 630 px, about what a
   1280 × 720 window leaves under the browser's bars, the card with **Open the room** starts 536 px
-  down, so the take scrolls to the button; the holder card and the kit open in its place. No browser
-  wallet had opened a room by then, nor any client a mainnet one, so rehearse it as "Before you
-  record" says and record only once it opens.
+  down, so the take scrolls to the button; the holder card and the kit open in its place. Later that
+  day Meteor's Chrome extension, connected as `satchel-nft.near`, opened mainnet satchel #1's room:
+  the holder card at block 223,915,441 and "The satchel reads clean". In a window 1920 px wide the
+  holder card started 538 px down, "Checked at" 662 px and "Handover kit" 855 px. Rehearse it as
+  "Before you record" says.
 - **1:42.** Mainnet satchel #1: one send on Base at nonce 0, "Base: signed up to nonce 0, finalized
   nonce is 1", and 0.00184 ETH left.
 - **1:52.** Satchel #5 again, from the terminal; the command exits 1.

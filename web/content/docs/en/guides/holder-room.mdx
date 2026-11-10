@@ -139,8 +139,11 @@ For a mainnet satchel, the same steps take a mainnet account, `Network: mainnet`
 - **The server trusts the NEAR RPC it reads**: FastNEAR's public node by default, as for the report. An RPC
   that lies about the key or the owner can open the room for someone else, or keep it closed.
 - **No rate limit.** The route refuses a bad signature before it reads NEAR, but it doesn't count requests.
-- **Your wallet must sign messages.** Every wallet the app lists says it does; one that can't gets a message
-  saying so, and the terminal steps above work instead.
+- **Your wallet must sign messages.** Every wallet the app lists says it does, and Meteor's Chrome extension
+  opened mainnet satchel #1's room on 2026-11-10; one that can't gets a message saying so, and the terminal
+  steps above work instead.
+- **Unlock an extension wallet first.** A locked one may not answer the page until it is unlocked. After 8
+  seconds the page offers **Connect wallet** instead of "Looking for your wallet…".
 
 The [threat model](/docs/security/threat-model#the-holder-room) lists each attack on the room and what is left.
 
