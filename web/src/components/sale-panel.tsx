@@ -1,7 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { type Report, type SatchelView, type WalletTx, assertReceiver, formatNear, parseNear, satchelTx } from "satchel-nft";
+import {
+  type Network,
+  type Report,
+  type SatchelView,
+  type WalletTx,
+  assertReceiver,
+  formatNear,
+  parseNear,
+  satchelTx,
+} from "satchel-nft";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote } from "./ui";
 import { useWallet } from "./wallet";
@@ -102,6 +111,18 @@ export function OwnerSale({ token, onDone }: { token: SatchelView; onDone: (hash
   );
 }
 
+/** The report and its listing, when the report is about this token on this network and checked that listing. */
+export function checkedListing(token: SatchelView, report: Report | undefined, net: Network) {
+  return report &&
+    report.network === net.id &&
+    report.contract === net.contract &&
+    report.tokenId === token.token_id &&
+    report.listing &&
+    report.listing.record_version === report.recordVersion
+    ? { report, listing: report.listing }
+    : undefined;
+}
+
 /**
  * A buyer's side. The purchase takes its record version and price from the report, never from the
  * rest of the page, so it names exactly what the buyer checked; any later signature voids it.
@@ -123,32 +144,30 @@ export function BuyPanel({
   const [note, setNote] = useState("");
   if (!token.listing) return null;
 
-  const checked =
-    report &&
-    report.network === net.id &&
-    report.contract === net.contract &&
-    report.tokenId === token.token_id &&
-    report.listing &&
-    report.listing.record_version === report.recordVersion
-      ? { report, listing: report.listing }
-      : undefined;
+  const checked = checkedListing(token, report, net);
   const listing = checked?.listing ?? token.listing;
   const clean = checked?.report.verdict === "clean";
   const accept = checked !== undefined && accepted === checked.report.recordVersion;
-  // The page and the report read the token separately; buy only once they agree.
-  const agrees = checked !== undefined && checked.report.recordVersion === token.record.version;
+  // The page and the report read the token separately; buy only once they agree on the record and the listing.
+  const agrees =
+    checked !== undefined &&
+    checked.report.recordVersion === token.record.version &&
+    checked.listing.price === token.listing.price &&
+    checked.listing.seller === token.listing.seller;
 
   return (
-    <Card className="border-gold/60">
+    <Card className="border-gold/60!">
       <h2 className="font-display text-xl font-semibold">For sale: {formatNear(listing.price)} NEAR</h2>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted [overflow-wrap:anywhere]">
         Sold by {listing.seller}. Your purchase names record version {checked?.report.recordVersion ?? token.record.version}
         , the one the report above checked; if the seller signed anything since, the contract refuses the sale and you keep
         your NEAR.
       </p>
       {!checked && <p className="mt-3 text-sm text-muted">Waiting for the report on this listing…</p>}
       {checked && !agrees && (
-        <p className="mt-3 text-sm text-warn">The record changed while this page loaded. Check again before you buy.</p>
+        <p className="mt-3 text-sm text-warn">
+          The listing or its record changed while this page loaded. Check again before you buy.
+        </p>
       )}
       {checked && !clean && (
         <label className="mt-3 flex items-start gap-2 text-sm text-warn">
@@ -173,7 +192,7 @@ export function BuyPanel({
             busy={tx.busy}
             onClick={() => {
               if (!checked) return setNote("Wait for the report on this listing first");
-              if (!agrees) return setNote("Check again: the page and the report read different record versions");
+              if (!agrees) return setNote("Check again: the page and the report read different listings or record versions");
               if (!clean && !accept) return setNote("Tick the box above to buy a satchel that is not provably clean");
               setNote("");
               tx.run(() => satchelTx(net).buy(token.token_id, checked.report.recordVersion, BigInt(checked.listing.price)));

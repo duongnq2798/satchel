@@ -115,7 +115,7 @@ The contract refuses a purchase before it moves anything, and refunds what you a
 | `Satchel: the seller cannot buy` | You are the seller | Delist instead |
 | `Satchel: attach at least the price` | The deposit is below the price | Attach the price |
 | `Wait for the report on this listing first` | You pressed Buy before the report finished | Wait for it |
-| `Check again: the page and the report read different record versions` | The record changed while the page loaded | Click **Check again** |
+| `Check again: the page and the report read different listings or record versions` | The seller relisted at another price, or the record changed, while the page loaded | Click **Check again** |
 | `Tick the box above to buy a satchel that is not provably clean` | The report isn't clean | Read why. Tick the box only if you accept it |
 | `Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.` | The CLI ran the report first | The same choice, in the terminal |
 | `Satchel #<id> was listed at record version <a> and is now at <b>; the contract refuses that sale` | The listing's version doesn't match the record. Signing is frozen while listed, so this shouldn't happen; the contract would refuse the sale | The seller has to delist and list again. If it repeats, [report it](/docs/security/report-a-vulnerability) |

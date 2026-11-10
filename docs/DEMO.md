@@ -20,6 +20,10 @@ pull request.
 | The prize account is a mainnet NEAR account: a named one such as `team.near`, or a 64-character implicit one | HACKATHON.md, "What the human decides" |
 | The form's Website field must stay empty: "`website` is a spam trap: any non-empty value rejects the submission" | HACKATHON.md, "Submission API" |
 | One submission per project. A mistake is fixed through [request-changes](https://nearhackathon.com/request-changes), never by submitting again. One email may submit at most 2 projects | HACKATHON.md, "3. Submit" and "Submission API" |
+| Submit when the repository is public and the post is up, through the form or the API, not both. A coding agent sends the API request only after it has printed the full JSON payload and the builder has said yes. The payload holds personal data, so it is never committed | HACKATHON.md, "Never without the human's explicit confirmation" and "3. Submit" |
+| The consent notice is read to the builder word for word before they agree | HACKATHON.md, "What the human decides" |
+| Read the live HACKATHON.md again before submitting: "dates and rules may change" | HACKATHON.md, its first paragraph |
+| The README lists the libraries, templates and AI-written code used ([Libraries, templates and AI-assisted code](../README.md#libraries-templates-and-ai-assisted-code)), the repository has a LICENSE file (MIT), and each of one person's two projects names the other in its README ([Other project by the same builder](../README.md#other-project-by-the-same-builder)) | HACKATHON.md, Q-005, Q-014 and Q-015 |
 | Submissions close on 2026-11-14 at 23:59 UTC | nearhackathon.com |
 
 ## Before you record
@@ -98,27 +102,29 @@ full on X. Check the counter in X's composer before you post.
 
 ## The submission form
 
-On [nearhackathon.com](https://nearhackathon.com), "Final submission", after the post is up:
+On [nearhackathon.com](https://nearhackathon.com), "Final submission", after the post is up. The same
+fields go to HACKATHON.md's API if a coding agent submits instead, and only after it has printed the
+whole JSON payload and you have said yes. Use one way, once:
 
 | Field | Value |
 | --- | --- |
 | Project name | Satchel |
 | Team lead | Your name |
 | Email address | The email you use for the hackathon. It may submit 2 projects at most |
-| Team size | 1 — Solo builder |
+| Team size | 1 — Solo builder (the API's value for it is `1`) |
 | Tracks | NFTs That Do Something, Open Innovation, Unstoppable DeFi (see below) |
 | NEAR wallet address | Your own mainnet account, in lowercase: a named `.near` account or a 64-character implicit one, never a `.testnet` account. A prize, if any, is sent here |
 | Repository link | https://github.com/duongnq2798/satchel |
 | Demo post link | The URL of your X post |
 | What did you build? | The whole of [`submission/what-did-you-build.txt`](submission/what-did-you-build.txt) |
 | Website | **Leave it empty.** It is a spam trap: any value rejects the submission |
-| Consent | Tick it |
+| Consent | Read the notice, then tick it if you agree: "I agree that the organizers may use these details to review our submission and contact us about this hackathon." |
 
 ## Tracks
 
 | Track | Why Satchel fits |
 | --- | --- |
-| **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts: assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", and a history view per NFT; Satchel has all three |
+| **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts — assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", a gated page only current holders can open, and a history view per NFT (what it earned, what it paid out, who held it); Satchel has the first three (the gated page is each satchel's holder room, `/satchel/<id>/room`), and part of the fourth: its history lists owners, sales and signatures, not each payment that came in |
 | **Open Innovation** (`open`) | Its hints name chain abstraction: one NEAR transaction moves an address on every chain it lives on |
 | **Unstoppable DeFi** (`defi`) | Its hints name Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and whatever its address holds moves with it. The proof is narrower here: a satchel that has itself made a call the contract can't classify, such as a swap or an LP deposit, reads "not provable" for every later owner, as the README says. This is the loosest of the three fits |
 
@@ -130,14 +136,15 @@ only past transactions, the contract's keys and code and the MPC keys, so it doe
 to a satchel.
 Until 2026-11-25:
 
-- Don't sign anything with testnet satchels #1, #3, #5, #6 or #7, or with mainnet satchel #1. A new
-  signature changes the report lines quoted in the README; one with satchel #5 at nonce 0 would end
-  the "signed and kept" example.
-- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #7 or mainnet #1. The
+- Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchel #1. A
+  new signature changes the report lines quoted in the README; one with satchel #5 at nonce 0 would
+  end the "signed and kept" example.
+- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1. The
   landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's example
   says #2's address belongs to the same seller; the README and the 1:18 scene show #7's history; #4
   is for sale for 1 NEAR at record version 0 and #6 at record version 1, and `list` on a listed
-  satchel replaces its price; `satchel-nft.near` owns mainnet #1.
+  satchel replaces its price; `buyer.satchel-nft.testnet` owns #8, as the DAO walkthrough ends;
+  `satchel-nft.near` owns mainnet #1.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
 If one of these has to change, run `npx -y satchel-nft@0.1.0 verify <id>` for testnet #1, #3, #4,

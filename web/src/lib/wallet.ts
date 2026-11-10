@@ -15,7 +15,16 @@ import manifest from "./wallet-manifest.json";
  * wallet's own script still comes from its publisher.
  */
 interface NearWallet {
+  manifest?: { name?: string; features?: { signMessage?: boolean } };
   signAndSendTransaction(params: { signerId?: string; receiverId: string; actions: WalletTx["actions"] }): Promise<ExecutionOutcome>;
+  /** NEP-413: signs a message with the account's key. No transaction, no fee. */
+  signMessage?(params: {
+    message: string;
+    recipient: string;
+    nonce: Uint8Array;
+    network?: NetworkId;
+    signerId?: string;
+  }): Promise<{ accountId: string; publicKey: string; signature: string }>;
 }
 
 interface Connector {
@@ -99,4 +108,33 @@ export async function runTx<T>(net: Network, tx: WalletTx, signer: string): Prom
   const settled =
     sent.final_execution_status === "FINAL" ? sent : await finalOutcome(net, hash, sent.transaction.signer_id ?? signer);
   return { hash, value: outcomeValue<T>(settled) };
+}
+
+/** Thrown when the connected wallet can't sign NEP-413 messages at all. */
+export class NoMessageSigning extends Error {}
+
+/**
+ * Has the wallet sign a NEP-413 message as `signer`: no transaction, no fee. The account it signed
+ * as must be `signer`, the one the page is connected to.
+ */
+export async function signMessage(
+  net: Network,
+  params: { message: string; recipient: string; nonce: Uint8Array },
+  signer: string,
+): Promise<{ publicKey: string; signature: string }> {
+  const wallet = await (await connector(net)).wallet();
+  const cannot = () =>
+    new NoMessageSigning(`${wallet.manifest?.name ?? "This wallet"} can't sign messages (NEP-413), so it can't open the room`);
+  if (typeof wallet.signMessage !== "function" || wallet.manifest?.features?.signMessage === false) throw cannot();
+  let signed: Awaited<ReturnType<NonNullable<NearWallet["signMessage"]>>>;
+  try {
+    signed = await wallet.signMessage({ ...params, network: net.id, signerId: signer });
+  } catch (err) {
+    const text = err instanceof Error ? err.message : String(err);
+    if (/not (supported|implemented)|unsupported/i.test(text)) throw cannot();
+    throw err;
+  }
+  if (typeof signed?.signature !== "string" || typeof signed.publicKey !== "string") throw new Error("The wallet didn't return a signature");
+  if (signed.accountId !== signer) throw new Error(`The wallet signed as ${signed.accountId}, not ${signer}, the account this page is connected to`);
+  return { publicKey: signed.publicKey, signature: signed.signature };
 }

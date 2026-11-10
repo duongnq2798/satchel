@@ -25,7 +25,7 @@ the attacks and what stops each one. [SECURITY.md](SECURITY.md) says how to repo
 ## Check the claims
 
 Steps 1 and 2 take about five minutes. Steps 3 and 4 install and build Rust, so they take longer
-the first time. Run every command from the repository root.
+the first time. Step 5 needs step 2's install and curl. Run every command from the repository root.
 
 ### 1. The deployment and its history: one command
 
@@ -43,7 +43,7 @@ testnet over JSON-RPC and checks:
 | Its NEP-330 metadata names commit `87148c6` and the pinned Docker image | `contract_source_metadata` |
 | It signs only through `v1.signer-prod.testnet` | `mpc_contract()` |
 | The package derives every satchel's address from that MPC contract's root key, and pins that key | `public_key({ domain_id: 0 })` on `v1.signer-prod.testnet` equals `mpcRootKey` in `packages/satchel-nft/src/config.ts` |
-| The keys the package's tests derive are the ones the MPC contract gives for each satchel | `derived_public_key` for `satchel/1` to `satchel/7` equals `packages/satchel-nft/src/__fixtures__/derived-keys.json`, the keys `evm.test.ts` derives from the pinned root key |
+| The keys the package's tests derive are the ones the MPC contract gives for each satchel | `derived_public_key` for `satchel/1` to `satchel/8` equals `packages/satchel-nft/src/__fixtures__/derived-keys.json`, the keys `evm.test.ts` derives from the pinned root key |
 | Deployed and initialized in one transaction | tx `7pocx72c…`: `DeployContract` then `new({ mpc_contract: "v1.signer-prod.testnet" })` |
 | Its only key was deleted before the first mint | tx `6FYx6hV5…` is a `DeleteKey`, in an earlier block than satchel #1's mint |
 | The previous owner cannot sign after a transfer | tx `GqFsnmFL…` failed: `Satchel: only the token's owner can do this` |
@@ -83,6 +83,33 @@ The last three read `deployments/mainnet-first-send.json`, satchel #1's first se
   fee the record names, and that block is finalized. This one reads Base through `BASE_RPC`
   (`https://base-rpc.publicnode.com` by default) and fails until Base finalizes the block, about
   20 minutes after a send.
+
+A Sputnik DAO owned satchel #8 on testnet. That run has its own record,
+`deployments/testnet-dao.json`, and its own script:
+
+```bash
+node scripts/check-dao.mjs
+```
+
+You should see `5 of 5 claims hold`. It checks that:
+
+- `satchel-club.sputnikv2.testnet` was created by the `sputnikv2.testnet` factory (tx `7fsqT1cc…`),
+  its `version()` is `2.3.1`, and `get_policy` has only group roles, whose one member is
+  `satchel-nft.testnet`, a bond of 0 and a one-hour proposal period;
+- tx `GorSCms2…` minted satchel #8 to the DAO (`nft_mint`);
+- tx `5wqriE9U…` filed proposal 0 (`add_proposal` returned 0, with the kind `get_proposal` shows),
+  and vote `2ryQpsJR…` ran it as filed (method, arguments, deposit and gas), the proposal is
+  `Approved`, the DAO called `sign_evm` for #8 on Sepolia, the contract logged it at record version
+  1 and asked `v1.signer-prod.testnet` to sign `satchel/8` over the hash `evm_signing_hash` gives,
+  and the one signature is in a receipt the MPC contract ran, while the vote returned nothing;
+- Sepolia transaction `0x27e3262b…` has the fields `sign_evm` was given and the r, s and parity
+  the MPC contract returned, comes from `0x2aA82C50…A5F0`, succeeded in block 12102812, and that
+  block is finalized;
+- tx `A5YMQQp2…` filed proposal 1 and vote `6GSVLR17…` ran it as filed, an `nft_transfer` of #8 to
+  `buyer.satchel-nft.testnet`,
+  the contract logged it from the DAO, and right after it the record was still at version 1.
+
+`SEPOLIA_RPC` replaces the Sepolia node.
 
 ### 2. The clean transfer report for each demo satchel
 
@@ -130,8 +157,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  128 passed (128)` for `satchel-nft`, then
-`Tests  15 passed (15)` for the app, then no type errors.
+Each runs in both workspaces. You should see `Tests  191 passed (191)` for `satchel-nft`, then
+`Tests  20 passed (20)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -139,7 +166,7 @@ cargo test
 cd ../..
 ```
 
-You should see `test result: ok. 59 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
+You should see `test result: ok. 61 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
 rustup installs it on first use. On Windows, a dependency (`aws-lc-sys`) needs NASM unless you set
 `AWS_LC_SYS_PREBUILT_NASM=1` first: `$env:AWS_LC_SYS_PREBUILT_NASM=1` in PowerShell, `export
 AWS_LC_SYS_PREBUILT_NASM=1` in Git Bash.
@@ -166,15 +193,45 @@ node ../../scripts/code-hash.mjs target/near/satchel.wasm
 
 This builds the commit you have checked out. Check out `87148c6` first to get the deployed hash.
 
+### 5. The holder room's gate
+
+Claim: a satchel's holder room (`/satchel/<id>/room`) opens only for the account that owns the
+satchel at a final NEAR block, signing a NEP-413 message with one of its full-access keys, checked
+again on every request, with nothing stored. Its tests:
+
+```bash
+npm test -w satchel-nft -- holder nep413 kit
+npm test -w satchel-web -- room-request
+```
+
+You should see `Tests  33 passed (33)`, then `Tests  5 passed (5)`. Then the route itself, with no
+key: a GET, and a signature that doesn't verify.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://satchelnft.xyz/api/room      # 405
+ISSUED=$(node -e "console.log(new Date().toISOString())")
+SIG=$(node -e "console.log(Buffer.alloc(64).toString('base64'))")
+NONCE=$(node -e "console.log(Buffer.alloc(32).toString('base64'))")
+curl -s -w '\n%{http_code}\n' https://satchelnft.xyz/api/room -H 'content-type: application/json' \
+  -d "{\"network\":\"testnet\",\"tokenId\":\"4\",\"accountId\":\"satchel-nft.testnet\",\"publicKey\":\"ed25519:11111111111111111111111111111111\",\"signature\":\"$SIG\",\"nonce\":\"$NONCE\",\"issuedAt\":\"$ISSUED\"}"
+```
+
+You should see `{"error":"The signature doesn't verify for ed25519:1111…: it must sign the room
+message for satchel #4 on testnet, for satchelnft.xyz"}` and `401`. The route reads NEAR only after
+the signature verifies. To be refused as a non-holder (403, naming satchel #4's owner at the block
+read), sign the message with a testnet account of your own: the README's
+[Holder room](README.md#holder-room) has the near-cli-rs steps. That needs a key, so it is not one
+of these checks.
+
 ## Where each rule lives
 
 | Rule | Code | Tests (`contracts/satchel/src/tests.rs` unless named) |
 |---|---|---|
 | The contract builds and hashes every EVM transaction it signs (EIP-1559) | `Eip1559Tx::signing_hash` in `contracts/satchel/src/evm.rs` | `evm_hash_and_rlp_match_viem_for_every_vector`, `evm_signing_hash_view_matches_the_hash_sign_evm_sends` |
-| The record is written before the MPC request | `sign_evm`, `sign_raw`, `request_signature` in `contracts/satchel/src/lib.rs`. The record is saved when the `sign_evm` receipt succeeds; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque` (both show the record and the MPC call; the order follows from NEAR's receipts) |
+| The record is written before the MPC request | `sign_evm`, `sign_raw`, `request_signature` in `contracts/satchel/src/lib.rs`. The record is saved when the `sign_evm` receipt succeeds; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` (they show the record and the MPC call; the order follows from NEAR's receipts) |
 | Every call is classified: transfer, asset transfer, approval, revocation or unclassified | `Eip1559Tx::classify` in `evm.rs` | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
 | 32 approvals are itemized, more are counted | `sign_evm`, `MAX_APPROVALS` | `approvals_beyond_the_cap_are_counted_not_dropped` |
-| Only the owner signs; listing freezes signing | `assert_can_sign` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer` |
+| Only the owner signs; listing freezes signing | `assert_can_sign` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | `buy` pins the record version and price | `buy` | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
 | Any transfer ends the listing, a bounced `nft_transfer_call` too | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
 | Only 16 chain ids can be signed for | `SUPPORTED_CHAINS` in `contracts/satchel/src/evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
@@ -183,12 +240,13 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `packages/satchel-nft/src/approvals.ts` | `approvals.test.ts` |
 | Check 4: nothing the record can't explain | `countersCheck` in `report.ts` | `report.test.ts` |
 | Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `packages/satchel-nft/src/evm.ts` | none yet |
-| A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: all 8 satchels' keys, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
+| A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: the keys of testnet satchels #1 to #8 and mainnet #1, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
 | The app signs nothing and shows no address until the network's contract passes check 1 | `assertDeployment`, `deploymentCheck` in `packages/satchel-nft/src/guard.ts`, used by `send` in `web/src/components/wallet.tsx` and by `useDeployment` | `guard.test.ts` |
 | The wallet signs only for this network's contract, from an account on this network | `assertTxFor` in `guard.ts` | `guard.test.ts` |
 | A transfer refuses a receiver that doesn't exist on the network, the contract and the MPC contract | `assertReceiver` in `guard.ts` | `guard.test.ts` |
 | A purchase takes its record version and price from the report the buyer read, read on the same network | `web/src/components/sale-panel.tsx` | manual, on testnet |
 | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
+| `dao finish` broadcasts what a DAO's vote had a satchel sign only when the vote ran one `sign_evm` on this network's contract, one MPC signature is in its receipts, the contract's `evm_signing_hash` equals viem's hash, the signature recovers to the satchel's address, the nonce is the next one and the address can pay | `finishSignEvm`, `signatureFromReceipts`, `signEvmCalls` in `packages/satchel-nft/src/dao.ts`; `fromContractTx` in `evm.ts` | `dao.test.ts`, with the receipts of the testnet vote in `__fixtures__/dao-vote-outcome.json`; on chain, `node scripts/check-dao.mjs` |
 | The CLI sends only the transaction it asked the near CLI to sign: one function call, from the `--as` account, to this network's contract, with the method, arguments, gas and deposit it asked for | `decodeSignedTx`, `assertSignedAsAsked`, `signAndSend` in `packages/satchel-nft/src/near-cli.ts` | `near-cli.test.ts` |
 | The CLI runs the near CLI by its absolute path, found in PATH's absolute folders, never in the current folder | `resolveNearCli` in `near-cli.ts` | `near-cli.test.ts` |
 | The CLI's and the app's market list every live listing: pages are read until they cover `nft_total_supply`, since a page of the `listings` view can be short or empty with more after it | `allListings` in `packages/satchel-nft/src/satchel.ts`, used by `market` in `cli.ts`, `web/src/app/market/page.tsx` and `web/src/components/live-stats.tsx` | `satchel.test.ts` |
@@ -199,6 +257,10 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | Every CLI option belongs to one command, so an option meant for another is an error | `parseCli` in `packages/satchel-nft/src/cli-args.ts` | `cli-args.test.ts` |
 | A satchel's history shows only events the network's Satchel contract logged about that token, in receipts that succeeded, oldest first, and a sale once, not also as the seller-to-buyer transfer it logs. A bad block time skips the receipt, and an error in the card can't unmount the report (`Contained` in `web/src/components/history.tsx`). It is display only: the report never reads it | `eventsIn`, `tokenHistory` in `packages/satchel-nft/src/history.ts` | `history.test.ts`, on satchel #7's real transactions |
 | What a satchel holds is read at one listed address per token on each chain, checksummed, with the symbol and decimals its contract reports. Display only | `TOKENS`, `chainContents` in `packages/satchel-nft/src/contents.ts` | `contents.test.ts`; on chain, `node scripts/check-tokens.mjs` after `npm run build -w satchel-nft` |
+| The holder room's signature is ed25519, verified strictly, over sha256 of NEP-413's tag and the borsh payload: the message, the 32-byte nonce, the recipient `satchelnft.xyz` and no callback URL | `verifyNep413`, `nep413Hash` in `packages/satchel-nft/src/nep413.ts` | `nep413.test.ts`, against two signatures near-cli-rs made |
+| The holder room opens only for the account that owns the satchel at a final NEAR block, signing with one of its full-access keys, within 5 minutes of the `Issued` time it signed; the server writes the message itself and reads NEAR only once the signature verifies, the key and the owner at the same block, each read giving up after 10 s (a 502) | `checkHolder`, `roomMessage` in `packages/satchel-nft/src/holder.ts`; `finalBlock`, `accessKeyAt`, `viewAt`, `rpcFor` in `near.ts` | `holder.test.ts` |
+| `/api/room` takes only POST (another method gets Next.js's empty 405, with no body), reads at most 4 KB of body, and answers every POST as JSON with `Cache-Control: no-store`, a refusal with its status. A report that doesn't come within 20 s still leaves the holder card, with no kit | `readRoomRequest`, `within` in `web/src/lib/room-request.ts`, `POST` in `web/src/app/api/room/route.ts` | `room-request.test.ts` |
+| The handover kit has one step per check that doesn't pass, in the report's order, and one step to list only when all four pass. It names only the chains still open, offers no fix while check 1 fails (the app and the CLI then sign nothing), and says so for a chain the app and the CLI don't send on | `handoverKit` in `packages/satchel-nft/src/kit.ts` | `kit.test.ts` |
 
 ## What Satchel does not claim
 
@@ -210,6 +272,9 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
   `satchel-nft verify` can read from your own nodes, but it does not compare nodes or check storage
   proofs.
 - **The MPC network is trusted.** If enough MPC nodes colluded, they could sign with any derived key.
+- **The holder room holds nothing secret.** Its gate trusts one NEAR RPC, a captured proof opens it
+  until 5 minutes after its `Issued` time (up to 6 minutes, since `Issued` may run a minute ahead of
+  the server's clock) while that account still owns the satchel, and requests aren't rate limited.
 
 The full list, with what stops each attack and what is left, is in
 [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) and the README's

@@ -120,6 +120,12 @@ export const DOCS: DocSection[] = [
         title: "Transfer a satchel",
         description: "Give a satchel to another NEAR account, and what moves with it.",
       },
+      {
+        slug: "guides/holder-room",
+        title: "Open the holder room",
+        nav: "Holder room",
+        description: "A page only a satchel's current holder can open: how the server checks a signed message, what the room shows, and its limits.",
+      },
     ],
   },
   {
@@ -135,6 +141,12 @@ export const DOCS: DocSection[] = [
         title: "A full sale on testnet, from the terminal",
         nav: "A full sale on testnet",
         description: "Mint, fund, send, list, buy and hand back a satchel with the satchel-nft CLI and two testnet accounts.",
+      },
+      {
+        slug: "tutorials/dao-owned-satchel",
+        title: "A satchel owned by a Sputnik DAO",
+        nav: "Owned by a DAO",
+        description: "A DAO on testnet owned satchel #8: its vote has the contract build, record and sign a Sepolia send, anyone can finish it, and a hand-off keeps the same clean transfer report.",
       },
       {
         slug: "tutorials/clean-listings-feed",
@@ -225,7 +237,7 @@ export const DOCS: DocSection[] = [
       {
         slug: "security/threat-model",
         title: "Threat model",
-        description: "Every attack Satchel is built against (the seller's, a buyer's, the deployer's, an RPC's, the hosted app's), what stops it, and what is left.",
+        description: "Every attack Satchel is built against (the seller's, a buyer's, the deployer's, an RPC's, the hosted app's, and on the holder room), what stops it, and what is left.",
         repoFile: "docs/THREAT_MODEL.md",
       },
       {

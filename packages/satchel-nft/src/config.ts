@@ -18,8 +18,8 @@ export interface Network {
   nearRpc: string;
   nearExplorer: string;
   /**
-   * FastNEAR's transaction index, read only for a satchel's history. Nothing the report decides
-   * comes from it.
+   * FastNEAR's transaction index, read for a satchel's history and, by `dao finish`, for the signer
+   * of a vote, which `EXPERIMENTAL_tx_status` needs. Nothing the report decides comes from it.
    */
   txApi: string;
   /** From the reproducible CI build the contract was deployed from (deployments/<id>.json). */
@@ -60,6 +60,15 @@ export const MAINNET: Network = {
 };
 
 export const NETWORKS: Record<NetworkId, Network> = { testnet: TESTNET, mainnet: MAINNET };
+
+/**
+ * FastNEAR's archival nodes. The regular nodes drop a transaction after a day or two, so
+ * `dao finish` reads an older vote here, unless `NEAR_RPC` names another node.
+ */
+export const NEAR_ARCHIVAL_RPC: Record<NetworkId, string> = {
+  testnet: "https://archival-rpc.testnet.fastnear.com",
+  mainnet: "https://archival-rpc.mainnet.fastnear.com",
+};
 
 /**
  * Whether a connected account can belong to `net`. A wallet may remember a session from the other
@@ -136,6 +145,10 @@ export function chainInfo(id: number): ChainInfo | undefined {
 
 export function nearTxUrl(net: Network, hash: string): string {
   return `${net.nearExplorer}/txns/${hash}`;
+}
+
+export function nearBlockUrl(net: Network, hash: string): string {
+  return `${net.nearExplorer}/blocks/${hash}`;
 }
 
 export function nearAccountUrl(net: Network, account: string): string {

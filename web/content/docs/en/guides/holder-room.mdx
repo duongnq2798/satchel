@@ -1,0 +1,151 @@
+Every satchel has a holder room at `/satchel/<id>/room` (`/mainnet/satchel/<id>/room` on mainnet). Only the
+NEAR account that owns the satchel right now can open it. Sell or transfer the satchel, and the room opens for
+the new holder instead: the right to open it moves with the NFT, like the right to sign for its address.
+
+Nothing in the room is secret. It shows public chain data and steps from this documentation, so what the room
+proves is the gate, not its contents.
+
+## What the room shows
+
+- **A holder card**: your account, the satchel and its record version, the network, the final NEAR block the
+  server checked you at (linked to NearBlocks), and the key your wallet signed with.
+- **A handover kit**: what to do before you sell, built from the satchel's
+  [clean transfer report](/docs/concepts/clean-transfer-report), read on the server when the room opens. One
+  step for each check that fails or couldn't be read, with what it means and how to fix it with the app or
+  the CLI. When all four checks pass, one step: the satchel reads clean, so list it, and check again after
+  any new signature.
+
+The kit's fixes are the ones in [Sell a satchel](/docs/guides/sell#get-the-report-to-read-clean): spend each
+open nonce with a send, revoke each live approval with calldata you write (the app has no revoke button),
+and tell the buyer about a counter, which nothing undoes. Check 1 is about the deployment, not your
+satchel, so the kit says it isn't yours to fix; while it fails, the app and the CLI sign nothing, so the
+kit gives no other fix either. The app and the CLI send only on the chains of the satchel's own network:
+for a chain of the other network, which a record names only if someone called `sign_evm` directly, the kit
+says so instead of pointing at a button.
+
+## Open it
+
+<Steps>
+
+1. **Open the room.** On a satchel's page, click **Open the holder room**, or go to `/satchel/<id>/room`.
+
+2. **Connect the wallet** of the account that owns the satchel, on the page's network
+   ([Connect a NEAR wallet](/docs/guides/wallets)).
+
+3. **Click Open the room.** Your wallet asks you to sign a message, for `satchelnft.xyz`. It is not a
+   transaction: nothing is sent to NEAR and it costs nothing. The page shows the message before you click.
+
+4. **Read the card and the kit.** **Check again** sends the same signed proof again until the time the card
+   shows, a little under 5 minutes after you signed. After that, or after a 401, it asks your wallet to
+   sign a new one.
+
+</Steps>
+
+If you are not the holder, the room stays closed and says who owns the satchel at that block:
+
+```text
+satchel-nft.testnet owns satchel #4 at block 277042411, not you.testnet. Only its current holder can open the room.
+```
+
+## The message
+
+The wallet signs these five lines, a NEP-413 message with recipient `satchelnft.xyz` and 32 random bytes as
+its nonce (`roomMessage` in `packages/satchel-nft/src/holder.ts`):
+
+```text
+Open the holder room of Satchel #4
+Network: testnet
+Contract: v1.satchel-nft.testnet
+Account: you.testnet
+Issued: 2026-11-10T09:30:00.000Z
+```
+
+`Issued` is the time you clicked, as JavaScript's `toISOString` writes it. The page sends the signature, the
+key, the nonce and that time to `/api/room`, never the message: the server writes the message again from the
+satchel, the network and the account, so a signature for another satchel, network or account doesn't verify.
+
+## How the server checks
+
+`/api/room` is the app's one API route, and the only place its server reads NEAR: the pages read everything
+in your browser. It stores nothing: no cookie, no session, no database. On every request, `checkHolder` in `packages/satchel-nft/src/holder.ts` runs these steps in order,
+cheapest first, and stops at the first that fails:
+
+| Step | Refused with |
+| --- | --- |
+| The body is JSON under 4 KB, every field a string, the satchel id 1 to 19 digits, the account a NEAR account of this network, the nonce 32 bytes, `Issued` a `toISOString` time | 400 (413 for a larger body) |
+| `Issued` is at most 5 minutes old, and at most 1 minute ahead of the server's clock | 401 |
+| The ed25519 signature verifies over the message the server wrote (`verifyNep413` in `nep413.ts`) | 401 |
+| At one final NEAR block: the key is a full-access key of the account | 403 |
+| At that same block: the satchel exists | 404 |
+| At that same block: the account owns it | 403, naming the owner |
+| The NEAR RPC answered each read within 10 seconds, about this satchel, at that block | 502 |
+
+The RPC is read only once the signature verifies, so a request with a bad signature costs the server no read.
+Once you are in, the room reads the satchel's report; if that fails or takes more than 20 seconds (an EVM
+RPC that doesn't answer), you still get the holder card, with no kit and a line saying why.
+Each answer to a POST is JSON with `Cache-Control: no-store`; a refusal is `{ "error": "…" }`.
+Any other method gets Next.js's empty 405, with no body.
+
+**Why a full-access key.** When you sign in to a site, your wallet may add a function-call key to your account
+for that site. Such a key can sign NEP-413 messages too. Requiring a full-access key, the one your wallet signs
+transactions with, keeps any site you once signed in to from opening the room as you.
+
+## From a terminal
+
+You can see the gate work without owning a satchel. You need [near-cli-rs](https://github.com/near/near-cli-rs)
+with a NEAR testnet account in its keychain, Node 22 or later for the nonce, and bash (Git Bash on Windows).
+Sign the message for satchel #4, which you don't own:
+
+```bash
+ACCOUNT=<your-account>.testnet
+ISSUED=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+# Git Bash rewrites an argument that starts with / as a path, so draw again until the nonce doesn't.
+NONCE=$(node -e "let n;do{n=require('crypto').randomBytes(32).toString('base64')}while(n[0]==='/');console.log(n)")
+MESSAGE="Open the holder room of Satchel #4
+Network: testnet
+Contract: v1.satchel-nft.testnet
+Account: $ACCOUNT
+Issued: $ISSUED"
+near message sign-nep413 utf8 "$MESSAGE" nonce "$NONCE" recipient satchelnft.xyz sign-as "$ACCOUNT" sign-with-keychain network-config testnet
+```
+
+Use `sign-with-legacy-keychain` if your key is in `~/.near-credentials`. near-cli-rs prints JSON with a
+`publicKey` and a `signature`, each already starting with `ed25519:`. Within 5 minutes of `ISSUED`, paste
+them as printed and send them:
+
+```bash
+PUBLIC_KEY='<the publicKey it printed, ed25519:…>'
+SIGNATURE='<the signature it printed, ed25519:…>'
+curl -s -w '\n%{http_code}\n' https://satchelnft.xyz/api/room -H 'content-type: application/json' \
+  -d "{\"network\":\"testnet\",\"tokenId\":\"4\",\"accountId\":\"$ACCOUNT\",\"publicKey\":\"$PUBLIC_KEY\",\"signature\":\"$SIGNATURE\",\"nonce\":\"$NONCE\",\"issuedAt\":\"$ISSUED\"}"
+```
+
+You should see `403` under an error naming satchel #4's owner (`satchel-nft.testnet`, until someone buys it).
+Change one character of the signature and you get 401; wait 5 minutes and you get 401 again. Sign for a
+satchel you own, and the same request returns the holder card and the kit as JSON.
+
+For a mainnet satchel, the same steps take a mainnet account, `Network: mainnet` and
+`Contract: v1.satchel-nft.near` in the message, `network-config mainnet` for near-cli-rs and
+`"network":"mainnet"` in the body.
+
+## Limits
+
+- **A captured proof works until 5 minutes after its `Issued` time.** Someone who copies your signed proof
+  can send it again until then, and only while your account still owns the satchel. `Issued` can be up to a
+  minute ahead of the server's clock, so that is up to 6 minutes in all. The room holds nothing secret, so a
+  replay shows them only public data.
+- **A DAO or a multisig can't open it.** The room needs a NEP-413 signature from a key on the owning account,
+  and a contract account such as a DAO or a multisig can't sign a message.
+- **The server trusts the NEAR RPC it reads**: FastNEAR's public node by default, as for the report. An RPC
+  that lies about the key or the owner can open the room for someone else, or keep it closed.
+- **No rate limit.** The route refuses a bad signature before it reads NEAR, but it doesn't count requests.
+- **Your wallet must sign messages.** Every wallet the app lists says it does; one that can't gets a message
+  saying so, and the terminal steps above work instead.
+
+The [threat model](/docs/security/threat-model#the-holder-room) lists each attack on the room and what is left.
+
+## Next steps
+
+- [Sell a satchel](/docs/guides/sell), where the kit's fixes come from
+- [The clean transfer report](/docs/concepts/clean-transfer-report)
+- [Security model](/docs/security#the-holder-room)

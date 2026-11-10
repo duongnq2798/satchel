@@ -17,10 +17,10 @@ tests. On mainnet a satchel holds real funds: keep in one only what you can affo
 | --- | --- | --- | --- |
 | Locked contract | No access keys, no admin, no upgrade method: nobody, the deployer included, can redeploy it or sign as it. `new` is private and ran in the deploy transaction | `new` in `contracts/satchel/src/lib.rs`, `tools/deploy-mainnet.sh` | `scripts/check-claims.mjs`, on chain |
 | The contract builds what it signs | Every `sign_evm` signature is over an EIP-1559 transaction the contract RLP-encoded and hashed itself; anything else goes through `sign_raw` and is counted as opaque | `Eip1559Tx::signing_hash` in `evm.rs` | `evm_hash_and_rlp_match_viem_for_every_vector`, `evm_signing_hash_view_matches_the_hash_sign_evm_sends` |
-| Record first | The record is saved in the `sign_evm` receipt; the MPC `sign` call is a later receipt, so nothing that happens to it can undo the record | `sign_evm`, `sign_raw`, `request_signature` in `lib.rs` | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque` |
+| Record first | The record is saved in the `sign_evm` receipt; the MPC `sign` call is a later receipt, so nothing that happens to it can undo the record | `sign_evm`, `sign_raw`, `request_signature` in `lib.rs` | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` |
 | Every call classified | Value transfer, asset transfer, approval, revocation or unclassified; selectors are checked against the keccak of their signatures | `Eip1559Tx::classify` in `evm.rs` | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
 | Approvals itemized, then counted | 32 distinct approvals listed per token; beyond that, counted, never dropped | `sign_evm`, `MAX_APPROVALS` in `lib.rs` | `approvals_beyond_the_cap_are_counted_not_dropped`, `erc721_approvals_of_two_token_ids_stay_two_rows` |
-| Owner only; listing freezes signing | Only the current owner signs, with 1 yoctoNEAR and at least 50 TGas, and never while listed | `assert_can_sign` in `lib.rs` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer` |
+| Owner only; listing freezes signing | Only the current owner signs, with 1 yoctoNEAR and at least 50 TGas, and never while listed | `assert_can_sign` in `lib.rs` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | `buy` pins what the buyer checked | The record version and the price must be the ones the buyer names | `buy` in `lib.rs` | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
 | Any transfer ends the listing | `nft_transfer`, `nft_transfer_call` and a bounced transfer each void the listing | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` in `lib.rs` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
 | A fixed chain list | Only the 16 chain ids in `SUPPORTED_CHAINS` can be signed for, so every record is checkable | `SUPPORTED_CHAINS` in `evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
@@ -28,8 +28,9 @@ tests. On mainnet a satchel holds real funds: keep in one only what you can affo
 | App and CLI guards | No address and no signature until the network's contract passes check 1; only this network's contract, from an account on this network; no transfer to an account that doesn't exist | `assertDeployment`, `assertTxFor`, `assertReceiver` in `packages/satchel-nft/src/guard.ts` | `guard.test.ts` |
 | Check before broadcast | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before it broadcasts | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
 | CLI signing | The near CLI only signs. `satchel-nft` runs it by its absolute path, decodes what it signed, compares signer, receiver, method, arguments, gas and deposit with what it asked for, shows it, and sends only after `yes` or `--yes` | `resolveNearCli`, `decodeSignedTx`, `assertSignedAsAsked` in `near-cli.ts`; `submit` in `cli.ts` | `near-cli.test.ts`, and on testnet (`deployments/testnet-cli.json`) |
+| The holder room's gate | A NEP-413 signature over a message the server writes itself, at most 5 minutes old; a full-access key of the account and the account as the satchel's owner, both read at one final NEAR block, on every request | `checkHolder` in `holder.ts`, `verifyNep413` in `nep413.ts`, `web/src/app/api/room/route.ts` | `holder.test.ts`, `nep413.test.ts` (against vectors near-cli-rs signed), `room-request.test.ts` |
 
-The contract's tests are in `contracts/satchel/src/tests.rs` (59), the package's next to each file (94).
+The contract's tests are in `contracts/satchel/src/tests.rs` (61), the package's next to each file (191).
 [Check every claim](/docs/security/check-every-claim#where-each-rule-lives) maps each rule to its code and tests,
 and says which rules have no unit test and how they were checked instead.
 
@@ -48,6 +49,19 @@ and says which rules have no unit test and how they were checked instead.
 
 You can run the first three yourself in [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer).
 
+## The holder room
+
+The [holder room](/docs/guides/holder-room) is a page only a satchel's current holder can open. Its contents are
+public, so what it protects is the gate. `/api/room` stores nothing between requests.
+
+| Someone tries to | and | Shown by |
+| --- | --- | --- |
+| Replay a signed proof they saw | It opens only the room it names, for 5 minutes after its `Issued` time (which may be a minute ahead of the server's clock), and only while that account still owns the satchel | `holder.test.ts` |
+| Open the room with a function-call key, the login key a site keeps | Refused (403): the key must be a full-access key of the account at the final block | `holder.test.ts` |
+| Open the room as a former holder, after a sale | Refused (403), naming the owner at the final block. A final block is a few seconds behind the chain's head | `holder.test.ts` |
+| Forge a signature, or reuse one made for another site or message | Refused (401): strict ed25519 over the NEP-413 payload the server builds, with recipient `satchelnft.xyz` | `nep413.test.ts`, against two vectors near-cli-rs signed |
+| Run a NEAR RPC that lies about the key or the owner | Not stopped: the server reads one NEAR RPC, FastNEAR's by default, and can be fooled into opening or closing the room. Every read is pinned to one block | [Threat model, row 27](/docs/security/threat-model#the-holder-room) |
+
 ## What Satchel trusts
 
 - **NEAR's consensus and runtime**, including that a `#[private]` method and a deleted key behave as specified.
@@ -58,6 +72,7 @@ You can run the first three yourself in [Try to cheat a buyer](/docs/tutorials/t
 - **Each EVM chain's finality.** Once a block is finalized, an address's nonce at that block can't go back.
 - **The pinned build image** behind the reproducible build, `sourcescan/cargo-near:0.22.0-rust-1.99.1`.
 - **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.
+- **The NEAR RPC behind the holder room**, which decides only who opens the room. The room holds nothing secret.
 - **The npm release**, for anyone who runs `npx satchel-nft` instead of the repository's code. Version 0.1.0 was
   published without npm provenance; the [threat model](/docs/security/threat-model#what-satchel-trusts) says how
   to check its files against commit `728ed74`.
@@ -79,7 +94,7 @@ imitates satchelnft.xyz, or another contract called "Satchel"; the report reads 
 `v1.satchel-nft.near` and checks its code hash).
 
 The [threat model](/docs/security/threat-model) goes through every attack (the seller's, a buyer's, the
-deployer's, an RPC's, the hosted app's), what stops it, and what is left, ending with
+deployer's, an RPC's, the hosted app's, and on the holder room), what stops it, and what is left, ending with
 [residual risks in one list](/docs/security/threat-model#residual-risks-in-one-list).
 
 ## Evaluate Satchel in 15 minutes
