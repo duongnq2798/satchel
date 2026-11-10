@@ -1,16 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import derived from "./__fixtures__/derived-keys.json" with { type: "json" };
 import outcome from "./__fixtures__/sign-evm-outcome.json" with { type: "json" };
+import { MAINNET, TESTNET } from "./config.js";
 import {
   type EvmTx,
   type MpcSignature,
   addressFromMpcKey,
   base58Decode,
+  base58Encode,
+  deriveMpcKey,
   maxCost,
   recoverSigner,
   signedRawTx,
   signingHash,
   toContractTx,
   toEvmSignature,
+  tokenAddress,
 } from "./evm.js";
 import { outcomeValue } from "./near.js";
 
@@ -44,6 +49,56 @@ describe("token address", () => {
   it("refuses keys that are not 64-byte secp256k1", () => {
     expect(() => addressFromMpcKey("ed25519:11111111111111111111111111111111")).toThrow(/secp256k1/);
     expect(() => addressFromMpcKey("secp256k1:2")).toThrow(/64-byte/);
+  });
+
+  it("encodes base58 back to the same text, leading zero bytes too", () => {
+    for (const text of ["112", "1", "", TOKEN_1_KEY.slice("secp256k1:".length)]) {
+      expect(base58Encode(base58Decode(text))).toBe(text);
+    }
+  });
+});
+
+// Every satchel minted on each network by 2026-11-10, with the root key and the derived keys the MPC
+// contracts returned for them (__fixtures__/derived-keys.json).
+describe("deriving a satchel's key locally", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const networks = [
+    ["testnet", TESTNET, derived.testnet],
+    ["mainnet", MAINNET, derived.mainnet],
+  ] as const;
+
+  for (const [name, net, read] of networks) {
+    it(`pins the ${name} MPC contract's root key`, () => {
+      expect([net.mpc, net.contract, net.mpcRootKey]).toEqual([read.mpc, read.contract, read.rootKey]);
+    });
+
+    for (const [path, key] of Object.entries(read.keys)) {
+      it(`gives the key ${read.mpc}'s derived_public_key gave for ${path} on ${name}`, () => {
+        expect(deriveMpcKey(net.mpcRootKey, net.contract, path)).toBe(key);
+      });
+    }
+  }
+
+  it("gives the addresses the app and the README show, without reading anything", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    expect(await tokenAddress(TESTNET, "satchel/1")).toBe(TOKEN_1_ADDRESS);
+    expect(await tokenAddress(MAINNET, "satchel/1")).toBe("0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("gives another key for another path or another caller", () => {
+    const key = deriveMpcKey(TESTNET.mpcRootKey, TESTNET.contract, "satchel/1");
+    expect(deriveMpcKey(TESTNET.mpcRootKey, TESTNET.contract, "satchel/10")).not.toBe(key);
+    expect(deriveMpcKey(TESTNET.mpcRootKey, "satchel-nft.testnet", "satchel/1")).not.toBe(key);
+  });
+
+  it("refuses a root key that is not a point on the curve", () => {
+    const offCurve = `secp256k1:${base58Encode(new Uint8Array(64).fill(1))}`;
+    expect(() => deriveMpcKey(offCurve, TESTNET.contract, "satchel/1")).toThrow();
+    expect(() => deriveMpcKey("ed25519:11111111111111111111111111111111", TESTNET.contract, "satchel/1")).toThrow(
+      /secp256k1/,
+    );
   });
 });
 

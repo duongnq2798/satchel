@@ -126,7 +126,8 @@ On [nearhackathon.com](https://nearhackathon.com), "Final submission", after the
 
 The README, AGENTS.md and the landing page (`web/src/lib/copy.ts`, and the `verify 5` output in
 `web/src/app/page.tsx`) describe the demo satchels as they are now. `scripts/check-claims.mjs` reads
-only past transactions and the contract's keys and code, so it doesn't notice a change to a satchel.
+only past transactions, the contract's keys and code and the MPC keys, so it doesn't notice a change
+to a satchel.
 Until 2026-11-25:
 
 - Don't sign anything with testnet satchels #1, #3, #5, #6 or #7, or with mainnet satchel #1. A new

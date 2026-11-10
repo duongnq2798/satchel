@@ -83,6 +83,10 @@ export function TokenView({ tokenId }: { tokenId: string }) {
               <Mono className="text-lg">{address}</Mono>
               <CopyButton value={address} />
             </div>
+            <p className="mt-1 text-xs text-muted">
+              Derived in your browser from the MPC network&apos;s root key, the contract and the path{" "}
+              <span className="font-mono">{view.path}</span>, so no RPC answer can change this satchel&apos;s address.
+            </p>
             <h2 className="mt-5 font-display text-xl font-semibold">What&apos;s inside</h2>
             <div className="mt-3">
               <Contents address={address} refresh={refresh} />

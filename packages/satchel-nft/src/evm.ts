@@ -12,8 +12,9 @@ import {
   serializeTransaction,
   toHex,
 } from "viem";
+import { secp256k1 } from "@noble/curves/secp256k1";
+import { sha3_256 } from "@noble/hashes/sha3";
 import { type ChainInfo, type Network, chainInfo } from "./config.js";
-import { view } from "./near.js";
 
 const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
@@ -32,22 +33,55 @@ export function base58Decode(text: string): Uint8Array {
   return Uint8Array.from([...new Array(lead).fill(0), ...body]);
 }
 
-/** EVM address of an MPC key: the last 20 bytes of keccak256 over the 64-byte uncompressed key. */
-export function addressFromMpcKey(publicKey: string): Address {
+export function base58Encode(bytes: Uint8Array): string {
+  let n = bytes.length ? BigInt(toHex(bytes)) : 0n;
+  let text = "";
+  while (n > 0n) {
+    text = BASE58[Number(n % 58n)] + text;
+    n /= 58n;
+  }
+  const lead = bytes.findIndex((byte) => byte !== 0);
+  return "1".repeat(lead === -1 ? bytes.length : lead) + text;
+}
+
+/** The 64 bytes (x then y) of a NEAR `secp256k1:<base58>` public key. */
+function mpcKeyBytes(publicKey: string): Uint8Array {
   if (!publicKey.startsWith("secp256k1:")) throw new Error(`not a secp256k1 key: ${publicKey}`);
   const bytes = base58Decode(publicKey.slice("secp256k1:".length));
   if (bytes.length !== 64) throw new Error(`expected a 64-byte key, got ${bytes.length}`);
-  return getAddress(`0x${keccak256(toHex(bytes)).slice(-40)}`);
+  return bytes;
 }
 
-/** The address a token's key controls, derived by `net`'s MPC contract from its Satchel contract and the path. */
+/** EVM address of an MPC key: the last 20 bytes of keccak256 over the 64-byte uncompressed key. */
+export function addressFromMpcKey(publicKey: string): Address {
+  return getAddress(`0x${keccak256(toHex(mpcKeyBytes(publicKey))).slice(-40)}`);
+}
+
+/** What NEAR's MPC network hashes, with the caller's account and the path, to tweak its root key. */
+const TWEAK_PREFIX = "near-mpc-recovery v0.1.0 epsilon derivation:";
+
+/**
+ * The key NEAR's MPC network holds for `path` when `predecessor` asks it to sign, as a NEAR
+ * `secp256k1:` key: the root key plus t·G, where t is sha3-256 of the prefix, `predecessor`, a comma
+ * and `path`. This is the MPC contract's `derived_public_key` view, computed here instead of read
+ * through an RPC. A root key that is not a point on the curve, or a hash that is not a valid scalar,
+ * throws: no address is better than a wrong one.
+ */
+export function deriveMpcKey(rootKey: string, predecessor: string, path: string): string {
+  const root = secp256k1.ProjectivePoint.fromHex(`04${toHex(mpcKeyBytes(rootKey)).slice(2)}`);
+  const tweak = BigInt(toHex(sha3_256(`${TWEAK_PREFIX}${predecessor},${path}`)));
+  if (tweak === 0n || tweak >= SECP256K1_N) throw new Error(`the tweak for ${path} is not a valid scalar`);
+  const key = root.add(secp256k1.ProjectivePoint.BASE.multiply(tweak)).toRawBytes(false);
+  return `secp256k1:${base58Encode(key.subarray(1))}`;
+}
+
+/**
+ * The address a token's key controls: the key `net`'s MPC network derives for its Satchel contract
+ * and the path, from the root key pinned in `net`. It reads nothing, so no RPC can change it; it
+ * stays async because it read the MPC contract through the NEAR RPC up to 0.1.0.
+ */
 export async function tokenAddress(net: Network, path: string): Promise<Address> {
-  const key = await view<string>(net, net.mpc, "derived_public_key", {
-    path,
-    predecessor: net.contract,
-    domain_id: 0,
-  });
-  return addressFromMpcKey(key);
+  return addressFromMpcKey(deriveMpcKey(net.mpcRootKey, net.contract, path));
 }
 
 /** What the MPC contract returns from `sign` (domain 0, ECDSA). */

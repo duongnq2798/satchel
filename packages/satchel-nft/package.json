@@ -46,6 +46,8 @@
     "prepack": "npm run build"
   },
   "dependencies": {
+    "@noble/curves": "^1.9.1",
+    "@noble/hashes": "^1.8.0",
     "viem": "^2.57.17"
   },
   "devDependencies": {

@@ -65,6 +65,31 @@ const address = await tokenAddress(TESTNET, "satchel/1");
 The private key is never assembled. The MPC nodes each hold a share and sign together, and only when
 the account that the key was derived for, the Satchel contract, asks.
 
+## Derive it yourself
+
+The view does public math, so you don't have to ask it. The MPC network has one root key for domain
+0, which its `public_key` view returns. A derived key is that root key plus `t·G`, where `G` is
+secp256k1's generator and `t` is the SHA3-256 hash of `near-mpc-recovery v0.1.0 epsilon derivation:`,
+the account that asks, a comma and the path.
+
+The app and the CLI compute every satchel's key this way, from the root key pinned in
+[`config.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/config.ts)
+(`mpcRootKey`), so no RPC answer changes a satchel's address. In this repository (not in 0.1.0, whose
+`tokenAddress` reads the view):
+
+```ts title="Satchel #1's key, without a read"
+import { TESTNET, addressFromMpcKey, deriveMpcKey } from "satchel-nft";
+
+const key = deriveMpcKey(TESTNET.mpcRootKey, TESTNET.contract, "satchel/1");
+// "secp256k1:uB6uEeQB…", what derived_public_key returned above
+addressFromMpcKey(key);
+// "0x96DA1468E95Ab31A698891f0150095f86b5a282B"
+```
+
+The package's tests derive the keys of all 8 satchels on both networks and compare them with what
+`derived_public_key` returned on 2026-11-10, and `node scripts/check-claims.mjs` compares the pinned
+root key with the chain.
+
 ## One address on 16 chains
 
 An EVM address is the same on every EVM chain, so a satchel's address exists on all 16 chains the
@@ -122,10 +147,19 @@ value, and keep in one only what you can afford to lose: Satchel is not audited.
 - **Non-EVM chains.** The key is secp256k1 (MPC domain 0). The contract builds only EIP-1559 EVM
   transactions. Bitcoin, or anything else, can be signed only through `sign_raw`, which is counted as
   opaque and makes the satchel unprovable. Ed25519 chains, such as Solana and NEAR, aren't supported.
-- **Deriving the address without the RPC.** The app and the CLI read the address from
-  `derived_public_key` through one NEAR RPC. They don't derive it locally from the MPC network's root
-  key yet, so a lying NEAR RPC could show the wrong address. The [threat model](/docs/security/threat-model)
-  lists this as a residual risk.
+- **`satchel-nft` 0.1.0.** The version on npm still reads the address from `derived_public_key`
+  through one NEAR RPC, so a lying NEAR RPC could show it another address. The next release derives
+  it as above.
+- **Which satchel is yours.** The id a mint returns, the satchels your account owns and each one's
+  owner still come from the NEAR RPC (a mint's id may come from the wallet instead). A lying NEAR RPC
+  or wallet can name a satchel someone else owns, and the
+  app then shows that satchel's correct address as yours. Before funding much, check the id and its
+  owner on [NearBlocks](https://nearblocks.io) or your own node.
+- **A new MPC root key.** The pinned key is what the MPC contract held on 2026-11-10, and nothing in
+  the app compares it with the chain. If the MPC network ever changed it, the app would show
+  addresses it no longer signs for until a release pins the new key; running
+  `node scripts/check-claims.mjs` would show the mismatch. The [threat model](/docs/security/threat-model)
+  counts the MPC network as trusted.
 
 ## Related
 
