@@ -6,6 +6,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A demo kit, [`docs/DEMO.md`](docs/DEMO.md): a 2:00 video script with a caption and a
+  voice-over line per scene, timed against how long each page took to load on satchelnft.xyz; a
+  recording checklist; the X post ([`docs/submission/x-post.txt`](docs/submission/x-post.txt))
+  and the "What did you build?" text
+  ([`docs/submission/what-did-you-build.txt`](docs/submission/what-did-you-build.txt)); the
+  submission form's values, with the Website field left empty because the organizers made it a
+  spam trap; the tracks and why; and what to leave unchanged until judging ends.
+  `node scripts/check-demo-kit.mjs` checks the form text's length; the post's length, close to
+  X's count, its tags as whole tags and its question; that the script's tables are well formed
+  (the optional scene too), the scenes run 0:00 to 2:00 and none says more than 2.5 words a
+  second; and that every satchelnft.xyz page it opens is a route the app has. The web workflow
+  runs it.
 - A documentation center at `/docs` (satchelnft.xyz/docs): 36 pages in 8 sections, from a
   quickstart and the concepts to a guide for each thing the app does, three tutorials, the library,
   CLI, contract, events, errors and RPC reference, an advanced section, security, troubleshooting,
@@ -173,6 +185,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The README's quick-start output for satchel #1 showed its record before its last signature
+  (`max_nonce` 3, 6 signatures, version 6). It now shows what the chain returns: `max_nonce` 4,
+  7 signatures, version 7.
 - `satchel-nft market`, the web app's market and its "listed now" count could miss listings. The
   contract's `listings` view pages its stored listings and only then drops the stale ones (seller no
   longer owns the token), so a page can come back short, or empty, with more listings after it. The
