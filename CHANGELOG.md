@@ -256,6 +256,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- `satchel-nft` is 0.2.0 in the repository, ready for its owner to publish; npm still serves
+  0.1.0, so every pinned command keeps `@0.1.0` until 0.2.0 is there. The package's README, which
+  npm shows, says what changed under "What changed in 0.2.0": the `history` and `dao finish`
+  commands, token balances in `show`, every live listing in `market`, addresses derived from the
+  pinned root key, the holder room's gate, the handover kit, the Sputnik DAO helpers, and the two
+  fields a hand-built `Network` now needs. Its library table marks each of these "new in 0.2.0"
+  instead of "not in 0.1.0", and lists `contents` and `tokenHistory`. `docs/RELEASING.md` gives the
+  owner's steps: the commit, a clean clone's checks, `npm publish -w satchel-nft`, what to compare
+  on npm, and the pull request that moves the pins after. Inside the repository a pinned
+  `npx satchel-nft@0.1.0` now fetches 0.1.0 from npm instead of running the checkout, so the
+  README's and AGENTS.md's steps for this checkout run `npx satchel-nft` with no version.
 - A browser wallet has opened the holder room: Meteor's Chrome extension, connected as
   `satchel-nft.near`, opened mainnet satchel #1's room on satchelnft.xyz (200, the holder card at
   block 223915441, "The satchel reads clean"). **Check again** sent the same signature without
@@ -311,6 +322,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   The README's commands pin the same release.
 
 ### Fixed
+
+- The CLI crashed with an EPIPE stack trace when the program reading its output or its messages
+  stopped early; 0.1.0 does too. `satchel-nft show --network mainnet 1 | true` exited 1 with that
+  trace, and `verify --bogus 2>&1 | true` exited 1 instead of 2. Now the printing stops, on stdout
+  and stderr, and the command keeps its own exit code: those two exit 0 and 2, and
+  `verify 5 | true` still exits 1, as bash's `${PIPESTATUS[0]}` shows (`$?` is the reader's code).
+  Run by hand on 0.1.0 from npm and on this build; AGENTS.md's rules table has the line. In the
+  docs, "Run the web app yourself" now compares the app with `npx satchel-nft` from the checkout,
+  since the pinned command runs npm's 0.1.0.
 
 - A page with a saved wallet connection showed "Looking for your wallet…" and the header's
   placeholder for as long as the wallet didn't answer. Meteor's extension, locked, once didn't

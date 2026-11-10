@@ -122,9 +122,9 @@ npx satchel-nft verify 1
 ```
 
 Outside a clone, `npx -y satchel-nft@0.1.0 verify 1` runs the release on npm, published from
-commit `728ed74` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside this
-repository, once `npm ci` has run, the same command runs the local build, whose version is also
-0.1.0.
+commit `728ed74` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). This
+checkout's package is 0.2.0, which isn't on npm yet, so inside the repository that pinned command
+still fetches 0.1.0 from npm.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
 that runs on it. Inside the repository, `npx satchel-nft` runs this checkout's build, never a
@@ -253,6 +253,7 @@ of these checks.
 | The CLI's and the app's market list every live listing: pages are read until they cover `nft_total_supply`, since a page of the `listings` view can be short or empty with more after it | `allListings` in `packages/satchel-nft/src/satchel.ts`, used by `market` in `cli.ts`, `web/src/app/market/page.tsx` and `web/src/components/live-stats.tsx` | `satchel.test.ts` |
 | Nothing is built from a token view about another token, and a transaction counts as done only once its status is final | `satchel(net).get` in `satchel.ts`, `finished` in `near.ts` | `satchel.test.ts` |
 | A transaction the CLI sent but couldn't read back exits 3 with its hash, not as a failure that invites a retry | `OutcomeUnknown` in `near-cli.ts`, `submit` and `send` in `cli.ts` | none: it needs an RPC that fails after the send |
+| A reader that closes the CLI's output or its messages early (`… \| head`, `… 2>&1 \| true`) stops the printing, not the command: it still exits with its own code | the `stdout` and `stderr` error handlers in `packages/satchel-nft/src/cli.ts` | manual, beside npm's 0.1.0, reading `${PIPESTATUS[0]}`: `show --network mainnet 1 \| true` exits 0 with no EPIPE trace (0.1.0: 1, with one), `verify --bogus 2>&1 \| true` exits 2 (0.1.0: 1), `verify 5 \| true` exits 1 (0.1.0: 1, with a trace) |
 | The CLI asks before it sends, and refuses to sign without a terminal unless given `--yes` | `submit`, `confirm` in `packages/satchel-nft/src/cli.ts` | manual, on testnet ([`deployments/testnet-cli.json`](deployments/testnet-cli.json)) |
 | The CLI buys only a satchel whose report reads `PROVABLY CLEAN` (unless `--accept-not-clean`), naming the record version and price that report read | `buy` in `cli.ts` | manual, on testnet |
 | Every CLI option belongs to one command, so an option meant for another is an error | `parseCli` in `packages/satchel-nft/src/cli-args.ts` | `cli-args.test.ts` |

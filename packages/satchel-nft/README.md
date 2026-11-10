@@ -58,8 +58,8 @@ satchel-nft <command> [options]
 | Command | What it does |
 | --- | --- |
 | `verify <id>` | The clean transfer report. Exits 0 only when it reads `PROVABLY CLEAN` |
-| `show <id>` | Owner, address, listing, and what it holds on the network's EVM chains: the native coin, USDC, USDT and WETH |
-| `history <id>` | Its mint, owners, signatures, listings and sales, each with its NEAR transaction, from FastNEAR's transaction index. The report doesn't use it |
+| `show <id>` | Owner, address, listing, and what it holds on the network's EVM chains: the native coin, and USDC, USDT and WETH since 0.2.0 |
+| `history <id>` | Its mint, owners, signatures, listings and sales, each with its NEAR transaction, from FastNEAR's transaction index. The report doesn't use it (new in 0.2.0) |
 | `record <id>` | The signing record, as the contract returns it |
 | `market` | Every listing, with its report's verdict |
 | `mint` | Mints a satchel for 0.1 NEAR |
@@ -68,7 +68,7 @@ satchel-nft <command> [options]
 | `buy <id>` | Buys it at its listed price, only if its report reads `PROVABLY CLEAN` |
 | `transfer <id> <account>` | Gives it to another NEAR account |
 | `send <id> --chain <chain> --to <0x address> --value <amount> [--data <0x calldata>]` | Sends from its address on one of the network's EVM chains |
-| `dao finish <near tx>` | For a satchel a Sputnik DAO owns: reads the MPC signature from the receipts of the vote that ran `sign_evm`, checks the hash and the signer, and broadcasts. Needs no key (not in 0.1.0) |
+| `dao finish <near tx>` | For a satchel a Sputnik DAO owns: reads the MPC signature from the receipts of the vote that ran `sign_evm`, checks the hash and the signer, and broadcasts. Needs no key (new in 0.2.0) |
 
 | Option | |
 | --- | --- |
@@ -168,20 +168,49 @@ if (report?.verdict === "clean") {
 
 | Export | What it is |
 | --- | --- |
-| `TESTNET`, `MAINNET`, `CHAINS` | Each network's contract, MPC contract and its root key (not in 0.1.0), NEAR RPC and reproducible build; the 16 EVM chains |
+| `TESTNET`, `MAINNET`, `CHAINS` | Each network's contract, MPC contract and its root key (new in 0.2.0), NEAR RPC and reproducible build; the 16 EVM chains |
 | `buildReport(net, id)` | The clean transfer report for one satchel, or `null` if there is none |
 | `contractFacts(net)` | The deployment's own facts, to share across many reports |
-| `satchel(net)` | Reads: `get`, `tokensFor`, `listings` (one page, which can be short with more after it), `allListings` (every live listing; not in 0.1.0), `totalSupply`, `mpcContract`, `signingHash` |
+| `satchel(net)` | Reads: `get`, `tokensFor`, `listings` (one page, which can be short with more after it), `allListings` (every live listing; new in 0.2.0), `totalSupply`, `mpcContract`, `signingHash` |
 | `satchelTx(net)` | Transactions in the near-connect and wallet-selector format: `mint`, `list`, `delist`, `buy`, `transfer`, `signEvm` |
-| `tokenAddress(net, path)` | A satchel's EVM address: the key the MPC network derives for it, computed from the pinned root key without a read (0.1.0 reads it from the MPC contract) |
-| `deriveMpcKey(rootKey, predecessor, path)` | The key the MPC network holds for `path` when `predecessor` asks, as `derived_public_key` returns it (not in 0.1.0) |
+| `tokenAddress(net, path)` | A satchel's EVM address: the key the MPC network derives for it, computed from the pinned root key without a read (since 0.2.0; 0.1.0 reads it from the MPC contract) |
+| `deriveMpcKey(rootKey, predecessor, path)` | The key the MPC network holds for `path` when `predecessor` asks, as `derived_public_key` returns it (new in 0.2.0) |
 | `sendFromSatchel(request, deps)` | The send flow, with each step's check, for any wallet you pass in `deps` |
 | `assertDeployment(net)`, `assertReceiver(net, account)` | The checks the app and the CLI run before signing |
-| `checkHolder(net, proof)`, `roomMessage(net, id, account, issuedAt)` | The holder room's gate: whether a signed NEP-413 proof comes from a full-access key of the account that owns the satchel at a final NEAR block, and the message it must sign (not in 0.1.0) |
-| `verifyNep413(signed)`, `nep413Hash(payload)` | NEP-413 message signatures: the hash a wallet signs, and a strict ed25519 check of one (not in 0.1.0) |
-| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass (not in 0.1.0) |
-| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (not in 0.1.0) |
-| `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (not in 0.1.0) |
+| `checkHolder(net, proof)`, `roomMessage(net, id, account, issuedAt)` | The holder room's gate: whether a signed NEP-413 proof comes from a full-access key of the account that owns the satchel at a final NEAR block, and the message it must sign (new in 0.2.0) |
+| `verifyNep413(signed)`, `nep413Hash(payload)` | NEP-413 message signatures: the hash a wallet signs, and a strict ed25519 check of one (new in 0.2.0) |
+| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.1.0`, which has each of them (new in 0.2.0) |
+| `contents(net, address)`, `chainContents(chain, address)`, `TOKENS` | What an address holds on the network's EVM chains: the native coin, and USDC, USDT and WETH at their listed addresses. Display only: the report doesn't read it (new in 0.2.0) |
+| `tokenHistory(net, id)`, `describeEntry(entry)` | A satchel's mint, owners, signatures, listings and sales, from FastNEAR's transaction index, and one line for each. Display only (new in 0.2.0) |
+| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0) |
+| `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (new in 0.2.0) |
+
+## What changed in 0.2.0
+
+- **New commands:** `history <id>` prints a satchel's timeline. `dao finish <near tx>` broadcasts
+  what a Sputnik DAO's vote had a satchel sign. `show` also lists USDC, USDT and WETH, and each
+  balance in its `--json` has a `tokens` array.
+- **`market` lists every live listing.** 0.1.0 stopped at the first page that came back under 100
+  rows, so it could miss listings once the contract held more than 100, stale ones included.
+- **A satchel's address comes from no RPC.** `tokenAddress` derives the key from the MPC network's
+  root key pinned in `TESTNET` and `MAINNET`; 0.1.0 read it from the MPC contract through the NEAR
+  RPC. Same addresses: the tests check testnet satchels #1 to #8 and mainnet #1 against what the MPC
+  contract returned.
+- **New in the library:** the holder room's gate (`checkHolder`, `roomMessage`, `verifyNep413`),
+  the handover kit, what an address holds, a satchel's history, Sputnik DAO helpers and
+  `satchel(net).allListings()`. The pending and approvals checks list each chain's status in
+  `chains`. Lower-level helpers are exported too, among them `formatAmount`, `rpcFor`, `viewAt`,
+  `accessKeyAt`, `finalBlock` and `NEAR_ARCHIVAL_RPC`, and `nearRpc` takes an optional
+  `AbortSignal` and RPC URL.
+- **If you build your own `Network`:** it now needs `mpcRootKey` and `txApi`. Spreading `TESTNET`
+  or `MAINNET` keeps them. `tokenAddress` derives from `mpcRootKey` and `contract`, not from `mpc`,
+  so a `Network` that points `mpc` at another MPC contract needs that contract's root key too.
+- **A pipe that closes early no longer crashes the command.** In 0.1.0,
+  `satchel-nft show --network mainnet 1 | true` printed an EPIPE stack trace and exited 1, and
+  `verify --bogus 2>&1 | true` exited 1 instead of 2. Now the printing stops, on stdout and stderr,
+  and the command keeps its own exit code: those exit 0 and 2, and `verify 5 | true` still exits 1.
+  In bash, `${PIPESTATUS[0]}` holds the command's code; `$?` holds the reader's.
+- **New dependencies:** `@noble/curves` and `@noble/hashes`, for the key derivation and NEP-413.
 
 ## Links
 
