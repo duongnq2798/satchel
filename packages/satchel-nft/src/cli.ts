@@ -37,6 +37,15 @@ const json = (value: unknown) => JSON.stringify(value, (_, v) => (typeof v === "
 const out = (line = "") => process.stdout.write(`${line}\n`);
 const note = (line = "") => process.stderr.write(`${line}\n`);
 
+// A reader that stops early, as in `satchel-nft show 1 | head` or `… 2>&1 | true`, closes the pipe.
+// Stop printing but keep the command's own exit code, so a pipe never turns a NOT PROVABLE run into a
+// success or ends a sign command halfway.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code !== "EPIPE") throw err;
+  });
+}
+
 function applyRpcOverrides() {
   if (process.env.NEAR_RPC) setNearRpc(process.env.NEAR_RPC);
   for (const chain of CHAINS) {

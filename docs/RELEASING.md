@@ -1,0 +1,102 @@
+# Releasing satchel-nft
+
+The npm package `satchel-nft` is published by its owner, from the owner's npm account. 0.1.0 was
+published on 2026-11-09 from commit `728ed74`, which npm records as its `gitHead`. This file is the
+checklist for 0.2.0, the version `packages/satchel-nft/package.json` now names. Its README, which
+npm shows, says what changed under "What changed in 0.2.0".
+
+Until 0.2.0 is on npm, every pinned command in this repository keeps `satchel-nft@0.1.0`, because
+that is the version npm can serve.
+
+## 1. Pick the commit
+
+Publish from a commit on `main` whose `packages/satchel-nft/package.json` says `0.2.0`:
+
+```bash
+git fetch origin
+git show origin/main:packages/satchel-nft/package.json | grep '"version"'
+git rev-parse origin/main
+```
+
+The last line prints the commit that steps 2 and 4 use.
+
+## 2. Check it in a clean clone
+
+`.gitattributes` keeps the package's files LF in every checkout, so a Windows clone packs the same
+file contents as CI's Linux one.
+
+```bash
+git clone https://github.com/duongnq2798/satchel.git satchel-release
+cd satchel-release
+git checkout <commit>
+npm ci
+npm run typecheck -w satchel-nft
+npm test -w satchel-nft
+npm pack -w satchel-nft --dry-run
+```
+
+The dry run must list only `bin/satchel-nft.js`, `dist/…`, `README.md`, `LICENSE` and
+`package.json`, as CI's package workflow checks.
+
+## 3. Publish (the owner)
+
+From the same folder, signed in to npm as the package's owner:
+
+```bash
+npm publish -w satchel-nft
+```
+
+`prepack` builds `dist` from the checkout first.
+
+## 4. Check what npm holds
+
+```bash
+npm view satchel-nft@0.2.0 gitHead dist.shasum
+```
+
+`gitHead` must be the commit from step 1. On the machine that published, `npm pack -w satchel-nft`
+in the release folder gives the same shasum.
+
+Then run the published package from an empty folder outside any checkout, with a cache of its own.
+Inside the clone, npx runs the clone's own build, which prints `0.2.0` whether or not the publish
+worked:
+
+```bash
+cd "$(mktemp -d)"
+npx --cache "$PWD/npx-cache" -y satchel-nft@0.2.0 --version
+npx --cache "$PWD/npx-cache" -y satchel-nft@0.2.0 verify --network mainnet 1; echo "exit $?"
+```
+
+The first prints `0.2.0`. The second ends with `PROVABLY CLEAN` and `exit 0`. Before the publish,
+the same first command fails with `ETARGET`.
+
+## 5. Move the pins
+
+Then, in one pull request into `dev`, change every place that names 0.1.0 as the version to run or
+as the current release, or says a feature comes "with the next release". These searches list them;
+read the lines around each hit too, since a sentence can wrap past the line that matches:
+
+```bash
+git grep -n 'satchel-nft@0\.1\.0' -- ':!packages/satchel-nft'
+git grep -n -i -e '0\.1\.0' -e '728ed74' -e '599980b6' -e 'on npm yet' -e 'next npm release' -e 'next release' -- ':!package-lock.json' ':!CHANGELOG.md' ':!contracts' ':!deployments' ':!packages/satchel-nft'
+```
+
+These stay as they are: the contract's own version in `contracts/`, the MPC derivation's
+`near-mpc-recovery v0.1.0`, the run records in `deployments/`, the CHANGELOG's history, and
+everything in `packages/satchel-nft`. The package's README and code go into the tarball, so
+changing them after the publish would make this repository's 0.2.0 differ from npm's: they change
+with the next version. That includes the handover kit (`packages/satchel-nft/src/kit.ts`), which
+keeps `satchel-nft@0.1.0`, a release that has every command it prints.
+
+- Every `satchel-nft@0.1.0` command becomes `satchel-nft@0.2.0`: the README, AGENTS.md,
+  `docs/DEMO.md`, the docs under `web/content/docs`, the app's own pages (`web/src/app/page.tsx`,
+  `web/src/app/mainnet/page.tsx`, `web/src/components/report-card.tsx`) and
+  `.github/workflows/package.yml`, which runs the release from npm. Rename the production
+  checklist's heading and the link to it (`#2-pin-satchel-nft010-and-check-it`) together.
+- 0.1.0's npm facts become 0.2.0's, from step 4: the commit and shasum in `docs/THREAT_MODEL.md`'s
+  npm entry and in the production checklist's `npm view` output; the commit in the README,
+  AGENTS.md, `developers.mdx`, `developers/cli.mdx`, `security.mdx` and the production checklist's
+  file comparison; printed versions such as `# 0.1.0` and "It prints `0.1.0`"; and `VERSIONS` in
+  `web/src/app/docs/layout.tsx`.
+- Notes that set 0.1.0 apart or point at the next release, such as "not in 0.1.0", "0.1.0 still
+  reads…", "not on npm yet" and "from the next npm release", say "since 0.2.0", or go.

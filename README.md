@@ -194,11 +194,11 @@ the record changed).
    ```bash
    npm ci -w satchel-nft
    npm run build -w satchel-nft
-   npx -y satchel-nft@0.1.0 verify 1
+   npx satchel-nft verify 1
    ```
 
-   After that, inside the repository, the same command runs this checkout's build, whose version is
-   also 0.1.0, never a download. Either way it prints:
+   Inside the repository, `npx satchel-nft` with no version runs this checkout's build, 0.2.0 (not
+   on npm yet), never a download. Either way it prints:
 
    ```text
    Satchel #1 on v1.satchel-nft.testnet (testnet)
@@ -1129,7 +1129,7 @@ all of this with the near CLI's key, checking each step
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference) and [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every testnet run |
-| [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
+| [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
 | [`.github/workflows`](.github/workflows) | [`ci.yml`](.github/workflows/ci.yml), the pull request gate, which calls [`contract.yml`](.github/workflows/contract.yml), [`web.yml`](.github/workflows/web.yml) and [`package.yml`](.github/workflows/package.yml) |
 
 ## Documentation
