@@ -98,6 +98,16 @@ describe("pending check", () => {
     expect(pendingCheck([sepolia(0n, null), { ...sepolia(5n, 3n), chainId: 84532 }]).status).toBe("fail");
     expect(pendingCheck([{ ...sepolia(5n, 3n), chainId: 84532 }, sepolia(0n, null)]).status).toBe("fail");
   });
+
+  it("names each line's chain and how it reads, for the handover kit", () => {
+    const check = pendingCheck([sepolia(0n, 1n), { ...sepolia(5n, 3n), chainId: 84532 }, { ...sepolia(0n, null), chainId: 421614 }]);
+    expect(check.chains).toEqual([
+      { chainId: 11155111, status: "pass" },
+      { chainId: 84532, status: "fail" },
+      { chainId: 421614, status: "unknown" },
+    ]);
+    expect(pendingCheck([]).chains).toEqual([]);
+  });
 });
 
 describe("approvals check", () => {
@@ -115,6 +125,19 @@ describe("approvals check", () => {
         { row: ROW, liveness: { live: true, detail: "allowance" } },
       ]).status,
     ).toBe("fail");
+  });
+
+  it("names each row's chain and how it reads, for the handover kit", () => {
+    const check = approvalsCheck([
+      { row: ROW, liveness: { live: false, detail: "allowance is 0" } },
+      { row: { ...ROW, chain_id: "1" }, liveness: { live: true, detail: "allowance" } },
+      { row: ROW, liveness: { live: null, detail: "?" } },
+    ]);
+    expect(check.chains).toEqual([
+      { chainId: 11155111, status: "pass" },
+      { chainId: 1, status: "fail" },
+      { chainId: 11155111, status: "unknown" },
+    ]);
   });
 });
 

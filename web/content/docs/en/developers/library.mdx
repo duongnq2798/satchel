@@ -84,6 +84,7 @@ interface Check {
   status: Status;
   title: string; // "No signed transaction is still pending", or its failing form
   lines: string[]; // one line per fact, as the CLI prints them
+  chains?: { chainId: number; status: Status }[]; // checks 2 and 3, not in 0.1.0: the chain behind each line
 }
 
 interface Report {

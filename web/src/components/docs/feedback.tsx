@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { REPO_URL } from "satchel-nft";
 
 /**
- * "Was this page helpful?" The site has no backend and sends nothing on its own: the answer is
- * kept in this browser, and either answer offers a GitHub issue, prefilled with the page, to say
- * what to change.
+ * "Was this page helpful?" The site stores nothing on a server (its one server route, the holder
+ * room's, keeps no state) and this sends nothing on its own: the answer is kept in this browser,
+ * and either answer offers a GitHub issue, prefilled with the page, to say what to change.
  */
 export function Feedback({ slug, title }: { slug: string; title: string }) {
   const key = `satchel-docs-feedback:${slug}`;

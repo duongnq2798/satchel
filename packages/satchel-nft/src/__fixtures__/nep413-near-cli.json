@@ -1,0 +1,21 @@
+{
+  "source": "near-cli-rs 0.30.1, `near message sign-nep413 utf8 <message> nonce <nonce> recipient satchelnft.xyz sign-as <account> sign-with-legacy-keychain network-config testnet`, run on 2026-11-10. An implementation other than this package's, so these vectors check the payload layout, not only round trips.",
+  "vectors": [
+    {
+      "message": "Satchel test vector",
+      "nonce": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+      "recipient": "satchelnft.xyz",
+      "accountId": "satchel-nft.testnet",
+      "publicKey": "ed25519:FqmLsnuhrwC7jFqzHCiNzUcZ6qQ1a23y4jasFJwRpS8w",
+      "signature": "ed25519:4c4uvV8jFAnf1BpERga3E1USzjN6NE4Uwjh7Vdv3uUDTAVkKZBzmPBiVawYASFmaStgyhwdJhwvAQFGB3QG1RNvo"
+    },
+    {
+      "message": "Open the holder room of Satchel #4\nNetwork: testnet\nNote: café — a multi-line UTF-8 vector",
+      "nonce": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "recipient": "satchelnft.xyz",
+      "accountId": "buyer.satchel-nft.testnet",
+      "publicKey": "ed25519:4UKgqHFuJtHVSMUD6nsvxGsByuBPVLN8WRdigoqaYoEU",
+      "signature": "ed25519:5hPzSVCoK8zHRmmQG6guP9CAfrMveovYmQD76kTpYxkVPtcKaQL2qwtqNoZDTHeVvz3sEd4pPnBLR6ciDgbxaRA3"
+    }
+  ]
+}
