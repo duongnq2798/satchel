@@ -98,6 +98,7 @@ export const MAINNET: Network = {
   id: "mainnet",
   contract: "v1.satchel-nft.near",
   mpc: "v1.signer",
+  mpcRootKey: "secp256k1:3tFRbMqmoa6AAALMrEFAYCEoHcqKxeW38YptwowBVBtXK1vo36HDbUWuR6EZmoK4JcH6HDkNMGGqP1ouV7VZUWya",
   nearRpc: "https://<your-near-mainnet-node>",
   nearExplorer: "https://nearblocks.io",
   txApi: "https://tx.main.fastnear.com",
@@ -109,10 +110,12 @@ The app still checks that every EVM node answers with the chain id it is configu
 for the wrong chain makes its checks unknown instead of passing.
 
 <Callout type="danger" title="Change only the URLs">
-Leave `contract`, `mpc` and `build` as they are. The app shows no address and signs nothing until the
-contract passes check 1 against those values: no keys, the code hash of the reproducible build, and
-the canonical MPC contract. Pointing them at another contract would make the app trust that
-contract's code.
+Leave `contract`, `mpc`, `mpcRootKey` and `build` as they are. The app shows no address and signs
+nothing until the contract passes check 1 against `contract`, `mpc` and `build`: no keys, the code
+hash of the reproducible build, and the canonical MPC contract. Pointing them at another contract
+would make the app trust that contract's code. Every satchel's address is derived from `mpcRootKey`,
+and check 1 doesn't cover it: a wrong one shows wrong addresses. Only
+`node scripts/check-claims.mjs` compares it with the MPC contract's `public_key`.
 </Callout>
 
 <Callout type="warning" title="Anything in the browser is public">

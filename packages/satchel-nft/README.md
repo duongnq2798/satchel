@@ -143,9 +143,13 @@ nonce is final, the satchel is not clean.
 The report is as honest as the RPCs it reads. The defaults are public nodes, named in every report.
 To read from nodes you trust, set `NEAR_RPC=<url>` and `RPC_<chain id>=<url>`, like `RPC_8453` for
 Base. A NEAR RPC that serves the other network stops the run; an EVM RPC that serves another chain
-counts as unreadable, so the report can't read clean. A satchel's address comes from the MPC
-contract's `derived_public_key` view, through the NEAR RPC; a send's fees and nonce come from the
-chain's RPC. The prompt shows both before you agree; with `--yes`, nothing caps the fees.
+counts as unreadable, so the report can't read clean. A satchel's address comes from no RPC: the
+package derives its key from the MPC network's root key, pinned in `TESTNET` and `MAINNET`, the
+contract and the path, as the MPC contract's `derived_public_key` view does (0.1.0 still reads that
+view through the NEAR RPC). Which satchel is yours, the id `mint` returns and each satchel's owner,
+still comes from the NEAR RPC: before funding much, check the owner on NearBlocks or your own node.
+A send's fees and nonce come from the chain's RPC. The prompt shows both before you agree; with
+`--yes`, nothing caps the fees.
 
 What a report can't see, and every attack it is built against, is in the repository's
 [threat model](https://github.com/duongnq2798/satchel/blob/main/docs/THREAT_MODEL.md).
@@ -163,12 +167,13 @@ if (report?.verdict === "clean") {
 
 | Export | What it is |
 | --- | --- |
-| `TESTNET`, `MAINNET`, `CHAINS` | Each network's contract, MPC contract, NEAR RPC and reproducible build; the 16 EVM chains |
+| `TESTNET`, `MAINNET`, `CHAINS` | Each network's contract, MPC contract and its root key (not in 0.1.0), NEAR RPC and reproducible build; the 16 EVM chains |
 | `buildReport(net, id)` | The clean transfer report for one satchel, or `null` if there is none |
 | `contractFacts(net)` | The deployment's own facts, to share across many reports |
 | `satchel(net)` | Reads: `get`, `tokensFor`, `listings` (one page, which can be short with more after it), `allListings` (every live listing; not in 0.1.0), `totalSupply`, `mpcContract`, `signingHash` |
 | `satchelTx(net)` | Transactions in the near-connect and wallet-selector format: `mint`, `list`, `delist`, `buy`, `transfer`, `signEvm` |
-| `tokenAddress(net, path)` | A satchel's EVM address, derived by the MPC contract |
+| `tokenAddress(net, path)` | A satchel's EVM address: the key the MPC network derives for it, computed from the pinned root key without a read (0.1.0 reads it from the MPC contract) |
+| `deriveMpcKey(rootKey, predecessor, path)` | The key the MPC network holds for `path` when `predecessor` asks, as `derived_public_key` returns it (not in 0.1.0) |
 | `sendFromSatchel(request, deps)` | The send flow, with each step's check, for any wallet you pass in `deps` |
 | `assertDeployment(net)`, `assertReceiver(net, account)` | The checks the app and the CLI run before signing |
 
