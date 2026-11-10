@@ -270,8 +270,10 @@ on the network, and the Satchel and MPC contracts, which could never move a satc
 | `nft_total_supply()` | `U128` |
 | `nft_metadata()` | NEP-177: `spec` `nft-1.0.0`, `name` `Satchel`, `symbol` `SATCHEL`, an SVG icon |
 
-`listings` returns only listings whose seller still owns the token, so a page can hold fewer than
-`limit` entries. Removing a listing moves the last one into its slot, so a page can shift between
+`listings` takes its page of stored listings first and then drops those whose seller no longer
+owns the token, so a page can hold fewer than `limit` entries, or none, with more listings after it.
+To read them all, page until `from_index` reaches `nft_total_supply`, which bounds the stored count
+because each listing is keyed by a token and tokens are never burned. Removing a listing moves the last one into its slot, so a page can shift between
 calls. On testnet, as these docs are written, it returns two:
 
 ```json

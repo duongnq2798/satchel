@@ -37,7 +37,7 @@ function ListingCard({
 
 export default function Market() {
   const net = useNetwork();
-  const listings = useAsync(() => satchel(net).listings(0, 100), `${net.id}:listings`);
+  const listings = useAsync(() => satchel(net).allListings(), `${net.id}:listings`);
   const check = useReportChecker();
   return (
     <div className="space-y-6">

@@ -30,6 +30,74 @@ describe("satchel(net).get", () => {
   });
 });
 
+describe("satchel(net).allListings", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const listing = (seller: string) => ({ seller, price: "1", record_version: "0", listed_at: "0" });
+
+  /**
+   * A NEAR RPC that answers `listings` the way the contract does: skip, take at most 100, then drop
+   * the listings whose seller no longer owns the token. `stored` is the contract's listing map in
+   * order, `owners` who owns each token now.
+   */
+  const contract = (supply: number, stored: [string, string][], owners: Record<string, string>) => {
+    const calls: { from_index: number; limit: number }[] = [];
+    const fetch = vi.fn(async (_url: string, init: { body: string }) => {
+      const { params } = JSON.parse(init.body);
+      const args = JSON.parse(atob(params.args_base64));
+      let value: unknown;
+      if (params.method_name === "nft_total_supply") value = String(supply);
+      else if (params.method_name === "listings") {
+        calls.push(args);
+        value = stored
+          .slice(args.from_index, args.from_index + Math.min(args.limit, 100))
+          .filter(([id, seller]) => owners[id] === seller)
+          .map(([id, seller]) => [id, listing(seller)]);
+      } else throw new Error(`unexpected view ${params.method_name}`);
+      const result = [...new TextEncoder().encode(JSON.stringify(value))];
+      return new Response(JSON.stringify({ jsonrpc: "2.0", id: "satchel", result: { result } }));
+    });
+    vi.stubGlobal("fetch", fetch);
+    return calls;
+  };
+
+  it("reads past a short page and an empty one, up to the total supply", async () => {
+    // 250 tokens, all listed once. In the first 100 only #1 to #40 are still the seller's; #101 to
+    // #200 were all transferred away; #201 to #250 are live.
+    const stored: [string, string][] = [];
+    const owners: Record<string, string> = {};
+    for (let i = 1; i <= 250; i++) {
+      stored.push([String(i), "seller.testnet"]);
+      owners[String(i)] = i <= 40 || i > 200 ? "seller.testnet" : "someone-else.testnet";
+    }
+    const calls = contract(250, stored, owners);
+    const found = await satchel(TESTNET).allListings();
+    expect(calls.map((c) => c.from_index)).toEqual([0, 100, 200]);
+    expect(found.map(([id]) => id)).toEqual([
+      ...Array.from({ length: 40 }, (_, i) => String(i + 1)),
+      ...Array.from({ length: 50 }, (_, i) => String(i + 201)),
+    ]);
+    expect(found[0][1]).toEqual(listing("seller.testnet"));
+  });
+
+  it("keeps a listing once when it shows up on two pages", async () => {
+    const stored: [string, string][] = Array.from({ length: 101 }, (_, i) => [String(i + 1), "s.testnet"]);
+    stored.push(["1", "s.testnet"]); // moved into a later slot between the two page reads
+    const owners = Object.fromEntries(stored.map(([id]) => [id, "s.testnet"]));
+    contract(102, stored, owners);
+    const found = await satchel(TESTNET).allListings();
+    expect(found).toHaveLength(101);
+  });
+
+  it("reads nothing when no satchel has been minted", async () => {
+    const calls = contract(0, [], {});
+    await expect(satchel(TESTNET).allListings()).resolves.toEqual([]);
+    expect(calls).toEqual([]);
+  });
+});
+
 describe("NEAR amounts", () => {
   it("parses decimals to yoctoNEAR exactly", () => {
     expect(parseNear("1")).toBe(10n ** 24n);

@@ -30,13 +30,14 @@ It reads only public data, so it needs no wallet and no key.
    // The network to read: testnet unless you pass "mainnet".
    const net = process.argv[2] === "mainnet" ? MAINNET : TESTNET;
 
-   // 1. Every listing. The contract returns at most 100 per call, so page until a short page.
-   const listings = [];
-   for (let from = 0; ; from += 100) {
-     const page = await satchel(net).listings(from, 100);
-     listings.push(...page);
-     if (page.length < 100) break;
+   // 1. Every listing. A page holds at most 100 and can be short, or empty, with more after it,
+   //    so read pages until they cover the total supply. Keep each token once.
+   const supply = await satchel(net).totalSupply();
+   const found = new Map();
+   for (let from = 0; from < supply; from += 100) {
+     for (const [id, listing] of await satchel(net).listings(from, 100)) found.set(id, listing);
    }
+   const listings = [...found];
 
    // 2. One read of the contract's own facts, shared by every report.
    const facts = contractFacts(net);
@@ -115,8 +116,13 @@ It reads only public data, so it needs no wallet and no key.
 
 **Listings.** `satchel(net).listings(fromIndex, limit)` calls the contract's `listings` view, which
 returns `[token_id, Listing]` pairs: `seller`, `price` in yoctoNEAR, `record_version` and `listed_at`.
-It returns only listings whose seller still owns the token, at most 100 per call. Removing a listing
-moves the last one into its slot, so pages can shift between calls; read them close together.
+It returns at most 100 per call, and only listings whose seller still owns the token. It drops the
+stale ones after it pages, so a page can be short, or even empty, with more listings after it: a
+short page is not the end. Each stored listing is keyed by a token, and tokens are never burned, so
+`nft_total_supply` bounds how many there are; the script reads pages until they cover it. Removing a
+listing moves the last one into its slot, so pages can shift between calls: read them close
+together, and keep each token once. In this repository, `satchel(net).allListings()` does all of
+this in one call; it is not in 0.1.0.
 
 **Shared facts.** Check 1 of every report reads the same three facts about the contract: its access
 keys, its code hash and its MPC contract. `contractFacts(net)` reads them once; passing the promise

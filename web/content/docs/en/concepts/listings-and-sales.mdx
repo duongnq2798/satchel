@@ -108,7 +108,8 @@ So each of these calls needs a full-access key: your wallet asks you to confirm 
 
 The `listings(from_index, limit)` view returns active listings as `[token_id, Listing]` pairs, 50 by default and
 at most 100 per call. When a listing is removed, the last one moves into its slot, so a page can shift between two
-calls: read again rather than assuming a stable order. `satchel-nft market` prints every listing with its report's
+calls: read again rather than assuming a stable order. Stale listings are dropped after the page is taken, so a page can
+be short, or empty, with more after it: page until you reach `nft_total_supply`. `satchel-nft market` prints every listing with its report's
 verdict:
 
 ```bash

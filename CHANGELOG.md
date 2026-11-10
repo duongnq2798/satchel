@@ -173,6 +173,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- `satchel-nft market`, the web app's market and its "listed now" count could miss listings. The
+  contract's `listings` view pages its stored listings and only then drops the stale ones (seller no
+  longer owns the token), so a page can come back short, or empty, with more listings after it. The
+  CLI stopped at the first page under 100 rows and the app read only the first page. The package now
+  has `satchel(net).allListings()`, which reads pages until they cover `nft_total_supply` (each
+  stored listing is keyed by a token, and tokens are never burned) and keeps a listing that shows up
+  twice once; the CLI and the app use it. The deployed contract is unchanged. It is not in 0.1.0.
+  3 new unit tests, 114 in all.
 - The npm package's files kept Windows line endings in a Windows checkout, so 0.1.0, packed there,
   ships CRLF in five files, the end of its launcher's first line among them. npm strips that CR when
   it links the command on Linux and macOS, so `npx` runs it, and CI now checks that on Linux. The

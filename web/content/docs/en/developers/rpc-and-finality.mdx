@@ -156,6 +156,8 @@ A page of reports can hit a public node with many requests at once. Satchel spre
 - They read the contract's own facts **once**, with `contractFacts`, and share that read across every
   report on the page.
 - `market` reads listings 100 at a time, the most the contract's `listings` view returns.
+  A page can be short with more after it, so read until the pages cover `nft_total_supply`
+  ([Build a feed of clean listings](/docs/tutorials/clean-listings-feed) shows how).
 
 Do the same in your own code. Build one report per satchel you show, not one per render:
 
@@ -164,7 +166,7 @@ import { TESTNET, buildReport, contractFacts, limiter, satchel } from "satchel-n
 
 const run = limiter(3);
 const facts = contractFacts(TESTNET); // one read, shared by every report below
-const listings = await satchel(TESTNET).listings(0, 100);
+const listings = await satchel(TESTNET).listings(0, 100); // the first page only: see the tutorial below
 const reports = await Promise.all(
   listings.map(([tokenId]) => run(() => buildReport(TESTNET, tokenId, facts).catch(() => null))),
 );

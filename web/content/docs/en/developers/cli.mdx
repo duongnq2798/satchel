@@ -412,6 +412,12 @@ satchel-nft market [--network testnet|mainnet] [--json]
 Reads every listing, 100 at a time, and builds each listed satchel's report, three at a time,
 sharing one read of the contract's own facts. A report that fails to build counts as `unknown`.
 
+The contract's `listings` view drops stale listings (seller no longer owns the token) after it
+pages, so a page can be short, or empty, with more listings after it. In this repository `market`
+reads pages until they cover `nft_total_supply`, so it lists every live listing. 0.1.0 stops at the
+first page under 100 rows, so it can miss listings once the contract holds more than 100, stale
+ones included.
+
 ```bash
 npx -y satchel-nft@0.1.0 market
 ```

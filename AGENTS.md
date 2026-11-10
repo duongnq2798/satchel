@@ -128,7 +128,7 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  111 passed (111)` for `satchel-nft`, then
+Each runs in both workspaces. You should see `Tests  114 passed (114)` for `satchel-nft`, then
 `Tests  15 passed (15)` for the app, then no type errors.
 
 ```bash
@@ -188,6 +188,7 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before broadcasting | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
 | The CLI sends only the transaction it asked the near CLI to sign: one function call, from the `--as` account, to this network's contract, with the method, arguments, gas and deposit it asked for | `decodeSignedTx`, `assertSignedAsAsked`, `signAndSend` in `packages/satchel-nft/src/near-cli.ts` | `near-cli.test.ts` |
 | The CLI runs the near CLI by its absolute path, found in PATH's absolute folders, never in the current folder | `resolveNearCli` in `near-cli.ts` | `near-cli.test.ts` |
+| The CLI's and the app's market list every live listing: pages are read until they cover `nft_total_supply`, since a page of the `listings` view can be short or empty with more after it | `allListings` in `packages/satchel-nft/src/satchel.ts`, used by `market` in `cli.ts`, `web/src/app/market/page.tsx` and `web/src/components/live-stats.tsx` | `satchel.test.ts` |
 | Nothing is built from a token view about another token, and a transaction counts as done only once its status is final | `satchel(net).get` in `satchel.ts`, `finished` in `near.ts` | `satchel.test.ts` |
 | A transaction the CLI sent but couldn't read back exits 3 with its hash, not as a failure that invites a retry | `OutcomeUnknown` in `near-cli.ts`, `submit` and `send` in `cli.ts` | none: it needs an RPC that fails after the send |
 | The CLI asks before it sends, and refuses to sign without a terminal unless given `--yes` | `submit`, `confirm` in `packages/satchel-nft/src/cli.ts` | manual, on testnet ([`deployments/testnet-cli.json`](deployments/testnet-cli.json)) |

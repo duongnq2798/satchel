@@ -2,8 +2,14 @@ import { MINT_DEPOSIT, type Network, ONE_YOCTO, TGAS } from "./config.js";
 import type { ContractTx } from "./evm.js";
 import { type Listing, type SatchelView, type Token, nearRpcUrl, view } from "./near.js";
 
+/** The most rows the contract's `listings` view returns per page. */
+export const LISTINGS_PAGE = 100;
+
 /** Reads from the Satchel contract on `net`. */
 export function satchel(net: Network) {
+  const listings = (fromIndex = 0, limit = LISTINGS_PAGE) =>
+    view<[string, Listing][]>(net, net.contract, "listings", { from_index: fromIndex, limit });
+  const totalSupply = async () => Number(await view<string>(net, net.contract, "nft_total_supply"));
   return {
     /** Throws if the RPC answers about another token: addresses and transactions are built from this. */
     get: async (tokenId: string) => {
@@ -15,9 +21,24 @@ export function satchel(net: Network) {
     },
     tokensFor: (accountId: string) =>
       view<Token[]>(net, net.contract, "nft_tokens_for_owner", { account_id: accountId, from_index: "0", limit: 100 }),
-    listings: (fromIndex = 0, limit = 100) =>
-      view<[string, Listing][]>(net, net.contract, "listings", { from_index: fromIndex, limit }),
-    totalSupply: async () => Number(await view<string>(net, net.contract, "nft_total_supply")),
+    /** One page of the `listings` view. It can hold fewer rows than `limit` with more after it: see `allListings`. */
+    listings,
+    /**
+     * Every live listing. The contract pages its stored listings first and drops the stale ones
+     * (seller no longer owns the token) after, so a page can come back short or empty with more
+     * listings after it. Each stored listing is keyed by a token, and tokens are never burned, so
+     * the total supply bounds their count: read pages until they cover it. Removing a listing
+     * moves the last one into its slot, so one moved during the read can repeat; it is kept once.
+     */
+    allListings: async (): Promise<[string, Listing][]> => {
+      const supply = await totalSupply();
+      const found = new Map<string, Listing>();
+      for (let from = 0; from < supply; from += LISTINGS_PAGE) {
+        for (const [id, listing] of await listings(from, LISTINGS_PAGE)) found.set(id, listing);
+      }
+      return [...found];
+    },
+    totalSupply,
     mpcContract: () => view<string>(net, net.contract, "mpc_contract"),
     signingHash: (tx: ContractTx) => view<string>(net, net.contract, "evm_signing_hash", { tx }),
   };

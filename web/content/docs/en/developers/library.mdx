@@ -139,7 +139,8 @@ From `satchel.ts`. `satchel(net)` returns the contract's reads, each a view call
 | --- | --- | --- |
 | `get(tokenId)` | `Promise<SatchelView \| null>` | `satchel`. Throws if the RPC answers about another token or another path, since addresses and transactions are built from it |
 | `tokensFor(accountId)` | `Promise<Token[]>` | `nft_tokens_for_owner`, the first 100 |
-| `listings(fromIndex = 0, limit = 100)` | `Promise<[string, Listing][]>` | `listings`: active listings only, at most 100 per call |
+| `listings(fromIndex = 0, limit = 100)` | `Promise<[string, Listing][]>` | `listings`: one page, at most 100 per call. The view drops stale listings after it pages, so a page can be short, or empty, with more listings after it: don't stop at a short page |
+| `allListings()` | `Promise<[string, Listing][]>` | `listings`, page after page until the pages cover `nft_total_supply`, a listing that shows up twice kept once: every live listing. In this repository, not in 0.1.0 |
 | `totalSupply()` | `Promise<number>` | `nft_total_supply` |
 | `mpcContract()` | `Promise<string>` | `mpc_contract` |
 | `signingHash(tx)` | `Promise<string>` | `evm_signing_hash`: the hex hash `sign_evm` would sign for a `ContractTx`, without `0x` |
@@ -519,7 +520,7 @@ if (counts.history !== counts.record) console.log("The index and the record disa
 ## Related
 
 - [Build a feed of clean listings](/docs/tutorials/clean-listings-feed): a complete script with
-  `listings`, `contractFacts`, `buildReport` and `limiter`.
+  `listings`, `totalSupply`, `contractFacts`, `buildReport` and `limiter`.
 - [CLI reference](/docs/developers/cli): the same code as commands.
 - [Contract reference](/docs/developers/contract): the methods these transactions call.
 - [Errors and exit codes](/docs/developers/errors): every `Satchel: …` message `outcomeValue` and
