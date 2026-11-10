@@ -627,6 +627,63 @@ fn a_transfer_cancels_the_sale() {
     c.buy("1".to_string(), U64(1), U128(1_000));
 }
 
+// ---------- a sale in the middle of a payout ----------
+
+/// The seller has a send signed, lists at once, and a buyer buys before the MPC network answers.
+/// A unit test cannot run the MPC call, so this pins the state each step leaves, not the race
+/// between receipts.
+#[test]
+fn a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record() {
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), tx(1, 4));
+    // The payout is in flight: the MPC request exists, its answer does not yet.
+    let pending = calls();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(
+        (pending[0].0.as_str(), pending[0].1.as_str()),
+        (MPC, "sign")
+    );
+    // The record already names the nonce, before any signature exists.
+    let record = c.signing_record("1".to_string());
+    assert_eq!(record.evm[0].max_nonce, U64(4));
+    assert_eq!(record.version, U64(1));
+
+    set(accounts(0), ONE_YOCTO);
+    c.list("1".to_string(), U128(1_000));
+    assert_eq!(c.listing("1".to_string()).unwrap().record_version, U64(1));
+
+    set(accounts(1), NearToken::from_yoctonear(1_000));
+    c.buy("1".to_string(), U64(1), U128(1_000));
+    assert_eq!(c.nft_token("1".to_string()).unwrap().owner_id, accounts(1));
+    // The buyer bought a record that names the send still in flight, so the report can't read
+    // clean until a transaction at nonce 4 is final.
+    let record = c.signing_record("1".to_string());
+    assert_eq!(record.evm[0].max_nonce, U64(4));
+    assert_eq!(record.version, U64(1));
+
+    // The buyer signs at once, with the same key path, and the record moves on.
+    set(accounts(1), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), tx(1, 5));
+    assert_eq!(calls().pop().unwrap().2["request"]["path"], "satchel/1");
+    assert_eq!(c.signing_record("1".to_string()).version, U64(2));
+}
+
+#[test]
+#[should_panic(expected = "Satchel: only the token's owner can do this")]
+fn the_seller_cannot_sign_while_their_payment_is_in_flight() {
+    let mut c = listed(1_000);
+    set(accounts(1), NearToken::from_yoctonear(1_000));
+    c.buy("1".to_string(), U64(1), U128(1_000));
+    // The seller's NEAR is a transfer receipt that has not run yet; the token has already moved.
+    assert_eq!(
+        transfers(),
+        vec![(accounts(0).to_string(), NearToken::from_yoctonear(1_000))]
+    );
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), tx(1, 5));
+}
+
 #[test]
 fn metadata_and_enumeration() {
     let c = setup();
