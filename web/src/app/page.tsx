@@ -129,7 +129,7 @@ export default function Home() {
           <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-12 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
             <div className="lg:pt-4">
               <p className="max-w-xl text-lg leading-relaxed text-ink-2 sm:text-xl">
-                A satchel is an NFT that controls one address on {CHAINS.length} EVM chains. Transfer the NFT and the keys move
+                A satchel is an NFT that controls one address on {CHAINS.length} EVM chains. Transfer the NFT and the wallet moves
                 with it. The contract keeps a record of everything it ever signed, so a buyer can check what the seller could
                 have kept back before paying.
               </p>

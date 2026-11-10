@@ -118,7 +118,7 @@ On [nearhackathon.com](https://nearhackathon.com), "Final submission", after the
 
 | Track | Why Satchel fits |
 | --- | --- |
-| **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts: assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", and a history view per NFT; Satchel has all three |
+| **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts: assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", and a history view per NFT (what it earned, what it paid out, who held it); Satchel has the first two, and part of the third: its history lists owners, sales and signatures, not each payment that came in |
 | **Open Innovation** (`open`) | Its hints name chain abstraction: one NEAR transaction moves an address on every chain it lives on |
 | **Unstoppable DeFi** (`defi`) | Its hints name Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and whatever its address holds moves with it. The proof is narrower here: a satchel that has itself made a call the contract can't classify, such as a swap or an LP deposit, reads "not provable" for every later owner, as the README says. This is the loosest of the three fits |
 
