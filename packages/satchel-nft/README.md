@@ -146,8 +146,10 @@ Base. A NEAR RPC that serves the other network stops the run; an EVM RPC that se
 counts as unreadable, so the report can't read clean. A satchel's address comes from no RPC: the
 package derives its key from the MPC network's root key, pinned in `TESTNET` and `MAINNET`, the
 contract and the path, as the MPC contract's `derived_public_key` view does (0.1.0 still reads that
-view through the NEAR RPC). A send's fees and nonce come from the chain's RPC. The prompt shows
-both before you agree; with `--yes`, nothing caps the fees.
+view through the NEAR RPC). Which satchel is yours, the id `mint` returns and each satchel's owner,
+still comes from the NEAR RPC: before funding much, check the owner on NearBlocks or your own node.
+A send's fees and nonce come from the chain's RPC. The prompt shows both before you agree; with
+`--yes`, nothing caps the fees.
 
 What a report can't see, and every attack it is built against, is in the repository's
 [threat model](https://github.com/duongnq2798/satchel/blob/main/docs/THREAT_MODEL.md).

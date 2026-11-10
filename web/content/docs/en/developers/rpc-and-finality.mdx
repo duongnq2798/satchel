@@ -1,4 +1,6 @@
-Every answer Satchel gives comes from an RPC node: one NEAR node and one node per EVM chain. This
+Every answer Satchel gives, except a satchel's address, comes from an RPC node: one NEAR node and one
+node per EVM chain. The address is derived from a root key pinned in the package (0.1.0 reads it from
+the NEAR node too). This
 page lists the nodes the app, the CLI and the library read by default, how each read is pinned so a
 report can't count something that may still be undone, what happens when a node is slow or wrong,
 and how to use your own.

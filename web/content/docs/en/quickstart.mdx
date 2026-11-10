@@ -45,7 +45,9 @@ chain. [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer) walks throug
 ## In your terminal
 
 The npm package [`satchel-nft`](https://www.npmjs.com/package/satchel-nft) is the code the web app runs.
-Its command `satchel-nft verify` builds the same report.
+Its command `satchel-nft verify` builds the same report. One difference: 0.1.0, the version below, reads
+a satchel's address from the MPC contract's `derived_public_key` through the NEAR RPC; the app, and the
+next release, derive the same address from the MPC network's root key.
 
 <Steps>
 

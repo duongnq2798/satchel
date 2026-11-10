@@ -218,9 +218,10 @@ read from nodes you trust, set `NEAR_RPC` and `RPC_<chain id>`:
 NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
 ```
 
-A satchel's address doesn't come from an RPC: the app and the CLI derive it from the MPC network's root key,
-pinned in the package ([how](/docs/concepts/satchels-and-addresses#derive-it-yourself)). `satchel-nft` 0.1.0 on
-npm still reads it through the NEAR RPC, from the MPC contract's `derived_public_key` view.
+The app, and the CLI from the next npm release, derive a satchel's address from the MPC network's root key
+pinned in the package ([how](/docs/concepts/satchels-and-addresses#derive-it-yourself)), so no RPC answer
+changes it. `satchel-nft` 0.1.0, the version above, still reads it through the NEAR RPC, from the MPC
+contract's `derived_public_key` view.
 
 Two things on a satchel's page are not part of the report, and it reads neither. **What's inside** reads
 USDC, USDT and WETH at one listed address per chain. **History** comes from FastNEAR's transaction index, a

@@ -12,8 +12,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   and the path (`deriveMpcKey` in `evm.ts`). The root key of each network is pinned in `config.ts`
   (`mpcRootKey`), so `tokenAddress`, which the app, the CLI and the report use, reads nothing: a lying
   NEAR RPC can no longer change the address of a given satchel. Which satchel is yours (the id a mint
-  returns, the tokens an account owns) still comes from the NEAR RPC, and the threat model says so
-  (row 21g). The token page says under the address that it was derived in the browser. The tests derive the keys of all 8 satchels on both networks and get
+  returns, the tokens an account owns) still comes from the NEAR RPC, or for a mint from the wallet,
+  and the threat model says so (row 21g). The token page says under the address that it was derived
+  in the browser. The tests derive the keys of all 8 satchels on both networks and get
   what `derived_public_key` returned (`__fixtures__/derived-keys.json`, 14 new tests, 128 in all), and
   `check-claims.mjs` has two new claims on each network: the pinned root key is the MPC contract's
   `public_key`, and the fixture's keys are its `derived_public_key` (13 claims on testnet, 11 on
@@ -253,9 +254,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   as done only once its status is final; a transaction sent but not read back exits 3 with its hash,
   where it exited as "could not run" and invited a second send; input that ends before an answer is
   a no, where it exited 0; it asks only when both stdin and stderr are terminals; a byte order mark
-  in the signed transaction fails the comparison; `--as` must be a NEAR account id. Not fixed, and
-  in the threat model: a satchel's address still comes from one NEAR RPC, and with `--yes` nothing
-  caps a send's fee.
+  in the signed transaction fails the comparison; `--as` must be a NEAR account id. Not fixed then,
+  and in the threat model: a satchel's address came from one NEAR RPC (derived locally since, not in
+  0.1.0; see Added), and with `--yes` nothing caps a send's fee.
 - From two internal reviews of mainnet (one adversarial, on the money path): the app signs nothing
   for a network's contract and shows no address derived from it until the contract passes its check
   (the account exists, runs the reproducible build, has no keys and signs through the canonical MPC
