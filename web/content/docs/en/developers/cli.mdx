@@ -51,9 +51,10 @@ node packages/satchel-nft/bin/satchel-nft.js verify 1
 | [`buy <id>`](#buy) | Yes | Buys it at its listed price, only if its report reads `PROVABLY CLEAN` |
 | [`transfer <id> <account>`](#transfer) | Yes | Gives it to another NEAR account |
 | [`send <id> --chain … --to … --value …`](#send) | Yes | Sends from its address on one of the network's EVM chains |
+| [`dao finish <near tx>`](#dao-finish) | No | Broadcasts what a DAO's vote had a satchel sign, once the hash and the signature check out. In this repository, not in 0.1.0 |
 
-`history`, and the tokens `show` prints, are in this repository's code and come with the next npm
-release; to run them now, build the checkout as shown above.
+`history`, `dao finish` and the tokens `show` prints are in this repository's code and come with
+the next npm release; to run them now, build the checkout as shown above.
 
 Every command reads NEAR testnet unless you pass `--network mainnet`. A token id is a whole number
 up to the `u64` maximum, like `1` (leading zeros are dropped, so `007` is `7`); anything else stops
@@ -611,6 +612,53 @@ with the transaction's hash and nonce. Check the explorer before you send again,
 twice. Until a transaction at that nonce is final, the satchel's report can't read `PROVABLY CLEAN`.
 </Callout>
 
+## For a satchel a DAO owns
+
+### dao finish
+
+```text
+satchel-nft dao finish <near tx> [--yes] [--network …] [--json]
+```
+
+When a Sputnik DAO owns a satchel, the vote that passes a `sign_evm` proposal makes the call, and
+the MPC signature ends up in one of that vote's receipts, not in its return value.
+`dao finish` takes the vote's NEAR transaction hash and:
+
+1. reads the transaction with all its receipts (`EXPERIMENTAL_tx_status`, final) from the NEAR RPC,
+   after asking FastNEAR's transaction index only for its signer, which the RPC needs. The regular
+   node keeps a transaction for a day or two; an older vote is read from FastNEAR's archival node,
+   unless `NEAR_RPC` names another node, which then has to be archival;
+2. finds the one `sign_evm` call on the network's contract and the signature in a receipt the MPC
+   contract ran;
+3. checks that the contract's `evm_signing_hash` for that call's transaction equals viem's hash of
+   it, and that the signature recovers to the satchel's address, derived from the pinned root key;
+4. stops if the transaction is already mined (`Already mined:`, nothing sent), if its nonce is
+   already spent, if earlier nonces are still unspent, or if the address can't pay gas at the fee cap
+   plus the value, plus the L1 data fee on OP Stack chains;
+5. shows the transaction, with that most it can pay in fees, asks `Send it? Type yes to send:` unless `--yes`, broadcasts it and waits
+   up to 180 seconds for the receipt.
+
+```text
+Reading the NEAR transaction and its receipts…
+Checking the contract hashed this transaction…
+Checking the MPC signature recovers to the satchel's address…
+
+satchel-club.sputnikv2.testnet had satchel #8 sign, in https://testnet.nearblocks.io/txns/2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M:
+  0.0001 ETH on Sepolia from 0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0 to 0x000000000000000000000000000000000000dEaD
+  nonce 0, fees up to 0.000105 ETH, hash 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3
+  The signature is public: anyone can broadcast it until that nonce is spent.
+Broadcasting 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3…
+Waiting for the receipt 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3…
+Sent 0.0001 ETH on Sepolia from satchel #8: https://sepolia.etherscan.io/tx/0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3
+Signed in https://testnet.nearblocks.io/txns/2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M
+```
+
+It signs nothing on NEAR and needs no key, so it takes `--yes` but not `--as`. It works for any
+`sign_evm` transaction whose signer didn't wait for the MPC answer, not only a DAO's vote. JSON:
+`tokenId`, `caller`, `chainId`, `from`, `to`, `value` (wei), `nonce`, `nearTx`, `evmTx`,
+`status`, `alreadyMined`. A reverted transaction exits 1; a broadcast whose receipt couldn't be read
+exits 3. [A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel) runs it end to end.
+
 ## Options
 
 | Option | Commands | Meaning |
@@ -729,4 +777,5 @@ After signing and before broadcasting, a send also stops with
 - [Automate with the CLI](/docs/advanced/automation): scripts, CI and bots.
 - [A full sale on testnet, from the terminal](/docs/tutorials/sale-on-testnet): every sign command, in order.
 - [TypeScript library reference](/docs/developers/library): the same code, as functions.
+- [A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel): `dao finish` after a vote.
 - [Contract reference](/docs/developers/contract): what each command calls.

@@ -1,0 +1,302 @@
+A satchel can belong to a [Sputnik DAO](https://github.com/near-daos/sputnik-dao-contract) as well
+as to a person. Then a club, a team or a treasury shares one address on 16 EVM chains. Its members
+vote on what that address signs, and they can hand the whole wallet to someone else as one NFT. To
+the Satchel contract, the DAO is just the token's owner. When a vote passes, the DAO calls
+`sign_evm`, and the contract builds the EVM transaction from the proposal's own arguments, hashes it,
+writes it into the public [signing record](/docs/concepts/signing-record) and asks NEAR's MPC network
+to sign. No contract changes for this, and the [clean transfer report](/docs/concepts/clean-transfer-report)
+reads the record the same way whoever the owner is.
+
+This page follows the run that proved it, on NEAR testnet and Sepolia on 2026-11-10. The DAO
+`satchel-club.sputnikv2.testnet` owned satchel #8, voted a Sepolia send, broadcast it, then voted to
+give the satchel to `buyer.satchel-nft.testnet`. Every transaction is in
+[`deployments/testnet-dao.json`](https://github.com/duongnq2798/satchel/blob/main/deployments/testnet-dao.json),
+and `node scripts/check-dao.mjs`, run from a checkout of the repository, checks the DAO, the mint,
+both proposals and their votes, and the Sepolia send against NEAR testnet and Sepolia.
+
+## How a vote signs
+
+<Steps>
+
+1. A member files a FunctionCall proposal: the DAO is to call `sign_evm` on the Satchel contract, and
+   the call's arguments are the token id and the EIP-1559 transaction, field by field.
+2. Members read the proposal. The contract's `evm_signing_hash` view gives the hash it will sign for
+   those fields, and the satchel's record says which nonces it has already signed.
+3. The vote that reaches the threshold runs the proposal in the same NEAR transaction. The DAO calls
+   `sign_evm` with 1 yoctoNEAR and the gas the proposal names. The contract checks that the DAO owns
+   the token, records the nonce and the call's class, and asks `v1.signer-prod.testnet` to sign.
+4. The MPC network's answer lands in one of the vote's receipts. `satchel-nft dao finish <vote>`
+   finds it, checks it, and broadcasts the signed transaction.
+
+</Steps>
+
+The DAO doesn't keep the signature, and the vote returns nothing, so a client that reads only a
+transaction's final value finds nothing. The signature is in the receipt where the MPC contract
+answered. `dao finish` reads every receipt of the vote and takes only one that `v1.signer-prod.testnet`
+ran.
+
+## What you need
+
+- **[near-cli-rs](https://github.com/near/near-cli-rs)** with a NEAR testnet account in its keychain.
+  It becomes the DAO's one council member. Satchel's run used `satchel-nft.testnet`.
+- **About 6.2 testnet NEAR**: the factory deploys the whole DAO contract to the new account, about
+  540 KB of storage, so the DAO is created with 6 NEAR. A mint is 0.1 NEAR.
+- **A little Sepolia ETH**, to fund the satchel's address. Satchel #8 received 0.02.
+- **A clone of this repository**, built: `dao finish` and the DAO helpers are in this repository's
+  code, not in `satchel-nft` 0.1.0 on npm.
+
+  ```bash
+  npm ci
+  npm run build -w satchel-nft
+  ```
+
+<Callout type="warning" title="Testnet only">
+A testnet satchel signs through NEAR's testnet MPC network. Never send real funds to its address.
+</Callout>
+
+## Run it
+
+<Steps>
+
+1. **Create the DAO.** `sputnikv2.testnet`'s `create` takes the DAO's name and its `new` arguments as
+   base64 JSON. Satchel's DAO has one role, `council`, with one member, a proposal bond of 0 and
+   proposals open for one hour (in nanoseconds):
+
+   ```json title="the new() arguments"
+   {
+     "config": { "name": "satchel-club", "purpose": "A Sputnik DAO that owns a satchel: one wallet on 16 EVM chains (satchelnft.xyz)", "metadata": "" },
+     "policy": {
+       "roles": [{ "name": "council", "kind": { "Group": ["satchel-nft.testnet"] }, "permissions": ["*:AddProposal", "*:VoteApprove", "*:VoteReject", "*:VoteRemove", "*:Finalize"], "vote_policy": {} }],
+       "default_vote_policy": { "weight_kind": "RoleWeight", "quorum": "0", "threshold": [1, 2] },
+       "proposal_bond": "0",
+       "proposal_period": "3600000000000",
+       "bounty_bond": "0",
+       "bounty_forgiveness_period": "3600000000000"
+     }
+   }
+   ```
+
+   With `create-args.json` holding `{"name":"satchel-club","args":"<those arguments, base64>"}`:
+
+   ```bash
+   near contract call-function as-transaction sputnikv2.testnet create file-args create-args.json prepaid-gas '150 Tgas' attached-deposit '6 NEAR' sign-as satchel-nft.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+   The DAO is `satchel-club.sputnikv2.testnet`
+   ([`7fsqT1cc…`](https://testnet.nearblocks.io/txns/7fsqT1cc1nSe6py53QFtjH4dDLZAJJcSQrW3jkvPZiEF)).
+   Its `version` view says `2.3.1`. With one member and the threshold `[1, 2]`, one vote passes a
+   proposal.
+
+2. **Mint a satchel straight to the DAO.** `mint` takes the receiver:
+
+   ```bash
+   near contract call-function as-transaction v1.satchel-nft.testnet mint json-args '{"receiver_id":"satchel-club.sputnikv2.testnet"}' prepaid-gas '50 Tgas' attached-deposit '0.1 NEAR' sign-as satchel-nft.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+   It returned satchel #8, owned by the DAO
+   ([`GorSCms2…`](https://testnet.nearblocks.io/txns/GorSCms2U2KG6c2TFVd78egqZHM8ANCCKsWLJiuEYqb)).
+   Read the id from the mint, not by guessing: anyone can mint the next one. To move a satchel you
+   already own into a DAO, use `nft_transfer`, never `nft_transfer_call`. A Sputnik DAO has no
+   `nft_on_transfer`, so the contract would hand the token back.
+
+3. **Fund its address.** `node packages/satchel-nft/bin/satchel-nft.js show 8` prints it:
+   `0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0`. The package derives it from the MPC network's
+   pinned root key, the contract and the path `satchel/8`, without asking an RPC. Send it a little
+   Sepolia ETH from any wallet.
+
+4. **Build the proposal.** The `satchel-nft` library builds the `add_proposal` arguments and checks
+   that no open proposal already signs the same nonce. Run a script like this one, which builds the
+   arguments proposal 0 was filed with, from the repository root as `node propose.mjs`:
+
+   ```ts title="propose.mjs"
+   import { writeFileSync } from "node:fs";
+   import { TESTNET, daoProposal, fromContractTx, nonceClash, satchel, signingHash, sputnikDao } from "satchel-nft";
+
+   const dao = "satchel-club.sputnikv2.testnet";
+   const tx = {
+     chain_id: "11155111",
+     nonce: "0",
+     max_priority_fee_per_gas: "1000000000",
+     max_fee_per_gas: "5000000000",
+     gas_limit: "21000",
+     to: "0x000000000000000000000000000000000000dEaD",
+     value: "100000000000000",
+     data: "0x",
+   };
+   // The hash the contract will sign, from the contract and from viem: they must agree.
+   const onChain = await satchel(TESTNET).signingHash(tx);
+   if (`0x${onChain}` !== signingHash(fromContractTx(tx))) throw new Error("the hashes differ");
+   const clash = nonceClash(TESTNET, await sputnikDao(TESTNET, dao).openProposals(), "8", tx.chain_id, tx.nonce);
+   if (clash) throw new Error(`proposal ${clash.id} already signs nonce ${tx.nonce}`);
+   writeFileSync("add-proposal.json", JSON.stringify(daoProposal(TESTNET).signEvm("8", tx)));
+   ```
+
+   The fees are fixed in the proposal, and the vote can come hours later, so leave room. Sepolia's
+   base fee was 16 wei that day; 5 gwei is far above it and still costs at most 0.000105 ETH.
+   `nonceClash` reads the DAO's proposals that can still run (in progress or failed, inside the
+   proposal period): two of them at one nonce could both be signed, and only one can be mined.
+
+5. **File it.** `add_proposal` must attach the DAO's `proposal_bond` exactly; here it is 0.
+
+   ```bash
+   near contract call-function as-transaction satchel-club.sputnikv2.testnet add_proposal file-args add-proposal.json prepaid-gas '100 Tgas' attached-deposit '0 NEAR' sign-as satchel-nft.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+   `get_proposal` with `{"id":0}` shows what the members vote on: the call's arguments are the
+   transaction, base64 JSON.
+
+   ```json title="get_proposal, proposal 0 (args shortened)"
+   {
+     "id": 0,
+     "proposer": "satchel-nft.testnet",
+     "description": "Satchel #8 signs nonce 0 on Sepolia: 100000000000000 wei to 0x000000000000000000000000000000000000dEaD",
+     "kind": { "FunctionCall": { "receiver_id": "v1.satchel-nft.testnet", "actions": [
+       { "method_name": "sign_evm", "args": "eyJ0b2tlbl9pZCI6IjgiLCJ0eCI6eyJjaGFpbl9pZCI6…", "deposit": "1", "gas": "150000000000000" }
+     ] } },
+     "status": "InProgress"
+   }
+   ```
+
+   The 150 Tgas go to `sign_evm` as they are. The contract needs 50 Tgas, and the MPC request got
+   the rest, 147.5 Tgas.
+
+6. **Vote.** `act_proposal` takes the proposal's id, the action and, on newer Sputnik DAOs, the
+   proposal's kind exactly as `get_proposal` returned it. `daoVote(0, kind)` builds those arguments,
+   with `kind` from `(await sputnikDao(TESTNET, dao).proposal(0)).kind`; the 2.3.1 DAOs the testnet
+   factory deploys ignore the kind. Attach 300 Tgas: the vote
+   runs the proposal inside the same transaction.
+
+   ```bash
+   near contract call-function as-transaction satchel-club.sputnikv2.testnet act_proposal file-args vote-0.json prepaid-gas '300 Tgas' attached-deposit '0 NEAR' sign-as satchel-nft.testnet network-config testnet sign-with-legacy-keychain send
+   ```
+
+   Proposal 0 was approved in
+   [`2ryQpsJR…`](https://testnet.nearblocks.io/txns/2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M).
+   In its receipts the DAO called `sign_evm`, the contract logged its `sign_evm` event and called
+   `v1.signer-prod.testnet.sign` for `satchel/8`, the MPC contract returned the signature, and the
+   DAO's callback marked the proposal `Approved`. The record changed before the signature existed:
+
+   ```text
+   Satchel #8's signing record on v1.satchel-nft.testnet (testnet), version 1
+
+   Signed through sign_evm:
+     Sepolia (11155111): 1 signature(s), up to nonce 0
+
+   Approvals signed: none
+
+   0 approval(s) over the cap, 0 unclassified call(s), 0 raw signature(s)
+   ```
+
+7. **Finish it.** Give `dao finish` the vote's hash:
+
+   ```bash
+   node packages/satchel-nft/bin/satchel-nft.js dao finish 2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M
+   ```
+
+   It reads the vote with all its receipts, finds the one `sign_evm` call and the MPC answer, and
+   checks two things before it sends anything: the contract's `evm_signing_hash` for the call's
+   transaction equals viem's hash of it, and the signature recovers to satchel #8's address. Then
+   it shows the transaction and asks. Satchel's run passed `--yes`:
+
+   ```text
+   Reading the NEAR transaction and its receipts…
+   Checking the contract hashed this transaction…
+   Checking the MPC signature recovers to the satchel's address…
+
+   satchel-club.sputnikv2.testnet had satchel #8 sign, in https://testnet.nearblocks.io/txns/2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M:
+     0.0001 ETH on Sepolia from 0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0 to 0x000000000000000000000000000000000000dEaD
+     nonce 0, fees up to 0.000105 ETH, hash 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3
+     The signature is public: anyone can broadcast it until that nonce is spent.
+   Broadcasting 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3…
+   Waiting for the receipt 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3…
+   Sent 0.0001 ETH on Sepolia from satchel #8: https://sepolia.etherscan.io/tx/0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3
+   Signed in https://testnet.nearblocks.io/txns/2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M
+   ```
+
+   Run it before the address is funded and it stops at `Fund it and run this again: the signature
+   stays valid`. Run it after someone else broadcast the transaction and it prints `Already mined:`
+   and sends nothing.
+
+8. **Verify.** About 13 minutes after the send, when Sepolia has finalized it:
+
+   ```bash
+   node packages/satchel-nft/bin/satchel-nft.js verify 8
+   ```
+
+   ```text
+   Satchel #8 on v1.satchel-nft.testnet (testnet)
+   owner satchel-club.sputnikv2.testnet, address 0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0, record version 1
+
+   [PASS] The contract can't sign behind the record
+          No access keys, so no one can redeploy it or sign as it
+          Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6
+          Signs only through v1.signer-prod.testnet
+
+   [PASS] No signed transaction is still pending
+          Sepolia: signed up to nonce 0, finalized nonce is 1
+
+   [PASS] No approval left behind
+          No approval was ever signed for this token
+
+   [PASS] Nothing the record can't explain
+          0 raw signatures, 0 unclassified calls, 0 approvals over the cap
+
+   PROVABLY CLEAN (checked 2026-11-10T06:32:38.888Z)
+   read from https://rpc.testnet.fastnear.com, https://ethereum-sepolia-rpc.publicnode.com
+   ```
+
+   The report treats the DAO like any owner: the record says the satchel signed one Sepolia
+   transaction at nonce 0, and Sepolia's finalized nonce for its address is 1, so nothing it signed
+   can still land. Before Sepolia finalized the send, check 2 did not pass.
+
+9. **Hand it off.** A second proposal has the DAO call `nft_transfer`, with 1 yoctoNEAR and 30 Tgas:
+   `daoProposal(TESTNET).transfer("8", "buyer.satchel-nft.testnet")`. File it and vote on it as in
+   steps 5 and 6. Proposal 1
+   ([`A5YMQQp2…`](https://testnet.nearblocks.io/txns/A5YMQQp2jPeDBhZzsaK4Bu2AoTSfLCSa81ZYnSZYqHfy))
+   was approved in
+   [`6GSVLR17…`](https://testnet.nearblocks.io/txns/6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg),
+   and satchel #8, with everything its address holds on every chain, moved to
+   `buyer.satchel-nft.testnet` in that same transaction: the contract logged `nft_transfer` from
+   `satchel-club.sputnikv2.testnet` to the buyer. Its record didn't change, still version 1, and
+   `verify 8` reads the same four passes with the new owner.
+
+</Steps>
+
+## Selling instead of handing off
+
+The DAO can sell a satchel the way any owner does: a proposal calls `list` (1 yoctoNEAR) with the
+price, and from then on the contract refuses every signature for it, a proposal's included, until it
+is sold, delisted or transferred. The buyer's `buy` pays `listing.seller`, the DAO, and names the
+record version the buyer checked, so the sale goes through only for the record the buyer's report
+read. A DAO buying a satchel files a proposal that calls `buy` with the price as its deposit and the
+record version its members checked: if the seller signs anything before the vote passes, the call
+fails and the DAO keeps its NEAR. Satchel's run did not try a DAO sale; [listings and
+sales](/docs/concepts/listings-and-sales) is what the contract does.
+
+## Limits
+
+- **Fees are fixed when the proposal is filed.** If the chain's base fee rises above the
+  transaction's `max_fee_per_gas` before it is broadcast, it waits in the mempool or is dropped. A
+  new proposal at the same nonce with higher fees replaces it; the record counts both signatures, and
+  the report reads clean once that nonce is spent and final.
+- **One open proposal per nonce.** `nonceClash` checks the DAO's open proposals, but a member using
+  another tool may not. A proposal that expires stays `InProgress` in storage until someone
+  finalizes it.
+- **The signature is public once the vote passes.** Anyone can broadcast it, as with any `sign_evm`.
+  `dao finish` checks whether it is already mined before sending.
+- **Gas is fixed per call.** A Sputnik DAO attaches exactly the gas the proposal names. Below the
+  contract's 50 Tgas, `sign_evm` fails without touching the record and the DAO marks the proposal
+  `Failed`. The `Finalize` action runs a failed proposal again, inside the proposal period, but
+  with the same gas: too little gas needs a new proposal.
+- **Testnet only, so far.** Trezu, which runs Sputnik DAOs as treasuries, is mainnet only, and
+  nothing here was run on mainnet. The same calls work there with `v1.satchel-nft.near`.
+- **Never `sign_raw`.** A DAO can call it, but a raw signature is a hash the contract can't describe,
+  and the report counts it against the satchel (check 4).
+
+## Related
+
+- [The signing record](/docs/concepts/signing-record): what `sign_evm` writes for every signature.
+- [The clean transfer report](/docs/concepts/clean-transfer-report): the four checks a buyer runs.
+- [CLI reference](/docs/developers/cli#dao-finish): `dao finish`, its output and exit codes.
+- [TypeScript library reference](/docs/developers/library#a-satchel-a-dao-owns): `daoProposal`,
+  `daoVote`, `nonceClash`, `signatureFromReceipts` and `finishSignEvm`.

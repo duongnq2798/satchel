@@ -78,8 +78,8 @@ export function setNearRpc(url: string) {
   override = url;
 }
 
-export async function nearRpc<T>(net: Network, method: string, params: unknown): Promise<T> {
-  const res = await fetch(nearRpcUrl(net), {
+export async function nearRpc<T>(net: Network, method: string, params: unknown, url = nearRpcUrl(net)): Promise<T> {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "satchel", method, params }),
@@ -95,14 +95,16 @@ export async function nearChainId(net: Network): Promise<string> {
   return (await nearRpc<{ chain_id: string }>(net, "status", [])).chain_id;
 }
 
-function encodeArgs(args: unknown): string {
+/** Arguments as NEAR carries them: the JSON's UTF-8 bytes, in base64. */
+export function encodeArgs(args: unknown): string {
   const bytes = new TextEncoder().encode(JSON.stringify(args));
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary);
 }
 
-function decodeBase64(value: string): string {
+/** The UTF-8 text of a base64 value: call arguments, a receipt's return value. */
+export function decodeBase64(value: string): string {
   const binary = atob(value);
   const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);

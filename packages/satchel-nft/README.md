@@ -68,6 +68,7 @@ satchel-nft <command> [options]
 | `buy <id>` | Buys it at its listed price, only if its report reads `PROVABLY CLEAN` |
 | `transfer <id> <account>` | Gives it to another NEAR account |
 | `send <id> --chain <chain> --to <0x address> --value <amount> [--data <0x calldata>]` | Sends from its address on one of the network's EVM chains |
+| `dao finish <near tx>` | For a satchel a Sputnik DAO owns: reads the MPC signature from the receipts of the vote that ran `sign_evm`, checks the hash and the signer, and broadcasts. Needs no key (not in 0.1.0) |
 
 | Option | |
 | --- | --- |
@@ -176,6 +177,8 @@ if (report?.verdict === "clean") {
 | `deriveMpcKey(rootKey, predecessor, path)` | The key the MPC network holds for `path` when `predecessor` asks, as `derived_public_key` returns it (not in 0.1.0) |
 | `sendFromSatchel(request, deps)` | The send flow, with each step's check, for any wallet you pass in `deps` |
 | `assertDeployment(net)`, `assertReceiver(net, account)` | The checks the app and the CLI run before signing |
+| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (not in 0.1.0) |
+| `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (not in 0.1.0) |
 
 ## Links
 

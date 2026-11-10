@@ -8,6 +8,7 @@
 export * from "./approvals.js";
 export * from "./config.js";
 export * from "./contents.js";
+export * from "./dao.js";
 export * from "./evm.js";
 export * from "./guard.js";
 export * from "./history.js";

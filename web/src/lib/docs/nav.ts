@@ -137,6 +137,12 @@ export const DOCS: DocSection[] = [
         description: "Mint, fund, send, list, buy and hand back a satchel with the satchel-nft CLI and two testnet accounts.",
       },
       {
+        slug: "tutorials/dao-owned-satchel",
+        title: "A satchel owned by a Sputnik DAO",
+        nav: "Owned by a DAO",
+        description: "A DAO on testnet owned satchel #8: its vote has the contract build, record and sign a Sepolia send, anyone can finish it, and a hand-off keeps the same clean transfer report.",
+      },
+      {
         slug: "tutorials/clean-listings-feed",
         title: "Build a feed of clean listings",
         description: "Use the satchel-nft library to list every satchel for sale with its verdict, as JSON, in about 40 lines of TypeScript.",

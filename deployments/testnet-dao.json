@@ -1,0 +1,273 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "mpc": "v1.signer-prod.testnet",
+  "dao": "satchel-club.sputnikv2.testnet",
+  "daoFactory": "sputnikv2.testnet",
+  "daoVersion": "2.3.1, as the DAO's version() view returns it. The factory's get_contracts_metadata lists the DAO's code hash AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH as version [3,31], commit 7764926",
+  "tokenId": "8",
+  "address": "0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0",
+  "nearCli": "near-cli-rs 0.30.1, legacy keychain (~/.near-credentials)",
+  "note": "The near CLI signed every NEAR transaction but the faucet's CreateAccount, which the faucet service signed as testnet. satchel-nft dao finish, built from this repository, broadcast satchel #8's Sepolia send; another wallet funded its address. A script read each transaction back from the chains. The faucet account was created and deleted only to move testnet NEAR to satchel-nft.testnet.",
+  "steps": [
+    {
+      "step": "Testnet NEAR from the near CLI's faucet service, to a temporary account",
+      "tx": "CcYd8cys4PXeVpEPi7CGvWZbJUm3mr6QtkPNygwxMoWn",
+      "signer": "testnet",
+      "receiver": "satchel-topup-1110.testnet",
+      "action": "CreateAccount",
+      "block": "277028578",
+      "at": "2026-11-10T06:07:05Z",
+      "status": "success"
+    },
+    {
+      "step": "The temporary account deleted, its NEAR to satchel-nft.testnet",
+      "tx": "AM2rWt6j29dthg9NhU9ASsb8NxGCofS78HLFGZo4QGMF",
+      "signer": "satchel-topup-1110.testnet",
+      "receiver": "satchel-topup-1110.testnet",
+      "action": "DeleteAccount",
+      "block": "277028620",
+      "at": "2026-11-10T06:07:30Z",
+      "status": "success",
+      "failedReceipts": [
+        {
+          "executor": "satchel-topup-1110.testnet",
+          "error": "AccountDoesNotExist"
+        }
+      ],
+      "note": "The failed receipt is the gas refund to the account the transaction deleted, as after any DeleteAccount"
+    },
+    {
+      "step": "Create the DAO: one council member, satchel-nft.testnet; bond 0; proposals open for one hour",
+      "tx": "7fsqT1cc1nSe6py53QFtjH4dDLZAJJcSQrW3jkvPZiEF",
+      "signer": "satchel-nft.testnet",
+      "receiver": "sputnikv2.testnet",
+      "method": "create",
+      "args": {
+        "name": "satchel-club",
+        "args": "eyJjb25maWciOnsibmFtZSI6InNhdGNoZWwtY2x1YiIsInB1cnBvc2UiOiJBIFNwdXRuaWsgREFPIHRoYXQgb3ducyBhIHNhdGNoZWw6IG9uZSB3YWxsZXQgb24gMTYgRVZNIGNoYWlucyAoc2F0Y2hlbG5mdC54eXopIiwibWV0YWRhdGEiOiIifSwicG9saWN5Ijp7InJvbGVzIjpbeyJuYW1lIjoiY291bmNpbCIsImtpbmQiOnsiR3JvdXAiOlsic2F0Y2hlbC1uZnQudGVzdG5ldCJdfSwicGVybWlzc2lvbnMiOlsiKjpBZGRQcm9wb3NhbCIsIio6Vm90ZUFwcHJvdmUiLCIqOlZvdGVSZWplY3QiLCIqOlZvdGVSZW1vdmUiLCIqOkZpbmFsaXplIl0sInZvdGVfcG9saWN5Ijp7fX1dLCJkZWZhdWx0X3ZvdGVfcG9saWN5Ijp7IndlaWdodF9raW5kIjoiUm9sZVdlaWdodCIsInF1b3J1bSI6IjAiLCJ0aHJlc2hvbGQiOlsxLDJdfSwicHJvcG9zYWxfYm9uZCI6IjAiLCJwcm9wb3NhbF9wZXJpb2QiOiIzNjAwMDAwMDAwMDAwIiwiYm91bnR5X2JvbmQiOiIwIiwiYm91bnR5X2ZvcmdpdmVuZXNzX3BlcmlvZCI6IjM2MDAwMDAwMDAwMDAifX0="
+      },
+      "deposit": "6000000000000000000000000",
+      "gas": "150000000000000",
+      "block": "277028693",
+      "at": "2026-11-10T06:08:14Z",
+      "status": "success",
+      "decodedArgs": {
+        "config": {
+          "name": "satchel-club",
+          "purpose": "A Sputnik DAO that owns a satchel: one wallet on 16 EVM chains (satchelnft.xyz)",
+          "metadata": ""
+        },
+        "policy": {
+          "roles": [
+            {
+              "name": "council",
+              "kind": {
+                "Group": [
+                  "satchel-nft.testnet"
+                ]
+              },
+              "permissions": [
+                "*:AddProposal",
+                "*:VoteApprove",
+                "*:VoteReject",
+                "*:VoteRemove",
+                "*:Finalize"
+              ],
+              "vote_policy": {}
+            }
+          ],
+          "default_vote_policy": {
+            "weight_kind": "RoleWeight",
+            "quorum": "0",
+            "threshold": [
+              1,
+              2
+            ]
+          },
+          "proposal_bond": "0",
+          "proposal_period": "3600000000000",
+          "bounty_bond": "0",
+          "bounty_forgiveness_period": "3600000000000"
+        }
+      }
+    },
+    {
+      "step": "Mint satchel #8 straight to the DAO",
+      "tx": "GorSCms2U2KG6c2TFVd78egqZHM8ANCCKsWLJiuEYqb",
+      "signer": "satchel-nft.testnet",
+      "receiver": "v1.satchel-nft.testnet",
+      "method": "mint",
+      "args": {
+        "receiver_id": "satchel-club.sputnikv2.testnet"
+      },
+      "deposit": "100000000000000000000000",
+      "gas": "50000000000000",
+      "block": "277028770",
+      "at": "2026-11-10T06:09:00Z",
+      "status": "success"
+    },
+    {
+      "step": "Proposal 0: the DAO has satchel #8 sign 0.0001 Sepolia ETH to 0x…dEaD at nonce 0",
+      "tx": "5wqriE9Ur3vGxcZ2G9pg4CMJZPjP6ZUxzHZVJMK4xtmH",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-club.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Satchel #8 signs nonce 0 on Sepolia: 100000000000000 wei to 0x000000000000000000000000000000000000dEaD",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "v1.satchel-nft.testnet",
+              "actions": [
+                {
+                  "method_name": "sign_evm",
+                  "args": "eyJ0b2tlbl9pZCI6IjgiLCJ0eCI6eyJjaGFpbl9pZCI6IjExMTU1MTExIiwibm9uY2UiOiIwIiwibWF4X3ByaW9yaXR5X2ZlZV9wZXJfZ2FzIjoiMTAwMDAwMDAwMCIsIm1heF9mZWVfcGVyX2dhcyI6IjUwMDAwMDAwMDAiLCJnYXNfbGltaXQiOiIyMTAwMCIsInRvIjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDBkRWFEIiwidmFsdWUiOiIxMDAwMDAwMDAwMDAwMDAiLCJkYXRhIjoiMHgifX0=",
+                  "deposit": "1",
+                  "gas": "150000000000000"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "block": "277029110",
+      "at": "2026-11-10T06:12:26Z",
+      "status": "success",
+      "proposalId": 0
+    },
+    {
+      "step": "Vote approving proposal 0: the DAO calls sign_evm, v1.signer-prod.testnet signs",
+      "tx": "2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-club.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 0,
+        "action": "VoteApprove",
+        "proposal": {
+          "FunctionCall": {
+            "receiver_id": "v1.satchel-nft.testnet",
+            "actions": [
+              {
+                "method_name": "sign_evm",
+                "args": "eyJ0b2tlbl9pZCI6IjgiLCJ0eCI6eyJjaGFpbl9pZCI6IjExMTU1MTExIiwibm9uY2UiOiIwIiwibWF4X3ByaW9yaXR5X2ZlZV9wZXJfZ2FzIjoiMTAwMDAwMDAwMCIsIm1heF9mZWVfcGVyX2dhcyI6IjUwMDAwMDAwMDAiLCJnYXNfbGltaXQiOiIyMTAwMCIsInRvIjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDBkRWFEIiwidmFsdWUiOiIxMDAwMDAwMDAwMDAwMDAiLCJkYXRhIjoiMHgifX0=",
+                "deposit": "1",
+                "gas": "150000000000000"
+              }
+            ]
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "300000000000000",
+      "block": "277029162",
+      "at": "2026-11-10T06:12:55Z",
+      "status": "success",
+      "proposalId": 0,
+      "proposalStatus": "Approved",
+      "signingHash": "0x0b95701fc2a989725c9fdca6577b9c574f80a9630b1d697a31036c807d22b332",
+      "recovered": "0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0",
+      "signingRecordAfter": {
+        "evm": [
+          {
+            "chain_id": "11155111",
+            "max_nonce": "0",
+            "signatures": 1
+          }
+        ],
+        "opaque_signatures": 0,
+        "version": "1"
+      }
+    },
+    {
+      "step": "Fund satchel #8's address on Sepolia",
+      "sepolia": {
+        "tx": "0x0e78ee7e7eb1acac3087d662f816f31fd4701e653af8752e352e51aac065bb2e",
+        "block": "12102807",
+        "from": "0x194876fa774ec8a1a0d9cdc4802308453996345a",
+        "to": "0x2aa82c50d1e0c0e9872fe45a6c1e1da673bca5f0",
+        "nonce": "136",
+        "valueWei": "20000000000000000",
+        "status": "success"
+      }
+    },
+    {
+      "step": "satchel-nft dao finish 2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M --yes",
+      "sepolia": {
+        "tx": "0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3",
+        "block": "12102812",
+        "from": "0x2aa82c50d1e0c0e9872fe45a6c1e1da673bca5f0",
+        "to": "0x000000000000000000000000000000000000dead",
+        "nonce": "0",
+        "valueWei": "100000000000000",
+        "status": "success"
+      }
+    },
+    {
+      "step": "Proposal 1: the DAO gives satchel #8 to buyer.satchel-nft.testnet with nft_transfer",
+      "tx": "A5YMQQp2jPeDBhZzsaK4Bu2AoTSfLCSa81ZYnSZYqHfy",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-club.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Give satchel #8 to buyer.satchel-nft.testnet",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "v1.satchel-nft.testnet",
+              "actions": [
+                {
+                  "method_name": "nft_transfer",
+                  "args": "eyJ0b2tlbl9pZCI6IjgiLCJyZWNlaXZlcl9pZCI6ImJ1eWVyLnNhdGNoZWwtbmZ0LnRlc3RuZXQifQ==",
+                  "deposit": "1",
+                  "gas": "30000000000000"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "block": "277029676",
+      "at": "2026-11-10T06:17:43Z",
+      "status": "success",
+      "proposalId": 1
+    },
+    {
+      "step": "Vote approving proposal 1: the DAO calls nft_transfer",
+      "tx": "6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-club.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 1,
+        "action": "VoteApprove",
+        "proposal": {
+          "FunctionCall": {
+            "receiver_id": "v1.satchel-nft.testnet",
+            "actions": [
+              {
+                "method_name": "nft_transfer",
+                "args": "eyJ0b2tlbl9pZCI6IjgiLCJyZWNlaXZlcl9pZCI6ImJ1eWVyLnNhdGNoZWwtbmZ0LnRlc3RuZXQifQ==",
+                "deposit": "1",
+                "gas": "30000000000000"
+              }
+            ]
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "300000000000000",
+      "block": "277031197",
+      "at": "2026-11-10T06:33:00Z",
+      "status": "success",
+      "proposalId": 1,
+      "proposalStatus": "Approved",
+      "ownerAfter": "buyer.satchel-nft.testnet"
+    }
+  ]
+}

@@ -8,7 +8,9 @@ import {
   addressFromMpcKey,
   base58Decode,
   base58Encode,
+  contractUint,
   deriveMpcKey,
+  fromContractTx,
   maxCost,
   recoverSigner,
   signedRawTx,
@@ -58,7 +60,7 @@ describe("token address", () => {
   });
 });
 
-// Every satchel minted on each network by 2026-11-10, with the root key and the derived keys the MPC
+// Testnet satchels #1 to #8 and mainnet #1, with the root key and the derived keys the MPC
 // contracts returned for them (__fixtures__/derived-keys.json).
 describe("deriving a satchel's key locally", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -131,6 +133,21 @@ describe("a real sign_evm round trip", () => {
       value: "1",
       data: "0x",
     });
+  });
+
+  it("reads sign_evm's fields back as the contract reads them, and refuses what it refuses", () => {
+    const fields = toContractTx(SIGNED_TX);
+    expect(fromContractTx(fields)).toEqual(SIGNED_TX);
+    // near-sdk's U64 and U128 take a leading + and leading zeros: the contract signs the same hash.
+    expect(fromContractTx({ ...fields, nonce: "+0", chain_id: "011155111", value: `${"0".repeat(45)}1` })).toEqual(SIGNED_TX);
+    expect(contractUint("18446744073709551615")).toBe(2n ** 64n - 1n);
+    for (const bad of ["18446744073709551616", "-0", " 1", "0x10", "1e3", ""]) expect(contractUint(bad)).toBeNull();
+    expect(() => fromContractTx({ ...fields, nonce: "-1" })).toThrow(/nonce is not a number the contract takes/);
+    expect(() => fromContractTx({ ...fields, max_priority_fee_per_gas: "21" })).toThrow(/above its max_fee_per_gas/);
+    expect(() => fromContractTx({ ...fields, to: "0xdead" })).toThrow(/to is not an address/);
+    expect(() => fromContractTx({ ...fields, data: "0xabc" })).toThrow(/whole bytes/);
+    expect(fromContractTx({ ...fields, data: `0x${"ab".repeat(8192)}` }).data).toHaveLength(2 + 2 * 8192);
+    expect(() => fromContractTx({ ...fields, data: `0x${"ab".repeat(8193)}` })).toThrow(/longer than the contract's 8192 bytes/);
   });
 
   it("normalizes a high s and flips the parity, so the same address recovers", async () => {
