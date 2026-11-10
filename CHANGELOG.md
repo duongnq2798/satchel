@@ -28,8 +28,31 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   (the DAO's version, sole council member, bond and period; the mint to the DAO; both proposals as
   filed and the votes that ran them; and the Sepolia send, its fields and signature); the docs have
   [a walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) and `dao finish` in the
-  CLI reference. 28 new tests, 156 in all, with the vote's receipts as a fixture, and
+  CLI reference. 28 new tests, with the vote's receipts as a fixture, and
   `derived-keys.json` has the key of `satchel/8`. Not in 0.1.0, and not run on mainnet.
+- The holder room: `/satchel/<id>/room` (and `/mainnet/satchel/<id>/room`), a page only the account
+  that owns a satchel right now can open, linked from the satchel's page. The holder's wallet signs a
+  NEP-413 message (NEAR Connect's `signMessage`) naming the satchel, the network, the contract, the
+  account and the time, for the recipient `satchelnft.xyz`. The app's one server route, `/api/room`
+  (POST only, 4 KB body limit, `no-store`), writes the message again, verifies the ed25519 signature
+  strictly, then reads at one final NEAR block that the key is a full-access key of the account and
+  that the account owns the satchel, on every request; it stores nothing. A proof is refused 5
+  minutes after its `Issued` time, each NEAR read after 10 seconds without an answer (a 502), and a
+  report that takes over 20 seconds still leaves the holder card. Inside: a holder card (account,
+  satchel, network, the block read, the key) and a handover kit, what to do before selling, one step
+  per check of the satchel's report that doesn't pass, or one step to list it when all four pass. The
+  kit names only the chains still open, says where the full approval addresses are, offers no fix
+  while check 1 fails (the app and the CLI then sign nothing), and says plainly when a chain is one
+  the app and the CLI don't send on. The track brief's gated page is now met in the README and the
+  demo kit. The package exports `checkHolder`, `roomMessage`, `ROOM_RECIPIENT`, `ROOM_WINDOW_MS` and
+  `ROOM_SKEW_MS` (`holder.ts`), `verifyNep413`, `nep413Hash` and the base64 helpers (`nep413.ts`),
+  `handoverKit` (`kit.ts`), `finalBlock`, `viewAt`, `accessKeyAt`, `rpcFor` and `RPC_TIMEOUT_MS`
+  (`near.ts`) and `nearBlockUrl` (`config.ts`), and the report's pending and approvals checks gain
+  `chains`, the chain and status behind each line; none is in 0.1.0 on npm. 35 new package tests
+  (191 in all, with the DAO entry's 28), the NEP-413 ones against two signatures near-cli-rs made, and 5 app tests (20). The docs gain a guide, "Open the holder room" (38 pages with the DAO walkthrough), and a section in the
+  security model; the threat model adds rows 24 to 28 (38 attacks) and residual risk 13. AGENTS.md
+  adds the checks for it. The README and "Run the web app yourself" no longer say the app has no
+  backend: it has one stateless server route.
 - The README lists the libraries, templates and AI-written code Satchel uses, as the hackathon's
   rules ask (HACKATHON.md, Q-005): the contract's crates and cargo-near, and that `Cargo.toml` is the
   file cargo-near's `cargo near new` template writes, with Satchel's name, description, repository
@@ -270,7 +293,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   A long seller account wraps instead of running out of the panel.
 - Counts that had gone stale: the threat model has 33 attacks, not 32 (README); the app has 15 unit
   tests, not 3 (README); the docs' security page said 59 contract and 94 package tests (now 61 and
-  156). The README banner said the checks run "with npm run verify", which only works inside `web`;
+  191). The README banner said the checks run "with npm run verify", which only works inside `web`;
   it now says `npx satchel-nft verify`. The README, AGENTS.md, threat model row 21g and the docs
   name the 9 satchels the derived-key fixture covers (testnet #1 to #8, mainnet #1) instead of "all
   8 satchels", which stopped being true once testnet satchel #8 was minted.

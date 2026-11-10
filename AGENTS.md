@@ -25,7 +25,7 @@ the attacks and what stops each one. [SECURITY.md](SECURITY.md) says how to repo
 ## Check the claims
 
 Steps 1 and 2 take about five minutes. Steps 3 and 4 install and build Rust, so they take longer
-the first time. Run every command from the repository root.
+the first time. Step 5 needs step 2's install and curl. Run every command from the repository root.
 
 ### 1. The deployment and its history: one command
 
@@ -157,8 +157,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  156 passed (156)` for `satchel-nft`, then
-`Tests  15 passed (15)` for the app, then no type errors.
+Each runs in both workspaces. You should see `Tests  191 passed (191)` for `satchel-nft`, then
+`Tests  20 passed (20)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -192,6 +192,36 @@ node ../../scripts/code-hash.mjs target/near/satchel.wasm
 ```
 
 This builds the commit you have checked out. Check out `87148c6` first to get the deployed hash.
+
+### 5. The holder room's gate
+
+Claim: a satchel's holder room (`/satchel/<id>/room`) opens only for the account that owns the
+satchel at a final NEAR block, signing a NEP-413 message with one of its full-access keys, checked
+again on every request, with nothing stored. Its tests:
+
+```bash
+npm test -w satchel-nft -- holder nep413 kit
+npm test -w satchel-web -- room-request
+```
+
+You should see `Tests  33 passed (33)`, then `Tests  5 passed (5)`. Then the route itself, with no
+key: a GET, and a signature that doesn't verify.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://satchelnft.xyz/api/room      # 405
+ISSUED=$(node -e "console.log(new Date().toISOString())")
+SIG=$(node -e "console.log(Buffer.alloc(64).toString('base64'))")
+NONCE=$(node -e "console.log(Buffer.alloc(32).toString('base64'))")
+curl -s -w '\n%{http_code}\n' https://satchelnft.xyz/api/room -H 'content-type: application/json' \
+  -d "{\"network\":\"testnet\",\"tokenId\":\"4\",\"accountId\":\"satchel-nft.testnet\",\"publicKey\":\"ed25519:11111111111111111111111111111111\",\"signature\":\"$SIG\",\"nonce\":\"$NONCE\",\"issuedAt\":\"$ISSUED\"}"
+```
+
+You should see `{"error":"The signature doesn't verify for ed25519:1111…: it must sign the room
+message for satchel #4 on testnet, for satchelnft.xyz"}` and `401`. The route reads NEAR only after
+the signature verifies. To be refused as a non-holder (403, naming satchel #4's owner at the block
+read), sign the message with a testnet account of your own: the README's
+[Holder room](README.md#holder-room) has the near-cli-rs steps. That needs a key, so it is not one
+of these checks.
 
 ## Where each rule lives
 
@@ -227,6 +257,10 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
 | Every CLI option belongs to one command, so an option meant for another is an error | `parseCli` in `packages/satchel-nft/src/cli-args.ts` | `cli-args.test.ts` |
 | A satchel's history shows only events the network's Satchel contract logged about that token, in receipts that succeeded, oldest first, and a sale once, not also as the seller-to-buyer transfer it logs. A bad block time skips the receipt, and an error in the card can't unmount the report (`Contained` in `web/src/components/history.tsx`). It is display only: the report never reads it | `eventsIn`, `tokenHistory` in `packages/satchel-nft/src/history.ts` | `history.test.ts`, on satchel #7's real transactions |
 | What a satchel holds is read at one listed address per token on each chain, checksummed, with the symbol and decimals its contract reports. Display only | `TOKENS`, `chainContents` in `packages/satchel-nft/src/contents.ts` | `contents.test.ts`; on chain, `node scripts/check-tokens.mjs` after `npm run build -w satchel-nft` |
+| The holder room's signature is ed25519, verified strictly, over sha256 of NEP-413's tag and the borsh payload: the message, the 32-byte nonce, the recipient `satchelnft.xyz` and no callback URL | `verifyNep413`, `nep413Hash` in `packages/satchel-nft/src/nep413.ts` | `nep413.test.ts`, against two signatures near-cli-rs made |
+| The holder room opens only for the account that owns the satchel at a final NEAR block, signing with one of its full-access keys, within 5 minutes of the `Issued` time it signed; the server writes the message itself and reads NEAR only once the signature verifies, the key and the owner at the same block, each read giving up after 10 s (a 502) | `checkHolder`, `roomMessage` in `packages/satchel-nft/src/holder.ts`; `finalBlock`, `accessKeyAt`, `viewAt`, `rpcFor` in `near.ts` | `holder.test.ts` |
+| `/api/room` takes only POST (another method gets Next.js's empty 405, with no body), reads at most 4 KB of body, and answers every POST as JSON with `Cache-Control: no-store`, a refusal with its status. A report that doesn't come within 20 s still leaves the holder card, with no kit | `readRoomRequest`, `within` in `web/src/lib/room-request.ts`, `POST` in `web/src/app/api/room/route.ts` | `room-request.test.ts` |
+| The handover kit has one step per check that doesn't pass, in the report's order, and one step to list only when all four pass. It names only the chains still open, offers no fix while check 1 fails (the app and the CLI then sign nothing), and says so for a chain the app and the CLI don't send on | `handoverKit` in `packages/satchel-nft/src/kit.ts` | `kit.test.ts` |
 
 ## What Satchel does not claim
 
@@ -238,6 +272,9 @@ This builds the commit you have checked out. Check out `87148c6` first to get th
   `satchel-nft verify` can read from your own nodes, but it does not compare nodes or check storage
   proofs.
 - **The MPC network is trusted.** If enough MPC nodes colluded, they could sign with any derived key.
+- **The holder room holds nothing secret.** Its gate trusts one NEAR RPC, a captured proof opens it
+  until 5 minutes after its `Issued` time (up to 6 minutes, since `Issued` may run a minute ahead of
+  the server's clock) while that account still owns the satchel, and requests aren't rate limited.
 
 The full list, with what stops each attack and what is left, is in
 [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) and the README's

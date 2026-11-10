@@ -84,6 +84,7 @@ interface Check {
   status: Status;
   title: string; // "No signed transaction is still pending", or its failing form
   lines: string[]; // one line per fact, as the CLI prints them
+  chains?: { chainId: number; status: Status }[]; // checks 2 and 3, not in 0.1.0: the chain behind each line
 }
 
 interface Report {
@@ -487,7 +488,7 @@ From `near.ts`. Every NEAR read in the library goes through `nearRpc`.
 
 | Export | Signature | What it does |
 | --- | --- | --- |
-| `nearRpc(net, method, params)` | `<T>(net: Network, method: string, params: unknown) => Promise<T>` | One JSON-RPC call. Throws `NearRpcError` on an HTTP error or an RPC error |
+| `nearRpc(net, method, params, signal?, url?)` | `<T>(net: Network, method: string, params: unknown, signal?: AbortSignal, url?: string) => Promise<T>` | One JSON-RPC call, to `url` or else `nearRpcUrl(net)`; `signal` can abort it. Throws `NearRpcError` on an HTTP error or an RPC error |
 | `view(net, account, method, args?)` | `<T>(net, account: string, method: string, args?: unknown) => Promise<T>` | A view call at a final block. A contract panic throws an `Error` whose message is the panic, like `evm_signing_hash`'s `Satchel: to must be 20 bytes` |
 | `viewAccount(net, account)` | `=> Promise<AccountView>` | `amount`, `code_hash`, `storage_usage` and any global contract fields |
 | `accessKeyCount(net, account)` | `=> Promise<number>` | |

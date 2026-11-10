@@ -147,6 +147,10 @@ export function nearTxUrl(net: Network, hash: string): string {
   return `${net.nearExplorer}/txns/${hash}`;
 }
 
+export function nearBlockUrl(net: Network, hash: string): string {
+  return `${net.nearExplorer}/blocks/${hash}`;
+}
+
 export function nearAccountUrl(net: Network, account: string): string {
   return `${net.nearExplorer}/address/${account}`;
 }

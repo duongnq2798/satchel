@@ -1,7 +1,9 @@
-The web app in `web/` is a Next.js app with no backend: every read goes from the browser to a public
-NEAR node and to each EVM chain's node, and every write is a transaction the visitor's NEAR wallet
-signs. That makes it easy to run yourself: to read from nodes you trust, to look at the code a page
-runs, or to work on the app. It needs no API key and no environment variable.
+The web app in `web/` is a Next.js app whose pages read from the browser: every read goes from the
+browser to a public NEAR node and to each EVM chain's node, and every write is a transaction the
+visitor's NEAR wallet signs. It has one stateless server route, `/api/room`, for the
+[holder room](/docs/guides/holder-room), which stores nothing. That makes it easy to run yourself: to
+read from nodes you trust, to look at the code a page runs, or to work on the app. It needs no API
+key, no database and no environment variable.
 
 ## What you need
 
@@ -58,6 +60,7 @@ the code you checked out.
 | `/` | What Satchel is, with satchel #1's verdict checked live and the demo satchels |
 | `/satchels` | Connect a NEAR wallet, mint a satchel, see the ones you own |
 | `/satchel/<id>` | A satchel's address, what it holds, its report and its history; as owner, send, list, delist or transfer; as a buyer, buy |
+| `/satchel/<id>/room` | The holder room: opens only for the satchel's current holder, after their wallet signs a message, and shows a holder card and a handover kit |
 | `/market` | Every listing, with its price and its report's verdict |
 | `/verify` | Any satchel's report, no wallet needed |
 | `/mainnet`, `/mainnet/…` | The same pages on NEAR mainnet and the 8 EVM mainnets |
@@ -87,7 +90,8 @@ included.
 The app has no setting for its nodes. They are in `packages/satchel-nft/src/config.ts`, which the
 app, the CLI and the library share:
 
-- `nearRpc` in `TESTNET` and `MAINNET`: the NEAR node for each network;
+- `nearRpc` in `TESTNET` and `MAINNET`: the NEAR node for each network, which the holder room's
+  server route reads too;
 - `rpc` in each entry of `CHAINS`: the node for each of the 16 EVM chains.
 
 Change the URLs you want and rebuild. `npm run dev` and `npm run build` rebuild the package

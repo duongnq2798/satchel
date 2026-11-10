@@ -28,8 +28,9 @@ tests. On mainnet a satchel holds real funds: keep in one only what you can affo
 | App and CLI guards | No address and no signature until the network's contract passes check 1; only this network's contract, from an account on this network; no transfer to an account that doesn't exist | `assertDeployment`, `assertTxFor`, `assertReceiver` in `packages/satchel-nft/src/guard.ts` | `guard.test.ts` |
 | Check before broadcast | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before it broadcasts | `sendFromSatchel` in `packages/satchel-nft/src/send.ts` | `send.test.ts` |
 | CLI signing | The near CLI only signs. `satchel-nft` runs it by its absolute path, decodes what it signed, compares signer, receiver, method, arguments, gas and deposit with what it asked for, shows it, and sends only after `yes` or `--yes` | `resolveNearCli`, `decodeSignedTx`, `assertSignedAsAsked` in `near-cli.ts`; `submit` in `cli.ts` | `near-cli.test.ts`, and on testnet (`deployments/testnet-cli.json`) |
+| The holder room's gate | A NEP-413 signature over a message the server writes itself, at most 5 minutes old; a full-access key of the account and the account as the satchel's owner, both read at one final NEAR block, on every request | `checkHolder` in `holder.ts`, `verifyNep413` in `nep413.ts`, `web/src/app/api/room/route.ts` | `holder.test.ts`, `nep413.test.ts` (against vectors near-cli-rs signed), `room-request.test.ts` |
 
-The contract's tests are in `contracts/satchel/src/tests.rs` (61), the package's next to each file (156).
+The contract's tests are in `contracts/satchel/src/tests.rs` (61), the package's next to each file (191).
 [Check every claim](/docs/security/check-every-claim#where-each-rule-lives) maps each rule to its code and tests,
 and says which rules have no unit test and how they were checked instead.
 
@@ -48,6 +49,19 @@ and says which rules have no unit test and how they were checked instead.
 
 You can run the first three yourself in [Try to cheat a buyer](/docs/tutorials/try-to-cheat-a-buyer).
 
+## The holder room
+
+The [holder room](/docs/guides/holder-room) is a page only a satchel's current holder can open. Its contents are
+public, so what it protects is the gate. `/api/room` stores nothing between requests.
+
+| Someone tries to | and | Shown by |
+| --- | --- | --- |
+| Replay a signed proof they saw | It opens only the room it names, for 5 minutes after its `Issued` time (which may be a minute ahead of the server's clock), and only while that account still owns the satchel | `holder.test.ts` |
+| Open the room with a function-call key, the login key a site keeps | Refused (403): the key must be a full-access key of the account at the final block | `holder.test.ts` |
+| Open the room as a former holder, after a sale | Refused (403), naming the owner at the final block. A final block is a few seconds behind the chain's head | `holder.test.ts` |
+| Forge a signature, or reuse one made for another site or message | Refused (401): strict ed25519 over the NEP-413 payload the server builds, with recipient `satchelnft.xyz` | `nep413.test.ts`, against two vectors near-cli-rs signed |
+| Run a NEAR RPC that lies about the key or the owner | Not stopped: the server reads one NEAR RPC, FastNEAR's by default, and can be fooled into opening or closing the room. Every read is pinned to one block | [Threat model, row 27](/docs/security/threat-model#the-holder-room) |
+
 ## What Satchel trusts
 
 - **NEAR's consensus and runtime**, including that a `#[private]` method and a deleted key behave as specified.
@@ -58,6 +72,7 @@ You can run the first three yourself in [Try to cheat a buyer](/docs/tutorials/t
 - **Each EVM chain's finality.** Once a block is finalized, an address's nonce at that block can't go back.
 - **The pinned build image** behind the reproducible build, `sourcescan/cargo-near:0.22.0-rust-1.99.1`.
 - **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.
+- **The NEAR RPC behind the holder room**, which decides only who opens the room. The room holds nothing secret.
 - **The npm release**, for anyone who runs `npx satchel-nft` instead of the repository's code. Version 0.1.0 was
   published without npm provenance; the [threat model](/docs/security/threat-model#what-satchel-trusts) says how
   to check its files against commit `728ed74`.
@@ -79,7 +94,7 @@ imitates satchelnft.xyz, or another contract called "Satchel"; the report reads 
 `v1.satchel-nft.near` and checks its code hash).
 
 The [threat model](/docs/security/threat-model) goes through every attack (the seller's, a buyer's, the
-deployer's, an RPC's, the hosted app's), what stops it, and what is left, ending with
+deployer's, an RPC's, the hosted app's, and on the holder room), what stops it, and what is left, ending with
 [residual risks in one list](/docs/security/threat-model#residual-risks-in-one-list).
 
 ## Evaluate Satchel in 15 minutes

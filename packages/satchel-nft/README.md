@@ -177,6 +177,9 @@ if (report?.verdict === "clean") {
 | `deriveMpcKey(rootKey, predecessor, path)` | The key the MPC network holds for `path` when `predecessor` asks, as `derived_public_key` returns it (not in 0.1.0) |
 | `sendFromSatchel(request, deps)` | The send flow, with each step's check, for any wallet you pass in `deps` |
 | `assertDeployment(net)`, `assertReceiver(net, account)` | The checks the app and the CLI run before signing |
+| `checkHolder(net, proof)`, `roomMessage(net, id, account, issuedAt)` | The holder room's gate: whether a signed NEP-413 proof comes from a full-access key of the account that owns the satchel at a final NEAR block, and the message it must sign (not in 0.1.0) |
+| `verifyNep413(signed)`, `nep413Hash(payload)` | NEP-413 message signatures: the hash a wallet signs, and a strict ed25519 check of one (not in 0.1.0) |
+| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass (not in 0.1.0) |
 | `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (not in 0.1.0) |
 | `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (not in 0.1.0) |
 

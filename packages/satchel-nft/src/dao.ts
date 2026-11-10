@@ -356,7 +356,7 @@ export async function readTxStatus(net: Network, hash: string): Promise<TxStatus
     status = await nearRpc<TxStatus>(net, "EXPERIMENTAL_tx_status", params);
   } catch (err) {
     if (!(err instanceof NearRpcError) || nearRpcUrl(net) !== net.nearRpc) throw err;
-    status = await nearRpc<TxStatus>(net, "EXPERIMENTAL_tx_status", params, NEAR_ARCHIVAL_RPC[net.id]);
+    status = await nearRpc<TxStatus>(net, "EXPERIMENTAL_tx_status", params, undefined, NEAR_ARCHIVAL_RPC[net.id]);
   }
   if (status.transaction.hash !== hash) throw new Error(`The NEAR RPC answered about ${status.transaction.hash}, not ${hash}`);
   return status;

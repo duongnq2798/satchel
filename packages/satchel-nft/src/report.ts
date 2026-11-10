@@ -25,6 +25,8 @@ export interface Check {
   status: Status;
   title: string;
   lines: string[];
+  /** Checks 2 and 3: the chain each chain line is about, and how that line reads. The handover kit acts on these. */
+  chains?: { chainId: number; status: Status }[];
 }
 
 export type Verdict = "clean" | "not-provable" | "unknown";
@@ -95,22 +97,27 @@ export interface ChainNonce {
 /** A signed nonce N is spent once the finalized nonce is above N: some transaction took that slot. */
 export function pendingCheck(nonces: ChainNonce[]): Check {
   const lines: string[] = [];
+  const chains: { chainId: number; status: Status }[] = [];
   let status: Status = "pass";
   if (nonces.length === 0) lines.push("Nothing was ever signed for this token through sign_evm");
   for (const n of nonces) {
     const name = chainInfo(n.chainId)?.name ?? `chain ${n.chainId}`;
     if (n.finalizedNonce === null) {
       if (status === "pass") status = "unknown";
+      chains.push({ chainId: n.chainId, status: "unknown" });
       lines.push(`${name}: could not read the nonce at a finalized block`);
     } else if (n.finalizedNonce > n.maxNonce) {
+      chains.push({ chainId: n.chainId, status: "pass" });
       lines.push(`${name}: signed up to nonce ${n.maxNonce}, finalized nonce is ${n.finalizedNonce}`);
     } else if (n.latestNonce != null && n.latestNonce > n.maxNonce) {
       if (status === "pass") status = "unknown";
+      chains.push({ chainId: n.chainId, status: "unknown" });
       lines.push(
         `${name}: signed up to nonce ${n.maxNonce}; a transaction at that nonce is in a recent block that is not finalized yet. Check again once it is`,
       );
     } else {
       status = "fail";
+      chains.push({ chainId: n.chainId, status: "fail" });
       // The MPC signature is public in the sign_evm receipt, so anyone can rebuild and broadcast it.
       lines.push(
         `${name}: signed up to nonce ${n.maxNonce}, finalized nonce is ${n.finalizedNonce}. That signature is public in its NEAR receipt, so anyone can still broadcast the transaction until one at nonce ${n.maxNonce} is final`,
@@ -122,7 +129,7 @@ export function pendingCheck(nonces: ChainNonce[]): Check {
     fail: "A signed transaction may still be pending",
     unknown: "Could not confirm every signed nonce is spent",
   };
-  return { id: "pending", status, title: titles[status], lines };
+  return { id: "pending", status, title: titles[status], lines, chains };
 }
 
 export interface ApprovalState {
@@ -132,6 +139,7 @@ export interface ApprovalState {
 
 export function approvalsCheck(states: ApprovalState[]): Check {
   const lines: string[] = [];
+  const chains: { chainId: number; status: Status }[] = [];
   let status: Status = "pass";
   if (states.length === 0) lines.push("No approval was ever signed for this token");
   for (const { row, liveness } of states) {
@@ -139,6 +147,7 @@ export function approvalsCheck(states: ApprovalState[]): Check {
     const label = `${name}: ${row.kind} on ${short(row.contract)} for ${short(row.spender)}`;
     if (liveness.live === true) status = "fail";
     else if (liveness.live === null && status === "pass") status = "unknown";
+    chains.push({ chainId: Number(row.chain_id), status: liveness.live === true ? "fail" : liveness.live === null ? "unknown" : "pass" });
     lines.push(`${label}: ${liveness.detail}`);
   }
   const titles: Record<Status, string> = {
@@ -146,7 +155,7 @@ export function approvalsCheck(states: ApprovalState[]): Check {
     fail: "An approval is still live",
     unknown: "Could not read every approval",
   };
-  return { id: "approvals", status, title: titles[status], lines };
+  return { id: "approvals", status, title: titles[status], lines, chains };
 }
 
 export function countersCheck(record: SatchelView["record"]): Check {
