@@ -6,6 +6,12 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The README lists the libraries, templates and AI-written code Satchel uses, as the hackathon's
+  rules ask (HACKATHON.md, Q-005): the contract's crates and cargo-near, and that `Cargo.toml` is the
+  file cargo-near's `cargo near new` template writes, with Satchel's name, description, repository
+  and dependencies; the package's and the app's npm dependencies and fonts; the test and
+  CI tools; and that Claude Code wrote most of the code, tests and docs, with no human audit.
+
 - Two contract tests for a sale in the middle of a payout (61 in all). In
   `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record`, the seller has a send signed, lists,
   and a buyer buys before the MPC network answers: the record the buyer bought still names that
@@ -204,6 +210,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The demo kit follows HACKATHON.md more closely. Its rules table adds: submit through the form or
+  the API, not both, and by the API only after the full JSON payload has been printed and the
+  builder has said yes; never commit the payload; read the consent notice word for word; read the
+  live file again before submitting; and the README's Q-005, LICENSE and two-projects points. The
+  form table quotes the consent notice and gives the API's team size value, `1`.
 - "Transfer the NFT and the keys go with it" said a key changes hands, when no one ever holds one.
   The README, the banner, the home page, the docs home and the site's description now say the
   wallet, or the right to sign for it, goes with the NFT. The contract crate's `Cargo.toml`

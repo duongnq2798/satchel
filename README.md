@@ -71,6 +71,7 @@ and with it the address on every one of those chains.
 - [Development](#development)
 - [Limits, stated plainly](#limits-stated-plainly)
 - [Prior work](#prior-work)
+- [Libraries, templates and AI-assisted code](#libraries-templates-and-ai-assisted-code)
 - [Other project by the same builder](#other-project-by-the-same-builder)
 - [License](#license)
 
@@ -1102,6 +1103,27 @@ repository existed, and landed as its second commit,
 [`2503af2`](https://github.com/duongnq2798/satchel/commit/2503af2), five seconds after the first:
 both on 2026-11-09 at 01:02 UTC. Everything since is in the public history, each piece of work on its
 own branch and merged by pull request.
+
+## Libraries, templates and AI-assisted code
+
+The hackathon's rules allow libraries, templates, boilerplate and AI-written code, and ask for them to
+be listed here (HACKATHON.md, Q-005). Satchel uses no code or library from the builder's earlier
+projects.
+
+| Part | Built with |
+| --- | --- |
+| Contract | near-sdk and near-contract-standards 5.29.1; the NFT core, metadata and enumeration (NEP-171, 177, 181) are near-contract-standards' implementation. cargo-near 0.22.0 builds it, in the `sourcescan/cargo-near:0.22.0-rust-1.99.1` image for the reproducible build. [`Cargo.toml`](contracts/satchel/Cargo.toml) is the file cargo-near's `cargo near new` template writes, comments included: its `[package]` layout, `[lib]`, `[package.metadata.near.reproducible_build]`, `[profile.release]` and lints blocks. Satchel's own are its name, description, `rust-version`, repository link and pinned dependencies |
+| `satchel-nft` package | viem 2.57 (transaction encoding, hashing, signature recovery, RPC calls to the EVM chains), `@noble/curves` and `@noble/hashes` (the MPC key derivation) |
+| Web app | `satchel-nft` and viem 2.57, Next.js 16.4, React 19.3, Tailwind CSS 4, `@hot-labs/near-connect` 0.11.4 (wallet selection), `@mdx-js/mdx` with `remark-gfm` and Shiki (the docs pages), and the Fraunces, Inter and JetBrains Mono fonts through `next/font/google` |
+| Tests and tools | Vitest 3 and TypeScript 5.9. viem 2.21, pinned in [`tools/package.json`](tools/package.json), is the independent reference for the contract's EIP-1559 test vectors ([`gen-vectors.mjs`](tools/gen-vectors.mjs)). A headless Edge or Chrome renders the README banner ([`render.mjs`](docs/assets/src/render.mjs)) |
+| CI | GitHub Actions with `actions/checkout`, `actions/setup-node` and `actions/upload-artifact` (v4), and cargo-near 0.22.0's release binary, checked against its sha256 |
+| Services | The MPC signer contracts, FastNEAR's RPC and transaction index, and Vercel for hosting, as [Built on NEAR](#built-on-near) and [Web app](#web-app) describe |
+
+**AI-assisted code.** Satchel was built with Claude Code, Anthropic's AI coding agent, which wrote
+most of the code, tests and documentation. The builder decided what to build and when each pull
+request was merged. Commits written with it carry a `Co-Authored-By: Claude` trailer. Besides CI,
+changes were checked by adversarial reviews run with further AI agents; no human has audited the
+contract (see [SECURITY.md](SECURITY.md)).
 
 ## Other project by the same builder
 
