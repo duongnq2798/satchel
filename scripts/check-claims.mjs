@@ -145,7 +145,7 @@ const DEPLOYMENT = [
     check: async () => {
       const config = readFileSync(new URL("../packages/satchel-nft/src/config.ts", import.meta.url), "utf8");
       const block = config.match(new RegExp(`export const ${NETWORK.toUpperCase()}: Network = \\{([\\s\\S]*?)\\n\\};`))?.[1] ?? "";
-      const pinned = block.match(/mpcRootKey:\s*"([^"]+)"/)?.[1];
+      const pinned = block.match(/^\s*mpcRootKey:\s*"([^"]+)"/m)?.[1];
       const root = await viewOn(deployment.mpc_contract, "public_key", { domain_id: 0 });
       if (pinned !== root) throw new Error(`config.ts pins ${pinned}, public_key({ domain_id: 0 }) is ${root}`);
       return `public_key({ domain_id: 0 }) = ${root.slice(0, 22)}…, as config.ts pins it`;
@@ -157,6 +157,7 @@ const DEPLOYMENT = [
       const fixture = new URL("../packages/satchel-nft/src/__fixtures__/derived-keys.json", import.meta.url);
       const { contract, keys } = JSON.parse(readFileSync(fixture, "utf8"))[NETWORK];
       if (contract !== CONTRACT) throw new Error(`the fixture is for ${contract}`);
+      if (Object.keys(keys).length === 0) throw new Error("the fixture holds no keys");
       for (const [path, key] of Object.entries(keys)) {
         const chain = await viewOn(deployment.mpc_contract, "derived_public_key", { path, predecessor: CONTRACT, domain_id: 0 });
         if (chain !== key) throw new Error(`${path}: derived_public_key is ${chain}, the fixture has ${key}`);

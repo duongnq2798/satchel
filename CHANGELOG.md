@@ -11,8 +11,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   is the SHA3-256 hash of `near-mpc-recovery v0.1.0 epsilon derivation:`, the Satchel contract, a comma
   and the path (`deriveMpcKey` in `evm.ts`). The root key of each network is pinned in `config.ts`
   (`mpcRootKey`), so `tokenAddress`, which the app, the CLI and the report use, reads nothing: a lying
-  NEAR RPC can no longer choose the address an owner funds or the one a report reads. The token page
-  says so under the address. The tests derive the keys of all 8 satchels on both networks and get
+  NEAR RPC can no longer change the address of a given satchel. Which satchel is yours (the id a mint
+  returns, the tokens an account owns) still comes from the NEAR RPC, and the threat model says so
+  (row 21g). The token page says under the address that it was derived in the browser. The tests derive the keys of all 8 satchels on both networks and get
   what `derived_public_key` returned (`__fixtures__/derived-keys.json`, 14 new tests, 128 in all), and
   `check-claims.mjs` has two new claims on each network: the pinned root key is the MPC contract's
   `public_key`, and the fixture's keys are its `derived_public_key` (13 claims on testnet, 11 on

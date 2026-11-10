@@ -76,7 +76,8 @@ taken at a block that is final.
 ### NEAR
 
 Every NEAR view (the satchel, its record and listing, the contract's keys, code hash and MPC
-contract, the address the MPC contract derives) asks for `finality: "final"`. The satchel, its record
+contract) asks for `finality: "final"`. A satchel's address is not a view: the package derives it
+from the pinned root key (0.1.0 reads it from the MPC contract's `derived_public_key`, at final too). The satchel, its record
 and its listing come from one `satchel` call, so they are always consistent with each other. The
 contract's facts are separate calls and can come from a slightly later final block.
 

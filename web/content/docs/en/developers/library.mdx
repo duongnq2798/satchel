@@ -381,6 +381,12 @@ From `evm.ts`.
 | `verifiedClient(chainId)` | `(chainId: number) => Promise<PublicClient>` | The same client, once its RPC has answered with that chain id |
 | `formatBalance(wei)` | `(wei: bigint) => string` | `"0.00184"`, `"< 0.00001"` or `"0"` |
 
+Not in 0.1.0: `Network` has `mpcRootKey`, the MPC contract's root public key for domain 0, and
+`deriveMpcKey(rootKey, predecessor, path)` returns the `secp256k1:` key the MPC network holds for
+`path` when `predecessor` asks, as its `derived_public_key` view does. It throws if the root key isn't
+a point on the curve ([how it works](/docs/concepts/satchels-and-addresses#derive-it-yourself)).
+`tokenAddress` and so the report use it. `base58Encode(bytes)` is `base58Decode`'s inverse.
+
 ```ts
 interface EvmTx {
   chainId: number;
@@ -503,11 +509,7 @@ From `contents.ts`, `history.ts` and `evm.ts`.
 | `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
 
 `Network` also gains `txApi`: `https://tx.test.fastnear.com` on testnet,
-`https://tx.main.fastnear.com` on mainnet, and `mpcRootKey`, the MPC contract's root public key.
-`deriveMpcKey(rootKey, predecessor, path)`, from `evm.ts`, returns the `secp256k1:` key the MPC
-network holds for `path` when `predecessor` asks, as its `derived_public_key` view does, and throws if
-the root key isn't a point on the curve ([how it works](/docs/concepts/satchels-and-addresses#derive-it-yourself)).
-`base58Encode(bytes)` is `base58Decode`'s inverse.
+`https://tx.main.fastnear.com` on mainnet.
 
 ```ts title="history.ts"
 import { TESTNET, describeEntry, satchel, signatureCounts, tokenHistory } from "satchel-nft";
