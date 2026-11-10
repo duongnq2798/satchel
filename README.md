@@ -80,12 +80,14 @@ and with it the address on every one of those chains.
 
 You need Node.js 22 or later and git. No wallet, no key and no account: every step reads public NEAR
 and Sepolia data through public RPC nodes. The timings and outputs below are from a fresh clone on a
-Windows 10 laptop with Node 24.12, on 2026-11-09; the claim checker's output in step 2 is from
-2026-11-10. By those timings, the browser example and steps 1 to 4 fit in five minutes if you skip their
-optional builds (rebuilding the wasm in step 3, this checkout's package in step 4). Step 5 needs
-step 4's install and compiles the Rust tests, so give it longer.
+Windows 10 laptop with Node 24.12, on 2026-11-09; the claim checker's output in step 2 and step 4's
+`npx` timings are from 2026-11-10. By those timings, the browser example and steps 1 to 4 fit in five
+minutes if you skip their optional builds (rebuilding the wasm in step 3, this checkout's package in
+step 4) and start step 4's first command before the rest, in a second terminal and an empty folder:
+its download took 142 s and 230 s in two runs here, and runs while you do the other steps. Step 5
+needs step 4's install and compiles the Rust tests, so give it longer.
 
-**Before you install anything: try to cheat a buyer in your browser.** Open
+**While that downloads, try to cheat a buyer in your browser; it needs no install.** Open
 [satchelnft.xyz/#examples](https://satchelnft.xyz/#examples) and pick **Keep a signed withdrawal**.
 Satchel #5's owner had a 10,000 ETH send signed for it and never broadcast it. Your browser reads the
 satchel's record from `v1.satchel-nft.testnet` and Sepolia's nonce for its address at a finalized
@@ -180,14 +182,14 @@ the record changed).
    [`satchel-nft`](packages/satchel-nft), [on npm](https://www.npmjs.com/package/satchel-nft), is the code the web app runs, and its command
    `satchel-nft verify` builds the same report ([`report.ts`](packages/satchel-nft/src/report.ts)) in your terminal.
    It needs no clone. In an empty folder, with an empty npm cache, this fetched the release and
-   printed the report in 86 s and 93 s in two runs here; each report after that took 6 to 12 s:
+   printed the report in 142 s and 230 s in two runs here (0.2.0, 2026-11-10); each report after that took 6 to 11 s:
 
    ```bash
-   npx -y satchel-nft@0.1.0 verify 1
+   npx -y satchel-nft@0.2.0 verify 1
    ```
 
    `-y` installs it without asking, and every command below pins the same release. It was
-   published from commit `728ed74`; the [threat model](docs/THREAT_MODEL.md#what-satchel-trusts)
+   published from commit `2dd4209`; the [threat model](docs/THREAT_MODEL.md#what-satchel-trusts)
    says how to check that it is. To run this checkout's code instead, at the repository root
    (installing took 2 min 54 s here, building 7 s):
 
@@ -197,8 +199,8 @@ the record changed).
    npx satchel-nft verify 1
    ```
 
-   Inside the repository, `npx satchel-nft` with no version runs this checkout's build, 0.2.0 (not
-   on npm yet), never a download. Either way it prints:
+   Inside the repository, `npx satchel-nft` runs this checkout's build, never a download, and so
+   does the pinned command while the checkout's package is 0.2.0 too. Either way it prints:
 
    ```text
    Satchel #1 on v1.satchel-nft.testnet (testnet)
@@ -225,7 +227,7 @@ the record changed).
    Then the satchel that hides a signed send:
 
    ```bash
-   npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"
+   npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"
    ```
 
    ```text
@@ -248,8 +250,8 @@ the record changed).
    | #4 | Nothing: it holds 0.002 Sepolia ETH, never signed anything, and is listed for 1 NEAR | `PROVABLY CLEAN`, and `listed by satchel-nft.testnet at record version 0` | 0 |
    | #7 | Minted with the CLI, sent once on Sepolia, listed, delisted, listed again, sold and handed back, each step with `satchel-nft` ([below](#the-satchel-nft-cli-on-testnet)) | `PROVABLY CLEAN` | 0 |
 
-   `npx -y satchel-nft@0.1.0 verify --network mainnet <id>` reads a mainnet satchel. Satchel #1, the first
-   on mainnet, has sent once on Base; in 5 s here it prints, among its four passing checks:
+   `npx -y satchel-nft@0.2.0 verify --network mainnet <id>` reads a mainnet satchel. Satchel #1, the first
+   on mainnet, has sent once on Base; in 6 s here it prints, among its four passing checks:
 
    ```text
    [PASS] No signed transaction is still pending
@@ -300,10 +302,10 @@ What exists at this commit, and what does not yet.
 | Claim checker | **Shipped**: 13 claims on testnet, 11 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
 | Mainnet deploy script | **Shipped**, and used for the mainnet deployment. It reads the chain before each step, stops if a name belongs to someone else or the code isn't the build, and asks before it deletes the last key | [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
 | The first satchel on mainnet: funded on Base, minted, one send from it in the app, its report clean | **Shipped** on 2026-11-09: satchel #1, 0.00195 ETH on Base, 0.0001 ETH sent from it at satchelnft.xyz, `PROVABLY CLEAN`. The owner signed every transaction | [`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json) |
-| npm package `satchel-nft`: the report as a library and a CLI (`npx -y satchel-nft@0.1.0 verify 1`), with read commands and signing commands that use the near CLI's keychain | **Shipped** on npm as [`satchel-nft` 0.1.0](https://www.npmjs.com/package/satchel-nft), published by the owner on 2026-11-09 from commit `728ed74`, without npm provenance ([how to check it](docs/THREAT_MODEL.md#what-satchel-trusts)). The web app runs on the same code. `npx -y satchel-nft@0.1.0 verify 1` in an empty folder printed `PROVABLY CLEAN`. CI packs the package, installs the tarball in an empty project and runs it, then runs the release from npm on Linux. Every sign command ran on testnet, and an adversarial review of its signing found no way to make it send a transaction other than the one it shows | [`packages/satchel-nft`](packages/satchel-nft), [`deployments/testnet-cli.json`](deployments/testnet-cli.json) |
-| What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Shipped** on 2026-11-10. Above the report, a satchel's page shows its native balance on each of the network's 8 chains, and its USDC, USDT and WETH where a deployment is listed: 22 on the mainnets, 11 on the testnets (no testnet USDT). Each comes from Circle, Tether, USDT0 or the chain itself, except WETH on Sepolia, from Uniswap's deployment list; the sources are in `contents.ts`. After `npm ci` and `npm run build -w satchel-nft`, `node scripts/check-tokens.mjs` reads every one's code, symbol and decimals back from its chain. Below the report, its history: mint, transfers, signatures, listings and sales from FastNEAR's transaction index, each linked to its transaction. The report reads neither. In the CLI, `show` prints the same balances and `history <id>` the timeline; both come with the next npm release, not 0.1.0 | [`contents.ts`](packages/satchel-nft/src/contents.ts), [`history.ts`](packages/satchel-nft/src/history.ts), [`check-tokens.mjs`](scripts/check-tokens.mjs) |
-| A satchel's address derived without an RPC | **Shipped** on 2026-11-10. The app and the CLI compute each satchel's key from the MPC network's root key, pinned in the package, the contract and the path, as the MPC contract does, so no RPC answer changes a satchel's address. Which satchel is yours (the id a mint returns, the tokens you own) still comes from the NEAR RPC, or for a mint from the wallet. The tests derive the keys of the 9 satchels in their fixture (testnet #1 to #8, mainnet #1) and get what the MPC contract's `derived_public_key` returned, and `check-claims.mjs` compares the pinned root key with the chain. `satchel-nft` 0.1.0 on npm still reads the address through the NEAR RPC; the next release derives it | [`evm.ts`](packages/satchel-nft/src/evm.ts), [`derived-keys.json`](packages/satchel-nft/src/__fixtures__/derived-keys.json) |
-| A satchel owned by a Sputnik DAO: its council votes what it signs, and a vote hands it on | **Shipped** on testnet on 2026-11-10, with no contract change. `satchel-club.sputnikv2.testnet` owned satchel #8: a vote passed a `sign_evm` proposal, the contract built the Sepolia transaction from the proposal's arguments and recorded it, `v1.signer-prod.testnet` signed, `satchel-nft dao finish` broadcast it after checking the hash and the signer, and the report read `PROVABLY CLEAN`. A second vote gave the satchel to `buyer.satchel-nft.testnet` with `nft_transfer`. The package builds the proposals, checks open proposals for a nonce already in use, and reads the signature from the vote's receipts; `dao finish` comes with the next npm release, not 0.1.0. Not run on mainnet, and no DAO sale yet | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`deployments/testnet-dao.json`](deployments/testnet-dao.json), [`check-dao.mjs`](scripts/check-dao.mjs), [the walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) |
+| npm package `satchel-nft`: the report as a library and a CLI (`npx -y satchel-nft@0.2.0 verify 1`), with read commands and signing commands that use the near CLI's keychain | **Shipped** on npm as [`satchel-nft` 0.2.0](https://www.npmjs.com/package/satchel-nft), published by the owner on 2026-11-10 from commit `2dd4209` (0.1.0 on 2026-11-09 from `728ed74`), without npm provenance ([how to check it](docs/THREAT_MODEL.md#what-satchel-trusts)). The web app runs on the same code. `npx -y satchel-nft@0.2.0 verify 1` in an empty folder printed `PROVABLY CLEAN`. CI packs the package, installs the tarball in an empty project and runs it, then runs the release from npm on Linux. Every sign command ran on testnet, and an adversarial review of its signing found no way to make it send a transaction other than the one it shows | [`packages/satchel-nft`](packages/satchel-nft), [`deployments/testnet-cli.json`](deployments/testnet-cli.json) |
+| What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Shipped** on 2026-11-10. Above the report, a satchel's page shows its native balance on each of the network's 8 chains, and its USDC, USDT and WETH where a deployment is listed: 22 on the mainnets, 11 on the testnets (no testnet USDT). Each comes from Circle, Tether, USDT0 or the chain itself, except WETH on Sepolia, from Uniswap's deployment list; the sources are in `contents.ts`. After `npm ci` and `npm run build -w satchel-nft`, `node scripts/check-tokens.mjs` reads every one's code, symbol and decimals back from its chain. Below the report, its history: mint, transfers, signatures, listings and sales from FastNEAR's transaction index, each linked to its transaction. The report reads neither. In the CLI, `show` prints the same balances and `history <id>` the timeline, both since 0.2.0 | [`contents.ts`](packages/satchel-nft/src/contents.ts), [`history.ts`](packages/satchel-nft/src/history.ts), [`check-tokens.mjs`](scripts/check-tokens.mjs) |
+| A satchel's address derived without an RPC | **Shipped** on 2026-11-10. The app and the CLI compute each satchel's key from the MPC network's root key, pinned in the package, the contract and the path, as the MPC contract does, so no RPC answer changes a satchel's address. Which satchel is yours (the id a mint returns, the tokens you own) still comes from the NEAR RPC, or for a mint from the wallet. The tests derive the keys of the 9 satchels in their fixture (testnet #1 to #8, mainnet #1) and get what the MPC contract's `derived_public_key` returned, and `check-claims.mjs` compares the pinned root key with the chain. `satchel-nft` derives it since 0.2.0; 0.1.0 reads the address through the NEAR RPC | [`evm.ts`](packages/satchel-nft/src/evm.ts), [`derived-keys.json`](packages/satchel-nft/src/__fixtures__/derived-keys.json) |
+| A satchel owned by a Sputnik DAO: its council votes what it signs, and a vote hands it on | **Shipped** on testnet on 2026-11-10, with no contract change. `satchel-club.sputnikv2.testnet` owned satchel #8: a vote passed a `sign_evm` proposal, the contract built the Sepolia transaction from the proposal's arguments and recorded it, `v1.signer-prod.testnet` signed, `satchel-nft dao finish` broadcast it after checking the hash and the signer, and the report read `PROVABLY CLEAN`. A second vote gave the satchel to `buyer.satchel-nft.testnet` with `nft_transfer`. The package builds the proposals, checks open proposals for a nonce already in use, and reads the signature from the vote's receipts; `dao finish` is in the CLI since 0.2.0. Not run on mainnet, and no DAO sale yet | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`deployments/testnet-dao.json`](deployments/testnet-dao.json), [`check-dao.mjs`](scripts/check-dao.mjs), [the walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) |
 | Holder room: a page only a satchel's current holder can open, with a holder card and a handover kit | **Shipped** on 2026-11-10. The holder's wallet signs a NEP-413 message; the app's one server route, `/api/room`, checks the signature, that the key is a full-access key of the account and that the account owns the satchel, at one final NEAR block, on every request, and stores nothing. The kit says what to do before selling, from the satchel's report. Run on 2026-11-10 with messages signed by near-cli-rs, first against a local build, then against satchelnft.xyz: `satchel-nft.testnet` opened satchel #4's room (200, block 277055444 on satchelnft.xyz), and `buyer.satchel-nft.testnet` got the 403 that names the owner ([below](#holder-room)). In a browser, Meteor's Chrome extension opened mainnet satchel #1's room for `satchel-nft.near` (200, block 223915441) | [`holder.ts`](packages/satchel-nft/src/holder.ts), [`nep413.ts`](packages/satchel-nft/src/nep413.ts), [`kit.ts`](packages/satchel-nft/src/kit.ts), [`route.ts`](web/src/app/api/room/route.ts) |
 | Demo kit: the video script, the X post and the submission text | **Written** on 2026-11-10, and checked against the hackathon's limits by `node scripts/check-demo-kit.mjs`. Its 1:30 scene opens the holder room with a wallet. The video isn't recorded yet | [`docs/DEMO.md`](docs/DEMO.md), [`docs/submission`](docs/submission) |
 | Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
@@ -319,7 +321,7 @@ for the life of a contract.
 | Piece | What it does |
 | --- | --- |
 | **A satchel** | A NEP-171 token on `v1.satchel-nft.near` (or `v1.satchel-nft.testnet`). Anyone can mint one for 0.1 NEAR, with any excess refunded. Its MPC path is `satchel/<token_id>`, fixed for its lifetime, whoever owns it |
-| **Its address** | NEAR's MPC network derives a secp256k1 key from its root key, the Satchel contract's account and that path; the MPC contract's `derived_public_key` view returns it. The app, and the CLI from the next npm release (0.1.0 reads the view), do the same math from the root key pinned in the package, so no RPC answer changes a satchel's address. Its EVM address is the same on all 16 chains the contract signs for. Nobody holds the key: the MPC nodes sign with it only when the Satchel contract asks |
+| **Its address** | NEAR's MPC network derives a secp256k1 key from its root key, the Satchel contract's account and that path; the MPC contract's `derived_public_key` view returns it. The app and the CLI (since `satchel-nft` 0.2.0; 0.1.0 reads the view) do the same math from the root key pinned in the package, so no RPC answer changes a satchel's address. Its EVM address is the same on all 16 chains the contract signs for. Nobody holds the key: the MPC nodes sign with it only when the Satchel contract asks |
 | **`sign_evm`** | The owner sends the fields of an EIP-1559 transaction. The contract RLP-encodes and hashes it itself, classifies the call, updates the record, then asks the MPC contract to sign that hash. Owner only, 1 yoctoNEAR, at least 50 TGas, never while listed |
 | **`sign_raw`** | Signs any 32-byte payload (a Bitcoin sighash, a message hash). Allowed, and counted as opaque |
 | **The signing record** | Public, per token, and it only grows: for each chain the highest nonce signed and how many signatures; up to 32 approvals itemized and the rest counted; calls it could not classify; opaque signatures; and a version that goes up with every signature |
@@ -516,7 +518,7 @@ flowchart LR
 | **A fixed chain list** | Only the 16 chain ids in `SUPPORTED_CHAINS` can be signed for, so every record is checkable | `SUPPORTED_CHAINS` in [`evm.rs`](contracts/satchel/src/evm.rs) | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
 | **The four checks** | Each chain read at a finalized block; anything unreadable is "unknown", never a pass | `contractCheck`, `pendingCheck`, `approvalsCheck`, `countersCheck` in [`report.ts`](packages/satchel-nft/src/report.ts), [`approvals.ts`](packages/satchel-nft/src/approvals.ts) | [`report.test.ts`](packages/satchel-nft/src/report.test.ts), [`approvals.test.ts`](packages/satchel-nft/src/approvals.test.ts) |
 | **App and CLI guards** | No address and no signature until the network's contract passes check 1; only this network's contract, from an account on this network; no transfer to an account that doesn't exist | `assertDeployment`, `assertTxFor`, `assertReceiver` in [`guard.ts`](packages/satchel-nft/src/guard.ts) | [`guard.test.ts`](packages/satchel-nft/src/guard.test.ts) |
-| **Addresses without an RPC** | Each satchel's key is derived in the app (and the CLI, from the next npm release) from the MPC network's root key, pinned in the package, the contract and the path, so no RPC answer changes the address of a given satchel. Which satchel is yours still comes from the NEAR RPC, or for a mint from the wallet | `deriveMpcKey`, `tokenAddress` in [`evm.ts`](packages/satchel-nft/src/evm.ts), `mpcRootKey` in [`config.ts`](packages/satchel-nft/src/config.ts) | [`evm.test.ts`](packages/satchel-nft/src/evm.test.ts), `node scripts/check-claims.mjs` |
+| **Addresses without an RPC** | Each satchel's key is derived in the app and the CLI (since 0.2.0) from the MPC network's root key, pinned in the package, the contract and the path, so no RPC answer changes the address of a given satchel. Which satchel is yours still comes from the NEAR RPC, or for a mint from the wallet | `deriveMpcKey`, `tokenAddress` in [`evm.ts`](packages/satchel-nft/src/evm.ts), `mpcRootKey` in [`config.ts`](packages/satchel-nft/src/config.ts) | [`evm.test.ts`](packages/satchel-nft/src/evm.test.ts), `node scripts/check-claims.mjs` |
 | **Check before broadcast** | A send checks that the contract's `evm_signing_hash` equals viem's hash of the same transaction, and that the MPC signature recovers to the satchel's address, before it broadcasts | `sendFromSatchel` in [`send.ts`](packages/satchel-nft/src/send.ts) | [`send.test.ts`](packages/satchel-nft/src/send.test.ts) |
 | **The holder room's gate** | Only the account that owns a satchel at a final NEAR block, signing with one of its full-access keys, opens its room. The server writes the signed message itself, refuses a proof 5 minutes after its `Issued` time, and reads NEAR only once the signature verifies; nothing is stored between requests | `checkHolder` in [`holder.ts`](packages/satchel-nft/src/holder.ts), `verifyNep413` in [`nep413.ts`](packages/satchel-nft/src/nep413.ts), [`route.ts`](web/src/app/api/room/route.ts) | [`holder.test.ts`](packages/satchel-nft/src/holder.test.ts), [`nep413.test.ts`](packages/satchel-nft/src/nep413.test.ts), [`room-request.test.ts`](web/src/lib/room-request.test.ts) |
 | **CLI signing** | The near CLI only signs. `satchel-nft` runs it by its absolute path, decodes what it signed and compares the signer, receiver, method, arguments, gas and deposit with what it asked for; it shows the transaction, sends it only after `yes` (or `--yes`), and exits 3 with the hash when it can't read the outcome | `resolveNearCli`, `decodeSignedTx`, `assertSignedAsAsked` in [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts); `submit` in [`cli.ts`](packages/satchel-nft/src/cli.ts) | [`near-cli.test.ts`](packages/satchel-nft/src/near-cli.test.ts), and on testnet ([`testnet-cli.json`](deployments/testnet-cli.json)) |
@@ -593,7 +595,7 @@ send against NEAR and Base.
 | Minted satchel #1 to `satchel-nft.near` for 0.1 NEAR | [`HCYB168y…`](https://nearblocks.io/txns/HCYB168yrYuR7U4THAbKZqyMgZ6pzSnWWNhLQNQJEU8g) | Token `1`, path `satchel/1`, at block 223756145, after the lock at 223741744 |
 | `sign_evm` for 0.0001 ETH on Base (8453) at nonce 0, approved in a NEAR wallet at [satchelnft.xyz/mainnet/satchel/1](https://satchelnft.xyz/mainnet/satchel/1) | [`2xqwe8AA…`](https://nearblocks.io/txns/2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4) | The contract recorded chain 8453, nonce 0, `value_transfer`, then `v1.signer` signed |
 | The app checked that the signature recovers to the satchel's address, then broadcast it | [`0x8044dd8c…`](https://basescan.org/tx/0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532) | Block 55178996, status 1. Its r, s and parity are the ones `v1.signer` returned. Fee 0.000000127494755188 ETH, the L1 data fee included, paid by the satchel |
-| Its report, `npx -y satchel-nft@0.1.0 verify --network mainnet 1` or [its page](https://satchelnft.xyz/mainnet/satchel/1) | | `PROVABLY CLEAN` once Base finalized that block, 21 minutes after the send |
+| Its report, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` or [its page](https://satchelnft.xyz/mainnet/satchel/1) | | `PROVABLY CLEAN` once Base finalized that block, 21 minutes after the send |
 
 Mainnet satchels hold real funds on Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain,
 Avalanche and Aurora, and the contract is not audited: keep in one only what you can afford to lose.
@@ -781,8 +783,7 @@ list by an account that doesn't own the satchel, a mint with no terminal and no 
 
 `satchel-nft history 7` reads the same steps back from FastNEAR's transaction index, in order,
 each with its transaction: the mint, the send at nonce 0, three listings, two delistings, the sale
-and the hand-back. `history` isn't in 0.1.0; to run it from this checkout, build it first
-(`npm run build -w satchel-nft`), then `node packages/satchel-nft/bin/satchel-nft.js history 7`.
+and the hand-back. `history` is in `satchel-nft` since 0.2.0: `npx -y satchel-nft@0.2.0 history 7`.
 
 ### A satchel owned by a Sputnik DAO, on testnet
 
@@ -925,7 +926,7 @@ To run it yourself:
    Below them, #4 is for sale for 1 NEAR. Open <http://localhost:3000/satchel/1> for the full
    report, and <http://localhost:3000/mainnet> for the mainnet deployment's facts.
 
-3. Get the same report without a browser: `npx -y satchel-nft@0.1.0 verify 1`, as in
+3. Get the same report without a browser: `npx -y satchel-nft@0.2.0 verify 1`, as in
    [step 4 of the evaluation](#how-to-evaluate-satchel-in-5-minutes). It exits 0 only when the
    satchel is provably clean.
 
@@ -934,7 +935,7 @@ To run it yourself:
    under every report; the CLI can use your own instead:
 
    ```bash
-   NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 1
+   NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
    ```
 
    `RPC_<chain id>` works for each of the 16 chains. The app also checks that every EVM RPC
@@ -1178,7 +1179,7 @@ three workflows directly, each when its paths change.
 | Contract | Format, lint, unit tests, wasm build | `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`, then `cargo near build non-reproducible-wasm --locked`; uploads `satchel-wasm` | Every pull request, every push to `main` or `dev` |
 | Contract | Reproducible build and code hash | `cargo near build reproducible-wasm` in the pinned Docker image, then writes the commit and the code hash to the run's summary; uploads `satchel-reproducible-wasm`, kept 90 days. cargo-near's release binary is checked against the sha256 its own installer pins | The same |
 | Web | Typecheck, unit tests, build | `npm ci` at the root, then in `web` `npm run typecheck`, `npm test`, `npm run build`, on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/`, `packages/`, the root `package.json` or lockfile, or the workflow |
-| Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.1.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
+| Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 
 The tests, as of 2026-11-10: 61 Rust unit tests in
@@ -1239,7 +1240,7 @@ What the tests pin down:
 - `listings` pages can shift between calls, because removing a listing moves the last one into its slot.
   A page can also come back short, or empty, with more listings after it, because the view drops stale
   listings after it pages. `satchel(net).allListings()` in `satchel-nft` reads pages up to
-  `nft_total_supply`, which bounds the stored count, and the CLI and the app use it. It is not in 0.1.0.
+  `nft_total_supply`, which bounds the stored count, and the CLI (since 0.2.0) and the app use it.
 - **The web app trusts the RPCs it reads.** The checks are only as true as the answers of one public
   RPC per chain and one NEAR RPC. The report names them, and `satchel-nft verify` can read from your own
   nodes instead. It does not yet compare two RPCs or check storage proofs.
@@ -1255,7 +1256,7 @@ What the tests pin down:
 - **A DAO-owned satchel has run on testnet only.** One Sputnik DAO with one council member signed
   one Sepolia send by vote and handed the satchel on by vote; no DAO has listed or bought a satchel,
   and none has run on mainnet. The app has no DAO screens: the walkthrough files proposals and votes
-  with the near CLI, and `satchel-nft dao finish`, not in 0.1.0, broadcasts what a vote signed
+  with the near CLI, and `satchel-nft dao finish` (since 0.2.0) broadcasts what a vote signed
   ([A satchel owned by a Sputnik DAO](#a-satchel-owned-by-a-sputnik-dao-on-testnet)).
 - **No picture per token.** Each token's metadata has a title, a description and its MPC path, but no
   `media`, and the locked contract can't add one. A wallet or marketplace has nothing to show for a

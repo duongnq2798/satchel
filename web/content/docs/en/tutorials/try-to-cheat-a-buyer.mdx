@@ -58,13 +58,14 @@ who funded its address with about 0.0101 Sepolia ETH could broadcast that signat
 ## Path 2: in your terminal
 
 The CLI runs the same report code as the browser. Each command exits `0` only when the satchel reads
-`PROVABLY CLEAN`. The outputs below are from 2026-11-09 (UTC). The first run downloads the package,
-which can take a minute or more; each report after that takes a few seconds.
+`PROVABLY CLEAN`. The outputs below are from 2026-11-09 (UTC), and 0.2.0 printed the same on
+2026-11-10. The first run downloads the package, which took 142 s and 230 s in two runs on
+2026-11-10; each report after that took 6 to 11 s.
 
 ### Satchel #1: played fair
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1
+npx -y satchel-nft@0.2.0 verify 1
 ```
 
 ```text
@@ -98,7 +99,7 @@ still land. That is what check 2 proves.
 ### Satchel #5: keep a signed withdrawal
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 5; echo "exit $?"
+npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"
 ```
 
 ```text
@@ -137,7 +138,7 @@ signature is public in the NEAR receipt, so the seller could broadcast it first.
 ### Satchel #3: leave an approval behind
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 3
+npx -y satchel-nft@0.2.0 verify 3
 ```
 
 ```text
@@ -166,7 +167,7 @@ clean, the seller would have to sign a revocation, `approve(spender, 0)`, and wa
 ### Satchel #6: sign a raw payload
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 6
+npx -y satchel-nft@0.2.0 verify 6
 ```
 
 ```text
@@ -204,7 +205,7 @@ also listed, at record version 1, so you can see what a buyer would see before p
 ### Satchel #4: for sale, and clean
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 4
+npx -y satchel-nft@0.2.0 verify 4
 ```
 
 ```text

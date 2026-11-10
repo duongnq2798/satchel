@@ -115,7 +115,7 @@ It is also only as honest as the RPCs it reads. The report names them under its 
 purchase, run it yourself against nodes you trust:
 
 ```bash
-NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.1.0 verify 4
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 4
 ```
 
 `RPC_<chain id>` works for each of the 16 chains. [RPCs, finality and rate limits](/docs/developers/rpc-and-finality)
@@ -127,7 +127,7 @@ has the details.
 version that report read:
 
 ```bash
-npx -y satchel-nft@0.1.0 buy 4 --as alice.testnet
+npx -y satchel-nft@0.2.0 buy 4 --as alice.testnet
 ```
 
 Replace `alice.testnet` with your own account, one the near CLI can sign for.

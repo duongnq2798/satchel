@@ -54,7 +54,7 @@ With the account's key in the near CLI's keychain, `mint` prints the transaction
 `Send it? Type yes to send:`, then prints the new token and its address:
 
 ```bash
-npx -y satchel-nft@0.1.0 mint --as alice.testnet
+npx -y satchel-nft@0.2.0 mint --as alice.testnet
 ```
 
 Before you agree, it reminds you of the rule below:
@@ -84,11 +84,11 @@ Its address is known before it exists, but anyone can mint the next id: fund it 
 
 </Steps>
 
-From a terminal, `show` prints the native balances (built from this repository, its USDC, USDT and
-WETH too). This is satchel #4 on testnet:
+From a terminal, `show` prints the same: the native balance on each chain, and USDC, USDT and WETH
+where the satchel holds some. This is satchel #4 on testnet:
 
 ```bash
-npx -y satchel-nft@0.1.0 show 4
+npx -y satchel-nft@0.2.0 show 4
 ```
 
 ```text
@@ -106,11 +106,14 @@ BNB testnet       0 tBNB
 Avalanche Fuji    0 AVAX
 Aurora testnet    0 ETH
 
+USDC, USDT and WETH are read at the addresses their issuers or the chains list (Uniswap's, for WETH on Sepolia); other tokens aren't.
 Before you buy it: satchel-nft verify 4
 ```
 
-The page and `show` list native coins only. Tokens such as USDC sent to the address are there, and your
-explorer shows them, but the app doesn't list them yet.
+A chain's line lists USDC, USDT or WETH after its coin only when the satchel holds some, like
+`0.002 ETH, 5 USDC`, or when its balance couldn't be read (`USDC unavailable`); satchel #4 holds none.
+Any other token sent to the address is there too, and the explorer shows it, but neither the page nor
+`show` lists it.
 
 ## Mint first, then fund
 

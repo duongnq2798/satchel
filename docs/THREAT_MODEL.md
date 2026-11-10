@@ -61,16 +61,17 @@ transaction on testnet that shows it working.
   token at any other address, a look-alike included, isn't shown; each chain's explorer, linked
   from the page, shows everything. Nothing in the report depends on these balances.
 - **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**
-  Version 0.1.0 was published from the owner's npm account and a Windows checkout of commit
-  `728ed74`, which npm records as its `gitHead`, without npm provenance. Packing that commit on the
-  same machine gave the same shasum, `599980b6445558157e28f7bae7872b0756988150`
-  (`npm view satchel-nft@0.1.0 dist.shasum`). On another machine, compare files instead: unpack
-  `npm pack satchel-nft@0.1.0` and strip its Windows line endings. Then `bin/`, `package.json`,
-  `README.md` and `LICENSE` are byte for byte the commit's, and `dist/`, the code the launcher
-  runs, is byte for byte what `npm run build -w satchel-nft` builds from it. npm also lists
-  `0.0.0-stage`, a two-file, 333-byte "Temporary package placeholder for staged publishing" that
-  npm made two minutes before 0.1.0. A later version holds whatever its publisher put in it: pin
-  `@0.1.0` to run this one.
+  Version 0.2.0 was published on 2026-11-10 from the owner's npm account and a clean Windows clone
+  of commit `2dd4209`, which npm records as its `gitHead`, without npm provenance. Packing that
+  commit on the same machine before the publish gave the same shasum,
+  `b9822a7ac13476566bc6772ccda08979e5802480` (`npm view satchel-nft@0.2.0 dist.shasum`). On
+  another machine, where the launcher's file mode can differ, compare files instead: unpack
+  `npm pack satchel-nft@0.2.0`. Its files are LF. `bin/`, `package.json`, `README.md` and
+  `LICENSE` are byte for byte the commit's, and `dist/`, the code the launcher runs, is byte for
+  byte what `npm run build -w satchel-nft` builds from it. npm also lists 0.1.0 (2026-11-09, commit
+  `728ed74`, packed with Windows line endings) and `0.0.0-stage`, a two-file, 333-byte "Temporary
+  package placeholder for staged publishing" that npm made two minutes before 0.1.0. A later
+  version holds whatever its publisher put in it: pin `@0.2.0` to run this one.
 
 ## Attacks and what stops them
 
@@ -128,7 +129,7 @@ transaction on testnet that shows it working.
 | 21d | The near CLI that `satchel-nft` signs with signs a different transaction than the one asked for, or a program planted as `near` runs instead | `satchel-nft` runs the near CLI by its absolute path: `--near-cli`, `$NEAR_CLI`, or `near` found in PATH's absolute folders only (given a bare name, Windows would run a `near.exe` from the current folder first), and names that path before you agree. It asks the near CLI only to sign (`display`), decodes the signed transaction, and compares its signer, receiver, method, arguments, gas and deposit with what it asked for. A difference, a second action, a V1 transaction, a byte order mark or trailing bytes stops it before anything is sent. It then shows the transaction and sends only after you type `yes`, or with `--yes`; input that ends before an answer is a no (`resolveNearCli`, `decodeSignedTx`, `assertSignedAsAsked` in `packages/satchel-nft/src/near-cli.ts`, tests in `near-cli.test.ts`) | A malicious `near` binary in a folder on your PATH has your key and can send anything by itself. The check catches a mismatched or mistaken one, not a hostile one |
 | 21e | A NEAR RPC answers about another token, or reports a transaction as done before it is | The token view must name the id asked for and the path `satchel/<id>`, or nothing is built from it (`satchel(net).get`). An outcome counts only once its status is final, `SuccessValue` or `Failure` (`finished` in `near.ts`). A transaction the CLI sent but couldn't read back exits 3 with its hash, so a script doesn't send it twice (`OutcomeUnknown`) | |
 | 21f | An EVM RPC inflates the fee or the nonce of a send from the CLI | Before you agree, the CLI shows the most the fees can reach and the nonce the contract will record; the balance must cover the value and those fees. A broadcast that may have gone through exits 3, with its hash and the nonce whose signature is now public | With `--yes`, nothing caps the fee or checks the nonce against the record, so a lying RPC can spend the balance on fees. Use your own node with `RPC_<chain id>`, or leave out `--yes` |
-| 21g | A NEAR RPC answers with another key for a satchel, so its owner funds an address the attacker controls, or a report reads another address than the satchel's | The app, the CLI and the report don't ask. `deriveMpcKey` in `packages/satchel-nft/src/evm.ts` computes the key as the MPC contract does: the root key plus sha3-256 of a fixed prefix, the Satchel contract, a comma and the path, times the generator. The root key is pinned in `config.ts` (`mpcRootKey`). `evm.test.ts` derives the keys of the 9 satchels in its fixture (testnet #1 to #8, mainnet #1) and gets what `derived_public_key` returned for them, and `node scripts/check-claims.mjs` compares the pinned key with the MPC contract's `public_key` | Which satchel is yours still comes from the NEAR RPC: the id a mint returns, `nft_tokens_for_owner` and `owner_id`. A lying NEAR RPC (or wallet) can name a satchel someone else owns, and the app then shows that satchel's correct address as yours; read the id and the owner from your own node or an explorer before funding much. `satchel-nft` 0.1.0 on npm still reads the address itself through the NEAR RPC. Nothing in the app compares the pinned root key with the chain: if the MPC network changed it, the app would show addresses it no longer signs for until a release pins the new one, and running `node scripts/check-claims.mjs` would show the mismatch. The MPC network is trusted (residual risk 1) |
+| 21g | A NEAR RPC answers with another key for a satchel, so its owner funds an address the attacker controls, or a report reads another address than the satchel's | The app, the CLI and the report don't ask. `deriveMpcKey` in `packages/satchel-nft/src/evm.ts` computes the key as the MPC contract does: the root key plus sha3-256 of a fixed prefix, the Satchel contract, a comma and the path, times the generator. The root key is pinned in `config.ts` (`mpcRootKey`). `evm.test.ts` derives the keys of the 9 satchels in its fixture (testnet #1 to #8, mainnet #1) and gets what `derived_public_key` returned for them, and `node scripts/check-claims.mjs` compares the pinned key with the MPC contract's `public_key` | Which satchel is yours still comes from the NEAR RPC: the id a mint returns, `nft_tokens_for_owner` and `owner_id`. A lying NEAR RPC (or wallet) can name a satchel someone else owns, and the app then shows that satchel's correct address as yours; read the id and the owner from your own node or an explorer before funding much. `satchel-nft` 0.1.0 reads the address itself through the NEAR RPC; 0.2.0 derives it. Nothing in the app compares the pinned root key with the chain: if the MPC network changed it, the app would show addresses it no longer signs for until a release pins the new one, and running `node scripts/check-claims.mjs` would show the mismatch. The MPC network is trusted (residual risk 1) |
 
 ### Storage and spam
 
@@ -179,9 +180,10 @@ data, so these attacks are on the gate, not on a secret.
 10. No admin, so stuck NEAR and the chain list cannot be changed.
 11. For a CLI send with `--yes`, the fee and the nonce read from one EVM RPC (row 21f). Which
     satchel is yours, read from one NEAR RPC (row 21g). A satchel's address itself no longer comes
-    from an RPC, except in `satchel-nft` 0.1.0 on npm.
+    from an RPC, except in `satchel-nft` 0.1.0. The README and the docs pin 0.2.0, but the holder
+    room's handover kit prints 0.1.0 commands until the next release.
 12. The npm release, published without provenance: whoever holds the owner's npm account could
-    publish a version that lies (trusted, above; the README pins 0.1.0).
+    publish a version that lies (trusted, above; the README pins 0.2.0).
 13. The holder room: a captured proof opens it until 5 minutes after its `Issued` time (up to 6
     minutes, since `Issued` may run a minute ahead of the server's clock) while that account still
     owns the satchel, a former holder for the few seconds a final block lags a sale, and a lying NEAR

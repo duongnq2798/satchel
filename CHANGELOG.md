@@ -267,6 +267,28 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   on npm, and the pull request that moves the pins after. Inside the repository a pinned
   `npx satchel-nft@0.1.0` now fetches 0.1.0 from npm instead of running the checkout, so the
   README's and AGENTS.md's steps for this checkout run `npx satchel-nft` with no version.
+- `satchel-nft` 0.2.0 is on npm, published by its owner on 2026-11-10 from commit `2dd4209`
+  (`gitHead` `2dd420925c16fc7b9f6ef56bb35d14a489386316`, `dist.shasum`
+  `b9822a7ac13476566bc6772ccda08979e5802480`, the shasum a clean clone's `npm pack` gave). The
+  tarball's launcher, `package.json`, README and LICENSE are the commit's, and its `dist` is what
+  the clone built. Every pinned command outside the package now runs `@0.2.0`: the README,
+  AGENTS.md, `docs/DEMO.md`, the docs, the app's pages, and the package workflow, which runs the
+  release from npm in an empty folder with a cache of its own. The package's handover kit, which the
+  holder room shows, still prints `satchel-nft@0.1.0` commands, a release that has each of them; it
+  changes with the next version, and the threat model's residual risk 11 says so. The threat model's
+  npm entry, the production checklist's heading, link, `npm view` output and file comparison, the
+  security page and the docs header give 0.2.0's facts. The docs' notes that set 0.1.0 apart or
+  pointed at the next release (`history`, `dao finish`, the tokens `show` prints, every live listing
+  in `market` and `allListings`, each chain's status in `chains`, the address derived from the
+  pinned root key) now say "since 0.2.0", some with what 0.1.0 does instead, or are gone. Inside the
+  repository the pinned command runs the checkout's build, since the checkout's package is 0.2.0
+  too. Two cold runs of `npx -y satchel-nft@0.2.0 verify 1` from an empty folder took 142 s and
+  230 s, and each report after them 6 to 11 s; the README, the demo, the quickstart and the cheat
+  tutorial say so, and the sale tutorial gives the first-run times. The README's five-minute
+  evaluation now starts that download first, in a second terminal, and the docs home's Quickstart
+  card promises two minutes for the browser path only. `docs/RELEASING.md` lists both releases and
+  adds that the owner's 2FA, confirmed in the browser, needs a real console such as PowerShell: in
+  Git Bash's terminal `npm publish` stops with `EOTP`.
 - A browser wallet has opened the holder room: Meteor's Chrome extension, connected as
   `satchel-nft.near`, opened mainnet satchel #1's room on satchelnft.xyz (200, the holder card at
   block 223915441, "The satchel reads clean"). **Check again** sent the same signature without

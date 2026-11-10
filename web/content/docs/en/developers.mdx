@@ -7,7 +7,7 @@ mint, sign, list, delist, buy or transfer.
 
 | | `satchel-nft` library | `satchel-nft` CLI | The contract directly |
 | --- | --- | --- | --- |
-| **What you get** | The clean transfer report, the contract's reads, ready-made wallet transactions, the send flow with every check, and the guards the app runs before signing | The same code as commands: `verify`, `show`, `record`, `market`, and `mint`, `list`, `delist`, `buy`, `transfer`, `send` | Every method and view, with nothing in between |
+| **What you get** | The clean transfer report, the contract's reads, ready-made wallet transactions, the send flow with every check, and the guards the app runs before signing | The same code as commands: `verify`, `show`, `record`, `history`, `market`, and `mint`, `list`, `delist`, `buy`, `transfer`, `send`, and `dao finish` for a satchel a DAO owns | Every method and view, with nothing in between |
 | **What it needs** | Node 22 or later, or a browser bundle; an ES module project | Node 22 or later. Sign commands also need the [near CLI](https://github.com/near/near-cli-rs) with a key in its keychain | Any NEAR client: near-cli-rs, near-api-js, a wallet, raw JSON-RPC |
 | **Who holds keys** | Your wallet. The library builds transactions; it never signs | The near CLI. The package never reads a key | Your client |
 | **Use it when** | You build a marketplace, a wallet view, a bot or a backend job that must show a verdict or act on one | You script, test, run CI, or want an answer in a terminal | You need a call the package doesn't wrap, or you work in another language |
@@ -38,28 +38,28 @@ library's own command. All three produce the same report, because it is the same
 <Tab>
 
 ```bash
-npm install satchel-nft@0.1.0
+npm install satchel-nft@0.2.0
 ```
 
-The package is an ES module with types, for Node 22 or later. Its one dependency is
-[viem](https://viem.sh).
+The package is an ES module with types, for Node 22 or later. Its dependencies are
+[viem](https://viem.sh), and `@noble/curves` and `@noble/hashes` for the key derivation and NEP-413.
 
 </Tab>
 <Tab>
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1
+npx -y satchel-nft@0.2.0 verify 1
 ```
 
-`-y` lets npx install it without asking. Pin `@0.1.0`: a later version holds whatever its publisher
+`-y` lets npx install it without asking. Pin `@0.2.0`: a later version holds whatever its publisher
 put in it, and the [threat model](/docs/security/threat-model#what-satchel-trusts) says how to check
-that 0.1.0 is commit `728ed74`.
+that 0.2.0 is commit `2dd4209`.
 
 </Tab>
 <Tab>
 
 ```bash
-npm install --global satchel-nft@0.1.0
+npm install --global satchel-nft@0.2.0
 satchel-nft --version
 ```
 
@@ -81,10 +81,11 @@ so the report never trusts the contract to describe itself.
 | `build.codeHash` | `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` | the same |
 | `build.commit` | `87148c6b6f97f3121cac13c93e22d7d153453b53` | the same |
 
-In this repository (not in 0.1.0), `Network` also has `txApi`, FastNEAR's transaction index
+Since 0.2.0, `Network` also has `txApi`, FastNEAR's transaction index
 (`https://tx.test.fastnear.com`, `https://tx.main.fastnear.com`). A satchel's history reads it, and
-`dao finish` asks it for a vote's signer; the report doesn't. It also has `mpcRootKey`, the MPC contract's root public key, which every
-satchel's key is [derived from](/docs/concepts/satchels-and-addresses#derive-it-yourself).
+`dao finish` asks it for a vote's signer; the report doesn't. It also has `mpcRootKey`, the MPC
+contract's root public key, which every satchel's key is
+[derived from](/docs/concepts/satchels-and-addresses#derive-it-yourself).
 
 `CHAINS` lists the 16 EVM chains the contract can sign for, each with its chain id, coin, default
 RPC and explorer. A testnet satchel sends on the 8 testnets and a mainnet satchel on the 8 mainnets
@@ -113,7 +114,7 @@ is `"clean"`, `"not-provable"` or `"unknown"`.
 <Tab>
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 7 --json
+npx -y satchel-nft@0.2.0 verify 7 --json
 ```
 
 The exit code is the answer: `0` only when the report reads `PROVABLY CLEAN`, `1` when it doesn't,

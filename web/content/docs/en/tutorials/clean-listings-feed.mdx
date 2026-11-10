@@ -19,7 +19,7 @@ It reads only public data, so it needs no wallet and no key.
    ```bash
    npm init -y
    npm pkg set type=module
-   npm install --save-exact satchel-nft@0.1.0 tsx@4.23.15
+   npm install --save-exact satchel-nft@0.2.0 tsx@4.23.15
    ```
 
 2. **Write the script.** Save it as `feed.ts`:
@@ -121,17 +121,19 @@ stale ones after it pages, so a page can be short, or even empty, with more list
 short page is not the end. Each stored listing is keyed by a token, and tokens are never burned, so
 `nft_total_supply` bounds how many there are; the script reads pages until they cover it. Removing a
 listing moves the last one into its slot, so pages can shift between calls: read them close
-together, and keep each token once. In this repository, `satchel(net).allListings()` does all of
-this in one call; it is not in 0.1.0.
+together, and keep each token once. Since 0.2.0, `satchel(net).allListings()` does all of this in
+one call and returns the same pairs, so step 1 can be
+`const listings = await satchel(net).allListings();`.
 
 **Shared facts.** Check 1 of every report reads the same three facts about the contract: its access
 keys, its code hash and its MPC contract. `contractFacts(net)` reads them once; passing the promise
 as `buildReport`'s third argument shares that read across every report.
 
-**Reports.** `buildReport(net, tokenId, facts)` reads the token, derives its address through the MPC
-contract, and reads each EVM chain in its record at a finalized block. It never throws for a check it
-can't read: that check reads `"unknown"`. The `.catch(() => null)` covers what can throw, such as the
-NEAR RPC failing, and shows that listing as `"unknown"`, as the CLI does.
+**Reports.** `buildReport(net, tokenId, facts)` reads the token, derives its address from the MPC
+network's root key pinned in the package, with no RPC read, and reads each EVM chain in its record at
+a finalized block. It never throws for a check it can't read: that check reads `"unknown"`. The
+`.catch(() => null)` covers what can throw, such as the NEAR RPC failing, and shows that listing as
+`"unknown"`, as the CLI does.
 
 **The limiter.** `limiter(3)` runs at most three reports at once and queues the rest. Each report
 makes several RPC calls, and public nodes rate-limit bursts.
@@ -183,7 +185,7 @@ An EVM RPC that answers with another chain id is refused, so its checks read `"u
 The CLI's `market` command is this script, built in:
 
 ```bash
-npx -y satchel-nft@0.1.0 market --json
+npx -y satchel-nft@0.2.0 market --json
 ```
 
 It prints `{ network, contract, listings }`, each listing with `tokenId`, `seller`, `price`,
@@ -219,7 +221,7 @@ and the buyer keeps their NEAR.
 | `Top-level await is not supported with the "cjs" output format`, `ERR_REQUIRE_ESM` or `Cannot use import statement outside a module` | The project isn't an ES module | Run `npm pkg set type=module` |
 | Every verdict is `"unknown"` | An RPC is down or rate-limiting you, or a satchel sent recently and its block isn't final yet | Run it again in a few minutes, lower the limiter to 1 or 2, or use your own nodes |
 | `NEAR RPC query failed: HTTP 429` | The NEAR RPC rate-limited you | Lower the limiter, or set `NEAR_RPC` to your own node |
-| A satchel you expect is missing | It was bought, delisted or transferred; any transfer ends a listing | Check it with `npx -y satchel-nft@0.1.0 show <id>` |
+| A satchel you expect is missing | It was bought, delisted or transferred; any transfer ends a listing | Check it with `npx -y satchel-nft@0.2.0 show <id>` |
 
 ## Next steps
 

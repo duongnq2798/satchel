@@ -89,7 +89,7 @@ The `satchel` view returns `null` for an id that doesn't exist, and the CLI then
 
 | Code | Meaning | Examples |
 | --- | --- | --- |
-| `0` | Done. For `verify`, the report reads `PROVABLY CLEAN` | A clean `verify`; `show`, `record` and `market`; a sign command that succeeded; a `send` whose transaction succeeded |
+| `0` | Done. For `verify`, the report reads `PROVABLY CLEAN` | A clean `verify`; `show`, `record`, `history` and `market`; a sign command that succeeded; a `send` whose transaction succeeded |
 | `1` | The answer is no: not clean, refused, or failed on chain | `verify` on a satchel that is not provably clean; `No satchel #999999 on v1.satchel-nft.testnet`; a contract error; you didn't type `yes`; a `send` whose EVM transaction reverted |
 | `2` | It could not run | Bad arguments; an option the command doesn't take; a NEAR RPC for the other network; no near CLI; no terminal to ask in; an error it didn't expect |
 | `3` | It sent a transaction but couldn't read what happened to it | The NEAR RPC stopped answering after `send_tx`; a `send` broadcast on the EVM chain but its receipt didn't come |
@@ -97,7 +97,7 @@ The `satchel` view returns `null` for an id that doesn't exist, and the CLI then
 These ran on testnet:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify abc; echo "exit $?"
+npx -y satchel-nft@0.2.0 verify abc; echo "exit $?"
 ```
 
 ```text
@@ -108,7 +108,7 @@ exit 2
 ```
 
 ```bash
-NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.1.0 verify 1; echo "exit $?"
+NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.2.0 verify 1; echo "exit $?"
 ```
 
 ```text
@@ -119,7 +119,7 @@ exit 2
 With `--json`, every error is an object on stdout instead:
 
 ```bash
-npx -y satchel-nft@0.1.0 verify 1 --json --network devnet
+npx -y satchel-nft@0.2.0 verify 1 --json --network devnet
 ```
 
 ```json
@@ -146,10 +146,11 @@ the same thing twice. The message names what to check, and with `--json` the obj
 
 | Message | Cause |
 | --- | --- |
-| `Unknown command <name>` | Not one of `verify`, `show`, `record`, `market`, `mint`, `list`, `delist`, `buy`, `transfer`, `send`, or, built from this repository, `history` |
+| `Unknown command <name>` | Not one of `verify`, `show`, `record`, `history`, `market`, `mint`, `list`, `delist`, `buy`, `transfer`, `send` or `dao` |
 | `<command> does not take --<option>` | An option that belongs to another command. `satchel-nft buy 4 --value 1` is an error, not a purchase |
 | `usage: satchel-nft <command> <arguments>` | Too many or too few positional arguments |
 | `A token id is a whole number, like 1, not <text>` | The id is not a `u64` in decimal |
+| `dao takes finish, not <text>`, `<text> is not a NEAR transaction hash` | `dao` without `finish`, or a hash that isn't 32 to 44 base58 characters |
 | `--network is testnet or mainnet, not <text>` | Another network name |
 | `--keychain is legacy or os, not <text>` | Another keychain |
 | `<command> signs: name the NEAR account with --as <account>` | A sign command without `--as` |
