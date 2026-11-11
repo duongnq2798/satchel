@@ -164,7 +164,8 @@ NEAR receipt. Until a transaction at that nonce is final, anyone holding the sig
 report reads "not provable". This is what satchel #5 shows.
 
 **How.** Use the app's send or `satchel-nft send`, which check, sign and broadcast in one flow. If a send stops after
-signing, broadcast it or spend that nonce with another transaction before you list. A reverted transaction still
+signing, broadcast it or spend that nonce with another transaction before you list: **Make it clean**, under the
+report, has a **Spend nonce** button for each open nonce its revokes don't spend. A reverted transaction still
 spends its nonce.
 
 ### 9. Revoke approvals before you list
@@ -176,7 +177,8 @@ spends its nonce.
 **How.** Send the revoking call from the satchel through `sign_evm`: `approve(spender, 0)` for an ERC-20,
 `setApprovalForAll(operator, false)`, or a Permit2 `approve` of 0. The last two are recorded as revocations and
 take no approval slot; `approve(x, 0)` is itemized like any approval, and reads as revoked once the allowance is 0.
-Then read the report and wait for finality. [Sell a satchel](/docs/guides/sell) has the steps.
+On the satchel's page, **Make it clean** under the report builds each revoke and gives the owner a button for
+it. Then read the report and wait for finality. [Sell a satchel](/docs/guides/sell) has the steps.
 
 ### 10. Keep a satchel you'll sell away from raw signatures and unclassified calls
 

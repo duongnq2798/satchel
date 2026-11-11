@@ -207,11 +207,12 @@ Until 2026-11-25:
   once. After that it reads provably clean; leave it as it is, and update the README's section on
   it in the same pull request as anything else this list names.
 - Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1 and
-  #2. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's example
-  says #2's address belongs to the same seller; the README and the 1:18 scene show #7's history; #4
-  is for sale for 1 NEAR at record version 0 and #6 at record version 1, and `list` on a listed
-  satchel replaces its price; `buyer.satchel-nft.testnet` owns #8, as the DAO walkthrough ends;
-  `satchel-nft.near` owns mainnet #1 and #2.
+  #2. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's
+  example says #2's address belongs to the same seller; the README shows #7's history, and #9's
+  approval in the 1:18 scene names #7's address; #4 is for sale for 1 NEAR at record version 0 and
+  #6 at record version 1, and `list` on a listed satchel replaces its price;
+  `buyer.satchel-nft.testnet` owns #8, as the DAO walkthrough ends; `satchel-nft.near` owns mainnet
+  #1 and #2.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
 If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,

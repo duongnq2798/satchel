@@ -130,6 +130,7 @@ export const DEMO_SATCHELS: readonly DemoSatchel[] = [
   { network: "testnet", tokenId: "5", story: "A 10,000 ETH send on Sepolia was signed and never broadcast", pick: true },
   { network: "testnet", tokenId: "6", story: "Listed, delisted, signed a raw payload and listed again; a buy naming the old record version was refused", pick: true },
   { network: "testnet", tokenId: "7", story: "Sent once on Sepolia, then listed, sold and handed back, each step with the satchel-nft CLI", pick: false },
+  { network: "testnet", tokenId: "8", story: "Minted to a Sputnik DAO, whose vote had it sign a Sepolia send; a second vote gave it to buyer.satchel-nft.testnet", pick: false },
   { network: "mainnet", tokenId: FIRST_SEND.tokenId, story: `Sent ${FIRST_SEND.sent} ETH on Base from this app`, pick: true },
   {
     network: "mainnet",

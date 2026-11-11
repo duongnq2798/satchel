@@ -127,12 +127,12 @@ describe("the testnet demo stories match deployments/testnet-gallery.json", () =
 });
 
 describe("the demo satchels", () => {
-  it("offers testnet #1, #3 to #6 and mainnet #1 and #2 as quick picks, and lists #7 too", () => {
+  it("offers testnet #1, #3 to #6 and mainnet #1 and #2 as quick picks, and lists #7 and #8 too", () => {
     const ids = (network: string, pick?: boolean) =>
       DEMO_SATCHELS.filter((d) => d.network === network && (pick === undefined || d.pick === pick)).map((d) => d.tokenId);
     expect(ids("testnet", true)).toEqual(["1", "3", "4", "5", "6"]);
     expect(ids("mainnet", true)).toEqual(["1", "2"]);
-    expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7"]);
+    expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8"]);
   });
 });
 
