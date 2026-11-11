@@ -74,8 +74,8 @@ export function FixPanel({
         .get(token.token_id)
         .catch(() => null);
       // Without it, the page's record, which may predate every send from this card: they all count.
-      if (!fresh) return { at: 0, inputs: await readFixInputs(about, token.record) };
-      return { at, inputs: await readFixInputs(about, fresh.record) };
+      if (!fresh) return { at: 0, pageRecord: true, inputs: await readFixInputs(about, token.record) };
+      return { at, pageRecord: false, inputs: await readFixInputs(about, fresh.record) };
     },
     `${net.id}:${token.token_id}:${about?.checkedAt ?? "none"}:${token.record.version}`,
   );
@@ -179,7 +179,9 @@ export function FixPanel({
               <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
                 {sender.busy
                   ? "A fix sent from the plan before this one is still running, and its steps are below. This plan may have read the chains before it went out, so it offers no buttons: check again once that send is done."
-                  : "A send from this card finished after this plan began reading the chains, so the plan may have read them before that send went out and offer its fix again. Check again to read them after it."}
+                  : read.data?.pageRecord
+                    ? "The card couldn't read the satchel's record from NEAR, so this plan uses the page's, which may be older than the last send from this card. It offers no buttons until you check again."
+                    : "A send from this card finished after this plan began reading the chains, so the plan may have read them before that send went out and offer its fix again. Check again to read them after it."}
               </p>
             )}
             {plan.notes.map((note) => (
