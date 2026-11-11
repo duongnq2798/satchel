@@ -65,12 +65,12 @@ The mainnet deployment has its own record, `deployments/mainnet.json`:
 node scripts/check-claims.mjs --network mainnet
 ```
 
-You should see `11 of 11 claims hold`. The first seven are the rows above for `v1.satchel-nft.near`
+You should see `15 of 15 claims hold`. The first seven are the rows above for `v1.satchel-nft.near`
 (signer `v1.signer`, its root key, satchel #1's derived key, deploy-and-init tx `3cbRdh9W…`). The eighth reads `nft_total_supply()` at the
 block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
 satchel was minted while the key existed. The refused calls are testnet only.
 
-The last three read `deployments/mainnet-first-send.json`, satchel #1's first send:
+The next three read `deployments/mainnet-first-send.json`, satchel #1's first send:
 
 - its mint, tx `HCYB168y…`, was signed by `satchel-nft.near` and returned token 1 to it, in a block
   after the lock;
@@ -83,6 +83,35 @@ The last three read `deployments/mainnet-first-send.json`, satchel #1's first se
   fee the record names, and that block is finalized. This one reads Base through `BASE_RPC`
   (`https://base-rpc.publicnode.com` by default) and fails until Base finalizes the block, about
   20 minutes after a send.
+
+The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap through NEAR Intents'
+1Click:
+
+- its mint, tx `8NE2xLni…`, was signed by `satchel-nft.near` and returned token 2 to it, and the
+  contract's receipt ran in a NEAR block older than the Base block of `0x9c786eab…`, which succeeded
+  and sent the satchel's address the 0.0026 ETH the record names; the address had nonce 0 and
+  0 wei in the block before, and exactly that in its block. This reads Base state at block
+  55857952, which `https://base-rpc.publicnode.com` served on 2026-11-11 and a pruned node in
+  `BASE_RPC` can't;
+- its `sign_evm`, tx `FnFSMSh1…`, passes the same checks as satchel #1's, for path `satchel/2`, and
+  the transaction it signed sends exactly the quote's `amountIn` to the quote's `depositAddress`
+  with no calldata, which the contract logged as `value_transfer`;
+- the Base transaction `0x2d9b1a1c…` passes the same field, signature, block, fee and finality checks
+  as satchel #1's;
+- 1Click's public status for the deposit address reads `SUCCESS`, has the record's swap type,
+  assets (ETH on Base, USDC on Arbitrum One), deposit address, amount, minimum, recipient and refund
+  address, names `0x2d9b1a1c…` as the deposit and the record's payout transactions as the payout;
+  those, here only `0x417322bd…`, succeeded on
+  Arbitrum One and logged Circle's USDC (`0xaf88d065…`) `Transfer`s to the satchel's address adding
+  up to the record's 5.280549 USDC, more than the quote's minimum, in blocks no older than the
+  deposit's. It reads 1Click at each run, and Arbitrum One through `ARBITRUM_RPC`
+  (`https://arb1.arbitrum.io/rpc` by default).
+
+The quote itself, with its recipient and refund address, is 1Click's word, not the chain's: the
+last claim compares the file's quote with the one 1Click returns for
+`https://1click.chaindefuser.com/v0/status?depositAddress=0x588f8C4419974bC735Ac784B3dA41B44c42bb64b`.
+So is the link between the deposit and the payout: the chain shows that `0x2cff890f…02680` sent the
+satchel's address that USDC, and only 1Click's status says it paid out this deposit.
 
 A Sputnik DAO owned satchel #8 on testnet. That run has its own record,
 `deployments/testnet-dao.json`, and its own script:
@@ -274,6 +303,10 @@ of these checks.
   `satchel-nft verify` can read from your own nodes, but it does not compare nodes or check storage
   proofs.
 - **The MPC network is trusted.** If enough MPC nodes colluded, they could sign with any derived key.
+- **A swap through 1Click trusts 1Click.** Mainnet satchel #2's swap kept it provably clean because
+  its deposit was a plain transfer, but the USDC, or a refund, reaches the satchel only if 1Click's
+  system sends it, and the report doesn't count an output or a refund still in flight. A swap
+  through a DEX router is a call the contract can't classify, and reads not provable.
 - **The holder room holds nothing secret.** Its gate trusts one NEAR RPC, a captured proof opens it
   until 5 minutes after its `Issued` time (up to 6 minutes, since `Issued` may run a minute ahead of
   the server's clock) while that account still owns the satchel, and requests aren't rate limited.

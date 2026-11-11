@@ -106,7 +106,7 @@ you build on it or put value in it.
 
 | If you need | Satchel today |
 | --- | --- |
-| **A wallet you use for DeFi and still sell as clean** | Any call the contract can't classify, a swap, a multicall, a router call, is counted, and the report says <Verdict v="not-provable" /> forever. Many active wallets will never read clean. That is the record being honest, not a bug |
+| **A wallet you use for DeFi and still sell as clean** | Any call the contract can't classify, a swap through a DEX router, a multicall, is counted, and the report says <Verdict v="not-provable" /> forever. Many active wallets will never read clean. That is the record being honest, not a bug. A swap through NEAR Intents' 1Click is different: the satchel only sends the coin or the token, as a plain transfer, to the deposit address 1Click quotes, and mainnet satchel #2 still reads clean after one, but its USDC arrived only because 1Click's system sent it |
 | **Protection from the assets themselves** | The record says nothing about powers built into an asset: an upgradable token, a blacklist, an issuer's clawback, an ENS name whose controller is still the seller. Value those as you would anywhere else |
 | **Solana, NEAR or another Ed25519 chain** | Not supported. Satchel uses secp256k1 (MPC domain 0) only. The contract builds EVM transactions; anything else, Bitcoin included, goes through `sign_raw` and makes the satchel unprovable |
 | **Off-chain signatures: permits, EIP-712 orders, messages** | Only through `sign_raw`, which is counted as opaque. One raw signature means the satchel can never read clean again |

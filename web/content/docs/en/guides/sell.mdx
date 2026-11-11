@@ -22,9 +22,11 @@ Open the satchel's page and read its report. Each failing check has its own fix,
 | 4. Nothing the record can't explain | A raw signature (`sign_raw`), a call the contract couldn't classify, or an approval past the 32nd | **No fix.** These counters only grow. The satchel can never read clean again, for you or any later owner |
 
 <Callout type="warning" title="Check 4 is permanent">
-The record only grows, and no owner can clear it. A single raw signature, multicall, swap or other call the
-contract can't classify makes the satchel <Verdict v="not-provable" /> forever. If you plan to sell, send
-only plain transfers, plain asset transfers, approvals you will revoke, and revocations.
+The record only grows, and no owner can clear it. A single raw signature, multicall, swap through a DEX
+router or other call the contract can't classify makes the satchel <Verdict v="not-provable" /> forever.
+If you plan to sell, send only plain transfers, plain asset transfers, approvals you will revoke, and
+revocations. A deposit into a NEAR Intents 1Click swap is one of the first two: the coin or the token,
+sent to the deposit address 1Click quotes.
 </Callout>
 
 ### Spend every signed nonce

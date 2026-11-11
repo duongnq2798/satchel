@@ -175,29 +175,34 @@ whole JSON payload and you have said yes. Use one way, once:
 | --- | --- |
 | **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts — assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", a gated page only current holders can open, and a history view per NFT (what it earned, what it paid out, who held it); Satchel has the first three (the gated page is each satchel's holder room, `/satchel/<id>/room`), and part of the fourth: its history lists owners, sales and signatures, not each payment that came in |
 | **Open Innovation** (`open`) | Its hints name chain abstraction: one NEAR transaction moves an address on every chain it lives on |
-| **Unstoppable DeFi** (`defi`) | Its hints name Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and whatever its address holds moves with it. The proof is narrower here: a satchel that has itself made a call the contract can't classify, such as a swap or an LP deposit, reads "not provable" for every later owner, as the README says. This is the loosest of the three fits |
+| **Unstoppable DeFi** (`defi`) | Its hints name NEAR Intents and Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and whatever its address holds moves with it. On mainnet, satchel #2 swapped its ETH on Base for USDC at its own address on Arbitrum One through NEAR Intents' 1Click: the deposit was a plain transfer sent from the app, so it still reads provably clean. The proof is narrower than that sounds: the USDC arrived only because 1Click's system sent it, the report doesn't count what is in flight, and a satchel that has itself made a call the contract can't classify, such as a swap through a DEX router or an LP deposit, reads "not provable" for every later owner, as the README says. This is the loosest of the three fits |
 
 ## Keep the demo true until judging ends
 
 The README, AGENTS.md and the landing page (`web/src/lib/copy.ts`, and the `verify 5` output in
 `web/src/app/page.tsx`) describe the demo satchels as they are now. `scripts/check-claims.mjs` reads
-only past transactions, the contract's keys and code and the MPC keys, so it doesn't notice a change
-to a satchel.
+past transactions, the contract's keys and code, the MPC keys, satchel #2's Base balance and nonce at
+block 55857952 and 1Click's live status for its deposit, so it doesn't notice a change to a satchel.
+Its mainnet run fails with no satchel changed if `https://base-rpc.publicnode.com` stops serving that
+block's state (it served it on 2026-11-11), or if 1Click stops answering for satchel #2's deposit
+address: run it again before judging, and if the Base read is what fails, set `BASE_RPC` to an
+archive node.
 Until 2026-11-25:
 
-- Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchel #1. A
-  new signature changes the report lines quoted in the README; one with satchel #5 at nonce 0 would
-  end the "signed and kept" example.
-- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1. The
-  landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's example
+- Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchels #1
+  and #2. A new signature changes the report lines quoted in the README; one with satchel #5 at
+  nonce 0 would end the "signed and kept" example. Mainnet #2 holds the USDC of its swap through
+  1Click on Arbitrum One: leave it there.
+- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1 and
+  #2. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's example
   says #2's address belongs to the same seller; the README and the 1:18 scene show #7's history; #4
   is for sale for 1 NEAR at record version 0 and #6 at record version 1, and `list` on a listed
   satchel replaces its price; `buyer.satchel-nft.testnet` owns #8, as the DAO walkthrough ends;
-  `satchel-nft.near` owns mainnet #1.
+  `satchel-nft.near` owns mainnet #1 and #2.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
 If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
-#5, #6 and #7, `npx -y satchel-nft@0.2.0 verify --network mainnet 1`, and the README's quick-start
+#5, #6 and #7, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` and `2`, and the README's quick-start
 `satchel` view for #1. Then update the README's quoted outputs, AGENTS.md's table,
 `web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx` and this kit's scene notes in the
 same pull request.
