@@ -192,7 +192,7 @@ npm run typecheck
 ```
 
 Each runs in both workspaces. You should see `Tests  222 passed (222)` for `satchel-nft`, then
-`Tests  86 passed (86)` for the app, then no type errors.
+`Tests  91 passed (91)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -301,7 +301,7 @@ of these checks.
 | Quote an exit asks 1Click only for dry quotes, never for a deposit address, at a slippage limit of 0.5 %, 1 % or 3 % and no other, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for, has a minimum that matches that slippage, and carries no deposit address | `QuoteRequest`, `SLIPPAGE_CHOICES`, `quoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
 | A satchel's history links a 1Click swap's payout transaction only when 1Click calls it `SUCCESS` and names an EVM hash on one of the satchel's mainnets; otherwise, `REFUNDED` and `FAILED` included, it links 1Click's status, and a line shows an amount out only for `SUCCESS` | `payoutUrl`, `swapLine`, `swapMarks` in `web/src/lib/oneclick.ts`; the card is `web/src/components/history.tsx` | `web/src/lib/oneclick.test.ts` |
 | Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #8 and mainnet #1 and #2, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
-| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
+| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, the landing page's four cards link the transactions in `testnet-dao.json`, `testnet-make-clean.json` and `mainnet-1click-exit.json` and their own satchel's page and docs, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `TOUR`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
 
 ## What Satchel does not claim
 
