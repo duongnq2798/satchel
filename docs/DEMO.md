@@ -193,10 +193,12 @@ The README, AGENTS.md and the landing page (`web/src/lib/copy.ts`, and the `veri
 `web/src/app/page.tsx`) describe the demo satchels as they are now. `scripts/check-claims.mjs` reads
 past transactions, the contract's keys and code, the MPC keys, satchel #2's Base balance and nonce at
 block 55857952 and 1Click's live status for its deposit, so it doesn't notice a change to a satchel.
-Its mainnet run fails with no satchel changed if `https://base-rpc.publicnode.com` stops serving that
-block's state (it served it on 2026-11-11), or if 1Click stops answering for satchel #2's deposit
-address: run it again before judging, and if the Base read is what fails, set `BASE_RPC` to an
-archive node.
+Its mainnet run fails with no satchel changed if neither `https://base-rpc.publicnode.com` nor
+`https://mainnet.base.org` serves that block's state (both did on 2026-11-11), or if 1Click stops
+answering for satchel #2's deposit address; the failed claim says which. GitHub runs both networks'
+checks, `check-dao.mjs` and a request to satchelnft.xyz and `/mainnet` every day until 2026-11-25
+(`.github/workflows/watch.yml`): when a run fails, read its failed claim, run that check again, and
+if a Base read is what fails, set `BASE_RPC` to an archive node.
 Until 2026-11-25:
 
 - Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchels #1
