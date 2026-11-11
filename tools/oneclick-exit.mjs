@@ -13,9 +13,9 @@
 //   status [--wait]            asks 1Click how the swap stands; on SUCCESS reads the USDC on Arbitrum
 //
 // Node 22 or later, after `npm ci` and `npm run build -w satchel-nft` at the repository root:
-//   node tools/oneclick-exit.mjs plan 2
+//   node tools/oneclick-exit.mjs plan <id>
 // --amount <ETH> sends that instead of the whole balance less fees. --out defaults to
-// deployments/mainnet-1click-exit.json.
+// deployments/mainnet-1click-exit.json, which holds satchel #2's swap: give a new file for another.
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,8 +42,8 @@ const {
 const ONE_CLICK = "https://1click.chaindefuser.com";
 const BASE = 8453;
 const ARBITRUM = 42161;
-/** The demo satchel the README quotes: it signs nothing until judging ends (docs/DEMO.md). */
-const DEMO = new Set(["1"]);
+/** The mainnet satchels the README quotes: they sign nothing until judging ends (docs/DEMO.md). */
+const DEMO = new Set(["1", "2"]);
 const SLIPPAGE_BPS = 100;
 /** The deadline asked for. 1Click starts refunding at it, so the deposit must land well before. */
 const QUOTE_MINUTES = 60;
@@ -160,8 +160,18 @@ function update(depositAddress, change) {
   if (!same(fresh.quote?.quote?.depositAddress, depositAddress)) {
     fail(`${OUT} now holds the quote for ${fresh.quote?.quote?.depositAddress}, not ${depositAddress}: run this again`);
   }
+  if (finished(fresh)) fail(`${kept(fresh)}: another run finished it, and nothing was written.`);
   save({ ...fresh, ...change });
 }
+
+/**
+ * A swap that ended and was read to the end, with its deposit and that deposit's sign_evm saved. Its
+ * record is evidence, so no command writes to it again. Until then `submit` and `status` can still
+ * fill it in, in either order: 1Click can finish before the owner runs `submit`.
+ */
+const finished = (saved) =>
+  saved.deposit?.nearTx !== undefined && TERMINAL.has(saved.status?.status) && (saved.status.status !== "SUCCESS" || saved.arrival !== undefined);
+const kept = (saved) => `${OUT} holds satchel #${saved.tokenId}'s finished swap (${saved.status.status}), kept as it is`;
 
 /** The two assets, from 1Click's own list: native ETH on Base, and the USDC that contents.ts lists on Arbitrum. */
 async function route() {
@@ -176,8 +186,8 @@ async function route() {
 
 /** The satchel, refused if the Send panel couldn't send from it, with its address and Base balance. */
 async function satchelOnBase(tokenId) {
-  if (!/^\d+$/.test(tokenId ?? "")) fail("give a satchel id, such as 2");
-  if (DEMO.has(tokenId)) fail(`mainnet satchel #${tokenId} is a demo satchel: it signs nothing until 2026-11-25 (docs/DEMO.md). Mint a new one.`);
+  if (!/^\d+$/.test(tokenId ?? "")) fail("give a satchel id, the number on its page");
+  if (DEMO.has(tokenId)) fail(`the README quotes mainnet satchel #${tokenId}: it signs nothing until 2026-11-25 (docs/DEMO.md). Mint a new one.`);
   const found = await satchel(MAINNET).get(tokenId);
   if (found === null) fail(`there is no satchel #${tokenId} on ${MAINNET.contract}`);
   if (found.listing !== null) fail(`satchel #${tokenId} is listed, and signing is frozen while it is. Delist it first.`);
@@ -295,7 +305,7 @@ async function refuseIfSent(saved, what) {
   if (nonce !== saved.nonceBefore) {
     fail(
       `satchel #${saved.tokenId} has sent from Base since the quote (nonce ${saved.nonceBefore} then, ${nonce} now), so a deposit may be on its way: ${what}. ` +
-        `Run ${cmd("submit <the Base tx hash>")}, or ${cmd("status")}. If that send was something else, move ${OUT} first.`,
+        `Run ${cmd("submit <the Base tx hash>")}, or ${cmd("status")}. If that send was something else, keep ${OUT} and pass --out <a new file> to ask for a new quote.`,
     );
   }
 }
@@ -315,21 +325,26 @@ async function plan(tokenId) {
   const check = checkQuote(asked, answer);
   console.log("\nDry quote (no deposit address, nothing reserved):");
   printQuote(answer, check, r);
-  console.log(`\nNext: ${cmd(`quote ${tokenId}${arg("--amount") ? ` --amount ${arg("--amount")}` : ""}`)}`);
+  // The default file holds satchel #2's finished swap, which quote won't replace.
+  const elsewhere = arg("--out") === null && existsSync(OUT) && finished(JSON.parse(readFileSync(OUT, "utf8")));
+  console.log(`\nNext: ${cmd(`quote ${tokenId}${arg("--amount") ? ` --amount ${arg("--amount")}` : ""}`)}${elsewhere ? " --out <a new file>" : ""}`);
+  if (elsewhere) console.log(`(${kept(JSON.parse(readFileSync(OUT, "utf8")))}.)`);
 }
 
 async function quote(tokenId) {
   let replaced = null;
   if (!existsSync(dirname(OUT))) fail(`the folder for ${OUT} doesn't exist; create it or pass --out`);
+  const s = await satchelOnBase(tokenId);
   if (existsSync(OUT)) {
     // A new quote replaces the saved one only while 1Click has seen nothing sent to the old address,
     // and, while that address is still open, only when asked to: a deposit can take minutes to show.
     const saved = JSON.parse(readFileSync(OUT, "utf8"));
+    if (finished(saved)) fail(`${kept(saved)}: pass --out <a new file> to ask for another quote.`);
     const old = saved.quote?.quote;
     if (old?.depositAddress) {
       const now = await statusOf(old.depositAddress);
       if (now.status !== "PENDING_DEPOSIT") {
-        fail(`1Click reads ${now.status} for the saved quote's ${old.depositAddress}: don't send to it. Keep ${OUT}; move it before asking again.`);
+        fail(`1Click reads ${now.status} for the saved quote's ${old.depositAddress}: don't send to it. Keep ${OUT}, and pass --out <a new file> to ask for another quote.`);
       }
       await refuseIfSent(saved, "don't ask for a new quote");
       if (Date.parse(old.deadline) > Date.now() && !flag("--replace")) {
@@ -342,7 +357,6 @@ async function quote(tokenId) {
     }
     replaced = saved;
   }
-  const s = await satchelOnBase(tokenId);
   const { amount } = await amountToSend(s);
   const r = await route();
   const asked = quoteRequest(r, s, amount, false);
@@ -411,6 +425,7 @@ async function submit(hash) {
   const nearTx = arg("--near-tx");
   if (nearTx !== null && !/^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(nearTx)) fail(`${nearTx} is not a NEAR transaction hash`);
   const saved = readSaved();
+  if (finished(saved)) fail(`${kept(saved)}: nothing to submit.`);
   const q = saved.quote.quote;
   const base = await verifiedClient(BASE);
   const tx = await base.getTransaction({ hash });
@@ -458,11 +473,16 @@ async function submit(hash) {
     if (built.length !== 1) fail(`${nearTx} has no successful sign_evm for satchel #${saved.tokenId} that built ${hash}: pass the hash of the panel's "sign_evm on NEAR" link, or leave --near-tx out`);
     near = { nearTx, nearSigner: t.transaction.signer_id, nearBlockHash: t.transaction_outcome?.block_hash };
   }
-  const answer = await oneClick("/v0/deposit/submit", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ txHash: hash, depositAddress: q.depositAddress }),
-  });
+  // 1Click watches the deposit address itself and the notice only speeds it up, so a swap the record
+  // already saw end gets none and its deposit is saved without one.
+  const ended = TERMINAL.has(saved.status?.status);
+  const answer = ended
+    ? null
+    : await oneClick("/v0/deposit/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ txHash: hash, depositAddress: q.depositAddress }),
+      });
   const deposit = {
     chainId: String(BASE),
     tx: hash,
@@ -473,7 +493,14 @@ async function submit(hash) {
     ...near,
   };
   update(q.depositAddress, { deposit });
-  console.log(`Base has the deposit in block ${receipt.blockNumber}; 1Click answered ${answer.status ?? json(answer)}. Next: ${cmd("status --wait")}`);
+  const told = answer === null ? `1Click already read ${saved.status.status}` : `1Click answered ${answer.status ?? json(answer)}`;
+  const now = readSaved();
+  const next = finished(now)
+    ? `the record is complete. Next: npx -y satchel-nft@0.2.0 verify --network mainnet ${saved.tokenId}`
+    : ended && now.deposit.nearTx === undefined
+      ? `the record still needs the sign_evm: ${cmd(`submit ${hash} --near-tx <the sign_evm hash>`)}`
+      : `Next: ${cmd("status --wait")}`;
+  console.log(`Base has the deposit in block ${receipt.blockNumber}; ${told}; ${next}`);
 }
 
 /** The USDC Transfer logs to the satchel in 1Click's destination transactions, read from Arbitrum itself. */
@@ -501,6 +528,8 @@ async function arrival(saved, details) {
 async function status() {
   const saved = readSaved();
   const q = saved.quote.quote;
+  // A finished record is read and printed, never rewritten.
+  const frozen = finished(saved);
   const wait = flag("--wait");
   const until = Math.max(Date.now() + 45 * 60_000, Date.parse(saved.quote.quoteRequest.deadline) + 30 * 60_000);
   let now;
@@ -526,7 +555,7 @@ async function status() {
       if (d.refundedAmount && d.refundedAmount !== "0") console.log(`  refunded:    ${d.refundedAmount} (${d.refundReason ?? "no reason given"})`);
       if (now.status === "INCOMPLETE_DEPOSIT") console.log(`  1Click saw less than ${q.amountInFormatted} ETH; it refunds the satchel from ${saved.quote.quoteRequest.deadline}.`);
     }
-    update(q.depositAddress, { status: now, statusReadAt: new Date().toISOString() });
+    if (!frozen) update(q.depositAddress, { status: now, statusReadAt: new Date().toISOString() });
     if (!wait || TERMINAL.has(now.status) || Date.now() > until) break;
     await new Promise((resolve) => setTimeout(resolve, 10_000));
   }
@@ -535,8 +564,11 @@ async function status() {
     process.exitCode = 1;
   } else if (now.status === "SUCCESS") {
     const got = await arrival(saved, now.swapDetails ?? {});
-    update(q.depositAddress, { arrival: got });
+    if (!frozen) update(q.depositAddress, { arrival: got });
     console.log(`Arbitrum One: the satchel received ${(Number(got.received) / 1e6).toFixed(6)} USDC (${got.txs.map((t) => t.hash).join(", ")}).`);
+    if (!frozen && readSaved().deposit?.nearTx === undefined) {
+      console.log(`The record has no deposit or no sign_evm yet: ${cmd("submit <the Base tx hash> --near-tx <the sign_evm hash>")}`);
+    }
     console.log(`Base finalizes the deposit about 20 minutes after it was sent. Then: npx -y satchel-nft@0.2.0 verify --network mainnet ${saved.tokenId}`);
   } else if (now.status === "REFUNDED" || now.status === "FAILED") {
     console.error(`The swap ended ${now.status}: the exit didn't happen.`);
@@ -545,6 +577,7 @@ async function status() {
     console.error(`Stopped waiting at ${now.status}; run ${cmd("status --wait")} again later.`);
     process.exitCode = 1;
   }
+  if (frozen) console.log(`${kept(saved)}: nothing was written to it.`);
 }
 
 try {

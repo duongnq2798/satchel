@@ -6,6 +6,28 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A swap through NEAR Intents' 1Click that keeps a satchel provably clean, run once on mainnet.
+  `tools/oneclick-exit.mjs` asks 1Click for an `EXACT_INPUT` quote from ETH on Base to USDC on
+  Arbitrum One with the satchel's own address as `recipient` and `refundTo`, checks that 1Click
+  echoed the swap type, assets, amount, slippage, deadline, recipient and refund address it asked
+  for and that the fee is at most 25 bps, and saves the quote with the satchel's Base nonce at that
+  moment (`quote`). `ready` refuses to let the owner send once the
+  quote is near its deadline, the satchel has sent since, or 1Click no longer waits; `submit` checks
+  the Base transaction and its `sign_evm` against the quote before it saves them and tells
+  `/v0/deposit/submit`; `status` follows the swap and reads the USDC on Arbitrum One. It signs
+  nothing and needs no API key: the deposit is a plain transfer from the app's Send panel. Mainnet
+  satchel #2 was minted, funded with 0.0026 ETH on Base, sent 0.00258 ETH to 1Click's deposit
+  address (`sign_evm` `FnFSMSh1…`, Base `0x2d9b1a1c…`), and received 5.280549 USDC on Arbitrum One
+  (`0x417322bd…`), where 1Click quoted 5.285374 with a minimum of 5.232520; its report reads
+  `PROVABLY CLEAN`. The record is [`deployments/mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json),
+  and the README says what it doesn't show: the USDC, or a refund, arrives only if 1Click's system sends it, and
+  the report doesn't count an output or a refund in flight. Internal adversarial reviews: five
+  before the run and four after it, every kept finding fixed. The script refuses mainnet satchels
+  #1 and #2, which the README quotes and which sign nothing until 2026-11-25. It never writes to a
+  record whose swap has ended and been read to the end, with its deposit and that deposit's
+  `sign_evm` saved: `quote` and `plan` ask for a new `--out`. Until then `submit` and `status` fill
+  the record in, in either order, since 1Click can finish before the owner runs `submit`.
+
 - A satchel a Sputnik DAO owns, on testnet, with no contract change.
   `satchel-club.sputnikv2.testnet` (`sputnikdao2` 2.3.1, one council member) owned satchel #8. A
   FunctionCall proposal had the DAO call `sign_evm` with 1 yoctoNEAR and 150 Tgas; the vote that
@@ -256,6 +278,16 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- `node scripts/check-claims.mjs --network mainnet` checks 15 claims, up from 11: satchel #2 minted
+  before its Base address held any ETH (its balance read at the blocks around the funding, so
+  `BASE_RPC` must serve old state), its first `sign_evm` a plain transfer of the quoted amount to
+  1Click's quoted deposit address, that deposit run on Base in a finalized block, and 1Click's
+  public status reading `SUCCESS` for that deposit with the record's quote, and naming a payout that
+  sent the same address more USDC on Arbitrum One than the quote's minimum (read through
+  `ARBITRUM_RPC`, `https://arb1.arbitrum.io/rpc` by default). Satchel #1's signature and Base
+  checks are shared with satchel #2's (`signedFirst`, `ranOnBase`), with the same output. The
+  README and its "Check every claim" button (33 claims across the three checkers), AGENTS.md and the
+  docs' security pages give the new counts.
 - `satchel-nft` is 0.2.0 in the repository, ready for its owner to publish; npm still serves
   0.1.0, so every pinned command keeps `@0.1.0` until 0.2.0 is there. The package's README, which
   npm shows, says what changed under "What changed in 0.2.0": the `history` and `dao finish`

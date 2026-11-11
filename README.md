@@ -16,7 +16,7 @@
 
 <a href="https://satchelnft.xyz"><img src="docs/assets/readme/try-it-live.png" alt="Try it live: satchelnft.xyz, reading needs no wallet" height="48"></a>
 <a href="#how-to-evaluate-satchel-in-5-minutes"><img src="docs/assets/readme/evaluate-in-5-minutes.png" alt="Evaluate in 5 minutes: no wallet, no key, no account" height="48"></a>
-<a href="AGENTS.md#check-the-claims"><img src="docs/assets/readme/check-every-claim.png" alt="Check every claim: 29 claims read from the chains, with Node 22" height="48"></a>
+<a href="AGENTS.md#check-the-claims"><img src="docs/assets/readme/check-every-claim.png" alt="Check every claim: 33 claims read from the chains, with Node 22" height="48"></a>
 
 **[Live app](https://satchelnft.xyz)** · **[Evaluate in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)** · **[What is shipped](#status)** · **[On-chain proof](#on-chain-proof)** · **[Built on NEAR](#built-on-near)** · **[Threat model](docs/THREAT_MODEL.md)** · **[For AI agents](AGENTS.md)** · **[Security](SECURITY.md)** · **[Changelog](CHANGELOG.md)**
 
@@ -49,7 +49,8 @@ and with it the address on every one of those chains.
 > satchel's address is a valid address on mainnet chains too, but NEAR's testnet MPC network signs for
 > it: never send real funds to it. The demo satchels and the end-to-end runs are on testnet. On
 > mainnet, [satchel #1](#satchel-1-the-first-on-mainnet) was funded with 0.00195 ETH on Base and has
-> sent from it once, in the app.
+> sent from it once, in the app, and [satchel #2](#satchel-2-a-swap-through-1click) swapped 0.00258
+> ETH on Base for USDC on Arbitrum One through NEAR Intents' 1Click.
 
 ## Contents
 
@@ -60,6 +61,7 @@ and with it the address on every one of those chains.
 - [The NFT track's brief, point by point](#the-nft-tracks-brief-point-by-point)
 - [How a sale works](#how-a-sale-works)
 - [When is a transfer provably clean?](#when-is-a-transfer-provably-clean)
+- [A swap through NEAR Intents that keeps the proof](#a-swap-through-near-intents-that-keeps-the-proof)
 - [Safety architecture](#safety-architecture)
 - [Built on NEAR](#built-on-near)
 - [On-chain proof](#on-chain-proof)
@@ -78,14 +80,15 @@ and with it the address on every one of those chains.
 
 ## How to evaluate Satchel in 5 minutes
 
-You need Node.js 22 or later and git. No wallet, no key and no account: every step reads public NEAR
-and Sepolia data through public RPC nodes. The timings and outputs below are from a fresh clone on a
-Windows 10 laptop with Node 24.12, on 2026-11-09; the claim checker's output in step 2 and step 4's
-`npx` timings are from 2026-11-10. By those timings, the browser example and steps 1 to 4 fit in five
-minutes if you skip their optional builds (rebuilding the wasm in step 3, this checkout's package in
-step 4) and start step 4's first command before the rest, in a second terminal and an empty folder:
-its download took 142 s and 230 s in two runs here, and runs while you do the other steps. Step 5
-needs step 4's install and compiles the Rust tests, so give it longer.
+You need Node.js 22 or later and git. No wallet, no key and no account: every step reads public NEAR,
+Sepolia, Base and Arbitrum One data through public RPC nodes. The timings and outputs below are from
+a fresh clone on a Windows 10 laptop with Node 24.12, on 2026-11-09; step 4's `npx` timings are from
+2026-11-10, and the claim checker's runs and output in step 2 from 2026-11-11. By those timings,
+the browser example and steps 1 to 4 fit in five minutes if you skip their optional builds
+(rebuilding the wasm in step 3, this checkout's package in step 4) and start step 4's first command
+before the rest, in a second terminal and an empty folder: its download took 142 s and 230 s in two
+runs here, and runs while you do the other steps. Step 5 needs step 4's install and compiles the
+Rust tests, so give it longer.
 
 **While that downloads, try to cheat a buyer in your browser; it needs no install.** Open
 [satchelnft.xyz/#examples](https://satchelnft.xyz/#examples) and pick **Keep a signed withdrawal**.
@@ -107,16 +110,17 @@ the record changed).
 
 2. **Check both deployments against the chain.** No install.
    [`scripts/check-claims.mjs`](scripts/check-claims.mjs) reads the contract's keys, code hash,
-   NEP-330 metadata and MPC signer, and the MPC contract's root key and the key it derives for each
-   satchel, from a public NEAR RPC node, and the transactions that deployed the Satchel contract
-   and locked it from an archival one. On testnet it also reads the calls the contract refused; on
-   mainnet, satchel #1's mint and first signature, and that send on Base from a public Base node
-   (set `BASE_RPC` to use your own). Each run took 5 to 17 s here, most of it waiting on the archival
-   node.
+   NEP-330 metadata and MPC signer, and the MPC contract's root key and the keys it derives for the
+   satchels in the package's test fixture (testnet #1 to #8, mainnet #1), from a public NEAR RPC
+   node, and the transactions that deployed the Satchel contract and locked it from an archival one.
+   On testnet it also reads the calls the contract refused; on mainnet, satchel #1's mint and first
+   signature, and that send on Base from a public Base node, then satchel #2's swap through 1Click,
+   on NEAR, Base, Arbitrum One and 1Click's public status (set `BASE_RPC` and `ARBITRUM_RPC` to use
+   your own nodes). Each run took 6 to 9 s here, most of it waiting on the archival node.
 
    ```bash
    node scripts/check-claims.mjs                      # NEAR testnet: 13 claims
-   node scripts/check-claims.mjs --network mainnet    # NEAR mainnet: 11 claims, the last also reads Base
+   node scripts/check-claims.mjs --network mainnet    # NEAR mainnet: 15 claims, four also read Base, one Arbitrum One and 1Click
    node scripts/check-dao.mjs                         # the satchel a DAO owned: 5 claims, on NEAR testnet and Sepolia
    ```
 
@@ -145,8 +149,16 @@ the record changed).
           2xqwe8AA… sign_evm: chain 8453, nonce 0, value_transfer, record version 1; v1.signer signed 4e9284fc… for satchel/1
    [PASS] Base ran exactly that signed transaction, in a block that is now finalized
           0x8044dd8c… from 0xdc269ead17b522d49db2cefd38cef0c5413868f9, block 55178996, status 1, fee 127494755188 wei, finalized
+   [PASS] Satchel #2 was minted by satchel-nft.near before its Base address held any ETH
+          8NE2xLni… minted #2 at 2026-11-11T01:49:56.266Z; 0 wei and nonce 0 at Base block 55857952, then 0x9c786eab… brought 0.0026 ETH at 2026-11-11T01:52:46.000Z
+   [PASS] Its first signature is a plain transfer on Base at nonce 0, of the amount 1Click quoted, to the deposit address it quoted
+          FnFSMSh1… sign_evm: chain 8453, nonce 0, value_transfer, record version 1; v1.signer signed 9691e10a… for satchel/2, 2580000000000000 wei to 0x588f8C4419974bC735Ac784B3dA41B44c42bb64b
+   [PASS] Base ran exactly that deposit, in a block that is now finalized
+          0x2d9b1a1c… from 0xf5383275efedde8b90f59de8e8d15b1e23b4965f, block 55860595, status 1, fee 126456114997 wei, finalized
+   [PASS] 1Click reports SUCCESS for this deposit, and the payout it names sent the same address more USDC on Arbitrum One than the quote's minimum
+          1Click: SUCCESS, deposit 0x2d9b1a1c…, payout 0x417322bd…; 5.280549 USDC (0xaf88d065…) to 0xf5383275efedde8b90f59de8e8d15b1e23b4965f, 23 s after the deposit; minimum 5.232520
 
-   11 of 11 claims hold (https://rpc.mainnet.fastnear.com, archival https://archival-rpc.mainnet.fastnear.com)
+   15 of 15 claims hold (https://rpc.mainnet.fastnear.com, archival https://archival-rpc.mainnet.fastnear.com)
    ```
 
    The testnet run checks the same seven facts about `v1.satchel-nft.testnet`, then that its key was
@@ -299,9 +311,10 @@ What exists at this commit, and what does not yet.
 | Guards before anything is signed | **Shipped**. The app shows no address and signs nothing until the network's contract passes check 1; it refuses an account from the other network, a transaction for another contract, and a receiver that doesn't exist. The CLI runs the same guards | [`guard.ts`](packages/satchel-nft/src/guard.ts) |
 | Demo satchels and two refused calls | **Shipped** on testnet: satchels #1 and #3 to #6 (#2 is retired), every step in an evidence file (two entries written by hand from the run log, one failed retry left out, as [noted below](#on-chain-proof)) | [`tools/demo-gallery.mjs`](tools/demo-gallery.mjs), [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json) |
 | End-to-end run against the real MPC network | **Shipped** on testnet: mint, sign, transfer, the previous owner refused, the new owner signing, a broadcast on Sepolia | [`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`deployments/testnet-e2e.json`](deployments/testnet-e2e.json), [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json) |
-| Claim checker | **Shipped**: 13 claims on testnet, 11 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
+| Claim checker | **Shipped**: 13 claims on testnet, 15 on mainnet | [`scripts/check-claims.mjs`](scripts/check-claims.mjs) |
 | Mainnet deploy script | **Shipped**, and used for the mainnet deployment. It reads the chain before each step, stops if a name belongs to someone else or the code isn't the build, and asks before it deletes the last key | [`tools/deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
 | The first satchel on mainnet: funded on Base, minted, one send from it in the app, its report clean | **Shipped** on 2026-11-09: satchel #1, 0.00195 ETH on Base, 0.0001 ETH sent from it at satchelnft.xyz, `PROVABLY CLEAN`. The owner signed every transaction | [`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json) |
+| A satchel's ETH on Base swapped for USDC on Arbitrum One through NEAR Intents' 1Click, with the satchel itself as recipient and refund address, its report still clean | **Shipped** on 2026-11-11 on mainnet: satchel #2 sent 0.00258 ETH to 1Click's deposit address from the app's Send panel, a plain transfer at nonce 0, and 5.280549 USDC reached its address on Arbitrum One; `PROVABLY CLEAN`. A script asks for the quote and follows the swap; the app doesn't. One run. The USDC arrives only if 1Click sends it ([what it shows](#a-swap-through-near-intents-that-keeps-the-proof)) | [`tools/oneclick-exit.mjs`](tools/oneclick-exit.mjs), [`deployments/mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json) |
 | npm package `satchel-nft`: the report as a library and a CLI (`npx -y satchel-nft@0.2.0 verify 1`), with read commands and signing commands that use the near CLI's keychain | **Shipped** on npm as [`satchel-nft` 0.2.0](https://www.npmjs.com/package/satchel-nft), published by the owner on 2026-11-10 from commit `2dd4209` (0.1.0 on 2026-11-09 from `728ed74`), without npm provenance ([how to check it](docs/THREAT_MODEL.md#what-satchel-trusts)). The web app runs on the same code. `npx -y satchel-nft@0.2.0 verify 1` in an empty folder printed `PROVABLY CLEAN`. CI packs the package, installs the tarball in an empty project and runs it, then runs the release from npm on Linux. Every sign command ran on testnet, and an adversarial review of its signing found no way to make it send a transaction other than the one it shows | [`packages/satchel-nft`](packages/satchel-nft), [`deployments/testnet-cli.json`](deployments/testnet-cli.json) |
 | What's inside a satchel: its USDC, USDT and WETH balances beside the native ones on each chain, and a timeline of mints, owners, signatures and sales on its page | **Shipped** on 2026-11-10. Above the report, a satchel's page shows its native balance on each of the network's 8 chains, and its USDC, USDT and WETH where a deployment is listed: 22 on the mainnets, 11 on the testnets (no testnet USDT). Each comes from Circle, Tether, USDT0 or the chain itself, except WETH on Sepolia, from Uniswap's deployment list; the sources are in `contents.ts`. After `npm ci` and `npm run build -w satchel-nft`, `node scripts/check-tokens.mjs` reads every one's code, symbol and decimals back from its chain. Below the report, its history: mint, transfers, signatures, listings and sales from FastNEAR's transaction index, each linked to its transaction. The report reads neither. In the CLI, `show` prints the same balances and `history <id>` the timeline, both since 0.2.0 | [`contents.ts`](packages/satchel-nft/src/contents.ts), [`history.ts`](packages/satchel-nft/src/history.ts), [`check-tokens.mjs`](scripts/check-tokens.mjs) |
 | A satchel's address derived without an RPC | **Shipped** on 2026-11-10. The app and the CLI compute each satchel's key from the MPC network's root key, pinned in the package, the contract and the path, as the MPC contract does, so no RPC answer changes a satchel's address. Which satchel is yours (the id a mint returns, the tokens you own) still comes from the NEAR RPC, or for a mint from the wallet. The tests derive the keys of the 9 satchels in their fixture (testnet #1 to #8, mainnet #1) and get what the MPC contract's `derived_public_key` returned, and `check-claims.mjs` compares the pinned root key with the chain. `satchel-nft` derives it since 0.2.0; 0.1.0 reads the address through the NEAR RPC | [`evm.ts`](packages/satchel-nft/src/evm.ts), [`derived-keys.json`](packages/satchel-nft/src/__fixtures__/derived-keys.json) |
@@ -357,7 +370,7 @@ memberships or access rights.
 
 | The brief asks for an NFT that | A satchel | How, or why not |
 | --- | --- | --- |
-| Owns money | **Yes** | Its address holds coins and tokens on each of the network's 8 EVM chains. Its page shows the native balance on each, and USDC, USDT and WETH where a deployment is listed. Mainnet satchel #1 was funded with ETH on Base and has sent from it |
+| Owns money | **Yes** | Its address holds coins and tokens on each of the network's 8 EVM chains. Its page shows the native balance on each, and USDC, USDT and WETH where a deployment is listed. Mainnet satchel #1 was funded with ETH on Base and has sent from it; mainnet satchel #2 swapped its ETH on Base for USDC on Arbitrum One through NEAR Intents' 1Click, and holds that USDC |
 | Earns royalties | **Not built in: any address can be a payee** | Point income at the satchel's address: an EIP-2981 royalty receiver, a protocol's fee recipient, a creator payout. Income paid straight to the address keeps landing there for whoever holds the NFT, so the stream changes hands with it. Income the satchel has to claim itself usually needs a call the contract can't classify, which then makes the satchel not provable for every later owner. Whoever controls the paying contract can still redirect it, and the record can't see that. No satchel has earned income yet. A satchel pays no royalty itself: the contract has no NEP-199 payout, so a resale pays the seller the full price |
 | Holds inventory | **Yes: ERC-20, ERC-721 and ERC-1155 on its chains** | Assets at the address move with the NFT. Their plain transfers are classified as such, so moving inventory out keeps a satchel provable; a batch transfer is not, and counts as unclassified. Assets sent to the address on a chain the contract doesn't sign for can be moved only through `sign_raw`, which the app and the CLI don't offer and which makes the satchel not provable for every later owner. The page shows the native coin and USDC, USDT and WETH, not the NFTs it holds |
 | Carries access rights | **Yes: the right to sign** | Having the contract sign with the satchel's key is the access right, and it belongs to whoever holds the token. After testnet satchel #1 changed hands, its previous owner's request was [refused on chain](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU). A credential the address holds outright (an ENS name it owns, a membership NFT) goes with it. One whose controller is still the seller, such as an ENS name's controller or an ERC-4907 `user`, is outside what the record sees ([what the record cannot cover](#when-is-a-transfer-provably-clean)) |
@@ -490,13 +503,61 @@ when all four hold:
 If any of them fails, the honest answer is "not provable", with the reason. A check that cannot be
 read (an RPC down, a chain the app doesn't know, an RPC serving the wrong chain) is "unknown", never
 a pass. Many wallets will be used for swaps and DeFi and will not be provably clean; the record says
-so instead of hiding it.
+so instead of hiding it. A swap that starts from a plain transfer, as NEAR Intents' 1Click does, is
+the exception ([below](#a-swap-through-near-intents-that-keeps-the-proof)).
 
 **What the record cannot cover:** powers built into an asset itself, which need no signature from
 the wallet. A token the seller deployed or can upgrade, a token with a blacklist or clawback, an ENS
 name whose registry controller is still the seller, an ERC-4907 `user`. The record proves what the
 token's key signed; it says nothing about what the assets inside allow their issuers to do. Value
 the assets as you would anywhere else.
+
+## A swap through NEAR Intents that keeps the proof
+
+A swap through a DEX router is a call the contract can't classify, so it makes a satchel "not
+provable" for every later owner. NEAR Intents' 1Click API is another way to swap: it quotes the
+trade and gives a deposit address, and the swap starts when a plain transfer reaches that address.
+From the satchel's side, the deposit is a `value_transfer` like any other send, so the record still
+explains everything the key signed.
+
+Mainnet satchel #2 swapped this way once, on 2026-11-11 ([its transactions](#satchel-2-a-swap-through-1click)):
+
+1. `node tools/oneclick-exit.mjs quote 2` asked 1Click for an exact-input quote: 0.00258 ETH on Base
+   for USDC on Arbitrum One, with both the recipient and the refund address set to the satchel's own
+   address, `0xf5383275EFedde8B90F59de8E8D15b1E23B4965f`. 1Click quoted 5.285374 USDC, at least
+   5.232520 after 1 % slippage, and gave a deposit address on Base. The script signs nothing and
+   needs no API key.
+2. The owner sent exactly 0.00258 ETH to that address from the satchel's Send panel on
+   satchelnft.xyz. The contract recorded chain 8453, nonce 0, `value_transfer`, and `v1.signer`
+   signed.
+3. 1Click reported `SUCCESS`, and 5.280549 USDC reached the same address on Arbitrum One, in a block
+   23 seconds after the deposit's block on Base.
+4. Once Base had finalized the deposit, `npx -y satchel-nft@0.2.0 verify --network mainnet 2` read
+   `PROVABLY CLEAN`.
+
+The last four claims of `node scripts/check-claims.mjs --network mainnet` check this run against
+NEAR, Base, Arbitrum One and 1Click's public status. 1Click's own account of it, the quote's
+recipient and refund address included, is that status:
+`curl -s "https://1click.chaindefuser.com/v0/status?depositAddress=0x588f8C4419974bC735Ac784B3dA41B44c42bb64b"`.
+
+What this shows, and what it doesn't:
+
+- **1Click, not the satchel, finishes the swap.** The deposit address came from 1Click's quote and
+  has no code on Base; a key that isn't the satchel's moved the ETH on from it (its nonce is now 1).
+  1Click's docs say it "does not take custody" of the assets, but the USDC, or a refund, arrives
+  only if 1Click's system sends it. Nothing in the contract or the report enforces the quote.
+- **The report doesn't count what is in flight.** It proves what the satchel's key signed. An output
+  or a refund that 1Click still owes the satchel is not in it, so value a satchel by what its address
+  holds at a finalized block, and let a swap finish before you buy.
+- **The quote, not the record, says where the output goes.** Here the recipient and the refund
+  address were the satchel itself. A quote can name any address; the record sees only a transfer to
+  a deposit address, as it would see any send out of the satchel.
+- **What it cost.** The quote charged 20 bps, the 0.2 % that the hackathon's FAQ (Q-006) gives for a
+  request without an API key (1Click's docs say 25 bps), and 0.0053 USDC of withdrawal fee came out
+  of the output. At 1Click's prices, the 0.00258 ETH was worth $5.29 and the 5.280549 USDC $5.28.
+- **One run, partly from a script.** The app's Send panel sent the deposit; the quote and the
+  follow-up are [`tools/oneclick-exit.mjs`](tools/oneclick-exit.mjs) (`plan`, `quote`, `ready`,
+  `submit`, `status`). The app can't ask 1Click for a quote.
 
 ## Safety architecture
 
@@ -556,6 +617,7 @@ What is left (the MPC network itself, the RPCs the report reads, powers built in
 | **near CLI** ([near-cli-rs](https://github.com/near/near-cli-rs)) | `satchel-nft`'s sign commands (`mint`, `list`, `delist`, `buy`, `transfer`, `send`) have it sign with the key in its keychain (`sign-with-legacy-keychain` or `sign-with-keychain`, then `display`), so the package never reads a key. It decodes the borsh `SignedTransaction`, checks it, and sends it with `send_tx` | [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts) |
 | **FastNEAR RPC** | The public and archival nodes that the app, its holder room route, the `satchel-nft` CLI and `check-claims` read. For the two commands, `NEAR_RPC` (and `NEAR_ARCHIVAL_RPC`, for `check-claims`) replace them with nodes you trust | [`config.ts`](packages/satchel-nft/src/config.ts), [`check-claims.mjs`](scripts/check-claims.mjs) |
 | **Sputnik DAO** (`sputnikdao2` 2.3.1, from the `sputnikv2.testnet` factory) | A DAO can own a satchel: a FunctionCall proposal has the DAO call `sign_evm` (1 yoctoNEAR, 150 Tgas, attached as is) or `nft_transfer`, and the vote that passes it makes the call in the same transaction. The contract checks the DAO owns the token, hashes the transaction from the proposal's arguments and records it before the MPC network signs. The DAO keeps no signature and the vote returns none, so `signatureFromReceipts` reads every receipt of the vote and takes the one `v1.signer-prod.testnet` ran | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`testnet-dao.json`](deployments/testnet-dao.json) |
+| **NEAR Intents** (the 1Click API, `1click.chaindefuser.com`) | Mainnet satchel #2 swapped ETH on Base for USDC on Arbitrum One through it. `tools/oneclick-exit.mjs` reads `/v0/tokens` for the two assets, asks `/v0/quote` for an `EXACT_INPUT` quote with the satchel as `recipient` and `refundTo`, checks that 1Click echoed the assets, amount, slippage, deadline, recipient and refund address it asked for and charged at most 25 bps, tells `/v0/deposit/submit` the Base transaction, then polls `/v0/status` and reads the USDC on Arbitrum One. No API key. The deposit itself is a `sign_evm` value transfer from the app, so the record classifies it | [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), [`mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json) |
 | **FastNEAR transaction index** | A satchel's history, on its page and from `satchel-nft history`: the contract's transactions and their event logs, from `tx.test.fastnear.com` or `tx.main.fastnear.com`. It keeps only the contract's own events from receipts that succeeded, and links each one's transaction. Display only: the report never reads it. `satchel-nft dao finish` asks it for one thing, a vote's signer, which `EXPERIMENTAL_tx_status` needs | [`history.ts`](packages/satchel-nft/src/history.ts) |
 
 ## On-chain proof
@@ -570,7 +632,7 @@ every transaction signed by the owner. The record is in
 | Account | Role |
 | --- | --- |
 | [`v1.satchel-nft.near`](https://nearblocks.io/address/v1.satchel-nft.near) | The contract. 0 access keys, code hash `94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph` (commit [`87148c6`](https://github.com/duongnq2798/satchel/tree/87148c6b6f97f3121cac13c93e22d7d153453b53), [reproducible CI build](https://github.com/duongnq2798/satchel/actions/runs/42547394040)), signs only through `v1.signer` |
-| [`satchel-nft.near`](https://nearblocks.io/address/satchel-nft.near) | The account that created it, and the owner of satchel #1. It has no power over the contract |
+| [`satchel-nft.near`](https://nearblocks.io/address/satchel-nft.near) | The account that created it, and the owner of satchels #1 and #2. It has no power over the contract |
 
 | What happened | Transaction | Result |
 | --- | --- | --- |
@@ -585,9 +647,9 @@ Satchel #1's address was funded on Base, then the satchel was minted by `satchel
 sent once from the app; the owner signed each transaction. The funding came first because a token's
 address is fixed by its id before the token exists, but `mint` is open to anyone: whoever had minted
 #1 in the 92 seconds between would have owned that ETH. Mint first, then fund. The record is in
-[`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json), and the last three
-claims of `node scripts/check-claims.mjs --network mainnet` check its mint, its signature and its
-send against NEAR and Base.
+[`deployments/mainnet-first-send.json`](deployments/mainnet-first-send.json), and claims 9 to 11 of
+`node scripts/check-claims.mjs --network mainnet`, the three after the lock, check its mint, its
+signature and its send against NEAR and Base.
 
 | What happened | Transaction | Result |
 | --- | --- | --- |
@@ -596,6 +658,26 @@ send against NEAR and Base.
 | `sign_evm` for 0.0001 ETH on Base (8453) at nonce 0, approved in a NEAR wallet at [satchelnft.xyz/mainnet/satchel/1](https://satchelnft.xyz/mainnet/satchel/1) | [`2xqwe8AA…`](https://nearblocks.io/txns/2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4) | The contract recorded chain 8453, nonce 0, `value_transfer`, then `v1.signer` signed |
 | The app checked that the signature recovers to the satchel's address, then broadcast it | [`0x8044dd8c…`](https://basescan.org/tx/0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532) | Block 55178996, status 1. Its r, s and parity are the ones `v1.signer` returned. Fee 0.000000127494755188 ETH, the L1 data fee included, paid by the satchel |
 | Its report, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` or [its page](https://satchelnft.xyz/mainnet/satchel/1) | | `PROVABLY CLEAN` once Base finalized that block, 21 minutes after the send |
+
+#### Satchel #2, a swap through 1Click
+
+Satchel #2 was minted, then funded, then swapped its ETH on Base for USDC on Arbitrum One
+through NEAR Intents' 1Click ([how, and what it doesn't show](#a-swap-through-near-intents-that-keeps-the-proof)).
+The owner signed the mint, the funding and the deposit; `tools/oneclick-exit.mjs` asked for the
+quote and followed the swap. The record, the quote 1Click returned included, is in
+[`deployments/mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json), and the last four
+claims of `node scripts/check-claims.mjs --network mainnet` check it against NEAR, Base, Arbitrum
+One and 1Click's public status.
+
+| What happened | Transaction | Result |
+| --- | --- | --- |
+| Minted satchel #2 to `satchel-nft.near` for 0.1 NEAR (2026-11-11 01:49 UTC) | [`8NE2xLni…`](https://nearblocks.io/txns/8NE2xLniZaPhbitfZiD2qww1P1nC1zqQQ3QBTCdjYo1d) | Token `2`, path `satchel/2`, address `0xf5383275EFedde8B90F59de8E8D15b1E23B4965f` |
+| Funded that address on Base, under 3 minutes later | [`0x9c786eab…`](https://basescan.org/tx/0x9c786eab80d294e8bb674b14ae68df64cd7b47f74a3597873e6d83a04d2c4703) | 0.0026 ETH, block 55857953 |
+| 1Click quote `fb326e1a…`: 0.00258 ETH on Base for USDC on Arbitrum One, recipient and refund address both the satchel | | 5.285374 USDC quoted, at least 5.232520; deposit address `0x588f8C4419974bC735Ac784B3dA41B44c42bb64b` |
+| `sign_evm` for 0.00258 ETH to that deposit address on Base (8453) at nonce 0, approved in a NEAR wallet at [satchelnft.xyz/mainnet/satchel/2](https://satchelnft.xyz/mainnet/satchel/2) | [`FnFSMSh1…`](https://nearblocks.io/txns/FnFSMSh1dpjkYC6fMT2aSgvFNYUjyuc6xVLGAymcupEA) | The contract recorded chain 8453, nonce 0, `value_transfer`, record version 1, then `v1.signer` signed |
+| The app checked that the signature recovers to the satchel's address, then broadcast the deposit | [`0x2d9b1a1c…`](https://basescan.org/tx/0x2d9b1a1c1b25c4443390af46dd176af24b93ebbb9e59d602bec76d585b607d74) | Block 55860595, status 1. Fee 0.000000126456114997 ETH, the L1 data fee included, paid by the satchel |
+| 1Click paid out on Arbitrum One | [`0x417322bd…`](https://arbiscan.io/tx/0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209) | 5.280549 USDC (Circle's, `0xaf88d065…`) to `0xf5383275…4965f`, 23 seconds after the deposit's block; nothing refunded |
+| Its report, `npx -y satchel-nft@0.2.0 verify --network mainnet 2` or [its page](https://satchelnft.xyz/mainnet/satchel/2) | | `PROVABLY CLEAN` at 02:18 UTC, 17 minutes after the deposit's block, once the Base node it read had finalized that block ("Base: signed up to nonce 0, finalized nonce is 1") |
 
 Mainnet satchels hold real funds on Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain,
 Avalanche and Aurora, and the contract is not audited: keep in one only what you can afford to lose.
@@ -1128,7 +1210,7 @@ all of this with the near CLI's key, checking each step
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 191 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader and the docs loader, with their 27 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
-| [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference) and [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) |
+| [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh) and [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every testnet run |
 | [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
 | [`.github/workflows`](.github/workflows) | [`ci.yml`](.github/workflows/ci.yml), the pull request gate, which calls [`contract.yml`](.github/workflows/contract.yml), [`web.yml`](.github/workflows/web.yml) and [`package.yml`](.github/workflows/package.yml) |
@@ -1262,8 +1344,13 @@ What the tests pin down:
   `media`, and the locked contract can't add one. A wallet or marketplace has nothing to show for a
   satchel beyond the contract's icon; its address, contents and report are on its page in the app.
 - **Mainnet is new.** The mainnet contract is the same build as on testnet, checked the same way, but
-  the demo satchels and the end-to-end runs are on testnet. On mainnet, as of 2026-11-09, one
-  satchel has been minted and has sent once, on Base.
+  the demo satchels and the end-to-end runs are on testnet. On mainnet, as of 2026-11-11, two
+  satchels have been minted: #1 has sent once on Base, and #2 has swapped once through 1Click.
+- **A swap through 1Click trusts 1Click.** Its deposit address comes from 1Click's quote, the USDC,
+  or a refund, arrives only if 1Click's system sends it, and the report doesn't count what is still
+  in flight. It has run once: a script asked for the quote and followed the swap, and the app's Send
+  panel sent the deposit; the app can't ask 1Click for a quote
+  ([A swap through NEAR Intents](#a-swap-through-near-intents-that-keeps-the-proof)).
 - **Not audited** by anyone outside the project. Internal reviews only: two of the contract (one
   adversarial) found two ways to slip an approval past the first version of the record, then two
   smaller gaps in the fix, all fixed and tested; the web app and the mainnet path had two each, one of
@@ -1295,7 +1382,7 @@ projects.
 | Web app | `satchel-nft` and viem 2.57, Next.js 16.4, React 19.3, Tailwind CSS 4, `@hot-labs/near-connect` 0.11.4 (wallet selection), `@mdx-js/mdx` with `remark-gfm` and Shiki (the docs pages), and the Fraunces, Inter and JetBrains Mono fonts through `next/font/google` |
 | Tests and tools | Vitest 3 and TypeScript 5.9. viem 2.21, pinned in [`tools/package.json`](tools/package.json), is the independent reference for the contract's EIP-1559 test vectors ([`gen-vectors.mjs`](tools/gen-vectors.mjs)). A headless Edge or Chrome renders the README banner ([`render.mjs`](docs/assets/src/render.mjs)) |
 | CI | GitHub Actions with `actions/checkout`, `actions/setup-node` and `actions/upload-artifact` (v4), and cargo-near 0.22.0's release binary, checked against its sha256 |
-| Services | The MPC signer contracts, a Sputnik DAO (`sputnikdao2` 2.3.1, from the `sputnikv2.testnet` factory) for the satchel a DAO owned on testnet, FastNEAR's RPC and transaction index, and Vercel for hosting, as [Built on NEAR](#built-on-near) and [Web app](#web-app) describe |
+| Services | The MPC signer contracts, NEAR Intents' 1Click API for satchel #2's swap, a Sputnik DAO (`sputnikdao2` 2.3.1, from the `sputnikv2.testnet` factory) for the satchel a DAO owned on testnet, FastNEAR's RPC and transaction index, and Vercel for hosting, as [Built on NEAR](#built-on-near) and [Web app](#web-app) describe |
 
 **AI-assisted code.** Satchel was built with Claude Code, Anthropic's AI coding agent, which wrote
 most of the code, tests and documentation. The builder decided what to build and when each pull
