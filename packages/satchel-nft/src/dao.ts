@@ -18,6 +18,7 @@ import {
 } from "./evm.js";
 import { type ExecutionOutcome, NearRpcError, decodeBase64, encodeArgs, failureMessage, nearRpc, nearRpcUrl, view } from "./near.js";
 import { satchel } from "./satchel.js";
+import { indexPost } from "./tx-index.js";
 
 // A satchel owned by a Sputnik DAO (github.com/near-daos/sputnik-dao-contract, `sputnikdao2`). The
 // DAO's members propose a FunctionCall that has the DAO call the Satchel contract, and the vote
@@ -340,14 +341,11 @@ export const liveFinishDeps = (net: Network, approve: FinishDeps["approve"]): Fi
  * `NEAR_RPC` named another node.
  */
 export async function readTxStatus(net: Network, hash: string): Promise<TxStatus> {
-  const res = await fetch(`${net.txApi}/v0/transactions`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tx_hashes: [hash] }),
-    signal: AbortSignal.timeout(20_000),
+  const body = await indexPost<{ transactions?: ({ transaction?: { signer_id?: string } } | null)[] }>(net, "/v0/transactions", {
+    tx_hashes: [hash],
+  }).catch((err: unknown) => {
+    throw new Error(`Reading ${hash}'s signer: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   });
-  if (!res.ok) throw new Error(`${net.txApi} answered ${res.status} for ${hash}`);
-  const body = (await res.json()) as { transactions?: ({ transaction?: { signer_id?: string } } | null)[] };
   const signer = body.transactions?.[0]?.transaction?.signer_id;
   if (typeof signer !== "string") throw new Error(`No transaction ${hash} on NEAR ${net.id}`);
   const params = { tx_hash: hash, sender_account_id: signer, wait_until: "FINAL" };

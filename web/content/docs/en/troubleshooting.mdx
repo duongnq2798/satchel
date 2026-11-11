@@ -140,7 +140,7 @@ Neither is part of the report, so nothing here changes a verdict.
 | You see | Why | What to do |
 | --- | --- | --- |
 | `The history couldn't be shown. The report doesn't use it.` | The History card failed to render | Reload the page. The report above it is unaffected |
-| `https://tx.test.fastnear.com/v0/account answered <status>` | FastNEAR's transaction index refused or rate-limited the read | Click **Try again** in a minute |
+| `https://tx.test.fastnear.com/v0/account answered <status>`, or `… failed 5 sends in a row: …` | FastNEAR's transaction index refused or rate-limited the read. After a 408, a 429 or a 5xx, or a send that got no answer at all (not one that timed out after 20 s), the app has sent it again, 5 times in all, after random waits of up to 0.5, 1, 2 and 4 s. A browser can't read a 429 without CORS headers, and the index's had none on 2026-11-11, so there a rate limit shows only as the browser's network error: `no answer (Failed to fetch)` in Chrome | Click **Try again** in a minute |
 | `… of the contract's transactions, not all of them, so the oldest are missing.` | The history reads the contract's 1,000 newest transactions at most | Look up older ones on the explorer. The signing record holds every signature |
 | `It shows <n> signature(s); the contract's record counts <m>. The record is what the report checks.` | The index left a transaction out, or hasn't caught up | Trust the record: `satchel-nft record <id>` prints it |
 | A token you sent isn't in **What's inside** | Only USDC, USDT and WETH at their listed addresses are read, and a zero balance is hidden | Open the chain's explorer from the page; it shows every token |

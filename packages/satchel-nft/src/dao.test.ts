@@ -360,6 +360,16 @@ describe("readTxStatus", () => {
     // A node that answers about another transaction is refused.
     await expect(readTxStatus(TESTNET, "Other1111111111111111111111111111111111111")).rejects.toThrow(/answered about Vote1111/);
   });
+
+  it("says which vote it was reading when the index refuses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("bad", { status: 400 })),
+    );
+    await expect(readTxStatus(TESTNET, "Vote111111111111111111111111111111111111111")).rejects.toThrow(
+      "Reading Vote111111111111111111111111111111111111111's signer: https://tx.test.fastnear.com/v0/transactions answered 400",
+    );
+  });
 });
 
 // The vote that approved satchel-club.sputnikv2.testnet's proposal 0 on 2026-11-10: the DAO had

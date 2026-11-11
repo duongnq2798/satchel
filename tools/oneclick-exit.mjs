@@ -110,12 +110,13 @@ function fail(message, httpStatus) {
   throw new Stop(message, httpStatus);
 }
 
-/** An error worth asking again after: 1Click busy or down, or the network. */
+/** An error worth asking again after: 1Click busy or down, or the network, also as the cause of another error. */
 const transient = (err) =>
   (err instanceof Stop && (err.httpStatus === 429 || err.httpStatus >= 500)) ||
   (err instanceof TypeError && /fetch failed|terminated/i.test(err.message)) ||
   err?.name === "TimeoutError" ||
-  err?.name === "AbortError";
+  err?.name === "AbortError" ||
+  (err?.cause != null && transient(err.cause));
 
 const json = (value) => JSON.stringify(value, (_, v) => (typeof v === "bigint" ? String(v) : v), 2);
 const same = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();

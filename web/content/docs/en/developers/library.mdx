@@ -577,7 +577,10 @@ From `contents.ts`, `history.ts` and `evm.ts`.
 | `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
 
 `tokenHistory` reads `Network`'s `txApi`: `https://tx.test.fastnear.com` on testnet,
-`https://tx.main.fastnear.com` on mainnet.
+`https://tx.main.fastnear.com` on mainnet. 0.2.0 sends each request once. After it, in the
+repository and on this site, a request the index answers with 408, 429 or a 5xx, or that gets no answer
+at all, is sent again, up to 5 sends in all, after random waits of up to 0.5, 1, 2 and 4 s, or
+the index's Retry-After, up to 8 s. A request that timed out after 20 s isn't sent again.
 
 ```ts title="history.ts"
 import { TESTNET, describeEntry, satchel, signatureCounts, tokenHistory } from "satchel-nft";
