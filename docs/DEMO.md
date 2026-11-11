@@ -2,11 +2,12 @@
 
 What the builder needs to record Satchel's demo video, post it on X and submit Satchel to the NEAR
 Hackathon 2026. The rules quoted here come from [nearhackathon.com](https://nearhackathon.com) and its
-[HACKATHON.md](https://nearhackathon.com/HACKATHON.md), read on 2026-11-10. Every screen and line
-below is what satchelnft.xyz and `satchel-nft` showed that day. The open holder room at 1:30 was
+[HACKATHON.md](https://nearhackathon.com/HACKATHON.md), read on 2026-11-10 and again on 2026-11-11.
+Every screen and line below is what satchelnft.xyz and `satchel-nft` showed on 2026-11-10. The open holder room at 1:30 was
 seen on mainnet satchel #1, opened with Meteor's Chrome extension; testnet rooms were opened with
-near-cli-rs and curl. The 1:18 and 1:42 scenes are newer: they were seen on 2026-11-11 in a local
-build of the code the next promote to `main` deploys, not yet on satchelnft.xyz.
+near-cli-rs and curl. The 1:18 and 1:42 scenes are newer: on 2026-11-11 their pages were seen first
+in a local build, then on satchelnft.xyz once the promote to `main` deployed them. The clean-up in
+the 1:18 scene hasn't run yet: it happens once, in the take.
 
 `node scripts/check-demo-kit.mjs` checks the numbers this kit depends on: the form text's length, the
 X post's length, tags and question, the script's timing and the pages it opens. CI runs it on every
@@ -193,10 +194,12 @@ The README, AGENTS.md and the landing page (`web/src/lib/copy.ts`, and the `veri
 `web/src/app/page.tsx`) describe the demo satchels as they are now. `scripts/check-claims.mjs` reads
 past transactions, the contract's keys and code, the MPC keys, satchel #2's Base balance and nonce at
 block 55857952 and 1Click's live status for its deposit, so it doesn't notice a change to a satchel.
-Its mainnet run fails with no satchel changed if `https://base-rpc.publicnode.com` stops serving that
-block's state (it served it on 2026-11-11), or if 1Click stops answering for satchel #2's deposit
-address: run it again before judging, and if the Base read is what fails, set `BASE_RPC` to an
-archive node.
+Its mainnet run fails with no satchel changed if neither `https://base-rpc.publicnode.com` nor
+`https://mainnet.base.org` serves that block's state (both did on 2026-11-11), or if 1Click stops
+answering for satchel #2's deposit address; the failed claim says which. GitHub runs both networks'
+checks, `check-dao.mjs` and a request to satchelnft.xyz and `/mainnet` every day until 2026-11-25
+(`.github/workflows/watch.yml`): when a run fails, read its failed claim, run that check again, and
+if a Base read is what fails, set `BASE_RPC` to an archive node.
 Until 2026-11-25:
 
 - Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchels #1
@@ -205,7 +208,8 @@ Until 2026-11-25:
   1Click on Arbitrum One: leave it there.
 - Testnet satchel #9 signs only in the 1:18 take: the revoke and the nonce spend its card plans,
   once. After that it reads provably clean; leave it as it is, and update the README's section on
-  it in the same pull request as anything else this list names.
+  it and its landing card (`TOUR` in `web/src/lib/showcase.ts`) in the same pull request as anything
+  else this list names.
 - Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1 and
   #2. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's
   example says #2's address belongs to the same seller; the README shows #7's history, and #9's
@@ -218,5 +222,5 @@ Until 2026-11-25:
 If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
 #5, #6 and #7, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` and `2`, and the README's quick-start
 `satchel` view for #1. Then update the README's quoted outputs, AGENTS.md's table,
-`web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx` and this kit's scene notes in the
-same pull request.
+`web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx`, the landing cards (`TOUR` in
+`web/src/lib/showcase.ts`) and this kit's scene notes in the same pull request.

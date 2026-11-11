@@ -32,6 +32,7 @@ which a dry quote doesn't have: see [what a real swap takes](#what-a-real-swap-t
    | From | What the satchel holds of the native coin, USDC and USDT on those chains, where 1Click lists it. The largest holding at 1Click's prices comes up by default |
    | To | The native coin, USDC or USDT on the satchel's own mainnets, so the output would land at an address the contract signs for. ETH on Base by default, or USDC on Arbitrum One when ETH on Base goes in |
    | Amount | The whole holding by default. You can quote less, not more |
+   | Slippage limit | 0.5 %, 1 % or 3 %, sent as `slippageTolerance` in basis points. 1 % by default, as the swap script asks |
 
 4. **Click Get a quote.** The panel posts the dry request to `POST /v0/quote`, checks the answer, and
    shows it:
@@ -40,7 +41,7 @@ which a dry quote doesn't have: see [what a real swap takes](#what-a-real-swap-t
    | --- | --- |
    | In | The amount quoted, and its value at 1Click's prices |
    | Out | What 1Click quotes to deliver |
-   | At least | The quote's minimum, after 1 % slippage |
+   | At least | The quote's minimum, after the slippage limit picked |
    | Fees | The sum of the quote's `appFees`, in basis points, and the withdrawal fee 1Click already took off the output |
    | Time | 1Click's estimate, in seconds after it sees a deposit |
 
@@ -52,7 +53,7 @@ and refunds: what would come out, and any refund, lands back in the satchel.
 ## Satchel #2's quote on 2026-11-11
 
 Mainnet satchel #2 holds the 5.280549 USDC on Arbitrum One that its swap delivered, and some ETH dust
-on Base. For its USDC to ETH on Base, the panel builds this request:
+on Base. For its USDC to ETH on Base, at the default 1 % slippage limit, the panel builds this request:
 
 ```json title="POST https://1click.chaindefuser.com/v0/quote"
 {
@@ -99,7 +100,7 @@ Before it shows an answer, the panel refuses one that isn't the quote it asked f
   types, slippage and deadline.
 - The recipient and the refund address must be the satchel's address, in any letter case.
 - The quote must take the amount asked for, and carry no deposit address.
-- Its minimum must match 1 % of slippage on the amount out.
+- Its minimum must match the slippage limit asked for, applied to the amount out.
 - Its fees and its time estimate must be numbers it can read.
 
 ## What a real swap takes
@@ -121,12 +122,19 @@ or the report enforces the quote, and the report doesn't count what is in flight
 On mainnet pages, the **History** card asks 1Click about the recipients of the satchel's latest 5
 native-coin sends, `GET /v0/status?depositAddress=…`. When 1Click knows a recipient as a deposit
 address, and its copy of the quote starts from the native coin of the chain the satchel sent on, the
-row gets a second line in 1Click's words, linked to 1Click's status. Satchel #2's send on Base reads:
+row gets a second line in 1Click's words. When 1Click calls the swap `SUCCESS` and its status names
+the payout's transaction (`swapDetails.destinationChainTxHashes`), the line links that transaction on
+the destination chain's explorer; otherwise, `REFUNDED` and `FAILED` included, it links 1Click's
+status. Satchel #2's send on Base reads:
 
 ```text
 satchel-nft.near had a send of 0.00258 ETH to 0x588f8C4419974bC735Ac784B3dA41B44c42bb64b signed on Base, nonce 0 · tx
-1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One · 1Click's status
+1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One · payout tx
 ```
+
+Its "payout tx" opens [`0x417322bd…`](https://arbiscan.io/tx/0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209)
+on Arbiscan. Had 1Click refunded that swap, the line would read `1Click swap · REFUNDED · for USDC to
+this satchel on Arbitrum One · 1Click's status`: what the swap was for, not an amount out.
 
 The line says "to this satchel" when 1Click's copy of the quote names the satchel's address as the
 recipient, and names the other address when it doesn't. If 1Click doesn't know an address, or doesn't

@@ -5,8 +5,11 @@ import { SaleFlow } from "@/components/landing/sale-flow";
 import { TrickExplorer } from "@/components/landing/trick-explorer";
 import { LiveStats } from "@/components/live-stats";
 import { ReportProvider } from "@/components/report-checker";
-import { CHAINS, TESTNET } from "satchel-nft";
+import { NetLink } from "@/components/site-header";
+import { CHAINS, MAINNET, NETWORKS, REPO_URL, TESTNET } from "satchel-nft";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
+import { appPath } from "@/lib/routes";
+import { TOUR } from "@/lib/showcase";
 
 const USUAL_WAY = [
   "The seller can keep a copy of the key, and nothing shows it",
@@ -93,7 +96,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet: never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the card marked Mainnet satchel #2: never send real funds to a testnet satchel's address.",
   },
 ];
 
@@ -101,7 +104,7 @@ const LIMITS = [
   "Powers built into an asset itself are out of reach: a token the seller can upgrade, blacklist or claw back needs no signature from the wallet.",
   "Calls the contract can't classify, such as swaps and multicalls, make a satchel unprovable for every later owner. The report says so.",
   "secp256k1 only for now: EVM chains through sign_evm, anything else through sign_raw, which counts as opaque.",
-  "Not audited. Two internal adversarial reviews; every fix is covered by the contract's tests.",
+  "Not audited by anyone outside the project. Internal reviews only: two of the contract, one of them adversarial, whose fixes its tests cover, and two each of the web app and the mainnet path.",
 ];
 
 function Eyebrow({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
@@ -199,6 +202,52 @@ export default function Home() {
         <TrickExplorer />
 
         <SaleFlow />
+
+        <section className="reveal">
+          <Eyebrow>Beyond a sale</Eyebrow>
+          <H2>Four more things to open.</H2>
+          <p className="mt-4 max-w-2xl text-ink-2">
+            Each card is one satchel on testnet or mainnet, with the transactions behind it where there are any. A card
+            says what happened; the satchel&apos;s page reads it live.
+          </p>
+          <ul className="mt-10 grid gap-4 md:grid-cols-2">
+            {TOUR.map((card) => (
+              <li key={card.path + card.network} className="flex flex-col rounded-2xl border border-line bg-card p-6 sm:p-8">
+                <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+                  <span className="font-medium text-leather">
+                    {card.network === "mainnet" ? "Mainnet" : "Testnet"} satchel #{card.tokenId}
+                  </span>
+                  <span className="font-mono text-xs text-muted">{card.tech}</span>
+                </p>
+                <h3 className="mt-3 font-display text-2xl font-semibold">{card.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-2">{card.body}</p>
+                {card.txs.length > 0 && (
+                  <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    {card.txs.map((tx) => (
+                      <li key={tx.href}>
+                        <a href={tx.href} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+                          {tx.label}
+                          <span aria-hidden="true"> ↗</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-6">
+                  <NetLink
+                    href={appPath(NETWORKS[card.network], card.path)}
+                    className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-leather"
+                  >
+                    {card.cta}
+                  </NetLink>
+                  <Link href={card.docs} className="text-sm font-medium text-leather hover:text-ink">
+                    How it works →
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className="reveal">
           <Eyebrow>Why not just…</Eyebrow>
@@ -325,17 +374,39 @@ export default function Home() {
             <ul className="mt-5 space-y-4 text-ink-2">
               <li>
                 <strong className="text-ink">Chain Signatures.</strong> Every key is derived and every signature made by the MPC
-                network ({TESTNET.mpc}); the contract is the only account that can ask for a satchel's key.
+                network ({TESTNET.mpc} on testnet, {MAINNET.mpc} on mainnet); the contract is the only account that can ask for
+                a satchel's key.
               </li>
               <li>
-                <strong className="text-ink">NEP-171, 177, 181 and 297.</strong> A standard NFT that wallets and marketplaces
-                already understand, with events for every signature and sale.
+                <strong className="text-ink">NEP-171, 177, 181 and 297.</strong> The standard NFT core, metadata and
+                enumeration, with events for every signature and sale. It has no picture per token and no NEP-178
+                approvals, so a sale goes through its own list and buy.
               </li>
               <li>
                 <strong className="text-ink">A locked, reproducible contract.</strong> Built in a pinned Docker image (NEP-330),
                 deployed and initialized in one transaction, then every key deleted.
               </li>
+              <li>
+                <strong className="text-ink">NEAR Intents.</strong> Mainnet satchel #2 swapped ETH on Base for USDC on Arbitrum
+                One through 1Click, and mainnet pages can ask the same API for dry quotes, with no API key.
+              </li>
+              <li>
+                <strong className="text-ink">Sputnik DAO.</strong> A DAO can own a satchel: the vote that passes a proposal
+                makes the sign_evm or nft_transfer call, in the same transaction.
+              </li>
+              <li>
+                <strong className="text-ink">NEAR Connect and NEP-413.</strong> Wallets come from a pinned list per network,
+                and the holder room checks a signed message instead of a transaction.
+              </li>
             </ul>
+            <a
+              href={`${REPO_URL}#built-on-near`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-block text-sm font-medium text-leather hover:text-ink"
+            >
+              Every NEAR piece it uses, and where in the code ↗
+            </a>
           </div>
           <div>
             <Eyebrow>Honest limits</Eyebrow>

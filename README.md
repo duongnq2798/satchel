@@ -119,7 +119,7 @@ the record changed).
    On testnet it also reads the calls the contract refused; on mainnet, satchel #1's mint and first
    signature, and that send on Base from a public Base node, then satchel #2's swap through 1Click,
    on NEAR, Base, Arbitrum One and 1Click's public status (set `BASE_RPC` and `ARBITRUM_RPC` to use
-   your own nodes). Each run took 6 to 9 s here, most of it waiting on the archival node.
+   your own nodes). Each run took 6 to 11 s here, most of it waiting on the archival node.
 
    ```bash
    node scripts/check-claims.mjs                      # NEAR testnet: 13 claims
@@ -170,7 +170,11 @@ the record changed).
    listed and a `buy` naming an old record version, and what satchel #6's record held when that `buy`
    was refused. It ends with `13 of 13 claims hold`. Each run exits 0 only when
    every claim holds; [AGENTS.md](AGENTS.md#1-the-deployment-and-its-history-one-command) says what
-   each line reads.
+   each line reads. A read that fails is tried once more. With `BASE_RPC` unset, a Base read the
+   default node fails goes to Base's own node, `https://mainnet.base.org`. A claim that fails only
+   because a node or 1Click didn't answer says it is not a change to any satchel, and what to do.
+   GitHub runs the three commands every day until judging ends on 2026-11-25
+   ([`watch.yml`](.github/workflows/watch.yml)), with a request to satchelnft.xyz and `/mainnet`.
 
 3. **Ask the chain without our scripts.** Two reads with curl, from the same directory:
 
@@ -283,17 +287,17 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 81 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 91 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
-   The contract's 61 unit tests need Rust (rustup installs the pinned 1.99.1 from
+   The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
    `contracts/satchel/rust-toolchain.toml` on first use). On Windows, set
    `AWS_LC_SYS_PREBUILT_NASM=1` first. With the dependencies already compiled, this took 43 s here;
    a first run compiles them before it starts.
 
    ```bash
    cd contracts/satchel
-   cargo test           # test result: ok. 61 passed
+   cargo test           # test result: ok. 64 passed
    ```
 
 **Reviewing security:** [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) goes through 40 attacks (the
@@ -482,13 +486,13 @@ one swap is in [A swap through NEAR Intents that keeps the proof](#a-swap-throug
 | --- | --- | --- |
 | Markets that settle through NEAR Intents with no custodian and nobody who can switch them off (the track's brief) | **Partly.** The contract has no access keys and no admin, and a sale needs no escrow: `buy` moves the NFT in the receipt that takes the buyer's NEAR, and pays the seller from it. The swap's output arrives because 1Click's system sends it, and every signature needs NEAR's MPC network | [`lib.rs`](contracts/satchel/src/lib.rs), [Failure cases](#failure-cases) |
 | USDC from any chain NEAR Intents supports, swapped for BTC, ETH or NEAR | **Partly.** One route ran, once, on mainnet: 0.00258 ETH on Base for USDC on Arbitrum One, from a script that asks for that route alone. In the app, **Quote an exit** asks 1Click for a dry quote from what a mainnet satchel holds to the native coin, USDC or USDT of 7 EVM mainnets, ETH among them; not BTC or NEAR, and it never swaps | [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), [`oneclick.ts`](web/src/lib/oneclick.ts) |
-| A schedule, with a quote at each interval | **Missing.** Nothing runs on a schedule: the owner sent the one deposit by hand | |
-| A quote rejected when its slippage beats the user's limit | **Partly.** The script and the app's quote panel ask for 1 % slippage, fixed, and refuse a quote whose minimum out doesn't match it. The script also refuses fees above 25 bps; the panel shows the fee. The user can't set the limit | `checkQuote` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) and in [`oneclick.ts`](web/src/lib/oneclick.ts) |
+| A schedule, with a quote at each interval | **Missing.** Nothing runs on a schedule, and no keeper or bot can be given a limited key to sign on one. Each `sign_evm` needs exactly 1 yoctoNEAR, which a function-call access key can't attach, so each needs the owner's full-access key, a wallet confirmation (or a council vote, for a satchel a DAO owns). A bot could sign on a schedule only holding that key, which can do anything the owner can. The owner sent the one deposit by hand | `assert_can_sign` in [`lib.rs`](contracts/satchel/src/lib.rs) |
+| A quote rejected when its slippage beats the user's limit | **Partly.** In the app's quote panel the user picks a slippage limit of 0.5 %, 1 % or 3 %, not any value, and the panel refuses a quote that doesn't echo it or whose minimum out doesn't match it. The panel only quotes: the one swap ran from the script, which asks for 1 %, fixed, with the same check, and also refuses fees above 25 bps; the panel shows the fee | `checkQuote` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) and in [`oneclick.ts`](web/src/lib/oneclick.ts) |
 | The asset lands in the user's own address on the target chain | **Met.** The quote's `recipient` and `refundTo` were the satchel's own address, and 5.280549 USDC reached it on Arbitrum One | [`0x417322bd…`](https://arbiscan.io/tx/0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209), [`mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json) |
 | The near-intents agent skill, and the 1Click API for quotes, deposits and status | **Partly.** Claude Code loaded the skill while building the swap. The script calls `/v0/quote`, `/v0/deposit/submit` and `/v0/status`. The app calls `/v0/tokens`, `/v0/quote` with `dry: true` only, and `/v0/status`, never `/v0/deposit/submit` | [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), [`oneclick.ts`](web/src/lib/oneclick.ts), [Libraries](#libraries-templates-and-ai-assisted-code) |
-| `REFUNDED` and `FAILED` handled, and shown in the UI | **Partly.** The script's `status` stops on either and exits 1. On mainnet, a satchel's history marks a send that paid a 1Click deposit address with 1Click's status for it, whatever it is, `REFUNDED` and `FAILED` included. The one run ended `SUCCESS` | `status` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), `swapMarks` in [`oneclick.ts`](web/src/lib/oneclick.ts) |
+| `REFUNDED` and `FAILED` handled, and shown in the UI | **Partly.** The script's `status` stops on either and exits 1. On mainnet, a satchel's history marks a send that paid a 1Click deposit address with 1Click's status for it, whatever it is, `REFUNDED` and `FAILED` included: such a line says what the swap was for, not an amount out, and links 1Click's status, not a payout. Tests feed it 1Click's real status answer, changed to read as each with nothing paid out. The one run ended `SUCCESS` | `status` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), `swapMarks` in [`oneclick.ts`](web/src/lib/oneclick.ts), [`oneclick.test.ts`](web/src/lib/oneclick.test.ts) |
 | Where the funds sit at every step | **Partly.** A satchel's page shows its native coin on each chain, and USDC, USDT and WETH where a deployment is listed, and the Send panel links the deposit on the chain's explorer. While a swap runs, the satchel's history shows 1Click's status for the deposit, read live; the report doesn't count what is in flight | [`contents.ts`](packages/satchel-nft/src/contents.ts), [`send-panel.tsx`](web/src/components/send-panel.tsx) |
-| A web UI: deposit, schedule, and a history of executed buys with explorer links | **Partly.** The deposit went from the app's Send panel. No schedule. A satchel's history lists the deposit's `sign_evm` with its amount, receiver and NEAR transaction, and under it 1Click's line, `1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One`, linked to 1Click's status, not to the payout's transaction | [`history.ts`](packages/satchel-nft/src/history.ts), [satchelnft.xyz/mainnet/satchel/2](https://satchelnft.xyz/mainnet/satchel/2) |
+| A web UI: deposit, schedule, and a history of executed buys with explorer links | **Partly.** The deposit went from the app's Send panel. No schedule. A satchel's history lists the deposit's `sign_evm` with its amount, receiver and NEAR transaction, and under it 1Click's line, `1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One`, linked to the payout's transaction on Arbiscan, the one 1Click's status names. A swap whose status names no payout links 1Click's status | [`history.ts`](packages/satchel-nft/src/history.ts), [satchelnft.xyz/mainnet/satchel/2](https://satchelnft.xyz/mainnet/satchel/2) |
 | A dry-run mode with real quotes, for judges with no funds | **Met.** On a mainnet satchel's page, **Quote an exit** asks 1Click for a real quote with `dry: true`, from the browser, with no wallet and no funds: no deposit address, nothing signed. On `/mainnet/satchel/2` it quotes the satchel's 5.280549 USDC ([in the app](#quote-an-exit-in-the-app)). The script's `plan <id>` does the same from a terminal, for a satchel with ETH on Base | [`quote-panel.tsx`](web/src/components/quote-panel.tsx), `plan` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) |
 | Stretch: a NEAR contract owns the vault and controls a derived BTC address through Chain Signatures | **Partly.** The Satchel contract controls each satchel's address through Chain Signatures, and the key is secp256k1, Bitcoin's curve. But the contract builds EVM transactions: a Bitcoin one needs `sign_raw`, which the app and the CLI don't offer | `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs) |
 
@@ -666,7 +670,8 @@ contract signs for. A dry quote carries no deposit address, so there is nowhere 
 request's type in [`oneclick.ts`](web/src/lib/oneclick.ts) holds `dry: true` and no other value, the
 function that posts it refuses any other, and the panel signs and sends nothing. It refuses an answer
 that doesn't echo the assets, amount, recipient, refund address, slippage and deadline it asked for,
-or that carries a deposit address, then shows the amount out, the minimum after 1 % slippage, the fee
+or that carries a deposit address, then shows the amount out, the minimum after the slippage limit
+picked (0.5 %, 1 % or 3 %, 1 % by default), the fee
 in the quote's `appFees` and 1Click's time estimate. On testnet, which 1Click doesn't serve, the
 panel is a line that points to satchel #2.
 
@@ -708,10 +713,10 @@ flowchart LR
 | **The contract builds what it signs** | Every `sign_evm` signature is over an EIP-1559 transaction the contract RLP-encoded and hashed itself; anything else goes through `sign_raw` and is counted as opaque | `Eip1559Tx::signing_hash` in [`evm.rs`](contracts/satchel/src/evm.rs) | `evm_hash_and_rlp_match_viem_for_every_vector`, `evm_signing_hash_view_matches_the_hash_sign_evm_sends` |
 | **Record first** | The record is saved in the `sign_evm` receipt; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm`, `sign_raw`, `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs) | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` |
 | **Every call classified** | Transfer, asset transfer, approval, revocation or unclassified; selectors are checked against the keccak of their signatures | `Eip1559Tx::classify` in [`evm.rs`](contracts/satchel/src/evm.rs) | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
-| **Approvals itemized, then counted** | 32 distinct approvals listed per token; beyond that, counted, never dropped | `sign_evm`, `MAX_APPROVALS` in [`lib.rs`](contracts/satchel/src/lib.rs) | `approvals_beyond_the_cap_are_counted_not_dropped`, `erc721_approvals_of_two_token_ids_stay_two_rows` |
+| **Approvals itemized, then counted** | 32 distinct approvals listed per token; beyond that, counted, never dropped. At the caps, a listed satchel takes 8,558 of the 10,000 bytes its mint paid for | `sign_evm`, `MAX_APPROVALS`, `MINT_DEPOSIT` in [`lib.rs`](contracts/satchel/src/lib.rs) | `approvals_beyond_the_cap_are_counted_not_dropped`, `erc721_approvals_of_two_token_ids_stay_two_rows`, `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` |
 | **Owner only; listing freezes signing** | Only the current owner signs, with 1 yoctoNEAR and at least 50 TGas, and never while listed | `assert_can_sign` in [`lib.rs`](contracts/satchel/src/lib.rs) | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | **`buy` pins what the buyer checked** | The record version and the price must be the ones the buyer names | `buy` in [`lib.rs`](contracts/satchel/src/lib.rs) | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
-| **Any transfer ends the listing** | `nft_transfer`, `nft_transfer_call` and a bounced transfer each void the listing | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer` in [`lib.rs`](contracts/satchel/src/lib.rs) | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
+| **Any transfer ends the listing** | `nft_transfer`, `nft_transfer_call` and a bounced transfer each void the listing, and only the owner can transfer | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer` in [`lib.rs`](contracts/satchel/src/lib.rs) | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `nft_transfer_call_ends_the_sellers_listing`, `a_bounced_transfer_call_voids_the_receivers_listing`, `a_non_owner_cannot_nft_transfer_the_token` |
 | **A fixed chain list** | Only the 16 chain ids in `SUPPORTED_CHAINS` can be signed for, so every record is checkable | `SUPPORTED_CHAINS` in [`evm.rs`](contracts/satchel/src/evm.rs) | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
 | **The four checks** | Each chain read at a finalized block; anything unreadable is "unknown", never a pass | `contractCheck`, `pendingCheck`, `approvalsCheck`, `countersCheck` in [`report.ts`](packages/satchel-nft/src/report.ts), [`approvals.ts`](packages/satchel-nft/src/approvals.ts) | [`report.test.ts`](packages/satchel-nft/src/report.test.ts), [`approvals.test.ts`](packages/satchel-nft/src/approvals.test.ts) |
 | **App and CLI guards** | No address and no signature until the network's contract passes check 1; only this network's contract, from an account on this network; no transfer to an account that doesn't exist | `assertDeployment`, `assertTxFor`, `assertReceiver` in [`guard.ts`](packages/satchel-nft/src/guard.ts) | [`guard.test.ts`](packages/satchel-nft/src/guard.test.ts) |
@@ -1105,11 +1110,11 @@ no database and no session.
 
 | Page | What you can do there |
 | --- | --- |
-| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the demo satchels and the refused calls, a sale step by step, a comparison with seed phrases and token-bound accounts, a link to every transaction behind a claim, and one to the two mainnet satchels that have sent real ETH |
+| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the demo satchels and the refused calls, a sale step by step, four cards for what a satchel does beyond a sale (testnet #4's holder room, the DAO's satchel #8, mainnet #2's swap through 1Click, and Make it clean on #9), a comparison with seed phrases and token-bound accounts, a link to every transaction behind a claim, and one to the two mainnet satchels that have sent real ETH |
 | `/satchels` | Connect a NEAR wallet, mint a satchel for 0.1 NEAR, see the ones you own |
 | `/satchel/<id>` | The token's address, what it holds on the 8 testnets (the native coin, and USDC and WETH where a testnet deployment is listed), the clean transfer report, its history from the mint on; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy. Under a report that isn't clean, **Make it clean** lists the revokes and nonce spends that would fix it, each with its calldata, and gives the owner a button for each one the app can send. The verdict at the top links to the report. Placeholders hold the layout while the page reads NEAR, and the HTML the server sends says what the page checks and gives the same report's command, `npx -y satchel-nft@0.2.0 verify <id>` |
 | `/satchel/<id>/room` | The holder room: connect the wallet that owns the satchel and sign a message, then see a holder card and a handover kit, what to do before you sell |
-| `/market` | The listed satchels, each with its price and the verdict of its report |
+| `/market` | The listed satchels, each with its price and the verdict of its report. Until 2026-11-25 a demo satchel carries a **Demo satchel** tag, since the app won't buy it, and when every listing is one, the page says how to see a sale through with a satchel of your own |
 | `/verify` | Enter a token id (`5` or `#5`) or paste the link to a satchel's page on satchelnft.xyz, or pick a demo satchel, each with one line on what was done with it, and read its report, no wallet needed. A link to a mainnet satchel opens it on mainnet |
 | `/mainnet`, `/mainnet/satchels`, `/mainnet/satchel/<id>`, `/mainnet/satchel/<id>/room`, `/mainnet/market`, `/mainnet/verify` | The same pages on mainnet, with the deployment's facts read live. A mainnet satchel's page also has **Quote an exit**, a dry 1Click quote of what it holds with no wallet, and its history adds 1Click's status under a send that paid a 1Click deposit address. `/mainnet` also shows what satchels #1 and #2 did, with links to the transactions behind each story: #1 sent 0.0001 ETH on Base, and #2 sent 0.00258 ETH on Base to 1Click's deposit address and received 5.280549 USDC on Arbitrum One. The numbers are in [`showcase.ts`](web/src/lib/showcase.ts), and its test checks them against the records in [`deployments`](deployments) |
 
@@ -1382,9 +1387,9 @@ all of this with the near CLI's key, checking each step
 
 | Path | What it holds |
 | --- | --- |
-| [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 61 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
+| [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 222 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
-| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 81 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
+| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 91 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package) and [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
@@ -1411,12 +1416,12 @@ package and the web app: Node.js 22 or later (CI uses 22 for the package, 24 for
 
 ```bash
 cd contracts/satchel
-cargo test                                   # 61 unit tests
+cargo test                                   # 64 unit tests
 cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 222 package tests, 81 app tests
+npm run typecheck && npm test              # both workspaces: 222 package tests, 91 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1430,7 +1435,8 @@ job.
 CI runs on GitHub Actions (ubuntu). Every pull request runs [`ci.yml`](.github/workflows/ci.yml),
 which calls the contract, web and package workflows, then `verify`: the one check `main` and `dev`
 require before a merge, and it passes only when all three pass. Pushes to `main` and `dev` run the
-three workflows directly, each when its paths change.
+three workflows directly, each when its paths change. [`watch.yml`](.github/workflows/watch.yml)
+re-checks the demo every day until judging ends; `verify` doesn't wait for it.
 
 | Workflow | Job | What it does | When |
 | --- | --- | --- | --- |
@@ -1439,15 +1445,16 @@ three workflows directly, each when its paths change.
 | Web | Typecheck, unit tests, build | `npm ci` at the root, then in `web` `npm run typecheck`, `npm test`, `npm run build`, on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/`, `packages/`, the root `package.json` or lockfile, or the workflow |
 | Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
+| Watch | Claims and site | From 2026-11-25, when judging and the demo freeze end, nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
-The tests, as of 2026-11-11: 61 Rust unit tests in
+The tests, as of 2026-11-11: 64 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 222 package tests in 17 files: `clean.test.ts` 31, `evm.test.ts` 26,
 `dao.test.ts` 25, `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13,
 `history.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;
-and 81 app tests: 35 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
-2 in `frozen.test.ts`, 17 in `showcase.test.ts`,
-which checks the mainnet showcase against `deployments/`, and 12 in `docs.test.ts`,
+and 91 app tests: 40 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
+2 in `frozen.test.ts`, 22 in `showcase.test.ts`,
+which checks the mainnet showcase and the landing page's four cards against `deployments/`, and 12 in `docs.test.ts`,
 which compile every docs page and check its links and anchors. Some rules have no
 unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, the sale panel's use of the report's version and price was
@@ -1465,9 +1472,17 @@ What the tests pin down:
   `multicall` is counted as unclassified; a safe transfer with data, an ERC-1155 transfer of 0 and
   a batch transfer are unclassified; revocations never take an approval slot; a seller who delists,
   signs and relists cannot complete a sale against the version the buyer checked; a bounced
-  `nft_transfer_call` voids the listing the receiver made while holding the token; a previous owner
-  cannot sign after a transfer; a sale while the seller's send waits on the MPC network leaves that
-  send on the record the buyer bought, and the seller is refused while their payment is on its way.
+  `nft_transfer_call` voids the listing the receiver made while holding the token, and any
+  `nft_transfer_call` removes the seller's own listing; a non-owner's `nft_transfer` is refused; a
+  previous owner cannot sign after a transfer; a sale while the seller's send waits on the MPC
+  network leaves that send on the record the buyer bought, and the seller is refused while their
+  payment is on its way.
+- **Storage at the caps.** A satchel with a 20-digit id, owned by a 64-character account, signed
+  for on all 16 chains, with 32 Permit2 rows (the longest kind) and a listing, takes 8,558 of the
+  10,000 bytes its 0.1 NEAR mint paid for, counted the way the NEAR runtime counts storage (key,
+  value and 40 bytes per entry); signing past the caps adds none
+  (`a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit`; add `-- --nocapture` to
+  `cargo test` to see the numbers).
 - **The web app's own rules:** the address derivation and the full signing round trip against the
   real `sign_evm` result from the end-to-end run (same hash, same signer, same raw transaction byte
   for byte), each check and the verdict order, every approval kind (a cleared ERC-721 approval

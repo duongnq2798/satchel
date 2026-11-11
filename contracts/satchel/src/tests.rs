@@ -509,6 +509,47 @@ fn the_previous_owner_cannot_sign_after_a_transfer() {
     let _ = c.sign_evm("1".to_string(), tx(1, 0));
 }
 
+#[test]
+fn nft_transfer_call_ends_the_sellers_listing() {
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    c.list("1".to_string(), U128(500));
+    set(accounts(0), ONE_YOCTO);
+    let _ = c.nft_transfer_call(accounts(1), "1".to_string(), None, None, "".to_string());
+    // The row itself is gone, not only hidden by `active_listing` now that alice doesn't own it.
+    assert!(c.listings.is_empty());
+    assert!(c.listing("1".to_string()).is_none());
+    // Bob's nft_on_transfer returns false: he keeps the token.
+    testing_env!(
+        ctx(
+            "satchel.testnet".parse().unwrap(),
+            NearToken::from_yoctonear(0)
+        )
+        .build(),
+        near_sdk::test_vm_config(),
+        near_sdk::RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![near_sdk::PromiseResult::Successful(b"false".to_vec())],
+    );
+    assert!(c.nft_resolve_transfer(accounts(0), accounts(1), "1".to_string(), None));
+    assert_eq!(c.nft_token("1".to_string()).unwrap().owner_id, accounts(1));
+    assert!(c.listings.is_empty());
+    // Bob starts unlisted and free to sign.
+    set(accounts(1), ONE_YOCTO);
+    let _ = c.sign_evm("1".to_string(), tx(1, 0));
+}
+
+#[test]
+#[should_panic(expected = "Approval extension is disabled")]
+fn a_non_owner_cannot_nft_transfer_the_token() {
+    // Satchel has no NEP-178 approvals, so near-contract-standards refuses anyone but the owner.
+    let mut c = setup();
+    set(accounts(0), ONE_YOCTO);
+    c.list("1".to_string(), U128(500));
+    set(accounts(1), ONE_YOCTO);
+    c.nft_transfer(accounts(1), "1".to_string(), None, None);
+}
+
 // ---------- buy ----------
 
 /// Alice signed nonce 4 on chain 1 (record version 1), then listed token "1" for `price`.
@@ -1063,4 +1104,82 @@ fn approvals_beyond_the_cap_are_counted_not_dropped() {
     let r = c.signing_record("1".to_string());
     assert_eq!(r.approvals.len(), MAX_APPROVALS);
     assert_eq!(r.approvals_not_itemized, 2);
+}
+
+// ---------- storage ----------
+
+/// Like `set`, but carries the account's storage usage over from the last call: `testing_env!`
+/// resets it to the builder's value, so a test that measures storage across calls needs this.
+fn set_keeping_storage(predecessor: AccountId, deposit: NearToken) {
+    let used = env::storage_usage();
+    testing_env!(ctx(predecessor, deposit).storage_usage(used).build());
+}
+
+#[test]
+fn a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit() {
+    set(
+        "satchel.testnet".parse().unwrap(),
+        NearToken::from_yoctonear(0),
+    );
+    let mut c = Contract::new(MPC.parse().unwrap());
+    // The longest token id a u64 makes, for an owner with the longest account id NEAR allows.
+    c.next_id = 10_000_000_000_000_000_000;
+    let owner: AccountId = "f".repeat(64).parse().unwrap();
+    let before = env::storage_usage();
+    set_keeping_storage(owner.clone(), MINT_DEPOSIT);
+    let id = c.mint(None).token_id;
+    assert_eq!(id.len(), 20);
+
+    for chain in SUPPORTED_CHAINS {
+        set_keeping_storage(owner.clone(), ONE_YOCTO);
+        let _ = c.sign_evm(id.clone(), tx(chain, 0));
+    }
+    // Permit2 rows are the longest: they name a token as well as a spender.
+    let permit2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+    let permit = |spender: u8| {
+        call(
+            permit2,
+            format!(
+                "0x87517c45{}{}{:064x}{:064x}",
+                word_address(0x01),
+                word_address(spender),
+                u64::MAX,
+                1_800_000_000u64
+            ),
+        )
+    };
+    for spender in 1..=MAX_APPROVALS as u8 {
+        set_keeping_storage(owner.clone(), ONE_YOCTO);
+        let _ = c.sign_evm(id.clone(), permit(spender));
+    }
+    c.records.flush();
+    let at_caps = env::storage_usage();
+
+    // Past the caps, everything is a counter: the record grows no further.
+    set_keeping_storage(owner.clone(), ONE_YOCTO);
+    let _ = c.sign_evm(id.clone(), permit(MAX_APPROVALS as u8 + 1));
+    set_keeping_storage(owner.clone(), ONE_YOCTO);
+    let _ = c.sign_evm(id.clone(), call(USDC, "0x0102".to_string()));
+    set_keeping_storage(owner.clone(), ONE_YOCTO);
+    let _ = c.sign_raw(id.clone(), format!("0x{}", "11".repeat(32)));
+    c.records.flush();
+    assert_eq!(env::storage_usage(), at_caps);
+
+    set_keeping_storage(owner.clone(), ONE_YOCTO);
+    c.list(id.clone(), U128(500));
+    c.listings.flush();
+
+    let record = c.signing_record(id.clone());
+    assert_eq!(record.evm.len(), SUPPORTED_CHAINS.len());
+    assert_eq!(record.approvals.len(), MAX_APPROVALS);
+    assert_eq!(record.approvals_not_itemized, 1);
+    assert_eq!(c.listing(id).unwrap().seller, owner);
+    let used = u128::from(env::storage_usage() - before);
+    let record_bytes = near_sdk::borsh::to_vec(&record).unwrap().len() as u128;
+    assert!(used > record_bytes, "the measurement missed the record");
+    let paid_for = MINT_DEPOSIT.as_yoctonear() / env::storage_byte_cost().as_yoctonear();
+    println!(
+        "token, record at the caps ({record_bytes} bytes) and listing: {used} of the {paid_for} bytes the mint pays for"
+    );
+    assert!(used <= paid_for, "{used} bytes stored, {paid_for} paid for");
 }

@@ -84,7 +84,8 @@ The next three read `deployments/mainnet-first-send.json`, satchel #1's first se
 - the Base transaction `0x8044dd8c…` has the fields `sign_evm` was given and the r, s and parity
   `v1.signer` returned, comes from `0xdc269ead…868f9`, succeeded in block 55178996 for the value and
   fee the record names, and that block is finalized. This one reads Base through `BASE_RPC`
-  (`https://base-rpc.publicnode.com` by default) and fails until Base finalizes the block, about
+  (`https://base-rpc.publicnode.com` by default; with `BASE_RPC` unset, a read that node fails goes
+  to Base's own `https://mainnet.base.org`) and fails until Base finalizes the block, about
   20 minutes after a send.
 
 The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap through NEAR Intents'
@@ -94,8 +95,8 @@ The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap thr
   contract's receipt ran in a NEAR block older than the Base block of `0x9c786eab…`, which succeeded
   and sent the satchel's address the 0.0026 ETH the record names; the address had nonce 0 and
   0 wei in the block before, and exactly that in its block. This reads Base state at block
-  55857952, which `https://base-rpc.publicnode.com` served on 2026-11-11 and a pruned node in
-  `BASE_RPC` can't;
+  55857952, which `https://base-rpc.publicnode.com` and `https://mainnet.base.org` both served on
+  2026-11-11 and a pruned node in `BASE_RPC` can't;
 - its `sign_evm`, tx `FnFSMSh1…`, passes the same checks as satchel #1's, for path `satchel/2`, and
   the transaction it signed sends exactly the quote's `amountIn` to the quote's `depositAddress`
   with no calldata, which the contract logged as `value_transfer`;
@@ -115,6 +116,11 @@ last claim compares the file's quote with the one 1Click returns for
 `https://1click.chaindefuser.com/v0/status?depositAddress=0x588f8C4419974bC735Ac784B3dA41B44c42bb64b`.
 So is the link between the deposit and the payout: the chain shows that `0x2cff890f…02680` sent the
 satchel's address that USDC, and only 1Click's status says it paid out this deposit.
+
+The script tries each read that fails once more, 2 s later. When a node or 1Click still doesn't
+answer, the claim fails with a line that says this is not a change to any satchel and what to do:
+set `BASE_RPC` to another Base node (an archive node for satchel #2's funding claim), or, for 1Click,
+run the check again later. If a Base read came from `https://mainnet.base.org`, the last line says so.
 
 A Sputnik DAO owned satchel #8 on testnet. That run has its own record,
 `deployments/testnet-dao.json`, and its own script:
@@ -142,6 +148,13 @@ You should see `5 of 5 claims hold`. It checks that:
   the contract logged it from the DAO, and right after it the record was still at version 1.
 
 `SEPOLIA_RPC` replaces the Sepolia node.
+
+GitHub runs the three commands every day until judging ends, in
+[`watch.yml`](.github/workflows/watch.yml): `check-claims.mjs` on both networks, `check-dao.mjs`,
+then `curl -fsS` on <https://satchelnft.xyz> and <https://satchelnft.xyz/mainnet>, on Node 22 with no
+install and no secrets. A check that fails runs once more a minute later before the run fails. From
+2026-11-25, when judging and the demo freeze end, the run checks nothing. Its runs are in the
+repository's Actions tab.
 
 ### 2. The clean transfer report for each demo satchel
 
@@ -192,7 +205,7 @@ npm run typecheck
 ```
 
 Each runs in both workspaces. You should see `Tests  222 passed (222)` for `satchel-nft`, then
-`Tests  81 passed (81)` for the app, then no type errors.
+`Tests  91 passed (91)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -200,7 +213,7 @@ cargo test
 cd ../..
 ```
 
-You should see `test result: ok. 61 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
+You should see `test result: ok. 64 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
 rustup installs it on first use. On Windows, a dependency (`aws-lc-sys`) needs NASM unless you set
 `AWS_LC_SYS_PREBUILT_NASM=1` first: `$env:AWS_LC_SYS_PREBUILT_NASM=1` in PowerShell, `export
 AWS_LC_SYS_PREBUILT_NASM=1` in Git Bash.
@@ -265,9 +278,10 @@ of these checks.
 | The record is written before the MPC request | `sign_evm`, `sign_raw`, `request_signature` in `contracts/satchel/src/lib.rs`. The record is saved when the `sign_evm` receipt succeeds; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` (they show the record and the MPC call; the order follows from NEAR's receipts) |
 | Every call is classified: transfer, asset transfer, approval, revocation or unclassified | `Eip1559Tx::classify` in `evm.rs` | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
 | 32 approvals are itemized, more are counted | `sign_evm`, `MAX_APPROVALS` | `approvals_beyond_the_cap_are_counted_not_dropped` |
+| A satchel at the caps (16 chains, 32 approvals, a listing) fits in the storage its mint paid for: 8,558 of 10,000 bytes, with a 20-digit id and a 64-character owner | `MINT_DEPOSIT`, `MAX_APPROVALS`, `SUPPORTED_CHAINS` | `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` |
 | Only the owner signs; listing freezes signing | `assert_can_sign` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | `buy` pins the record version and price | `buy` | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
-| Any transfer ends the listing, a bounced `nft_transfer_call` too | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
+| Any transfer ends the listing, a bounced `nft_transfer_call` too; only the owner transfers | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `nft_transfer_call_ends_the_sellers_listing`, `a_bounced_transfer_call_voids_the_receivers_listing`, `a_non_owner_cannot_nft_transfer_the_token` |
 | Only 16 chain ids can be signed for | `SUPPORTED_CHAINS` in `contracts/satchel/src/evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
 | Check 1: the contract can't sign behind the record | `contractCheck`, `contractFacts` in `packages/satchel-nft/src/report.ts` | `packages/satchel-nft/src/report.test.ts` |
 | Check 2: no signed transaction is still pending (nonce at a finalized block) | `pendingCheck`, `finalizedAt` in `report.ts` | `report.test.ts` (`pendingCheck`; `finalizedAt` reads live chains and has no unit test) |
@@ -298,9 +312,10 @@ of these checks.
 | `/api/room` takes only POST (another method gets Next.js's empty 405, with no body), reads at most 4 KB of body, and answers every POST as JSON with `Cache-Control: no-store`, a refusal with its status. A report that doesn't come within 20 s still leaves the holder card, with no kit | `readRoomRequest`, `within` in `web/src/lib/room-request.ts`, `POST` in `web/src/app/api/room/route.ts` | `room-request.test.ts` |
 | The handover kit has one step per check that doesn't pass, in the report's order, and one step to list only when all four pass. It names only the chains still open, offers no fix while check 1 fails (the app and the CLI then sign nothing), and says so for a chain the app and the CLI don't send on | `handoverKit` in `packages/satchel-nft/src/kit.ts` | `kit.test.ts` |
 | Make it clean offers fixes for checks 2 and 3 only: a revoke for each approval row still live, and a send of 0 to the satchel's own address for each open nonce a revoke on that chain doesn't take. An `approve` row that both the ERC-20 and the ERC-721 read find live, or one it couldn't read, gets both calls and no button; more than 10 open nonces on a chain get a terminal command. It won't send a revoke that would be a 33rd approval row while check 4 passes, and offers no button while check 1 fails or the satchel is listed | `fixPlan`, `readFixInputs`, `revokeCalldata`, `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` in `packages/satchel-nft/src/clean.ts`; the card is `web/src/components/fix-panel.tsx` | `clean.test.ts`. The card has no test and hasn't run on chain yet: testnet satchel #9 waits in the state it fixes ([`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json)) |
-| Quote an exit asks 1Click only for dry quotes, never for a deposit address, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for and carries no deposit address | `QuoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
+| Quote an exit asks 1Click only for dry quotes, never for a deposit address, at a slippage limit of 0.5 %, 1 % or 3 % and no other, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for, has a minimum that matches that slippage, and carries no deposit address | `QuoteRequest`, `SLIPPAGE_CHOICES`, `quoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
+| A satchel's history links a 1Click swap's payout transaction only when 1Click calls it `SUCCESS` and names an EVM hash on one of the satchel's mainnets; otherwise, `REFUNDED` and `FAILED` included, it links 1Click's status, and a line shows an amount out only for `SUCCESS` | `payoutUrl`, `swapLine`, `swapMarks` in `web/src/lib/oneclick.ts`; the card is `web/src/components/history.tsx` | `web/src/lib/oneclick.test.ts` |
 | Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #8 and mainnet #1 and #2, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
-| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
+| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, the landing page's four cards link the transactions in `testnet-dao.json`, `testnet-make-clean.json` and `mainnet-1click-exit.json` and their own satchel's page and docs, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `TOUR`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
 
 ## What Satchel does not claim
 
@@ -330,7 +345,9 @@ The full list, with what stops each attack and what is left, is in
   `main` is production: Vercel builds <https://satchelnft.xyz> from it.
 - **CI:** every pull request runs [`ci.yml`](.github/workflows/ci.yml), which calls the contract,
   web and package workflows. Its `verify` job passes only when all three pass, and `main` and `dev`
-  accept a merge only then.
+  accept a merge only then. [`watch.yml`](.github/workflows/watch.yml), the daily check of the
+  claims and the site, also runs on a pull request that changes it, `check-claims.mjs` or
+  `check-dao.mjs`; `verify` doesn't wait for it.
 - **Before pushing, run what CI runs:**
   - In `contracts/satchel`: `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`.
   - At the repository root: `npm run typecheck`, `npm test` (both workspaces); then in

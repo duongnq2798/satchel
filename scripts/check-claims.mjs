@@ -5,8 +5,10 @@
 // Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
-// BASE_RPC and ARBITRUM_RPC replace the Base and Arbitrum One nodes the mainnet run reads; its last
-// claim also reads 1Click's public status for satchel #2's deposit.
+// BASE_RPC and ARBITRUM_RPC replace the Base and Arbitrum One nodes the mainnet run reads; with
+// BASE_RPC unset, a Base read the default node fails goes to Base's own public node. The last claim
+// also reads 1Click's public status for satchel #2's deposit. Each read that fails is tried once
+// more, 2 s later, before its claim fails.
 import { readFileSync } from "node:fs";
 
 const flag = process.argv.indexOf("--network");
@@ -35,9 +37,21 @@ const FIRST =
 const EXIT =
   NETWORK === "mainnet" ? JSON.parse(readFileSync(new URL("../deployments/mainnet-1click-exit.json", import.meta.url), "utf8")) : null;
 const BASE_RPC = process.env.BASE_RPC ?? "https://base-rpc.publicnode.com";
+/** Base's own public node, which also serves old state: read only if BASE_RPC is unset and the default node fails. */
+const BASE_FALLBACK = "https://mainnet.base.org";
 const ARBITRUM_RPC = process.env.ARBITRUM_RPC ?? "https://arb1.arbitrum.io/rpc";
 
-async function rpc(url, method, params) {
+/** Runs `read`, and once more 2 s later if it throws: public nodes sometimes drop a request. */
+async function twice(read) {
+  try {
+    return await read();
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    return read();
+  }
+}
+
+async function rpcOnce(url, method, params) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -48,8 +62,30 @@ async function rpc(url, method, params) {
   });
   if (!res.ok) throw new Error(`${method}: HTTP ${res.status} from ${url}`);
   const body = await res.json();
-  if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error.cause ?? body.error)}`);
+  if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error.cause ?? body.error)} from ${url}`);
   return body.result;
+}
+
+const rpc = (url, method, params) => twice(() => rpcOnce(url, method, params));
+
+/** Whether a Base read came from BASE_FALLBACK, which the last line then says. */
+let fellBack = false;
+/**
+ * A Base mainnet read from BASE_RPC or, with it unset, from the default node and then Base's own.
+ * `node` names the kind of node the read needs, for the error when none answers.
+ */
+async function fromBase(method, params, node = "a Base mainnet node") {
+  const errors = [];
+  for (const url of process.env.BASE_RPC ? [BASE_RPC] : [BASE_RPC, BASE_FALLBACK]) {
+    try {
+      const result = await rpc(url, method, params);
+      if (url !== BASE_RPC) fellBack = true;
+      return result;
+    } catch (err) {
+      errors.push(err.message);
+    }
+  }
+  throw new Error(`${errors.join("; ")}. That is a Base node failing, not a change to any satchel: set BASE_RPC to ${node} and run it again`);
 }
 
 const query = (params) => rpc(RPC, "query", { finality: "final", account_id: CONTRACT, ...params });
@@ -355,9 +391,9 @@ async function signedFirst(s) {
 async function ranOnBase(s) {
   const [t, sent, receipt, final] = await Promise.all([
     tx(s.nearTx, s.signer),
-    rpc(BASE_RPC, "eth_getTransactionByHash", [s.baseTx]),
-    rpc(BASE_RPC, "eth_getTransactionReceipt", [s.baseTx]),
-    rpc(BASE_RPC, "eth_getBlockByNumber", ["finalized", false]),
+    fromBase("eth_getTransactionByHash", [s.baseTx]),
+    fromBase("eth_getTransactionReceipt", [s.baseTx]),
+    fromBase("eth_getBlockByNumber", ["finalized", false]),
   ]);
   if (!sent || !receipt) throw new Error(`${BASE_RPC} has no transaction ${s.baseTx}`);
   const call = callOf(t);
@@ -424,11 +460,15 @@ const hex = (n) => `0x${BigInt(n).toString(16)}`;
 const ONE_CLICK = "https://1click.chaindefuser.com";
 async function oneClickStatus(depositAddress) {
   const url = `${ONE_CLICK}/v0/status?depositAddress=${depositAddress}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) }).catch((err) => {
-    throw new Error(`${err.message} from ${url}`);
+  return twice(async () => {
+    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) }).catch((err) => {
+      throw new Error(`${err.message} from ${url}`);
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
+    return res.json();
+  }).catch((err) => {
+    throw new Error(`1Click was unreachable (${err.message}). That is not a change to any satchel: run the check again later`);
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-  return res.json();
 }
 /** ETH on Base in, Circle's USDC on Arbitrum One out, as 1Click names them. */
 const EXIT_ROUTE = { swapType: "EXACT_INPUT", originAsset: "nep141:base.omft.near", destinationAsset: `nep141:arb-${ARBITRUM_USDC}.omft.near` };
@@ -448,16 +488,13 @@ const MAINNET_EXIT = [
       const ran = mint.receipts_outcome.find((o) => o.outcome.executor_id === CONTRACT);
       if (!ran) throw new Error(`no receipt of ${CONTRACT} in ${EXIT.mint.tx}`);
       const before = BigInt(EXIT.funded.block) - 1n;
-      // Balances and nonces at past blocks: the default node serves them, a pruned one doesn't.
-      const past = (method, block) =>
-        rpc(BASE_RPC, method, [s.address, hex(block)]).catch((err) => {
-          throw new Error(`${err.message}; this reads Base state at block ${block}, which a pruned node in BASE_RPC can't serve`);
-        });
+      // Balances and nonces at past blocks: both default nodes serve them, a pruned one doesn't.
+      const past = (method, block) => fromBase(method, [s.address, hex(block)], `an archive node of Base mainnet (this reads its state at block ${block})`);
       const [block, funding, receipt, fundBlock, held, sent, heldAfter] = await Promise.all([
         rpc(ARCHIVAL, "block", { block_id: ran.block_hash }),
-        rpc(BASE_RPC, "eth_getTransactionByHash", [EXIT.funded.tx]),
-        rpc(BASE_RPC, "eth_getTransactionReceipt", [EXIT.funded.tx]),
-        rpc(BASE_RPC, "eth_getBlockByNumber", [hex(EXIT.funded.block), false]),
+        fromBase("eth_getTransactionByHash", [EXIT.funded.tx]),
+        fromBase("eth_getTransactionReceipt", [EXIT.funded.tx]),
+        fromBase("eth_getBlockByNumber", [hex(EXIT.funded.block), false]),
         past("eth_getBalance", before),
         past("eth_getTransactionCount", before),
         past("eth_getBalance", EXIT.funded.block),
@@ -506,7 +543,7 @@ const MAINNET_EXIT = [
       const [status, receipts, deposit] = await Promise.all([
         oneClickStatus(q.depositAddress),
         Promise.all(got.txs.map((t) => rpc(ARBITRUM_RPC, "eth_getTransactionReceipt", [t.hash]))),
-        rpc(BASE_RPC, "eth_getBlockByNumber", [hex(s.block), false]),
+        fromBase("eth_getBlockByNumber", [hex(s.block), false]),
       ]);
       const answered = status.quoteResponse ?? {};
       const hashes = (list) => (list ?? []).map((h) => h.hash.toLowerCase()).sort().join(",");
@@ -565,4 +602,5 @@ for (const { claim, check } of CLAIMS) {
   }
 }
 console.log(`\n${CLAIMS.length - failed} of ${CLAIMS.length} claims hold (${RPC}, archival ${ARCHIVAL})`);
+if (fellBack) console.log(`Base reads that ${BASE_RPC} failed came from ${BASE_FALLBACK}`);
 process.exitCode = failed ? 1 : 0;

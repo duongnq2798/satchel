@@ -12,6 +12,7 @@ import {
   type Quote,
   QuoteRefused,
   SLIPPAGE_BPS,
+  SLIPPAGE_CHOICES,
   assetDecimals,
   assetKey,
   assetName,
@@ -110,7 +111,8 @@ function MainnetQuote({ address }: { address: Address }) {
   const [originKey, setOriginKey] = useState("");
   const [destinationKey, setDestinationKey] = useState("");
   const [amount, setAmount] = useState("");
-  const [result, setResult] = useState<{ quote: Quote; origin: Asset; destination: Asset } | null>(null);
+  const [slippage, setSlippage] = useState(SLIPPAGE_BPS);
+  const [result, setResult] = useState<{ quote: Quote; origin: Asset; destination: Asset; slippageBps: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // A newer request, or a change to the form, makes an older answer stale.
@@ -183,8 +185,9 @@ function MainnetQuote({ address }: { address: Address }) {
     const id = run.current;
     setBusy(true);
     try {
-      const quote = await dryQuote(quoteRequest(holding.listed, to, value, address));
-      if (id === run.current) setResult({ quote, origin, destination });
+      const asked = quoteRequest(holding.listed, to, value, address, Date.now(), slippage);
+      const quote = await dryQuote(asked);
+      if (id === run.current) setResult({ quote, origin, destination, slippageBps: asked.slippageTolerance });
     } catch (err) {
       if (id === run.current) setError(described(err, origin));
     } finally {
@@ -285,7 +288,24 @@ function MainnetQuote({ address }: { address: Address }) {
                   className="min-w-0 rounded-xl border border-line bg-paper px-3 py-2"
                 />
               </label>
-              <div className="sm:col-span-3">
+              <div className="flex flex-wrap items-end gap-3 sm:col-span-3">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted">Slippage limit</span>
+                  <select
+                    value={slippage}
+                    onChange={(e) => {
+                      changed();
+                      setSlippage(Number(e.target.value));
+                    }}
+                    className="rounded-xl border border-line bg-paper px-3 py-2"
+                  >
+                    {SLIPPAGE_CHOICES.map((bps) => (
+                      <option key={bps} value={bps}>
+                        {bps / 100} %
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <Button type="submit" variant="primary" busy={busy}>
                   Get a quote
                 </Button>
@@ -332,7 +352,7 @@ function MainnetQuote({ address }: { address: Address }) {
   );
 }
 
-function QuoteResult({ quote, origin, destination }: { quote: Quote; origin: Asset; destination: Asset }) {
+function QuoteResult({ quote, origin, destination, slippageBps }: { quote: Quote; origin: Asset; destination: Asset; slippageBps: number }) {
   const symbol = assetSymbol(destination);
   return (
     <dl className="mt-4 grid gap-x-4 gap-y-2 rounded-xl bg-paper-2 p-4 text-sm sm:grid-cols-[7rem_1fr] [overflow-wrap:anywhere]">
@@ -350,7 +370,7 @@ function QuoteResult({ quote, origin, destination }: { quote: Quote; origin: Ass
       </dd>
       <dt className="text-muted">At least</dt>
       <dd>
-        {exact(quote.minAmountOut, destination)} {symbol}, after {SLIPPAGE_BPS / 100} % slippage
+        {exact(quote.minAmountOut, destination)} {symbol}, after {slippageBps / 100} % slippage
       </dd>
       <dt className="text-muted">Fees</dt>
       <dd>

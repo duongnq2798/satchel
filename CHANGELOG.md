@@ -6,6 +6,35 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A daily watch of the demo until judging ends: `.github/workflows/watch.yml` runs
+  `node scripts/check-claims.mjs` on testnet and mainnet and `node scripts/check-dao.mjs`, each once
+  more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22 with
+  no install and no secrets. It runs every day at 05:23 UTC from `main`, by hand, and on a pull
+  request that changes it or either script; from 2026-11-25, when judging and the demo freeze end, it
+  checks nothing. `check-claims.mjs` now tries each read that fails once more, 2 s later; with
+  `BASE_RPC` unset, a Base read that `https://base-rpc.publicnode.com` fails goes to Base's own
+  `https://mainnet.base.org`, which also serves satchel #2's state at block 55857952 (the last line
+  says when it did); and a claim that fails because a Base node or 1Click didn't answer says it is
+  not a change to any satchel, and to set `BASE_RPC` or run the check again. Still 13 claims on
+  testnet and 15 on mainnet.
+
+- The landing page's "Beyond a sale" section has four cards. Each is one satchel, with the transactions behind
+  it where there are any:
+  - testnet #4's holder room;
+  - satchel #8, which a DAO owned;
+  - mainnet #2's swap through 1Click;
+  - Make it clean on testnet #9, dated 2026-11-11, before its owner runs the clean-up.
+
+  Each card says what happened and links the satchel's page and a docs page; the verdict is left to the live
+  report. The cards are `TOUR` in `showcase.ts`. Its tests check each card's transactions against
+  `deployments/`, and each link against the app's routes and the docs pages and their anchors. The demo kit
+  adds the cards to what changes with a demo satchel.
+- The landing page's "Built on NEAR" list adds:
+  - NEAR Intents;
+  - Sputnik DAO;
+  - NEAR Connect with NEP-413.
+
+  It also links the README's table, which says where each one is used.
 - Make it clean: under a report that isn't clean, a satchel's page lists the transactions that would
   fix checks 2 and 3, with their calldata, and gives the owner a button for each one the app can
   send. **Revoke** builds `approve(spender, 0)` for an ERC-20 allowance, `approve(0x0, id)` for an
@@ -195,6 +224,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   is refused once `buy` has run, while their NEAR is still a pending transfer. A unit test can't run
   the MPC call, so both pin the state each step leaves, not the race between receipts. The deployed
   contract is unchanged.
+- Three contract tests for gaps the threat model named (64 in all).
+  `nft_transfer_call_ends_the_sellers_listing` shows `nft_transfer_call` deletes the seller's own
+  listing row, not only hides it, and the receiver who keeps the token starts unlisted and free to
+  sign; with that line taken out, it fails and the bounced-transfer test still passes.
+  `a_non_owner_cannot_nft_transfer_the_token` shows near-contract-standards refuses another account
+  moving a listed satchel (`Approval extension is disabled`).
+  `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` measures the worst case: a 20-digit
+  token id owned by a 64-character account, signed for on all 16 chains, with 32 Permit2 rows and a
+  listing, takes 8,558 of the 10,000 bytes its 0.1 NEAR mint paid for, and signing past the caps
+  adds none. The threat model's rows 10 and 22, which said no test covered these, now name the
+  tests. The deployed contract is unchanged.
 - The README goes through the NFT track's brief point by point: what a satchel does for owning money,
   earning royalties (not built in: any address can be a payee, and a satchel pays none), holding
   inventory and carrying access rights, then the track's example prompt requirement by requirement
@@ -385,6 +425,35 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- 1Click in the app: a history line for a swap 1Click calls `SUCCESS` links the payout's
+  transaction on the destination chain's explorer, the first EVM hash in its status's
+  `swapDetails.destinationChainTxHashes` (satchel #2's line links `0x417322bd…` on Arbiscan); a line
+  whose status names none, `REFUNDED` and `FAILED` included, still links 1Click's status. **Quote an
+  exit** has a slippage limit picker, 0.5 %, 1 % or 3 % (1 % by default, as before); `quoteRequest`
+  refuses any other value, `checkQuote` still refuses an answer that doesn't echo the limit asked or
+  whose minimum doesn't match it, and every request is still `dry: true`, with no deposit address
+  asked for or shown. Tests add a `REFUNDED` and a `FAILED` status for `swapLine` and `swapMarks`,
+  each 1Click's real status answer for satchel #2's deposit with the status changed and nothing
+  paid out, and a check against 1Click's real minimum in a dry quote at 300 bps: 5 more app tests. The
+  README's DeFi track says why the schedule row is missing: each `sign_evm` needs 1 yoctoNEAR, which
+  a function-call key can't attach, so a keeper or bot could sign on a schedule only holding the
+  owner's full-access key.
+- The landing page no longer says to buy testnet satchel #4 with any NEAR wallet. While the demo satchels are
+  frozen, #4's card says the app won't buy it until 2026-11-25. It also says how to see a sale through: mint a
+  satchel, list it, and buy it from a second wallet.
+- The market tags each demo satchel. When every listing is a demo satchel, the market says the same thing.
+- Two landing-page lines overstated what Satchel does:
+  - The NFT line now says a satchel has no picture per token and no NEP-178 approvals, so a sale goes through
+    the contract's own list and buy.
+  - The audit line now matches the README's Limits: two internal reviews of the contract, one of them
+    adversarial. The security page and the threat model said both were adversarial; they now say the same as
+    the README.
+- The landing page's Chain Signatures line names both MPC contracts, and its FAQ no longer says that every
+  example on the page is on testnet.
+- The demo kit no longer says that its 1:18 and 1:42 scenes run only in a local build. It says that the
+  clean-up in the 1:18 scene hasn't run. Its rules were read again from the live HACKATHON.md on
+  2026-11-11, and they still match.
+- The app has 91 tests.
 - The README, AGENTS.md and the docs: 222 package tests in 17 files and 81 app tests, the threat
   model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
   now that the app asks 1Click for dry quotes and shows its status: the dry-run row is met. The
