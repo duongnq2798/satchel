@@ -385,6 +385,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The README, AGENTS.md and the docs: 222 package tests in 17 files and 81 app tests, the threat
+  model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
+  now that the app asks 1Click for dry quotes and shows its status: the dry-run row is met. The
+  demo kit's 1:18 scene is Make it clean on testnet satchel #9, and its 1:42 scene is mainnet
+  satchel #2 with a dry quote. AGENTS.md adds rows for Make it clean, Quote an exit, the demo
+  satchels' guard and the showcase, #7 in its verify table, how long a cold `npx` takes and a
+  pointer to the track tables. The README lists all 10 evidence files and what `render.mjs` renders;
+  the troubleshooting page and the production checklist point to Make it clean; the landing page and
+  the FAQ pin `npx -y satchel-nft@0.2.0`. The sitemap and `llms.txt` add testnet satchel #8, the
+  DAO's. "What did you build?" adds the holder room and Quote an exit (1,989 characters) and drops
+  its backticks, since the form's field is plain text.
 - A satchel's page: the heading reads "Satchel #N", with one line on what a satchel is and what the
   page checks; the verdict at the top links to the report; and "Your satchels" on the card for a
   satchel that doesn't exist is a link. While the page reads NEAR, placeholders the size of what

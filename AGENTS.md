@@ -19,8 +19,11 @@ Node 22 or later; the contract tests also need Rust.
   `satchel-nft` in `packages/satchel-nft`: the web app runs on it, and it is also a library and a
   CLI.
 
-[README.md](README.md) is the full description. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) lists
-the attacks and what stops each one. [SECURITY.md](SECURITY.md) says how to report a problem.
+[README.md](README.md) is the full description. For the hackathon's tracks, its sections
+[The NFT track's brief, point by point](README.md#the-nft-tracks-brief-point-by-point) and
+[The other tracks, point by point](README.md#the-other-tracks-point-by-point) take each brief's
+points in turn. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) lists the attacks and what stops each
+one. [SECURITY.md](SECURITY.md) says how to report a problem.
 
 ## Check the claims
 
@@ -153,7 +156,8 @@ npx satchel-nft verify 1
 Outside a clone, `npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from
 commit `2dd4209` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside the
 repository that pinned command runs this checkout's build instead, because the checkout's package
-is also 0.2.0.
+is also 0.2.0. The release's first run downloads the package: 142 s and 230 s in two runs here,
+more than a 2-minute command timeout. Later runs take 6 to 11 s.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
 that runs on it. Inside the repository, `npx satchel-nft` runs this checkout's build, never a
@@ -167,6 +171,7 @@ exits 0 only when the satchel is provably clean.
 | 3 | `[FAIL] An approval is still live`, `NOT PROVABLE` | 1 |
 | 6 | `[FAIL] The record can't explain everything signed`, `NOT PROVABLE`, `listed by satchel-nft.testnet at record version 1` | 1 |
 | 4 | four `[PASS]`, `PROVABLY CLEAN`, `listed by satchel-nft.testnet at record version 0` | 0 |
+| 7 | four `[PASS]`, `PROVABLY CLEAN` | 0 |
 
 Two things can change these answers, and both are expected:
 
@@ -186,8 +191,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  191 passed (191)` for `satchel-nft`, then
-`Tests  27 passed (27)` for the app, then no type errors.
+Each runs in both workspaces. You should see `Tests  222 passed (222)` for `satchel-nft`, then
+`Tests  81 passed (81)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -292,6 +297,10 @@ of these checks.
 | The holder room opens only for the account that owns the satchel at a final NEAR block, signing with one of its full-access keys, within 5 minutes of the `Issued` time it signed; the server writes the message itself and reads NEAR only once the signature verifies, the key and the owner at the same block, each read giving up after 10 s (a 502) | `checkHolder`, `roomMessage` in `packages/satchel-nft/src/holder.ts`; `finalBlock`, `accessKeyAt`, `viewAt`, `rpcFor` in `near.ts` | `holder.test.ts` |
 | `/api/room` takes only POST (another method gets Next.js's empty 405, with no body), reads at most 4 KB of body, and answers every POST as JSON with `Cache-Control: no-store`, a refusal with its status. A report that doesn't come within 20 s still leaves the holder card, with no kit | `readRoomRequest`, `within` in `web/src/lib/room-request.ts`, `POST` in `web/src/app/api/room/route.ts` | `room-request.test.ts` |
 | The handover kit has one step per check that doesn't pass, in the report's order, and one step to list only when all four pass. It names only the chains still open, offers no fix while check 1 fails (the app and the CLI then sign nothing), and says so for a chain the app and the CLI don't send on | `handoverKit` in `packages/satchel-nft/src/kit.ts` | `kit.test.ts` |
+| Make it clean offers fixes for checks 2 and 3 only: a revoke for each approval row still live, and a send of 0 to the satchel's own address for each open nonce a revoke on that chain doesn't take. An `approve` row that both the ERC-20 and the ERC-721 read find live, or one it couldn't read, gets both calls and no button; more than 10 open nonces on a chain get a terminal command. It won't send a revoke that would be a 33rd approval row while check 4 passes, and offers no button while check 1 fails or the satchel is listed | `fixPlan`, `readFixInputs`, `revokeCalldata`, `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` in `packages/satchel-nft/src/clean.ts`; the card is `web/src/components/fix-panel.tsx` | `clean.test.ts`. The card has no test and hasn't run on chain yet: testnet satchel #9 waits in the state it fixes ([`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json)) |
+| Quote an exit asks 1Click only for dry quotes, never for a deposit address, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for and carries no deposit address | `QuoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
+| Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #8 and mainnet #1 and #2, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
+| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
 
 ## What Satchel does not claim
 

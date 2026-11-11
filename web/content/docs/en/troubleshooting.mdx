@@ -42,7 +42,9 @@ reads the receipt can still broadcast it, so a buyer can't know what it will do.
 
 The owner fixes it by spending that nonce: send any transaction from the satchel on that chain, such
 as a tiny amount to yourself. The app and the CLI use the next unspent nonce, which is the open one.
-Once that block is final, check again. Testnet satchel #5 shows this state.
+On the satchel's page, **Make it clean** under the report does this with a **Spend nonce** button: a
+send of 0 to the satchel's own address. Once that block is final, check again. Testnet satchel #5
+shows this state.
 
 ### An approval is still live
 
@@ -51,7 +53,9 @@ as `allowance of <amount> still granted` or `operator still approved`. Testnet s
 this state.
 
 The owner fixes it by revoking from the satchel: send to the token contract with an amount of 0 and
-the revoking call as calldata (**Calldata (advanced)** in the app, `--data` in the CLI).
+the revoking call as calldata (**Calldata (advanced)** in the app, `--data` in the CLI). On the
+satchel's page, **Make it clean** under the report builds that call and gives the owner a **Revoke**
+button for it.
 
 | Granted with | Revoke with |
 | --- | --- |
