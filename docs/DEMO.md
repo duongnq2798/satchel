@@ -157,11 +157,11 @@ whole JSON payload and you have said yes. Use one way, once:
 
 | Field | Value |
 | --- | --- |
-| Project name | Satchel |
+| Project name | Satchel (satchelnft.xyz). Another entry is named "Satchel: membership cards that are wallets" ([ChrisTu117/satchel](https://github.com/ChrisTu117/satchel)); the domain tells the two apart |
 | Team lead | Your name |
 | Email address | The email you use for the hackathon. It may submit 2 projects at most |
 | Team size | 1 — Solo builder (the API's value for it is `1`) |
-| Tracks | NFTs That Do Something, Open Innovation, Unstoppable DeFi (see below) |
+| Tracks | NFTs That Do Something, Open Innovation, Unstoppable DeFi and Social Money, whose ids are `nfts`, `open`, `defi` and `social` (see below) |
 | NEAR wallet address | Your own mainnet account, in lowercase: a named `.near` account or a 64-character implicit one, never a `.testnet` account. A prize, if any, is sent here |
 | Repository link | https://github.com/duongnq2798/satchel |
 | Demo post link | The URL of your X post |
@@ -174,8 +174,9 @@ whole JSON payload and you have said yes. Use one way, once:
 | Track | Why Satchel fits |
 | --- | --- |
 | **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts — assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", a gated page only current holders can open, and a history view per NFT (what it earned, what it paid out, who held it); Satchel has the first three (the gated page is each satchel's holder room, `/satchel/<id>/room`), and part of the fourth: its history lists owners, sales and signatures, not each payment that came in |
-| **Open Innovation** (`open`) | Its hints name chain abstraction: one NEAR transaction moves an address on every chain it lives on |
-| **Unstoppable DeFi** (`defi`) | Its hints name NEAR Intents and Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and whatever its address holds moves with it. On mainnet, satchel #2 swapped its ETH on Base for USDC at its own address on Arbitrum One through NEAR Intents' 1Click: the deposit was a plain transfer sent from the app, so it still reads provably clean. The proof is narrower than that sounds: the USDC arrived only because 1Click's system sent it, the report doesn't count what is in flight, and a satchel that has itself made a call the contract can't classify, such as a swap through a DEX router or an LP deposit, reads "not provable" for every later owner, as the README says. This is the loosest of the three fits |
+| **Open Innovation** (`open`) | Its hints name chain abstraction: one NEAR transaction moves an address on every chain it lives on. Its example prompt, an inheritance account, is mostly not built (no check-ins, timers or heirs); what the README does answer is its section on failure cases and its argument against the idea ([point by point](../README.md#open-innovation-open)) |
+| **Unstoppable DeFi** (`defi`) | Its hints name NEAR Intents and Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and whatever its address holds moves with it. On mainnet, satchel #2 swapped its ETH on Base for USDC at its own address on Arbitrum One through NEAR Intents' 1Click: the deposit was a plain transfer sent from the app, so it still reads provably clean. The proof is narrower than that sounds: the USDC arrived only because 1Click's system sent it, the report doesn't count what is in flight, and a satchel that has itself made a call the contract can't classify, such as a swap through a DEX router or an LP deposit, reads "not provable" for every later owner, as the README says. The example prompt, a cross-chain DCA vault, is partly met: a script asked for the quote and followed the swap, with no schedule and one route ([point by point](../README.md#unstoppable-defi-defi)). With Social Money, one of the two loosest fits |
+| **Social Money** (`social`) | Its hints name Sputnik DAO and named accounts. On testnet a Sputnik DAO owned satchel #8 with no contract change: one council vote had it sign a Sepolia send, which `satchel-nft dao finish` broadcast, and a second vote handed it to another account. `node scripts/check-dao.mjs` checks the run against NEAR testnet and Sepolia ([the run](../README.md#a-satchel-owned-by-a-sputnik-dao-on-testnet)). The example prompt, a bounty board with earned trust, is not built: no bounties, reputation, payout tiers or board ([point by point](../README.md#social-money-social)). With Unstoppable DeFi, one of the two loosest fits |
 
 ## Keep the demo true until judging ends
 

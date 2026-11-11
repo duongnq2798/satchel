@@ -59,6 +59,7 @@ and with it the address on every one of those chains.
 - [What Satchel does](#what-satchel-does)
 - [Why it is different](#why-it-is-different)
 - [The NFT track's brief, point by point](#the-nft-tracks-brief-point-by-point)
+- [The other tracks, point by point](#the-other-tracks-point-by-point)
 - [How a sale works](#how-a-sale-works)
 - [When is a transfer provably clean?](#when-is-a-transfer-provably-clean)
 - [A swap through NEAR Intents that keeps the proof](#a-swap-through-near-intents-that-keeps-the-proof)
@@ -73,6 +74,8 @@ and with it the address on every one of those chains.
 - [Documentation](#documentation)
 - [Development](#development)
 - [Limits, stated plainly](#limits-stated-plainly)
+- [Failure cases](#failure-cases)
+- [The case against Satchel](#the-case-against-satchel)
 - [Prior work](#prior-work)
 - [Libraries, templates and AI-assisted code](#libraries-templates-and-ai-assisted-code)
 - [Other project by the same builder](#other-project-by-the-same-builder)
@@ -411,10 +414,100 @@ wrapped into one. Anyone can list every satchel's address (ids are sequential, a
 the path and the MPC network's root key are public), so a protocol can recognize satchels and
 exclude them. A satchel that has been used does carry its own history to the buyer. One whose
 history is bound to a person (airdrop eligibility, a reputation score, an identity check) is the
-wrong thing to sell, and the protocol that granted it may forbid the sale.
+wrong thing to sell, and the protocol that granted it may forbid the sale. Not for: hiding where
+funds came from, or selling what a person earned. `PROVABLY CLEAN` means nothing the seller can
+still sign; it is not AML-clean. Every sale through `buy` is public on NEAR: its `sale` event names
+the seller, buyer, price and record version. A satchel handed over with `nft_transfer` shows both
+accounts, but no price.
+
+**Who it is for.** A satchel fits a payee that a contract fixes for good, such as a royalty
+receiver no one can change, whose income then changes hands with it; a team's or a DAO's address,
+passed on when someone leaves; and inheritance, with a DAO or a multisig as owner and a vote to
+hand it on (a DAO's vote did so on testnet; no timer is involved). Heirs with enough votes can hand
+it to themselves at any time; nothing waits for the owner to be gone. Satchel cannot recover a lost
+NEAR key ([Failure cases](#failure-cases)). After the hackathon both contracts keep running as
+deployed, with no keys and no admin; nothing more is promised.
 
 **No fee.** The contract takes nothing from a sale: `buy` pays the seller the full price and refunds
 the rest.
+
+## The other tracks, point by point
+
+Satchel is entered in three more tracks, as "Satchel (satchelnft.xyz)": Open Innovation, Unstoppable
+DeFi and Social Money. This repository is not "Satchel: membership cards that are wallets"
+([ChrisTu117/satchel](https://github.com/ChrisTu117/satchel)), another entry in this hackathon,
+whose club contract `satchel-club.testnet` is not this project's DAO,
+`satchel-club.sputnikv2.testnet`. Each table below takes a track's example prompt, from
+[near-hackathon-prompt-examples](https://github.com/nearai/near-hackathon-prompt-examples/tree/main/tracks),
+requirement by requirement. **Met** links to the code, a document or a transaction; **Partly** and
+**Missing** say what isn't there.
+
+**Hints we use.** Of the four tracks' "Lean on" hints, Satchel uses NEP-171 (each satchel is a
+token), Chain Signatures (each satchel's key), chain abstraction (one NFT, one address on 16
+chains), NEAR Intents (one swap through 1Click), Sputnik DAO (a satchel a DAO owned, on testnet) and
+named accounts (`v1.satchel-nft.near`, the DAO `satchel-club.sputnikv2.testnet`). In part: dynamic
+NFTs (a token's metadata never changes and has no picture; the signing record behind it grows with
+every signature) and trading (a market where satchels sell for NEAR, and one token swap; no
+exchange). Not used: a NEAR sub-account per token, as the NFT prompt has it (see "Why an MPC
+address" under [the NFT track's brief](#the-nft-tracks-brief-point-by-point)), and Trezu (the DAO
+run called the Sputnik DAO contract with the near CLI). "Experimental" and "build your own" name no
+technology.
+
+### Open Innovation (`open`)
+
+The prompt: an inheritance account. One NEAR account controls the owner's Bitcoin and Ethereum
+addresses through Chain Signatures; if the owner stops checking in, guardians can release the assets
+to named heirs, after a waiting period the owner can still cancel.
+
+| The prompt asks for | Satchel | Where |
+| --- | --- | --- |
+| New ways for money and ownership to work together (the track's brief) | **Met.** One NFT is one wallet on 16 chains; it changes hands in one NEAR transaction, with a public record of what its key signed | [Why it is different](#why-it-is-different) |
+| One NEAR account controlling addresses on Bitcoin and Ethereum through Chain Signatures | **Partly.** The NEAR account that holds a satchel controls one address on Ethereum and 7 other EVM chains, mainnets and testnets, through Chain Signatures. Bitcoin needs `sign_raw`, which the app and the CLI don't offer and which makes a satchel not provable for every later owner | `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs), [Built on NEAR](#built-on-near) |
+| Check-ins on a schedule, and a release to named heirs after missed ones | **Missing.** No check-in, timer or list of heirs, and the locked contract can't gain one. What exists is ownership by a DAO: a council vote handed testnet satchel #8 to another account | [A satchel owned by a Sputnik DAO](#a-satchel-owned-by-a-sputnik-dao-on-testnet) |
+| Guardians who approve the release | **Partly.** A DAO that owns a satchel acts as its guardians: nothing is signed or moved without a proposal its policy passes. A DAO with one council member ran this on testnet | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`testnet-dao.json`](deployments/testnet-dao.json) |
+| A waiting period the owner can cancel until it ends | **Missing.** Nothing in Satchel waits. A Sputnik proposal runs on the vote that reaches its threshold | |
+| Release rules in a contract anyone can read | **Partly.** Satchel's own rules (no one but the owner has it sign, a listing freezes signing, `buy` names the record version) are in a locked contract whose code is the reproducible build of commit `87148c6`, and a DAO's policy is public through its `get_policy` view. There are no release rules | [`lib.rs`](contracts/satchel/src/lib.rs), [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) |
+| A testnet demo with the timers shortened to minutes | **Missing.** There are no timers. The DAO run is on testnet, with proposals open for an hour | [`testnet-dao.json`](deployments/testnet-dao.json) |
+| A README section on failure cases: lost guardian keys, a hostile guardian, an owner alive but offline | **Met.** A lost or stolen NEAR key, a DAO council that loses its keys or turns hostile, a holder offline during a swap, the MPC network, NEAR, an RPC, satchelnft.xyz | [Failure cases](#failure-cases) |
+| One paragraph against the idea, then the objections the design must answer | **Met** | [The case against Satchel](#the-case-against-satchel) |
+
+### Unstoppable DeFi (`defi`)
+
+The prompt: a cross-chain DCA vault. A user deposits USDC from any chain NEAR Intents supports and
+picks a target asset and a schedule; at each interval the app asks 1Click for a quote, rejects one
+past the user's slippage limit, and swaps into the user's own address on the target chain. Satchel's
+one swap is in [A swap through NEAR Intents that keeps the proof](#a-swap-through-near-intents-that-keeps-the-proof).
+
+| The prompt asks for | Satchel | Where |
+| --- | --- | --- |
+| Markets that settle through NEAR Intents with no custodian and nobody who can switch them off (the track's brief) | **Partly.** The contract has no access keys and no admin, and a sale needs no escrow: `buy` moves the NFT in the receipt that takes the buyer's NEAR, and pays the seller from it. The swap's output arrives because 1Click's system sends it, and every signature needs NEAR's MPC network | [`lib.rs`](contracts/satchel/src/lib.rs), [Failure cases](#failure-cases) |
+| USDC from any chain NEAR Intents supports, swapped for BTC, ETH or NEAR | **Missing.** One route, run once on mainnet: 0.00258 ETH on Base for USDC on Arbitrum One. The script asks for that route alone, and a satchel holds assets on its 8 EVM chains | [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) |
+| A schedule, with a quote at each interval | **Missing.** Nothing runs on a schedule: the owner sent the one deposit by hand | |
+| A quote rejected when its slippage beats the user's limit | **Partly.** The script asks for 1 % slippage, fixed, and refuses a quote whose minimum out doesn't match it, or whose fees are above 25 bps. The user can't set the limit | `checkQuote` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) |
+| The asset lands in the user's own address on the target chain | **Met.** The quote's `recipient` and `refundTo` were the satchel's own address, and 5.280549 USDC reached it on Arbitrum One | [`0x417322bd…`](https://arbiscan.io/tx/0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209), [`mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json) |
+| The near-intents agent skill, and the 1Click API for quotes, deposits and status | **Partly.** Claude Code loaded the skill while building the swap. The script calls `/v0/quote`, `/v0/deposit/submit` and `/v0/status`; the app calls none of them | [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), [Libraries](#libraries-templates-and-ai-assisted-code) |
+| `REFUNDED` and `FAILED` handled, and shown in the UI | **Partly.** The script's `status` stops on either and exits 1. The app shows no 1Click status. The one run ended `SUCCESS` | `status` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) |
+| Where the funds sit at every step | **Partly.** A satchel's page shows its native coin on each chain, and USDC, USDT and WETH where a deployment is listed, and the Send panel links the deposit on the chain's explorer. While a swap runs the app shows nothing about it, and the report doesn't count what is in flight | [`contents.ts`](packages/satchel-nft/src/contents.ts), [`send-panel.tsx`](web/src/components/send-panel.tsx) |
+| A web UI: deposit, schedule, and a history of executed buys with explorer links | **Partly.** The deposit went from the app's Send panel. No schedule. A satchel's history lists the deposit's `sign_evm` with its amount, receiver and NEAR transaction, not the swap or its payout | [`history.ts`](packages/satchel-nft/src/history.ts), [satchelnft.xyz/mainnet/satchel/2](https://satchelnft.xyz/mainnet/satchel/2) |
+| A dry-run mode with real quotes, for judges with no funds | **Partly.** `plan <id>` asks 1Click for a real quote with `dry: true`: no deposit address, nothing signed. But it quotes a mainnet satchel's own ETH on Base: it refuses satchels #1 and #2, which this README quotes, and one without enough ETH to send, so it can't run with no funds | `plan` in [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) |
+| Stretch: a NEAR contract owns the vault and controls a derived BTC address through Chain Signatures | **Partly.** The Satchel contract controls each satchel's address through Chain Signatures, and the key is secp256k1, Bitcoin's curve. But the contract builds EVM transactions: a Bitcoin one needs `sign_raw`, which the app and the CLI don't offer | `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs) |
+
+### Social Money (`social`)
+
+The prompt: a bounty board with earned trust, for a community whose treasury runs on Sputnik DAO or
+Trezu. Members post bounties, contributors claim and finish them, payouts come from the treasury,
+and a good track record raises how much a contributor can be paid without a full council vote.
+
+| The prompt asks for | Satchel | Where |
+| --- | --- | --- |
+| Collective ownership on top of Sputnik DAO (the track's brief) | **Met, on testnet.** A Sputnik DAO owned satchel #8, and with it its address on every chain; its council voted what it signed and who got it next | [A satchel owned by a Sputnik DAO](#a-satchel-owned-by-a-sputnik-dao-on-testnet) |
+| Custody and approvals by an existing DAO or Trezu treasury, with no new multisig | **Met, with Sputnik DAO.** `satchel-club.sputnikv2.testnet` (`sputnikdao2` 2.3.1, from the `sputnikv2.testnet` factory) owned satchel #8, and so its address on every chain. Its `sign_evm` and its `nft_transfer` each ran by a passed vote, with no contract change and no multisig of Satchel's own. The DAO was created for the run, with one council member. Trezu was not used | [`testnet-dao.json`](deployments/testnet-dao.json), [`check-dao.mjs`](scripts/check-dao.mjs), [`dao.ts`](packages/satchel-nft/src/dao.ts) |
+| Payouts from the treasury | **Partly.** A vote had satchel #8 send 0.0001 Sepolia ETH from its address, and `satchel-nft dao finish` broadcast it. One payout, to `0x…dEaD`, on testnet | [`0x27e3262b…`](https://sepolia.etherscan.io/tx/0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3) |
+| Bounties that members post and contributors claim and finish | **Missing** | |
+| Reputation tied to named accounts, every point traceable to a finished bounty | **Missing** | |
+| Payout tiers: small ones auto-approved for trusted contributors, mid-size ones by one council member, large ones by a normal DAO proposal | **Missing.** Every action of the DAO's satchel went through a normal proposal and vote; Satchel adds no tiers | |
+| A public board of open bounties, claims, payouts and each contributor's record | **Missing.** What is public is per satchel: its record, and the owners, sales and signatures in its history | [`history.ts`](packages/satchel-nft/src/history.ts) |
+| Which approval flows Sputnik DAO and Trezu already have | **Partly.** Sputnik already has bounties (an `AddBounty` proposal, `bounty_claim`, `bounty_done`), a `Transfer` proposal for payouts, and a vote policy per role and proposal kind. Tiers by track record and reputation would have to be added. Satchel uses neither the bounties nor `Transfer`: the run used the `FunctionCall` proposal kind and `VoteApprove`, and `check-dao.mjs` reads the DAO's policy back. Nothing in Satchel uses Trezu | [`sputnikdao2`](https://github.com/near-daos/sputnik-dao-contract/tree/main/sputnikdao2/src), [the walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) |
 
 ## How a sale works
 
@@ -1456,6 +1549,42 @@ What the tests pin down:
 deployer's, an RPC's, the hosted app's, and on the holder room), what stops it, the transaction on testnet that shows it
 where one exists, and what is left.
 
+## Failure cases
+
+The [threat model](docs/THREAT_MODEL.md) covers attacks. These are failures: what happens when a
+key, a network or a service Satchel depends on fails, and what the holder or a buyer can do. Each
+answer holds for the locked contract ([`lib.rs`](contracts/satchel/src/lib.rs)), which no one can
+change.
+
+| When | What happens | What to do |
+| --- | --- | --- |
+| **The holder loses their NEAR key** | Satchel can't recover it: there is no admin and no recovery method, and no account but the owner can have the contract sign for the satchel, list it or transfer it. What its address holds stays out of reach, unless the account has another full-access key. A listing stays open: a buyer can still buy, and the price goes to the account no one can use | Keep a second full-access key on the account, or have a DAO own a satchel worth much ([as one did on testnet](#a-satchel-owned-by-a-sputnik-dao-on-testnet)). A buyer sees nothing wrong: the report reads the record, not the seller's keys |
+| **The key is stolen** | To the contract, a stolen full-access key is the holder: the thief can have the address signed for on every chain and empty it, list the satchel or transfer it. A stolen function-call key, the login key a site adds, can do none of these: each needs a deposit, which such a key can't attach ([row 6a](docs/THREAT_MODEL.md#a-seller-keeps-power-over-the-wallet)) | Race the thief: transfer the satchel to a safe account and delete the stolen key; whichever transaction lands earlier wins. Every signature the thief gets is in the record, and every transfer and sale in the history, but nothing marks the satchel as stolen |
+| **NEAR's MPC network halts or is slow** | `sign_evm` saves the record in its own receipt, before the MPC call, so a request that fails or times out still counts its nonce, and the satchel reads not provable until a transaction at that nonce is final. A request that timed out can still produce a signature later, in public. While the network is down, nothing can be signed for any satchel; transfers, listings, sales and the report still work, since none of them calls it | Once it answers again, send at that nonce: the Send panel reads the next nonce from the chain, which stays the same while nothing at it was broadcast. Either way the nonce ends up spent. A buyer waits for check 2 to pass |
+| **NEAR halts** | No satchel can sign, move or sell until NEAR runs again, and no new signature can be made for any address. What was signed or approved before the halt can still be used on its chain: anyone can broadcast a signed transaction that was never sent, since its signature is in a NEAR receipt (check 2's case), and a live approval can still be spent (check 3's). If no NEAR RPC answers, the report can't read the record, and `verify` fails rather than read clean | Wait, and don't buy a satchel whose signed nonces aren't all spent, halt or not (the app asks you to tick a box before it lets you) |
+| **A DAO council loses its keys, or turns hostile** | The contract obeys whichever account owns the satchel, so the DAO's policy is the satchel's whole defense; Satchel adds nothing to it and overrides nothing. A council that can no longer pass a proposal leaves the satchel, and what its address holds, stuck. A council with the votes can have the address emptied, or the satchel transferred to its members: a Sputnik proposal runs on the vote that reaches its threshold | Before a DAO takes a satchel, give its council more members than its threshold needs. Proposals are public on NEAR, but where one member's vote reaches the threshold, as in the testnet DAO, a proposal can be filed and passed in one transaction, with no time to react. `openProposals` with `nonceClash` ([`dao.ts`](packages/satchel-nft/src/dao.ts)) finds an open proposal that signs a nonce already in use. While a DAO's satchel is listed, no proposal can make it sign, and `buy` names the record version the buyer checked |
+| **The holder is offline, during a swap through 1Click or at any time** | Nothing in Satchel acts on a timer, so being away moves nothing. In the swap, the quote's `refundTo` was the satchel's own address, with refunds on the deposit's chain, so a refund, if 1Click's system sends one, lands back in the satchel with no step from the holder. The output goes to the satchel's address too | Nothing. Whoever holds the satchel when the output or a refund arrives controls it, and the report doesn't count what is in flight: [let a swap end before you buy](#a-swap-through-near-intents-that-keeps-the-proof) |
+| **An RPC lies** | The report reads one NEAR RPC and one RPC per EVM chain, and a lying one can make a satchel look clean, or not. It can't change a satchel's address, which the app and the CLI derive from the MPC root key pinned in the package. Nor can it make `buy` take a record version other than the contract's, though it can misreport what that version holds | Before paying much, run `npx -y satchel-nft@0.2.0 verify --network mainnet <id>` (without `--network mainnet` for a testnet satchel) with `NEAR_RPC` and `RPC_<chain id>` set to nodes you trust, and compare it with the app's report, which names every RPC it read ([Web app](#web-app)) |
+| **satchelnft.xyz is down** | The contracts and the MPC network don't depend on it. The holder room's check runs on its server, so the room is shut too, unless you run the app yourself | `npx -y satchel-nft@0.2.0 verify --network mainnet <id>` (without `--network mainnet` for a testnet satchel) builds the same report from public RPCs. The CLI's sign commands (`mint`, `list`, `delist`, `buy`, `transfer`, `send`) sign with the near CLI's key, and any NEAR client can call the contract ([Quick start with the near CLI](#quick-start-with-the-near-cli)). The docs' source is [`web/content/docs`](web/content/docs) |
+
+## The case against Satchel
+
+Here is the argument against building it. No one outside the project has audited the contract,
+and because it is locked, a bug found now stays in `v1` for good: a fix ships as a new contract,
+and the satchels already minted stay on the old one. Every satchel trusts NEAR's MPC network:
+enough colluding nodes could sign with any key, an upgrade its participants vote for could change
+how keys are derived, and while it is down nothing can be signed. The demand is narrow. Few people
+sell a wallet whole, and much of what makes an address worth buying (airdrop eligibility, a
+reputation score, an identity check) is bound to a person and is the wrong thing to sell. The proof
+is narrow too: one raw signature, one call the contract can't classify (a swap through a DEX router,
+an LP deposit) or an approval past the 32nd makes a satchel not provable for every later owner, so
+most wallets used for DeFi can never sell as clean, and the record says nothing about powers built
+into the assets or about a swap still in flight. On mainnet, as of 2026-11-11, nothing had been
+listed: two satchels existed, both minted by `satchel-nft.near`. Of these objections, the design
+must answer the narrow proof, and does in part: the record can't see more than the key signed, but
+the report never calls a satchel clean that it can't prove. The audit, the trust in the MPC network
+and the demand are not answered in code ([Limits](#limits-stated-plainly)).
+
 ## Prior work
 
 Satchel was designed and built inside the hackathon's build window (1 to 14 November 2026). The
@@ -1484,7 +1613,9 @@ projects.
 most of the code, tests and documentation. The builder decided what to build and when each pull
 request was merged. Commits written with it carry a `Co-Authored-By: Claude` trailer. Besides CI,
 changes were checked by adversarial reviews run with further AI agents; no human has audited the
-contract (see [SECURITY.md](SECURITY.md)).
+contract (see [SECURITY.md](SECURITY.md)). While building the swap through 1Click, Claude Code
+loaded NEAR's [`near-intents` agent skill](https://github.com/near/agent-skills/tree/main/skills/near-intents),
+a reference for the 1Click API.
 
 ## Other project by the same builder
 

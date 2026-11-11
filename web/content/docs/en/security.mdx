@@ -88,6 +88,8 @@ public, so what it protects is the gate. `/api/room` stores nothing between requ
   prompt. The wallet shows each call, its arguments and its deposit before you sign.
 - **Limits are permanent.** The chain list and the 32-approval cap can't change, there is no admin to return NEAR
   stuck after a failed seller payment, and a testnet that shuts down leaves its satchels unprovable for good.
+- **`PROVABLY CLEAN` is not AML-clean.** It means nothing the seller can still sign, and says nothing about where
+  the funds came from.
 
 Out of scope: the MPC network's own security, the wallets that sign NEAR transactions, and phishing (a page that
 imitates satchelnft.xyz, or another contract called "Satchel"; the report reads only `v1.satchel-nft.testnet` or
@@ -96,6 +98,22 @@ imitates satchelnft.xyz, or another contract called "Satchel"; the report reads 
 The [threat model](/docs/security/threat-model) goes through every attack (the seller's, a buyer's, the
 deployer's, an RPC's, the hosted app's, and on the holder room), what stops it, and what is left, ending with
 [residual risks in one list](/docs/security/threat-model#residual-risks-in-one-list).
+
+## When something fails
+
+The threat model covers attacks. These are failures of a key, a network or a service Satchel depends on, and what
+the holder or a buyer can do. Each answer holds for the locked contract, which no one can change.
+
+| When | What happens | What to do |
+| --- | --- | --- |
+| The holder loses their NEAR key | Satchel can't recover it: there is no admin and no recovery method, and no account but the owner can have the contract sign for the satchel, list it or transfer it. What its address holds stays out of reach. A listing stays open, and its price goes to the account no one can use | Keep a second full-access key on the account, or have a DAO own a satchel worth much ([A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel)) |
+| The key is stolen | To the contract, a stolen full-access key is the holder: the thief can empty the address on every chain, list the satchel or transfer it. A function-call key, the login key a site adds, can do none of these, since each needs a deposit | Transfer the satchel to a safe account and delete the stolen key; whichever transaction lands earlier wins. Every signature the thief gets stays in the record |
+| NEAR's MPC network halts or is slow | The record is saved before the MPC call, so a request that fails or times out still counts its nonce, and the satchel reads <Verdict v="not-provable" /> until a transaction at that nonce is final. A timed-out request can still produce a signature later. Nothing can be signed while the network is down; transfers, listings, sales and the report don't call it | Once it answers, [send](/docs/guides/send) again: the app reads the next nonce from the chain, which is still that one. A buyer waits for check 2 to pass |
+| NEAR halts | Nothing can sign, move or sell until NEAR runs again, and no new signature can be made for any address. What was signed or approved before the halt can still be used on its chain: anyone can broadcast a signed transaction that was never sent, since its signature is public, and a live approval can still be spent | Wait, and don't buy a satchel whose signed nonces aren't all spent, halt or not (the app asks you to tick a box before it lets you) |
+| A DAO council loses its keys, or turns hostile | The contract obeys whichever account owns the satchel, so the DAO's policy is its whole defense. A council that can't pass a proposal leaves the satchel stuck; one with the votes can empty its address or take the satchel, since a Sputnik proposal runs on the vote that reaches its threshold | Give the council more members than its threshold needs. Proposals are public on NEAR, but where one member's vote reaches the threshold, as in the testnet DAO, a proposal can be filed and passed in one transaction, with no time to react. `nonceClash` in the library finds an open proposal that signs a nonce already in use |
+| The holder is offline, during a swap through 1Click or at any time | Nothing in Satchel acts on a timer. Mainnet satchel #2's quote named the satchel's own address as `refundTo`, so a refund, if 1Click's system sends one, lands back in the satchel with no step from the holder | Nothing. Let a swap end before you buy: the report doesn't count what is in flight |
+| An RPC lies | A lying NEAR or EVM RPC can make a satchel look clean, or not. It can't change a satchel's address, derived from the MPC root key pinned in the package, or make `buy` take a record version other than the contract's | Run `satchel-nft verify` with `NEAR_RPC` and `RPC_<chain id>` set to nodes you trust ([RPCs, finality and rate limits](/docs/developers/rpc-and-finality)) |
+| satchelnft.xyz is down | The contracts and the MPC network don't depend on it. The holder room's check runs on its server, so the room is shut too | Use the [CLI](/docs/developers/cli): `verify` builds the same report, and its sign commands sign with the near CLI's key. Any NEAR client can call the [contract](/docs/developers/contract) |
 
 ## Evaluate Satchel in 15 minutes
 
