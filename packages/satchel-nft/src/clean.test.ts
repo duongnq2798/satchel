@@ -202,7 +202,7 @@ describe("fixPlan", () => {
     expect(chain.actions[0].cost).toMatch(/^Takes approval slot 2 of 32/);
     expect(chain.actions[0].refused).toBeUndefined();
     // The revoke takes nonce 1 itself, so no spend is needed.
-    expect(chain.notes.join("\n")).toMatch(/1 nonce\(s\) are open on Avalanche Fuji, and each revoke above takes the next one, so the revokes spend them all/);
+    expect(chain.notes.join("\n")).toMatch(/1 nonce\(s\) are open on Avalanche Fuji, and each revoke on this chain takes the next one, so the revokes spend them all/);
     expect(chain.notes.join("\n")).toMatch(/pays its gas from the satchel's balance there/);
     checkCosts(p);
   });
@@ -223,7 +223,7 @@ describe("fixPlan", () => {
     for (const spend of list.slice(1)) {
       expect(spend).toMatchObject({ to: ADDRESS, value: 0n, data: "0x", slot: { kind: "none" }, rows: [] });
     }
-    expect(text(p)).toMatch(/3 nonce\(s\) are open on Avalanche Fuji, and each revoke above takes the next one, so 2 nonce spend\(s\) cover the rest/);
+    expect(text(p)).toMatch(/3 nonce\(s\) are open on Avalanche Fuji, and each revoke on this chain takes the next one, so 2 nonce spend\(s\) cover the rest/);
     checkCosts(p);
   });
 
@@ -254,7 +254,7 @@ describe("fixPlan", () => {
       chains: [state(FUJI, 0)],
     });
     expect(actions(twelve).map((a) => [a.kind, a.nonce])).toEqual([["revoke", 0n]]);
-    expect(text(twelve)).toContain("send 0 to the satchel's own address once for each open nonce the revokes above don't take, with npx");
+    expect(text(twelve)).toContain("send 0 to the satchel's own address once for each open nonce the revokes on this chain don't take, with npx");
   });
 
   it("trusts check 2 over a nonce read that lags it, and sends nothing on that chain", () => {
