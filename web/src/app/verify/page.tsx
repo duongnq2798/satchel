@@ -13,7 +13,8 @@ import { DEMO_SATCHELS, SITE_HOSTS, parseSatchelInput, refNetwork } from "@/lib/
 export default function Verify() {
   const router = useRouter();
   const net = useNetwork();
-  const [text, setText] = useState("1");
+  // Empty, so a pasted link isn't appended to a default id.
+  const [text, setText] = useState("");
   const [error, setError] = useState("");
   const inputId = useId();
   const hintId = useId();
@@ -60,6 +61,7 @@ export default function Verify() {
                 setText(e.target.value);
                 setError("");
               }}
+              placeholder="5, #5 or a satchel's link"
               autoComplete="off"
               spellCheck={false}
               aria-invalid={error ? true : undefined}
