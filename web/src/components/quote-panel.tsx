@@ -237,8 +237,8 @@ function MainnetQuote({ address }: { address: Address }) {
               )}
             </p>
           ) : (
-            <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-[2fr_2fr_1fr]">
-              <label className="grid gap-1 text-sm">
+            <form onSubmit={submit} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[2fr_2fr_1fr]">
+              <label className="grid min-w-0 gap-1 text-sm">
                 <span className="text-muted">From</span>
                 <select
                   ref={focusOnMount}
@@ -247,7 +247,7 @@ function MainnetQuote({ address }: { address: Address }) {
                     const h = loaded.holdings.find((x) => assetKey(x.asset) === e.target.value);
                     if (h) chooseOrigin(h, loaded.tokens);
                   }}
-                  className="rounded-xl border border-line bg-paper px-3 py-2"
+                  className="min-w-0 rounded-xl border border-line bg-paper px-3 py-2"
                 >
                   {loaded.holdings.map((h) => (
                     <option key={assetKey(h.asset)} value={assetKey(h.asset)}>
@@ -256,7 +256,7 @@ function MainnetQuote({ address }: { address: Address }) {
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-sm">
+              <label className="grid min-w-0 gap-1 text-sm">
                 <span className="text-muted">To</span>
                 <select
                   value={destinationKey}
@@ -264,7 +264,7 @@ function MainnetQuote({ address }: { address: Address }) {
                     changed();
                     setDestinationKey(e.target.value);
                   }}
-                  className="rounded-xl border border-line bg-paper px-3 py-2"
+                  className="min-w-0 rounded-xl border border-line bg-paper px-3 py-2"
                 >
                   {choices.map((a) => (
                     <option key={assetKey(a)} value={assetKey(a)}>
@@ -273,7 +273,7 @@ function MainnetQuote({ address }: { address: Address }) {
                   ))}
                 </select>
               </label>
-              <label className="grid gap-1 text-sm">
+              <label className="grid min-w-0 gap-1 text-sm">
                 <span className="text-muted">Amount{holding ? ` (${assetSymbol(holding.asset)})` : ""}</span>
                 <input
                   value={amount}
