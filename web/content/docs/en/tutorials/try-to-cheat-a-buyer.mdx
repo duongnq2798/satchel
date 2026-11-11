@@ -232,8 +232,11 @@ read from https://rpc.testnet.fastnear.com
 ```
 
 Satchel #4 holds 0.002 Sepolia ETH, sent to it from satchel #1, and has never signed anything. Its
-listing pins record version 0. Anyone with a testnet NEAR wallet can buy it for 1 NEAR from
-[its page](/satchel/4).
+listing pins record version 0. [Its page](/satchel/4) shows the listing, but the app's buy button is
+off there until 2026-11-25, since the README quotes its state. That is a guard in the app, not a
+protection: the CLI and the near CLI can still buy it. To buy one yourself, mint a satchel, list it from
+one account and buy it from another, as
+[A full sale on testnet](/docs/tutorials/sale-on-testnet) does.
 
 <Callout type="note" title="Your output can differ">
 Satchels #4 and #6 are for sale. If someone has bought one, its "listed by" line is gone, and a new
@@ -273,7 +276,7 @@ between the check and the `buy`, there is no sale.
 ## Next steps
 
 - [The clean transfer report](/docs/concepts/clean-transfer-report): each check in detail.
-- [Buy a satchel](/docs/guides/buy): buy satchel #4 on testnet.
+- [Buy a satchel](/docs/guides/buy): read a report, then buy at the version you read.
 - [A full sale on testnet, from the terminal](/docs/tutorials/sale-on-testnet): make your own moves
   with two testnet accounts.
 - [Threat model](/docs/security/threat-model): every other move a seller could try, and what stops it.

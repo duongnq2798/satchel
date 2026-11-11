@@ -179,7 +179,7 @@ if (report?.verdict === "clean") {
 | `assertDeployment(net)`, `assertReceiver(net, account)` | The checks the app and the CLI run before signing |
 | `checkHolder(net, proof)`, `roomMessage(net, id, account, issuedAt)` | The holder room's gate: whether a signed NEP-413 proof comes from a full-access key of the account that owns the satchel at a final NEAR block, and the message it must sign (new in 0.2.0) |
 | `verifyNep413(signed)`, `nep413Hash(payload)` | NEP-413 message signatures: the hash a wallet signs, and a strict ed25519 check of one (new in 0.2.0) |
-| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.1.0`, which has each of them (new in 0.2.0) |
+| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.2.0`, which has each of them (new in 0.2.0; 0.2.0 itself pins `@0.1.0`) |
 | `contents(net, address)`, `chainContents(chain, address)`, `TOKENS` | What an address holds on the network's EVM chains: the native coin, and USDC, USDT and WETH at their listed addresses. Display only: the report doesn't read it (new in 0.2.0) |
 | `tokenHistory(net, id)`, `describeEntry(entry)` | A satchel's mint, owners, signatures, listings and sales, from FastNEAR's transaction index, and one line for each. Display only (new in 0.2.0) |
 | `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0) |

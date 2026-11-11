@@ -146,6 +146,27 @@ The verdict follows from the four statuses, in this order:
 "Unknown" is never a pass. An RPC that is down, a chain the package doesn't know, an RPC that answers for another
 chain id: each makes its check unknown, and the satchel can't read clean until it is read.
 
+## Make it clean
+
+When a satchel's report isn't clean, its page shows **Make it clean** under the report: the transactions that
+would fix what checks 2 and 3 found. The plan comes from `fixPlan` in the `satchel-nft` package (`clean.ts`),
+built from the report, the record and each chain's latest block; it sends nothing itself. Anyone can read the
+plan and its calldata. Only the owner gets buttons, and each one sends through the same steps, checks and wallet
+prompt as a send from the satchel.
+
+| The report found | The card offers |
+| --- | --- |
+| A signed nonce no transaction has taken yet (check 2) | **Spend nonce**: a send of 0 to the satchel's own address, for each open nonce a revoke on that chain doesn't already take. More than 10 open nonces on one chain get a terminal command instead |
+| A live approval (check 3) | **Revoke**: `approve(spender, 0)`, `approve(0x0, tokenId)`, `setApprovalForAll(operator, false)` or Permit2 `approve(token, spender, 0, 0)`, with the approval slot it takes of the 32 |
+| A failing check 4 | Nothing. The counters only grow, so no transaction fixes it |
+| A failing check 1, or a listed satchel | No buttons. The app signs nothing until check 1 passes, and a listed satchel can't sign |
+
+While check 4 passes, the card won't send a revoke that would be a 33rd approval row, since the contract only
+counts that one and check 4 would fail for good. It has no button for an `approve` row that both the ERC-20 and the ERC-721 read find live,
+since it can't tell which call clears it; it shows both calls instead. The card reads the latest block and the
+report a finalized one, so a fix shows in the report once its block is finalized: click **Check again** then.
+[Sell a satchel](/docs/guides/sell#get-the-report-to-read-clean) has the steps.
+
 ## Finality: why reads wait
 
 Every nonce and every approval is read at the chain's **finalized** block, not its latest one. A transaction in a

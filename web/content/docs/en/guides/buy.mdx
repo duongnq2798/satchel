@@ -50,6 +50,14 @@ On `/mainnet` pages you pay real NEAR for an address that may hold real funds. S
 
 </Steps>
 
+<Callout type="note" title="The demo satchels">
+The README quotes the state of testnet satchels #1 to #8 and mainnet #1 and #2, so on their pages the
+**For sale** card shows a note instead of the buy button until 2026-11-25. That is a guard in the app, not a
+protection: the `satchel-nft` CLI and the near CLI can still buy them. To try a purchase, mint a satchel,
+list it from one account and buy it from another, as [A full sale on testnet](/docs/tutorials/sale-on-testnet)
+does.
+</Callout>
+
 ## Why the version in your purchase matters
 
 The purchase names the record version and the price **from the report you read**, never from the rest of
@@ -127,10 +135,11 @@ has the details.
 version that report read:
 
 ```bash
-npx -y satchel-nft@0.2.0 buy 4 --as alice.testnet
+npx -y satchel-nft@0.2.0 buy <id> --as <account>
 ```
 
-Replace `alice.testnet` with your own account, one the near CLI can sign for.
+Use a listed satchel that isn't a demo satchel for `<id>`, and your own account, one the near CLI can sign
+for, for `<account>`.
 
 Before anything is signed, it refuses a satchel that isn't listed, a purchase by the seller, a listing whose
 version no longer matches the record, and a report that isn't clean:
@@ -139,7 +148,8 @@ version no longer matches the record, and a report that isn't clean:
 Not buying: the report reads NOT PROVABLE. Pass --accept-not-clean to buy it anyway.
 ```
 
-Then it shows the transaction and asks before sending:
+Then it shows the transaction and asks before sending. For satchel #4, listed by satchel-nft.testnet for
+1 NEAR, it shows:
 
 ```text
 Buys satchel #4 from satchel-nft.testnet for 1 NEAR.

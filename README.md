@@ -307,7 +307,8 @@ What exists at this commit, and what does not yet.
 | Contract: a NEP-171 NFT whose tokens each control an MPC-derived key, with the signing record, the sale and the refusals | **Shipped** on NEAR testnet as `v1.satchel-nft.testnet` and on NEAR mainnet as `v1.satchel-nft.near`, both on 2026-11-09, both from commit `87148c6` and locked before their first mint. A locked contract cannot change: a fix would ship as a new account | [`contracts/satchel`](contracts/satchel) |
 | Reproducible build | **Shipped**. CI builds every pull request and every push to `main` or `dev` in the pinned image `sourcescan/cargo-near:0.22.0-rust-1.99.1` and writes the code hash to the run's summary. Both deployments run the build of commit `87148c6`, code hash `94x4MmZK…` | [`.github/workflows/contract.yml`](.github/workflows/contract.yml) |
 | Clean transfer report: four checks, each chain read at a finalized block | **Shipped**, in the browser and as `satchel-nft verify`, from the same code | [`report.ts`](packages/satchel-nft/src/report.ts), [`cli.ts`](packages/satchel-nft/src/cli.ts) |
-| Web app at [satchelnft.xyz](https://satchelnft.xyz) | **Shipped**. One deployment serves testnet, and mainnet under `/mainnet`: mint, send through the MPC network on the network's 8 EVM chains, list, delist, transfer, buy, the market, the report, and what a satchel holds and its history | [`web`](web) |
+| Web app at [satchelnft.xyz](https://satchelnft.xyz) | **Shipped**. One deployment serves testnet, and mainnet under `/mainnet`: mint, send through the MPC network on the network's 8 EVM chains, list, delist, transfer, buy, the market, the report, and what a satchel holds and its history. On the demo satchels this README quotes (testnet #1 to #8, mainnet #1 and #2), the app's owner and buy actions are off until 2026-11-25: a guard in the app, not a protection | [`web`](web), [`frozen.ts`](web/src/lib/frozen.ts) |
+| Make it clean: under a report that isn't clean, the revokes and nonce spends that would fix checks 2 and 3, with a button for each one the app can send | **Built** on 2026-11-11, with tests; not yet run on chain. `readFixInputs` reads each chain's latest block, and `fixPlan` builds the revoke for each live approval (`approve(spender, 0)`, `approve(0x0, id)`, `setApprovalForAll(operator, false)` or Permit2 `approve(token, spender, 0, 0)`) and a send of 0 to the satchel's own address for each open nonce a revoke doesn't spend. Anyone can read the plan and its calldata. Only the owner gets buttons, and each sends through `sendFromSatchel` like any send. It shows the approval slot each revoke takes and won't send a 33rd while check 4 passes; more than 10 open nonces on a chain get a terminal command instead. Nothing fixes check 4. The package code is in this repository, not in npm 0.2.0 | [`clean.ts`](packages/satchel-nft/src/clean.ts), [`fix-panel.tsx`](web/src/components/fix-panel.tsx) |
 | Guards before anything is signed | **Shipped**. The app shows no address and signs nothing until the network's contract passes check 1; it refuses an account from the other network, a transaction for another contract, and a receiver that doesn't exist. The CLI runs the same guards | [`guard.ts`](packages/satchel-nft/src/guard.ts) |
 | Demo satchels and two refused calls | **Shipped** on testnet: satchels #1 and #3 to #6 (#2 is retired), every step in an evidence file (two entries written by hand from the run log, one failed retry left out, as [noted below](#on-chain-proof)) | [`tools/demo-gallery.mjs`](tools/demo-gallery.mjs), [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json) |
 | End-to-end run against the real MPC network | **Shipped** on testnet: mint, sign, transfer, the previous owner refused, the new owner signing, a broadcast on Sepolia | [`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`deployments/testnet-e2e.json`](deployments/testnet-e2e.json), [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json) |
@@ -725,10 +726,14 @@ The contract refused two seller moves outright, and both refusals are on chain:
 | Sign while it's listed | the owner of #4 calls `sign_evm` | [`Satchel: signing is frozen while the token is listed`](https://testnet.nearblocks.io/txns/5ZaKqJUxEUauvpENMMp4KQoCwWRNqmAyHskpTF6Axft8) |
 | Change it after the buyer checked | a buyer calls `buy` on #6 naming record version 0, the version before the raw signature | [`Satchel: the signing record changed since you checked it`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv), and the buyer keeps the 1 NEAR |
 
-Satchel #4 can be bought from [its page](https://satchelnft.xyz/satchel/4) with any testnet NEAR
-wallet. If someone has bought it by the time you look, it reads `PROVABLY CLEAN` without the listing
-line. For about 13 minutes after a satchel sends on Sepolia, its report says
-`COULD NOT CHECK EVERYTHING` until that block is final.
+Satchel #4 is listed, and [its page](https://satchelnft.xyz/satchel/4) shows the listing. Since this
+README quotes its state, the app's buy button is off on it until 2026-11-25: a guard in the app, not a
+protection, so the CLI and the near CLI can still buy it. To try a purchase, mint a satchel, list it
+from one account and buy it from another, as
+[the sale tutorial](https://satchelnft.xyz/docs/tutorials/sale-on-testnet) does. If someone has bought
+#4 by the time you look, it reads `PROVABLY CLEAN` without the listing line. For about 13 minutes
+after a satchel sends on Sepolia, its report says `COULD NOT CHECK EVERYTHING` until that block is
+final.
 
 <details>
 <summary><b>The end-to-end run against the real MPC network</b> (7 steps, then a broadcast on Sepolia)</summary>
@@ -1033,9 +1038,10 @@ room opens for the new holder instead, and the seller gets a 403 that names the 
 - **A holder card**: the account, the satchel and its record version, the network, the final NEAR
   block the server checked it at (linked to NearBlocks) and the key that signed.
 - **A handover kit**: what to do before selling, built from the satchel's report. One step for each
-  check that fails or couldn't be read (spend each open nonce with a send; revoke each live approval
-  with calldata you write, since the kit names the call but the app has no revoke button; tell the
-  buyer about a counter, which nothing undoes), with the app's and the CLI's way to do it. While
+  check that fails or couldn't be read (spend each open nonce with a send of 0 to the satchel's own
+  address; revoke each live approval; tell the buyer about a counter, which nothing undoes), with the
+  app's and the CLI's way to do it. In the app, both fixes are buttons in the **Make it clean** card
+  under the satchel's report; from a terminal, each is a `satchel-nft send`. While
   check 1 fails, the app and the CLI sign nothing, so the kit offers no fix; for a chain of the other
   network, where they don't send, it says so. When all four checks pass, one step: list it.
 
@@ -1351,6 +1357,15 @@ What the tests pin down:
   in flight. It has run once: a script asked for the quote and followed the swap, and the app's Send
   panel sent the deposit; the app can't ask 1Click for a quote
   ([A swap through NEAR Intents](#a-swap-through-near-intents-that-keeps-the-proof)).
+- **The demo satchels' guard is in the app only.** Until 2026-11-25 the app shows no owner or buy
+  actions on testnet satchels #1 to #8 and mainnet #1 and #2, whose state this README quotes. The
+  `satchel-nft` CLI, the near CLI and any other client can still sign for, list, buy or transfer them,
+  and the contract has no such rule.
+- **Make it clean has not run on chain yet.** It reads each chain's latest block through one RPC.
+  While check 4 passes, it won't send a revoke that would be a 33rd approval row. It offers Spend
+  nonce buttons for up to 10 open nonces on a chain; with more, it gives a terminal command instead.
+  It has no button for an `approve` row that both the ERC-20 and the ERC-721 read find live: it
+  shows both calls instead. Nothing fixes check 4.
 - **Not audited** by anyone outside the project. Internal reviews only: two of the contract (one
   adversarial) found two ways to slip an approval past the first version of the record, then two
   smaller gaps in the fix, all fixed and tested; the web app and the mainnet path had two each, one of
