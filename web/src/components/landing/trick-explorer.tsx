@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { type Report, client, formatBalance, formatNear } from "satchel-nft";
+import { type Report, TESTNET, client, formatBalance, formatNear } from "satchel-nft";
 import { FOR_SALE, type RefusedTrick, type ReportTrick, TRICKS, type Trick, type TxLink } from "@/lib/copy";
+import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import { ReportBadge, useReport } from "../report-checker";
 import { Badge, StatusIcon, VERDICT } from "../ui";
 import { useAsync } from "../use-async";
@@ -125,19 +126,28 @@ function Prefetch() {
   return null;
 }
 
-/** The listed example: what it costs and holds, or where to go once it is off the market. */
+/**
+ * The listed example: what it costs and holds, or where to go once it is off the market. While it
+ * is a demo satchel the app won't buy, it says so and points to minting one to sell.
+ */
 function ForSale() {
   const report = useReport(FOR_SALE);
   const address = report.data?.address;
   const balance = useAsync(async () => (address ? client(SEPOLIA).getBalance({ address }) : null), address ?? "");
   const listing = report.data?.listing;
+  const frozen = isFrozen(TESTNET, FOR_SALE);
 
   let title = `Checking satchel #${FOR_SALE}…`;
   let body = "";
   if (report.data && listing) {
-    title = `Satchel #${FOR_SALE} is for sale for ${formatNear(listing.price)} NEAR`;
     const holds = typeof balance.data === "bigint" ? `It holds ${formatBalance(balance.data)} Sepolia ETH. ` : "";
-    body = `${holds}Buy it with any testnet NEAR wallet: its address on every chain moves to you in one transaction, for the record version you checked.`;
+    if (frozen) {
+      title = `Satchel #${FOR_SALE} is listed for ${formatNear(listing.price)} NEAR`;
+      body = `${holds}${FROZEN_NOTE} To see a sale through, mint a satchel, list it from its page and buy it from a second testnet wallet.`;
+    } else {
+      title = `Satchel #${FOR_SALE} is for sale for ${formatNear(listing.price)} NEAR`;
+      body = `${holds}Buy it with any testnet NEAR wallet: its address on every chain moves to you in one transaction, for the record version you checked.`;
+    }
   } else if (report.data) {
     title = `Satchel #${FOR_SALE} is no longer for sale`;
     body = "Mint your own and list it from its page; it shows up on the market with its report.";
@@ -159,10 +169,10 @@ function ForSale() {
           Read its report
         </Link>
         <Link
-          href={listing || !report.data ? "/market" : "/satchels"}
+          href={(listing && !frozen) || !report.data ? "/market" : "/satchels"}
           className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
         >
-          {listing || !report.data ? "See the market" : "Mint a satchel"}
+          {(listing && !frozen) || !report.data ? "See the market" : "Mint a satchel"}
         </Link>
       </div>
     </div>

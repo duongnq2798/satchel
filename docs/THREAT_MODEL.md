@@ -197,8 +197,9 @@ data, so these attacks are on the gate, not on a secret.
     minutes, since `Issued` may run a minute ahead of the server's clock) while that account still
     owns the satchel, a former holder for the few seconds a final block lags a sale, and a lying NEAR
     RPC for anyone; nothing limits the rate of requests (rows 24 to 28). It holds nothing secret.
-14. Not audited. Two internal adversarial reviews found two ways to slip an approval past the first
-    version of the record, then two smaller gaps in the fix. All four are fixed and covered by tests.
+14. Not audited. Two internal reviews of the contract, one of them adversarial, found two ways to
+    slip an approval past the first version of the record, then two smaller gaps in the fix. All four
+    are fixed and covered by tests.
     A third, of the `satchel-nft` CLI's signing, found no way to make it send another transaction
     than the one it shows. Of its findings on how it finds the near CLI, what it believes from an RPC
     and how it ends when an outcome is unknown, the one not fixed is row 21f; the address, which a

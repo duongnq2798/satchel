@@ -113,6 +113,104 @@ export const SHOWCASE: readonly ShowcaseCard[] = [
   },
 ];
 
+const SEPOLIA = 11155111;
+
+/** Testnet satchel #8's two votes (deployments/testnet-dao.json). */
+const DAO_RUN = {
+  tokenId: "8",
+  buyer: "buyer.satchel-nft.testnet",
+  signVote: "2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M",
+  sendTx: "0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3",
+  transferVote: "6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg",
+} as const;
+
+/** The state testnet satchel #9 was left in for Make it clean (deployments/testnet-make-clean.json). */
+const MAKE_CLEAN = {
+  tokenId: "9",
+  /** When the state was set up, and the card last checked against the live page. */
+  date: "2026-11-11",
+  approveTx: "0xdeef1d5c70b00db68cf1fa2fc568535bd12686b4c690d6218f82f5dba88cab42",
+  spenderSatchel: "7",
+  kept: ["CLpsgUtaBSN5s4rvZgXHDpUJf9MQeE4QzQZVPrC22D2Y", "E33gHExEGo1xkUr49UrMR2uLj5UUH95tCWHhxUnKQDHJ"],
+} as const;
+
+export interface TourCard {
+  network: NetworkId;
+  tokenId: string;
+  /** The NEAR piece it shows. */
+  tech: string;
+  title: string;
+  body: string;
+  /** The satchel's page, or its room, on its network's side of the site. */
+  path: string;
+  cta: string;
+  /** The docs page that explains it. */
+  docs: string;
+  txs: readonly TxLink[];
+}
+
+/**
+ * What a satchel does beyond a sale, one card each, for the landing page. Like the showcase, a card
+ * tells what happened and leaves the verdict to the satchel's live page.
+ */
+export const TOUR: readonly TourCard[] = [
+  {
+    network: "testnet",
+    tokenId: "4",
+    tech: "NEP-413 · NEAR Connect",
+    title: "A room only the holder opens",
+    body: "The holder's wallet signs a NEP-413 message: no transaction, no fee. The server checks the signature, that the key has full access and that the account owns the satchel at one final block, then shows a holder card and a handover kit. Sell or transfer the satchel and the room opens for the new holder instead.",
+    path: "/satchel/4/room",
+    cta: "Open satchel #4's room",
+    docs: "/docs/guides/holder-room",
+    txs: [],
+  },
+  {
+    network: "testnet",
+    tokenId: DAO_RUN.tokenId,
+    tech: "Sputnik DAO",
+    title: "Owned by a DAO's vote",
+    body: `Satchel #${DAO_RUN.tokenId} was minted to a Sputnik DAO. One vote had it sign a send on Sepolia, which the contract recorded like any other; a second vote gave it to ${DAO_RUN.buyer}, and its address on every chain moved in that vote's transaction.`,
+    path: `/satchel/${DAO_RUN.tokenId}`,
+    cta: `Read satchel #${DAO_RUN.tokenId}'s report`,
+    docs: "/docs/tutorials/dao-owned-satchel",
+    txs: [
+      { label: "The vote that signed", href: nearTxUrl(TESTNET, DAO_RUN.signVote) },
+      { label: "The send on Sepolia", href: evmTxUrl(SEPOLIA, DAO_RUN.sendTx) },
+      { label: "The vote that gave it away", href: nearTxUrl(TESTNET, DAO_RUN.transferVote) },
+    ],
+  },
+  {
+    network: "mainnet",
+    tokenId: ONECLICK_EXIT.tokenId,
+    tech: "NEAR Intents · 1Click",
+    title: "Swapped through NEAR Intents",
+    body: `Mainnet satchel #${ONECLICK_EXIT.tokenId} sent ${ONECLICK_EXIT.sent} ETH on Base to a 1Click deposit address, and ${ONECLICK_EXIT.received} USDC reached its own address on Arbitrum One. On any mainnet satchel's page, Quote an exit asks 1Click, on a click and with no wallet, for a dry quote of the native coin, USDC or USDT it holds on the chains 1Click serves.`,
+    path: `/satchel/${ONECLICK_EXIT.tokenId}`,
+    cta: `Open mainnet satchel #${ONECLICK_EXIT.tokenId}`,
+    docs: "/docs/guides/quote-an-exit",
+    txs: [
+      { label: "The deposit on Base", href: evmTxUrl(BASE, ONECLICK_EXIT.depositTx) },
+      { label: "The USDC on Arbitrum One", href: evmTxUrl(ARBITRUM_ONE, ONECLICK_EXIT.payoutTx) },
+    ],
+  },
+  {
+    network: "testnet",
+    tokenId: MAKE_CLEAN.tokenId,
+    tech: "Chain Signatures",
+    title: "Fix it before you sell",
+    body: `On ${MAKE_CLEAN.date} its owner's script left satchel #${MAKE_CLEAN.tokenId} with a live USDC approval for satchel #${MAKE_CLEAN.spenderSatchel}'s address and two sends signed but never broadcast. For that state, Make it clean, under its report, plans two sends, the revoke at nonce 1 and a send of 0 at nonce 2, with their calldata and a button for each for the owner. They hadn't run on ${MAKE_CLEAN.date}; the page shows what is left now.`,
+    path: `/satchel/${MAKE_CLEAN.tokenId}`,
+    cta: `Open satchel #${MAKE_CLEAN.tokenId}`,
+    docs: "/docs/concepts/clean-transfer-report#make-it-clean",
+    txs: [
+      { label: "The approve on Sepolia", href: evmTxUrl(SEPOLIA, MAKE_CLEAN.approveTx) },
+      { label: "Kept send, nonce 1", href: nearTxUrl(TESTNET, MAKE_CLEAN.kept[0]) },
+      { label: "Kept send, nonce 2", href: nearTxUrl(TESTNET, MAKE_CLEAN.kept[1]) },
+    ],
+  },
+];
+
 export interface DemoSatchel {
   network: NetworkId;
   tokenId: string;
