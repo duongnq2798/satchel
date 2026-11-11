@@ -119,7 +119,7 @@ the record changed).
    On testnet it also reads the calls the contract refused; on mainnet, satchel #1's mint and first
    signature, and that send on Base from a public Base node, then satchel #2's swap through 1Click,
    on NEAR, Base, Arbitrum One and 1Click's public status (set `BASE_RPC` and `ARBITRUM_RPC` to use
-   your own nodes). Each run took 6 to 9 s here, most of it waiting on the archival node.
+   your own nodes). Each run took 6 to 11 s here, most of it waiting on the archival node.
 
    ```bash
    node scripts/check-claims.mjs                      # NEAR testnet: 13 claims
@@ -170,7 +170,11 @@ the record changed).
    listed and a `buy` naming an old record version, and what satchel #6's record held when that `buy`
    was refused. It ends with `13 of 13 claims hold`. Each run exits 0 only when
    every claim holds; [AGENTS.md](AGENTS.md#1-the-deployment-and-its-history-one-command) says what
-   each line reads.
+   each line reads. A read that fails is tried once more. With `BASE_RPC` unset, a Base read the
+   default node fails goes to Base's own node, `https://mainnet.base.org`. A claim that fails only
+   because a node or 1Click didn't answer says it is not a change to any satchel, and what to do.
+   GitHub runs the three commands every day until judging ends on 2026-11-25
+   ([`watch.yml`](.github/workflows/watch.yml)), with a request to satchelnft.xyz and `/mainnet`.
 
 3. **Ask the chain without our scripts.** Two reads with curl, from the same directory:
 
@@ -1430,7 +1434,8 @@ job.
 CI runs on GitHub Actions (ubuntu). Every pull request runs [`ci.yml`](.github/workflows/ci.yml),
 which calls the contract, web and package workflows, then `verify`: the one check `main` and `dev`
 require before a merge, and it passes only when all three pass. Pushes to `main` and `dev` run the
-three workflows directly, each when its paths change.
+three workflows directly, each when its paths change. [`watch.yml`](.github/workflows/watch.yml)
+re-checks the demo every day until judging ends; `verify` doesn't wait for it.
 
 | Workflow | Job | What it does | When |
 | --- | --- | --- | --- |
@@ -1439,6 +1444,7 @@ three workflows directly, each when its paths change.
 | Web | Typecheck, unit tests, build | `npm ci` at the root, then in `web` `npm run typecheck`, `npm test`, `npm run build`, on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/`, `packages/`, the root `package.json` or lockfile, or the workflow |
 | Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
+| Watch | Claims and site | From 2026-11-25, when judging and the demo freeze end, nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
 The tests, as of 2026-11-11: 64 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 222 package tests in 17 files: `clean.test.ts` 31, `evm.test.ts` 26,

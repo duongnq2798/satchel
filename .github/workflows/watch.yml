@@ -1,0 +1,60 @@
+name: Watch
+
+# Re-checks the demo every day until judging ends: the README's claims on both deployments, the run
+# of the satchel a DAO owned, and that satchelnft.xyz answers. The scripts need only Node: no install,
+# no wallet, no key, no secret. GitHub runs a schedule only from the default branch, `main`.
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+  # A pull request that changes the watch or a script it runs runs it too.
+  pull_request:
+    paths: [".github/workflows/watch.yml", "scripts/check-claims.mjs", "scripts/check-dao.mjs"]
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    name: Claims and site
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Judging ends on 2026-11-25, and so does the demo freeze (FROZEN_UNTIL in web/src/lib/frozen.ts):
+      # after that the demo satchels may change, and the claims about them with them.
+      - name: Stop once judging ends
+        id: window
+        run: |
+          if [ "$(date -u +%s)" -lt "$(date -u -d 2026-11-25T00:00:00Z +%s)" ]; then
+            echo "watch=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Watch over::Judging ended on 2026-11-25, and the demo freeze with it: nothing is checked."
+            echo "watch=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.window.outputs.watch == 'true'
+      - uses: actions/setup-node@v4
+        id: node
+        if: steps.window.outputs.watch == 'true'
+        with:
+          # The oldest Node the scripts run on.
+          node-version: 22
+      # Each check runs even when the one before it failed. A script retries each read once itself; a
+      # public node can be out for longer, so a failed check runs once more a minute later, and only a
+      # claim that fails both runs fails the watch.
+      - name: Testnet claims
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        run: node scripts/check-claims.mjs || { sleep 60; node scripts/check-claims.mjs; }
+      - name: Mainnet claims
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        run: node scripts/check-claims.mjs --network mainnet || { sleep 60; node scripts/check-claims.mjs --network mainnet; }
+      - name: The DAO run
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        run: node scripts/check-dao.mjs || { sleep 60; node scripts/check-dao.mjs; }
+      - name: satchelnft.xyz answers
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        run: |
+          for url in https://satchelnft.xyz https://satchelnft.xyz/mainnet; do
+            curl -fsS --retry 3 --retry-all-errors --retry-delay 20 -o /dev/null \
+              -w "%{http_code} %{url_effective} in %{time_total} s\n" "$url"
+          done

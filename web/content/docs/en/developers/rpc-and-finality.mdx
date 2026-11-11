@@ -240,10 +240,12 @@ nodes in a browser, [run the app yourself](/docs/advanced/run-the-app) with a ch
 
 `node scripts/check-claims.mjs` reads `NEAR_RPC` (default `https://rpc.<network>.fastnear.com`),
 `NEAR_ARCHIVAL_RPC` (default `https://archival-rpc.<network>.fastnear.com`) and, for mainnet's Base
-claims, `BASE_RPC` (default `https://base-rpc.publicnode.com`). Satchel #2's funding claim reads Base
-state at block 55857952, which that node served on 2026-11-11 and a pruned node can't. Satchel #2's
-last claim reads Arbitrum One through `ARBITRUM_RPC` (default `https://arb1.arbitrum.io/rpc`) and
-1Click's public status at `https://1click.chaindefuser.com`, which no variable replaces.
+claims, `BASE_RPC` (default `https://base-rpc.publicnode.com`; with it unset, a read that node fails
+goes to Base's own `https://mainnet.base.org`). Satchel #2's funding claim reads Base state at block
+55857952, which both nodes served on 2026-11-11 and a pruned node can't. Satchel #2's last claim reads
+Arbitrum One through `ARBITRUM_RPC` (default `https://arb1.arbitrum.io/rpc`) and 1Click's public
+status at `https://1click.chaindefuser.com`, which no variable replaces. Each read that fails is tried
+once more, 2 s later.
 
 The app's quote panel and the 1Click lines in a mainnet satchel's history read the same address,
 set in `web/src/lib/oneclick.ts`. The report reads neither.

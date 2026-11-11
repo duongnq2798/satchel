@@ -84,7 +84,8 @@ The next three read `deployments/mainnet-first-send.json`, satchel #1's first se
 - the Base transaction `0x8044dd8c…` has the fields `sign_evm` was given and the r, s and parity
   `v1.signer` returned, comes from `0xdc269ead…868f9`, succeeded in block 55178996 for the value and
   fee the record names, and that block is finalized. This one reads Base through `BASE_RPC`
-  (`https://base-rpc.publicnode.com` by default) and fails until Base finalizes the block, about
+  (`https://base-rpc.publicnode.com` by default; with `BASE_RPC` unset, a read that node fails goes
+  to Base's own `https://mainnet.base.org`) and fails until Base finalizes the block, about
   20 minutes after a send.
 
 The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap through NEAR Intents'
@@ -94,8 +95,8 @@ The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap thr
   contract's receipt ran in a NEAR block older than the Base block of `0x9c786eab…`, which succeeded
   and sent the satchel's address the 0.0026 ETH the record names; the address had nonce 0 and
   0 wei in the block before, and exactly that in its block. This reads Base state at block
-  55857952, which `https://base-rpc.publicnode.com` served on 2026-11-11 and a pruned node in
-  `BASE_RPC` can't;
+  55857952, which `https://base-rpc.publicnode.com` and `https://mainnet.base.org` both served on
+  2026-11-11 and a pruned node in `BASE_RPC` can't;
 - its `sign_evm`, tx `FnFSMSh1…`, passes the same checks as satchel #1's, for path `satchel/2`, and
   the transaction it signed sends exactly the quote's `amountIn` to the quote's `depositAddress`
   with no calldata, which the contract logged as `value_transfer`;
@@ -115,6 +116,11 @@ last claim compares the file's quote with the one 1Click returns for
 `https://1click.chaindefuser.com/v0/status?depositAddress=0x588f8C4419974bC735Ac784B3dA41B44c42bb64b`.
 So is the link between the deposit and the payout: the chain shows that `0x2cff890f…02680` sent the
 satchel's address that USDC, and only 1Click's status says it paid out this deposit.
+
+The script tries each read that fails once more, 2 s later. When a node or 1Click still doesn't
+answer, the claim fails with a line that says this is not a change to any satchel and what to do:
+set `BASE_RPC` to another Base node (an archive node for satchel #2's funding claim), or, for 1Click,
+run the check again later. If a Base read came from `https://mainnet.base.org`, the last line says so.
 
 A Sputnik DAO owned satchel #8 on testnet. That run has its own record,
 `deployments/testnet-dao.json`, and its own script:
@@ -142,6 +148,13 @@ You should see `5 of 5 claims hold`. It checks that:
   the contract logged it from the DAO, and right after it the record was still at version 1.
 
 `SEPOLIA_RPC` replaces the Sepolia node.
+
+GitHub runs the three commands every day until judging ends, in
+[`watch.yml`](.github/workflows/watch.yml): `check-claims.mjs` on both networks, `check-dao.mjs`,
+then `curl -fsS` on <https://satchelnft.xyz> and <https://satchelnft.xyz/mainnet>, on Node 22 with no
+install and no secrets. A check that fails runs once more a minute later before the run fails. From
+2026-11-25, when judging and the demo freeze end, the run checks nothing. Its runs are in the
+repository's Actions tab.
 
 ### 2. The clean transfer report for each demo satchel
 
@@ -331,7 +344,9 @@ The full list, with what stops each attack and what is left, is in
   `main` is production: Vercel builds <https://satchelnft.xyz> from it.
 - **CI:** every pull request runs [`ci.yml`](.github/workflows/ci.yml), which calls the contract,
   web and package workflows. Its `verify` job passes only when all three pass, and `main` and `dev`
-  accept a merge only then.
+  accept a merge only then. [`watch.yml`](.github/workflows/watch.yml), the daily check of the
+  claims and the site, also runs on a pull request that changes it, `check-claims.mjs` or
+  `check-dao.mjs`; `verify` doesn't wait for it.
 - **Before pushing, run what CI runs:**
   - In `contracts/satchel`: `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`.
   - At the repository root: `npm run typecheck`, `npm test` (both workspaces); then in

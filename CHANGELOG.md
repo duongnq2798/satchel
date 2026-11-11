@@ -6,6 +6,18 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A daily watch of the demo until judging ends: `.github/workflows/watch.yml` runs
+  `node scripts/check-claims.mjs` on testnet and mainnet and `node scripts/check-dao.mjs`, each once
+  more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22 with
+  no install and no secrets. It runs every day at 05:23 UTC from `main`, by hand, and on a pull
+  request that changes it or either script; from 2026-11-25, when judging and the demo freeze end, it
+  checks nothing. `check-claims.mjs` now tries each read that fails once more, 2 s later; with
+  `BASE_RPC` unset, a Base read that `https://base-rpc.publicnode.com` fails goes to Base's own
+  `https://mainnet.base.org`, which also serves satchel #2's state at block 55857952 (the last line
+  says when it did); and a claim that fails because a Base node or 1Click didn't answer says it is
+  not a change to any satchel, and to set `BASE_RPC` or run the check again. Still 13 claims on
+  testnet and 15 on mainnet.
+
 - The landing page's "Beyond a sale" section has four cards. Each is one satchel, with the transactions behind
   it where there are any:
   - testnet #4's holder room;
