@@ -3,6 +3,7 @@ import { formatBalance } from "./evm.js";
 import { limiter } from "./limit.js";
 import type { SigningRecord } from "./near.js";
 import { formatNear } from "./satchel.js";
+import { indexPost } from "./tx-index.js";
 
 /** One step in a satchel's life, from an event the Satchel contract logged. */
 export type HistoryEvent =
@@ -55,20 +56,9 @@ const PAGE = 200;
 /** The index answers at most this many transactions per request. */
 const BATCH = 20;
 
-async function txApi<T>(net: Network, path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${net.txApi}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`${net.txApi}${path} answered ${res.status}`);
-  return (await res.json()) as T;
-}
-
 /**
  * Reads the contract's transactions from the index, newest first, up to `maxTransactions`, and
- * keeps the events about `tokenId`.
+ * keeps the events about `tokenId`. A request the index rate-limits is sent again (`indexPost`).
  */
 export async function tokenHistory(net: Network, tokenId: string, maxTransactions = 1000): Promise<History> {
   const hashes = new Set<string>();
@@ -77,7 +67,7 @@ export async function tokenHistory(net: Network, tokenId: string, maxTransaction
   // At most the pages `maxTransactions` needs, and no further than a page that adds nothing new:
   // an index whose resume token never moves can't keep this reading forever.
   for (let pages = Math.ceil(maxTransactions / PAGE) + 1; pages > 0; pages--) {
-    const page = await txApi<{ account_txs?: { transaction_hash: string }[]; resume_token?: string; txs_count?: number }>(
+    const page = await indexPost<{ account_txs?: { transaction_hash: string }[]; resume_token?: string; txs_count?: number }>(
       net,
       "/v0/account",
       { account_id: net.contract, limit: PAGE, ...(resume ? { resume_token: resume } : {}) },
@@ -97,7 +87,7 @@ export async function tokenHistory(net: Network, tokenId: string, maxTransaction
   const batches: string[][] = [];
   for (let i = 0; i < list.length; i += BATCH) batches.push(list.slice(i, i + BATCH));
   const pages = await Promise.all(
-    batches.map((tx_hashes) => limit(() => txApi<{ transactions?: (IndexedTx | null)[] }>(net, "/v0/transactions", { tx_hashes }))),
+    batches.map((tx_hashes) => limit(() => indexPost<{ transactions?: (IndexedTx | null)[] }>(net, "/v0/transactions", { tx_hashes }))),
   );
   // Oldest first: by block, then, within a block, the older transaction first. The sort is stable,
   // so one transaction's events keep the order the contract logged them in.

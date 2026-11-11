@@ -580,6 +580,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- A satchel's history, on its page and from `satchel-nft history`, failed whenever FastNEAR's
+  transaction index rate-limited one read. On 2026-11-11 `tx.main.fastnear.com` answered 429 to about
+  half the requests, at one every 5 s, and mainnet satchel #2's page showed `Failed to fetch` until
+  **Try again**. A browser sees only that, because the index's 429 had no CORS headers. `indexPost`, in
+  the new `tx-index.ts`, now sends again a read the index answers with 408, 429 or a 5xx, up to 5 sends
+  in all, as FastNEAR's own client does, and one that got no answer at all. Before each new send it
+  waits a random time of up to 0.5, 1, 2, then 4 s, or the index's Retry-After, up to 8 s. A read that
+  timed out after 20 s isn't sent again. When the last send fails too, the error lists what each send
+  got. `satchel-nft dao finish` reads a vote's signer through it, and every error from that read now
+  names the vote; before, a network failure, a timeout or an unreadable answer didn't.
+  `tools/oneclick-exit.mjs` still says to run it again when that read fails for the network. 9 new
+  package tests, 231 in all. `satchel-nft` 0.2.0 on npm still sends each read once, until the next
+  release.
+
 - The CLI crashed with an EPIPE stack trace when the program reading its output or its messages
   stopped early; 0.1.0 does too. `satchel-nft show --network mainnet 1 | true` exited 1 with that
   trace, and `verify --bogus 2>&1 | true` exited 1 instead of 2. Now the printing stops, on stdout

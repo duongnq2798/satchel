@@ -92,6 +92,7 @@ describe("eventsIn", () => {
 describe("tokenHistory", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   /** An index holding TXS, two account transactions a page, that also counts `extra` it never pages to. */
@@ -165,12 +166,31 @@ describe("tokenHistory", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it("reads through an index that rate-limits every other request", async () => {
+    vi.useFakeTimers();
+    const calls = index();
+    const answer = globalThis.fetch;
+    let sent = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((...args: Parameters<typeof fetch>) => (sent++ % 2 === 0 ? Promise.resolve(new Response("slow down", { status: 429 })) : answer(...args))),
+    );
+    const read = tokenHistory(TESTNET, "7");
+    await vi.runAllTimersAsync();
+    const history = await read;
+    expect(history.entries.map((e) => e.kind)).toEqual(["mint", "sign_evm", "list", "delist", "sale", "transfer"]);
+    expect(sent).toBe(2 * calls.length);
+  });
+
   it("fails loudly when the index does", async () => {
+    vi.useFakeTimers();
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("down", { status: 503 })),
     );
-    await expect(tokenHistory(TESTNET, "7")).rejects.toThrow(/tx.test.fastnear.com\/v0\/account answered 503/);
+    const failed = expect(tokenHistory(TESTNET, "7")).rejects.toThrow(/tx.test.fastnear.com\/v0\/account failed 5 sends in a row: 503 each time\./);
+    await vi.runAllTimersAsync();
+    await failed;
   });
 });
 
