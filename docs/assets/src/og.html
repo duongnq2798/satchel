@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  The share card for satchelnft.xyz, 1200 x 630: web/src/app/opengraph-image.png and twitter-image.png.
+  Rendered by render.mjs in this folder. It shows no verdict and no balance: X and others keep a card
+  for days, and a satchel's report can change.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=block" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f0e6; --paper-2: #ece4d4; --ink: #17140f; --ink-2: #4a4339; --muted: #6e6558;
+    --gold: #c8962e; --gold-deep: #a47619; --gold-soft: #f3e3bc; --leather: #6b3f24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--paper); color: var(--ink); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { display: grid; grid-template-columns: 1fr 460px; gap: 48px; height: 100%; padding: 52px 56px; }
+  .left { display: flex; flex-direction: column; }
+  .brand { display: flex; align-items: center; gap: 12px; font-family: Fraunces, Georgia, serif; font-size: 32px; font-weight: 600; letter-spacing: -0.01em; }
+  .brand svg { width: 38px; height: 38px; }
+  .eyebrow { margin-top: 34px; font-size: 17px; font-weight: 500; letter-spacing: 0.02em; color: var(--leather); }
+  h1 { margin: 12px 0 0; font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 64px; line-height: 1.02; letter-spacing: -0.035em; }
+  h1 span { display: block; color: var(--gold-deep); }
+  p.lead { margin: 24px 0 0; font-size: 21px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+  .site { margin-top: auto; display: flex; align-items: baseline; gap: 16px; font-size: 22px; font-weight: 600; }
+  .site small { font-size: 16px; font-weight: 500; color: var(--muted); }
+  .card { position: relative; align-self: center; border-radius: 28px; background: var(--leather); color: var(--paper); padding: 30px 32px 26px; box-shadow: 0 18px 40px -18px rgba(23,20,15,.45); }
+  .card::after { content: ""; position: absolute; inset: 9px; border: 1.5px dashed rgba(200,150,46,.7); border-radius: 21px; pointer-events: none; }
+  .title { font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 600; }
+  .sub { margin-top: 4px; font-size: 15px; color: rgba(245,240,230,.75); }
+  .chains { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .chains li { border-radius: 9px; background: rgba(245,240,230,.08); color: var(--paper-2); padding: 7px 12px; font-size: 15px; }
+  .chains li.lit { background: var(--gold); color: var(--ink); }
+  .note { margin-top: 9px; font-size: 13.5px; color: rgba(245,240,230,.7); }
+  .checks-title { margin-top: 18px; padding-top: 16px; border-top: 1px dashed rgba(245,240,230,.25); font-size: 15px; font-weight: 600; letter-spacing: .02em; color: var(--gold-soft); }
+  ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+  ol li { display: flex; align-items: baseline; gap: 12px; font-size: 16px; }
+  ol li b { flex: none; width: 14px; font-family: Fraunces, Georgia, serif; font-size: 20px; font-weight: 600; color: var(--gold); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="10" width="24" height="18" rx="4" fill="#17140f"/><path d="M11 10V7a5 5 0 0 1 10 0v3" stroke="#17140f" stroke-width="3" fill="none"/><circle cx="16" cy="19" r="3" fill="#c8962e"/></svg>
+        Satchel
+      </div>
+      <div class="eyebrow">NEAR Chain Signatures · NEP-171 NFT · testnet and mainnet</div>
+      <h1>Sell a wallet.<span>Prove nothing stayed behind.</span></h1>
+      <p class="lead">An NFT on NEAR that controls one address on 16 EVM chains. Sell the NFT and the wallet goes with it; the buyer checks what the seller could have kept back before paying.</p>
+      <div class="site">satchelnft.xyz <small>Not audited</small></div>
+    </div>
+    <div class="card">
+      <div class="title">One NFT, one address</div>
+      <div class="sub">signed by NEAR's MPC network when its owner asks</div>
+      <ul class="chains">
+        <li class="lit">Ethereum</li><li>Base</li>
+        <li>Arbitrum One</li><li>OP Mainnet</li>
+        <li>Polygon</li><li>BNB Chain</li>
+        <li>Avalanche</li><li>Aurora</li>
+      </ul>
+      <div class="note">and each one's testnet: 16 chains, one key</div>
+      <div class="checks-title">Four checks before you buy</div>
+      <ol>
+        <li><b>1</b>The contract can't sign behind the record</li>
+        <li><b>2</b>No signed transaction is still pending</li>
+        <li><b>3</b>No approval left behind</li>
+        <li><b>4</b>Nothing the record can't explain</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>

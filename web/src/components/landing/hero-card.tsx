@@ -60,8 +60,15 @@ export function HeroCard() {
 
         <ul className="mt-4 grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-4">
           {MAINNETS.map((chain, i) => (
-            <li key={chain.id} className="chain-chip rounded-lg px-2.5 py-1.5" style={{ animationDelay: `${i}s` }}>
+            <li key={chain.id} className="relative rounded-lg bg-paper/8 px-2.5 py-1.5 text-paper-2">
               {chain.name}
+              <span
+                aria-hidden="true"
+                className="chain-chip-lit absolute inset-0 rounded-lg bg-gold px-2.5 py-1.5 text-ink"
+                style={{ animationDelay: `${i}s` }}
+              >
+                {chain.name}
+              </span>
             </li>
           ))}
         </ul>
@@ -72,9 +79,11 @@ export function HeroCard() {
             <span className="truncate text-paper/70">{HANDOVER.from}</span>
             <span className="truncate text-gold-soft">{owner}</span>
           </div>
-          <div className="relative mt-2 h-3" aria-hidden="true">
+          <div className="relative mt-2 h-3 overflow-hidden" aria-hidden="true">
             <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-paper/30" />
-            <span className="travel-dot absolute top-0 size-3 rounded-full bg-gold" />
+            <span className="travel-dot absolute inset-0">
+              <span className="block size-3 rounded-full bg-gold" />
+            </span>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-paper/80">
             One{" "}

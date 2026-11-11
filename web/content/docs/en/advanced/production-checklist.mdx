@@ -233,7 +233,7 @@ may send it twice: for a `send`, that can mean paying twice, and the signature a
 **How.** Read the transaction it names (`nearTx` or `evmTx` with `--json`) on the explorer before doing anything else:
 
 ```bash
-npx -y satchel-nft@0.2.0 send 7 --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as <you>.testnet --json
+npx -y satchel-nft@0.2.0 send <id> --chain sepolia --to 0x000000000000000000000000000000000000dEaD --value 0.0001 --as <you>.testnet --json
 code=$?
 if [ "$code" -eq 3 ]; then echo "Outcome unknown: check the transaction before retrying"; exit 3; fi
 ```

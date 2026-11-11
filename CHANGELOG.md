@@ -6,6 +6,94 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Make it clean: under a report that isn't clean, a satchel's page lists the transactions that would
+  fix checks 2 and 3, with their calldata, and gives the owner a button for each one the app can
+  send. **Revoke** builds `approve(spender, 0)` for an ERC-20 allowance, `approve(0x0, id)` for an
+  ERC-721 approval, `setApprovalForAll(operator, false)` or Permit2 `approve(token, spender, 0, 0)`,
+  never `increaseAllowance` or `decreaseAllowance`. **Spend nonce** sends 0 to the satchel's own
+  address with empty calldata, for each open nonce a revoke on that chain doesn't spend. Each button
+  runs `sendFromSatchel`, with the same guards and wallet prompt as Send from this satchel, and then
+  offers Check again, also when the send went out but its receipt wasn't read. The card lists free
+  revokes first, shows the approval slot each new row takes, re-reads the record before a revoke
+  that takes one, and won't send a 33rd while check 4 passes; more than 10 open nonces on a chain get
+  a terminal command instead; an `approve` row that both reads find live, or one it couldn't read,
+  gets both calls and no button; a listed satchel, or one whose check 1 fails, gets no buttons, and
+  neither does a chain whose pending nonce read lags the report or the chain's latest block; check 4
+  has no fix. On a chain with open nonces, it warns that funding the address lets anyone broadcast
+  what was signed at them first. Not yet run on chain: `tools/make-clean-demo.mjs` left testnet
+  satchel #9 in the state it fixes (`deployments/testnet-make-clean.json`), and its owner hasn't
+  pressed the buttons yet. In the package, unreleased and not in npm
+  0.2.0: `fixPlan`, `readFixInputs` and `revokeCalldata` in `clean.ts`, with tests that run each
+  call it builds through a model of the contract's classifier for those calls (`contractClass` in
+  `clean.test.ts`), and `Liveness.standard`, which says whether the ERC-20 or the ERC-721 read found
+  a live `approve` row. The handover kit, also unreleased, points to the card's buttons, pins
+  `satchel-nft@0.2.0` in its commands, and no longer says there is no revoke button. The threat
+  model adds row 21i.
+
+- The demo satchels' guard: on testnet #1 to #8 and mainnet #1 and #2, whose state the README
+  quotes, the app shows a note in place of send, list, delist, transfer, buy and the Make it clean
+  buttons until 2026-11-25, with a link to mint your own (`web/src/lib/frozen.ts`). The holder room
+  stays open, and its kit says the card's buttons are off on them. It is a guard in the app, not a
+  protection: the CLI and the near CLI can still sign for them. The buy, sell, send and transfer
+  guides, the try-to-cheat tutorial and the README now point readers to a satchel they mint instead
+  of those ids, and the threat model adds row 21h.
+
+- Send and sale panels: a send that was mined but reverted reads as a warning, and screen readers
+  hear which send step is running, then the error or the result. One send runs at a time per
+  satchel, not per page. The price and receiver fields have labels ("Price in NEAR", "Receiver's
+  NEAR account"), and a transfer asks the owner to confirm the receiver, after the receiver check,
+  before the wallet opens; focus moves to that question, and the receiver can't be edited while it
+  is checked or the wallet is open.
+
+- A share card, and a section on `/mainnet` for the two satchels that have sent real ETH. A link
+  to any page shows `web/src/app/opengraph-image.png` (and the same `twitter-image.png`), 1200 x
+  630, with alt text, rendered from `docs/assets/src/og.html` by `render.mjs`; it carries no
+  verdict, since a site can keep a card for days and a report can change. Each page has its own
+  title, description and `og:url`. `apple-icon.png` and a 16 and 32 pixel `favicon.ico` come from
+  the same script. `/mainnet#showcase` links the transactions behind each story: satchel #1 sent
+  0.0001 ETH on Base from its page here, and #2 sent 0.00258 ETH on Base to 1Click's deposit
+  address and received 5.280549 USDC on Arbitrum One. The numbers are in `web/src/lib/showcase.ts`, and
+  `showcase.test.ts` checks each against `deployments/mainnet-first-send.json` and
+  `deployments/mainnet-1click-exit.json`. The landing page and the empty mainnet market link to it.
+
+- The verify page takes `5`, `#5` or a satchelnft.xyz link to a satchel's page or room (a mainnet
+  link opens on mainnet), and offers testnet #1 and #3 to #6 and mainnet #1 and #2 as quick picks,
+  each with one line on what was done with it. The sitemap and `llms.txt` list their pages, and
+  testnet #7's.
+
+- A satchel's page, as the server sends it, says what the page checks and on which network, and
+  gives the same report's command: `npx -y satchel-nft@0.2.0 verify <id>`, with `--network mainnet`
+  on mainnet. It reads nothing from NEAR to say so.
+
+- `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin` on every
+  response (`web/next.config.ts`), and a "No page here" page for
+  an address the site has no page for.
+
+- Quote an exit: a dry 1Click quote on every mainnet satchel's page, with no wallet. Its panel,
+  under the address, reads what the satchel holds of the native coin, USDC and USDT on the 7
+  mainnets 1Click serves (not Aurora) and 1Click's `/v0/tokens`, which gives each asset id by
+  blockchain and contract address (entries marked "(DEPRECATED)" left out), then posts a dry
+  `EXACT_INPUT` quote to `/v0/quote` with the satchel's own address as `recipient` and `refundTo`
+  and a destination on one of its own mainnets. The origin defaults to the largest holding at
+  1Click's prices, the destination to ETH on Base. `QuoteRequest` in `web/src/lib/oneclick.ts`
+  holds `dry: true` and no other value, `dryQuote` refuses any other, and the app never asks for a
+  deposit address or shows one. `checkQuote` refuses an answer that doesn't echo the assets, amount,
+  recipient, refund address, slippage and deadline asked for, or that carries a deposit address, and
+  the panel shows the amount out, the minimum after 1 % slippage, the sum of the quote's `appFees`
+  and 1Click's time estimate, and 1Click's errors (a minimum, in the origin's units) as 1Click words
+  them. On testnet, which 1Click doesn't serve, the panel is a line that points to mainnet satchel
+  #2. On mainnet pages, a satchel's history asks `/v0/status` about the recipients of its latest 5
+  native-coin sends and marks a send whose recipient 1Click knows as a deposit address, from the
+  chain's native coin, in 1Click's words: satchel #2's Base send reads `1Click swap · SUCCESS ·
+  5.280549 USDC to this satchel on Arbitrum One`. Both are silent or contained when 1Click fails, and
+  the report reads neither. 35 tests with 1Click's real answers of 2026-11-11 as fixtures (a dry quote
+  for satchel #2's USDC, the status of its swap's deposit address, and `/v0/tokens` on the 7 chains).
+  The guide [Quote an exit through 1Click](https://satchelnft.xyz/docs/guides/quote-an-exit) has the
+  request, the checks, the fees seen that day (20 bps of `appFees` on most routes, 1 bp on some
+  stablecoin routes) and a `curl` to read them again; the FAQ answers whether the app swaps (it quotes),
+  and the README says what a real swap still takes: a deposit address from a quote that isn't dry,
+  which the app never asks for.
+
 - The README goes through the other three tracks Satchel is entered in, each track's brief and
   example prompt requirement by requirement, Met, Partly or Missing, with where to look: Open
   Innovation (an inheritance account), Unstoppable DeFi (a cross-chain DCA vault) and Social Money (a
@@ -297,6 +385,22 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- A satchel's page: the heading reads "Satchel #N", with one line on what a satchel is and what the
+  page checks; the verdict at the top links to the report; and "Your satchels" on the card for a
+  satchel that doesn't exist is a link. While the page reads NEAR, placeholders the size of what
+  loads stand in for "Loading satchel #N…", for the address while the app checks the deployment,
+  and for the report's checks, so less of the page moves as it loads. The report's command gains
+  `-y`.
+- Keyboard and screen readers: a skip link to each page's content and `aria-current` on the
+  header's links. The focus ring is two rings, an outline 5.33:1 or more on the light backgrounds
+  and inside it one in the card color, 17.3:1 on ink and 8.4:1 on leather; form fields, which sit
+  on paper or card, get the outline alone. A form field's border is 3.71:1 or more, up from 1.31:1.
+  `ErrorNote` has `role="alert"`; the report's verdict and the verify page's message are
+  `aria-live` regions; the verify input sets `aria-invalid` and `aria-describedby`. The address's
+  Copy button is named "Copy address" and announces the copy, or that it failed. The verify page's
+  check numbers are gold-deep, 3.57:1 on paper, where gold is 2.35:1.
+- The landing card's animation moves its dot with `transform` and lights each chain with
+  `opacity`, so the browser composites it instead of laying the card out again.
 - `node scripts/check-claims.mjs --network mainnet` checks 15 claims, up from 11: satchel #2 minted
   before its Base address held any ETH (its balance read at the blocks around the funding, so
   `BASE_RPC` must serve old state), its first `sign_evm` a plain transfer of the quoted amount to

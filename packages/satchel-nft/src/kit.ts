@@ -46,7 +46,9 @@ export function handoverKit(report: Report): KitStep[] {
   const id = report.tokenId;
   const mainnet = report.network === "mainnet";
   const page = `${mainnet ? "/mainnet" : ""}/satchel/${id}`;
-  const cli = (command: string) => `npx -y satchel-nft@0.1.0 ${command}${mainnet ? " --network mainnet" : ""}`;
+  const cli = (command: string) => `npx -y satchel-nft@0.2.0 ${command}${mainnet ? " --network mainnet" : ""}`;
+  // The page's "Make it clean" card, under the report, has a button for each fix the kit names.
+  const card = `Make it clean, under the report on ${page}`;
   const verify = cli(`verify ${id}`);
   // The app and the CLI check the deployment before every transaction (assertDeployment), delisting
   // included: while check 1 fails, they sign nothing, so no step can send a fix.
@@ -144,8 +146,8 @@ export function handoverKit(report: Report): KitStep[] {
             ...delist,
             ...(here.length > 0
               ? [
-                  `On ${named(here)}, send from the satchel, with Send from this satchel on ${page} or ${cli(`send ${id} --chain <chain> --to <0x address> --value 0 --as <you>`)}. A send of 0 to the satchel's own address is enough; the address needs gas on that chain.`,
-                  "Each send takes the address's next unspent nonce; neither the app nor the CLI lets you pick one. Send once for each nonce from the finalized one up to the highest signed one.",
+                  `On ${named(here)}, click Spend nonce in ${card}: each one sends 0 to the satchel's own address, and the card counts how many each chain needs. From a terminal, ${cli(`send ${id} --chain <chain> --to ${report.address} --value 0 --as <you>`)} sends the same. Each send needs gas on that chain, but the transaction signed at each open nonce is public: once the address can pay for it, anyone can broadcast it before your send. History on ${page} lists what each one sends. Fund only what the sends need, and send them right after.`,
+                  "Neither the app nor the CLI lets you type a nonce: each send takes the address's next unspent one, and a revoke on the same chain spends one too. The card offers a Spend nonce for each open nonce its revokes don't spend; with the CLI, send once for each nonce from the next unspent one up to the highest signed one.",
                 ]
               : []),
             ...(away.length > 0 ? [elsewhere(away, "spend each open nonce")] : []),
@@ -183,13 +185,13 @@ export function handoverKit(report: Report): KitStep[] {
             ...delist,
             ...(here.length > 0
               ? [
-                  `For each live approval above on ${named(here)}, send from the satchel to the contract it names, with no amount and the revoking call under Calldata (advanced) on ${page}, or with ${cli(`send ${id} --chain <chain> --to <contract> --value 0 --data <calldata> --as <you>`)}. There is no revoke button: you write the calldata.`,
+                  `For each live approval above on ${named(here)}, click Revoke in ${card}: it builds the revoking call, shows its calldata, and sends it through the same checks and wallet prompt as Send from this satchel. From a terminal, send that calldata to the contract the approval names with ${cli(`send ${id} --chain <chain> --to <contract> --value 0 --data <calldata> --as <you>`)}: the CLI has no revoke command, so you give it the calldata.`,
                 ]
               : []),
             `The lines above shorten addresses. Each approval's full contract, spender and, for Permit2, token are under Raw record in the Signing record on ${page}, or in ${cli(`record ${id}`)}.`,
-            "ERC-20 approve or increaseAllowance: approve(spender, 0). ERC-721 approve: approve(0x0000000000000000000000000000000000000000, tokenId). setApprovalForAll: setApprovalForAll(operator, false). Permit2: approve(token, spender, 0, expiration), sent to Permit2.",
+            "ERC-20 approve or increaseAllowance: approve(spender, 0). ERC-721 approve: approve(0x0000000000000000000000000000000000000000, tokenId). setApprovalForAll: setApprovalForAll(operator, false). Permit2: approve(token, spender, 0, 0), sent to Permit2.",
             "Not increaseAllowance(spender, 0), which changes nothing on chain, and not decreaseAllowance, a call the contract can't classify: that makes the satchel not provable for good.",
-            "Each approve revoke, approve(spender, 0) or approve(0x0000…0000, tokenId), is itemized as a new row and takes one of the 32 slots. Once all 32 are full it is counted instead, and check 4 fails for good.",
+            "Each approve revoke, approve(spender, 0) or approve(0x0000…0000, tokenId), is itemized as a new row and takes one of the 32 slots. Once all 32 are full it is counted instead, and check 4 fails for good. The card shows the slot each revoke takes, and won't send one that would be the 33rd while check 4 passes.",
             ...(away.length > 0 ? [elsewhere(away, "revoke an approval")] : []),
             ...(unknown.length > 0 ? [unreadNow(unknown), notAToken] : []),
             "Wait until the revoke's block is finalized, then check again.",
