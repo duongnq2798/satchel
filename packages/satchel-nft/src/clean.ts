@@ -438,13 +438,17 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
                   : `No slot left: the record's ${MAX_APPROVAL_ROWS} approval rows are full, counting the revokes this plan sends before it.`,
         nonce: null,
       };
-      // On a chain whose nonce read lags, the lag is why: its revokes were counted after the rest.
-      if (slot.kind === "over" && !counted && !lags) {
-        action.refused = `This revoke would be a 33rd approval row, which the contract only counts, and check 4 would then fail for good. The app won't send it. Revoking it still protects what the address holds: to do that anyway, send this call under Calldata (advanced) in Send from this satchel, knowing the satchel can then never read clean.`;
-      } else if (!chain.sendable) {
-        action.refused = elsewhere;
+      const over = slot.kind === "over" && !counted;
+      if (!chain.sendable) {
+        // Send from this satchel doesn't offer this chain either: only the near CLI can sign there.
+        action.refused = over
+          ? `${elsewhere} Signed with the near CLI, it would also be a 33rd approval row, which the contract only counts, and check 4 would then fail for good.`
+          : elsewhere;
       } else if (lags) {
+        // The lag is why, not the slots: this chain's revokes were counted after the rest.
         action.refused = `The RPC for ${name} answered a nonce that is already spent, so this send could sign at it and revoke nothing. Check again.`;
+      } else if (over) {
+        action.refused = `This revoke would be a 33rd approval row, which the contract only counts, and check 4 would then fail for good. The app won't send it. Revoking it still protects what the address holds: to do that anyway, send this call under Calldata (advanced) in Send from this satchel, knowing the satchel can then never read clean.`;
       } else {
         action.nonce = take();
       }

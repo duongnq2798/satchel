@@ -463,6 +463,24 @@ describe("fixPlan", () => {
       checkCosts(p);
     });
 
+    it("refuses an over-the-limit revoke on another network's chain as elsewhere, not toward Send from this satchel", () => {
+      // 29 old rows, a live one on Ethereum, which the app doesn't send on, and one on Fuji: 31.
+      const p = plan({
+        record: { evm: [evm(FUJI, 0), evm(1, 0)] },
+        nonces: [spent(FUJI, 0), spent(1, 0)],
+        rows: [...filler(29), live({ chain_id: "1", contract: NFT }), live()],
+        chains: [state(FUJI, 1), state(1, 1)],
+      });
+      const [fuji, ethereum] = [FUJI, 1].map((id) => p.chains.find((c) => c.chainId === id)?.actions[0]);
+      expect(fuji).toMatchObject({ slot: { kind: "takes", slot: 32 }, nonce: 1n });
+      expect(ethereum?.slot).toEqual({ kind: "over" });
+      expect(ethereum?.refused).toBe(
+        "The app doesn't send on Ethereum from a testnet satchel: it sends only on the 8 testnets. Signed with the near CLI, it would also be a 33rd approval row, which the contract only counts, and check 4 would then fail for good.",
+      );
+      expect(ethereum?.refused).not.toMatch(/Send from this satchel/);
+      checkCosts(p);
+    });
+
     it("sends a revoke whose row is already there with all 32 full: the contract merges it", () => {
       const revoked = { row: row({ arg: word(0n) }), then: OFF, now: OFF };
       const p = plan({ ...base, rows: [...filler(30), revoked, live()] });

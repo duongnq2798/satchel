@@ -61,18 +61,22 @@ export function FixPanel({
     report.address === address
       ? report
       : undefined;
-  const inputs = useAsync(
-    () => (about ? readFixInputs(about, token.record) : Promise.resolve(null)),
+  // Sends from this card that reached sign_evm, counted as each one returns. Each read keeps the count
+  // it began at, since one that returns later may have been signed after it read the chains.
+  const [signed, setSigned] = useState(0);
+  const read = useAsync(
+    async () => (about ? { at: signed, inputs: await readFixInputs(about, token.record) } : null),
     `${net.id}:${token.token_id}:${about?.checkedAt ?? "none"}:${token.record.version}`,
   );
-  const plan = useMemo(() => (inputs.data ? fixPlan(inputs.data) : null), [inputs.data]);
+  const plan = useMemo(() => (read.data ? fixPlan(read.data.inputs) : null), [read.data]);
   const sender = useSatchelSend(token.token_id, address);
   // The fix being sent, and the plan it was clicked in: a key only names an action within its plan.
   const [running, setRunning] = useState<{ key: string; plan: FixPlan | null } | null>(null);
   // The fixes sent since this plan was read, so their buttons don't offer them again.
   const [sent, setSent] = useState<{ key: string; status: Sent }[]>([]);
-  // How many of them reached sign_evm, so the record's version is expected to have gone up by as many.
-  const signedSince = useRef(0);
+  // How many sends clicked in a plan reached sign_evm, so its record's version is expected to have gone up by as many.
+  const own = useRef<{ plan: FixPlan | null; signed: number }>({ plan: null, signed: 0 });
+  const signedFor = (p: FixPlan | null) => (own.current.plan === p ? own.current.signed : 0);
   // The plan on screen. A send still running when a new one arrives (Check again, a sale action)
   // counts for the plan it was clicked in, not the new one.
   const current = useRef(plan);
@@ -80,21 +84,27 @@ export function FixPanel({
   useEffect(() => {
     current.current = plan;
     setSent([]);
-    signedSince.current = 0;
   }, [plan]);
   if (!about) return null;
 
   const owner = accountId !== null && accountId === token.owner_id;
+  // A send clicked in an earlier plan, still running or signed since this plan's read began: this plan
+  // may have read the chains before it went out, and offer its fix again.
+  const earlier = read.data
+    ? (sender.busy && running?.plan !== plan) || signed - read.data.at > signedFor(plan)
+    : false;
   // Not while a new read is on its way: the plan on screen may be the one before the last fix. Not
   // while the page shows a listing either, even one the report didn't see: a listed satchel can't sign.
-  const canClick = owner && !frozen && !token.listing && plan?.canSend === true && !inputs.loading;
+  const canClick = owner && !frozen && !token.listing && plan?.canSend === true && !read.loading && !earlier;
   // A fix whose receipt wait failed after its broadcast still went out: offer Check again for it too.
   const broadcast = sender.result !== null || (sender.step === "confirm" && sender.error !== null);
 
   async function fix(action: FixAction, key: string) {
     // One at a time: a second click while one runs would only move the spinner (the lock refuses it).
-    if (sender.busy) return;
+    if (sender.busy || !read.data) return;
     const from = plan;
+    // The record this plan read, which can be older than the page's for a moment after Check again.
+    const base = BigInt(read.data.inputs.record.version);
     setRunning({ key, plan: from });
     const { result, reached } = await sender.run(async () => {
       const chain = chainInfo(action.chainId);
@@ -104,17 +114,19 @@ export function FixPanel({
         // another tab or another device, can fill it, and this revoke would then be only counted.
         // The contract can't catch that: sign_evm names no record version.
         const fresh = await satchel(net).get(token.token_id);
-        if (fresh === null || BigInt(fresh.record.version) > BigInt(token.record.version) + BigInt(signedSince.current)) {
+        if (fresh === null || BigInt(fresh.record.version) > base + BigInt(signedFor(from))) {
           throw new Error("The record changed since this plan was read. Click Check again. Nothing was signed.");
         }
       }
       return { chain, to: action.to, value: action.value, data: action.data };
     });
+    const signs = reached !== null && SIGNED.includes(reached);
+    if (signs) setSigned((n) => n + 1);
     // A plan read since then counts from the record it read itself: adding this send to it could let a
     // signature from elsewhere past the check above, and its keys name other actions. The steps under
-    // the plan still show what became of this send.
+    // the plan still show what became of this send, and the plan waits for Check again (`earlier`).
     if (current.current !== from) return;
-    if (reached !== null && SIGNED.includes(reached)) signedSince.current += 1;
+    if (signs) own.current = { plan: from, signed: signedFor(from) + 1 };
     if (result) setSent((s) => [...s, { key, status: result.status }]);
     else if (reached === "confirm") setSent((s) => [...s, { key, status: "broadcast" }]);
   }
@@ -141,11 +153,18 @@ export function FixPanel({
           )
         )}
         <div className="mt-3">
-          <ErrorNote error={inputs.error} />
+          <ErrorNote error={read.error} />
         </div>
-        {!plan && inputs.loading && <p className="mt-3 text-sm text-muted">Reading each chain&apos;s latest block…</p>}
+        {!plan && read.loading && <p className="mt-3 text-sm text-muted">Reading each chain&apos;s latest block…</p>}
         {plan && (
           <>
+            {earlier && (
+              <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
+                {sender.busy
+                  ? "A fix sent from the plan before this one is still running, and its steps are below. This plan may have read the chains before it went out, so it offers no buttons: check again once that send is done."
+                  : "A fix sent from the plan before this one was signed after this plan began reading the chains, so this plan may offer it again. Check again to read them after it."}
+              </p>
+            )}
             {plan.notes.map((note) => (
               <p key={note} className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
                 {note}
@@ -185,7 +204,7 @@ export function FixPanel({
           </>
         )}
         <SendSteps sender={sender} />
-        {broadcast && (
+        {(broadcast || (earlier && !sender.busy)) && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
             <Button variant="primary" onClick={onRecheck}>
               Check again
