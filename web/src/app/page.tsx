@@ -242,7 +242,7 @@ export default function Home() {
               ))}
             </ol>
             <div>
-              <pre className="rounded-xl border border-paper/15 bg-black/40 p-5 font-mono text-xs leading-relaxed whitespace-pre-wrap text-paper-2">
+              <pre className="rounded-xl border border-paper/15 bg-black/40 p-5 font-mono text-xs leading-relaxed whitespace-pre-wrap text-paper-2 [overflow-wrap:anywhere]">
                 {VERIFY_OUTPUT.split("\n").map((line, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: a fixed text whose lines can repeat
                   <span key={i} className={`block min-h-[1lh] ${line.startsWith("[FAIL]") || line === "NOT PROVABLE" ? "text-[#f0997b]" : ""}`}>
