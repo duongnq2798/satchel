@@ -19,6 +19,10 @@
   --color-warn-soft: #f6e7c1;
   --color-bad: #9b2c24;
   --color-bad-soft: #f4d9d5;
+  /* The focus ring: 5.96:1 on paper, 5.35:1 on paper-2, 6.38:1 on card, 5.33:1 on gold-soft. */
+  --color-focus: #7a5410;
+  /* A form field's border: 3.71:1 on paper, 3.97:1 on card. Line, 1.31:1, is for dividers. */
+  --color-field: #857a69;
 
   --font-display: var(--font-fraunces), Georgia, serif;
   --font-sans: var(--font-inter), system-ui, sans-serif;
@@ -64,6 +68,9 @@ html[data-theme="dark"] {
   --color-warn-soft: #352a13;
   --color-bad: #ee8f84;
   --color-bad-soft: #3a1d19;
+  /* 9.85:1 on paper, 9.39:1 on card; the field border 4.78:1 on paper, 4.55:1 on card. */
+  --color-focus: #e2b75a;
+  --color-field: #8a8071;
 }
 
 body {
@@ -75,11 +82,28 @@ body {
   background: var(--color-gold-soft);
 }
 
-/* In the base layer, so an element that shows focus its own way (the docs' search box) can say so. */
+/*
+ * In the base layer, so an element that shows focus its own way (the docs' search box) can say so.
+ * Two rings: the dark outline shows on paper and card, and the light one inside it on the ink and
+ * leather panels, where card is 17.3:1 and 8.4:1 (WCAG 1.4.11 asks for 3:1). Form fields sit on
+ * paper or card, where the outline alone is enough, so they get no light ring, and outline-none alone
+ * turns a field's focus ring off.
+ */
 @layer base {
   :focus-visible {
-    outline: 2px solid var(--color-gold);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--color-card);
+  }
+  :is(input, textarea, select):focus-visible {
+    box-shadow: none;
+  }
+}
+
+/* Form fields keep the border-line class of the cards around them, drawn in the field color. */
+@layer utilities {
+  :is(input, select, textarea).border-line {
+    border-color: var(--color-field);
   }
 }
 
@@ -89,35 +113,38 @@ html {
 
 /* Landing page motion. Every animation here stops under prefers-reduced-motion. */
 
-/* The hero card's chains light up one after another: one address, every chain. */
+/*
+ * The hero card's chains light up one after another: one address, every chain. Each chip has a gold
+ * copy of itself on top, and only that copy's opacity moves, so the browser never repaints the text.
+ */
 @keyframes chain-light {
   0%,
   22%,
   100% {
-    background: rgb(245 240 230 / 0.08);
-    color: var(--color-paper-2);
+    opacity: 0;
   }
   4%,
   14% {
-    background: var(--color-gold);
-    color: var(--color-ink);
+    opacity: 1;
   }
 }
-.chain-chip {
-  background: rgb(245 240 230 / 0.08);
-  color: var(--color-paper-2);
+.chain-chip-lit {
+  opacity: 0;
   animation: chain-light 8s ease-in-out infinite;
 }
 
-/* The NFT travelling from the seller to the buyer. */
+/*
+ * The NFT travelling from the seller to the buyer. The dot sits at the left of a layer as wide as its
+ * track, and the layer moves by its own width less the dot's: a transform, not a change to "left".
+ */
 @keyframes travel {
   0%,
   15% {
-    left: 0;
+    transform: translateX(0);
   }
   55%,
   100% {
-    left: calc(100% - 0.75rem);
+    transform: translateX(calc(100% - 0.75rem));
   }
 }
 .travel-dot {
@@ -160,7 +187,7 @@ html {
   html {
     scroll-behavior: auto;
   }
-  .chain-chip,
+  .chain-chip-lit,
   .travel-dot,
   .stamp,
   .reveal {
@@ -168,7 +195,7 @@ html {
   }
   /* At rest on the buyer's side: the NFT has moved. */
   .travel-dot {
-    left: calc(100% - 0.75rem);
+    transform: translateX(calc(100% - 0.75rem));
   }
 }
 

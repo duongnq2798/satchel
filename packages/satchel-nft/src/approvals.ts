@@ -14,6 +14,12 @@ const PERMIT2 = parseAbi([
 export interface Liveness {
   live: boolean | null;
   detail: string;
+  /**
+   * A live `Approve` or `IncreaseAllowance` row only: which read found the right, the ERC-20
+   * `allowance`, the ERC-721 `getApproved`, or both. Each standard clears it with a different call,
+   * so the fix plan (`clean.ts`) builds a revoke only when one of them did.
+   */
+  standard?: "erc20" | "erc721" | "both";
 }
 
 /** The finalized block every read on a chain is pinned to. */
@@ -63,8 +69,9 @@ export async function approvalLiveness(
           : undefined;
       const allowanceLive = allowance !== undefined && allowance > 0n;
       const approvedLive = approved !== undefined && getAddress(approved) === spender;
-      if (allowanceLive) return { live: true, detail: `allowance of ${allowance} still granted` };
-      if (approvedLive) return { live: true, detail: `token ${BigInt(row.arg)} still approved` };
+      const standard = allowanceLive && approvedLive ? "both" : allowanceLive ? "erc20" : "erc721";
+      if (allowanceLive) return { live: true, detail: `allowance of ${allowance} still granted`, standard };
+      if (approvedLive) return { live: true, detail: `token ${BigInt(row.arg)} still approved`, standard };
       if (allowance === undefined && approved === undefined) {
         return { live: null, detail: "could not read allowance or getApproved" };
       }

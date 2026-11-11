@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, ResolvingMetadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { REPO_URL } from "satchel-nft";
@@ -16,14 +16,17 @@ export function generateStaticParams() {
 
 type Props = { params: Promise<{ slug?: string[] }> };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
   const page = findPage((await params).slug?.join("/") ?? "");
   if (!page) return {};
+  // Next.js puts this openGraph in place of the root layout's, whole, and adds the share image
+  // (app/opengraph-image.png) at the root only, so the image is carried over here.
+  const images = (await parent).openGraph?.images;
   return {
     title: page.slug === "" ? { absolute: "Satchel documentation" } : page.title,
     description: page.description,
     alternates: { canonical: page.href },
-    openGraph: { type: "article", title: page.title, description: page.description, url: page.href, siteName: "Satchel" },
+    openGraph: { type: "article", title: page.title, description: page.description, url: page.href, siteName: "Satchel", images },
   };
 }
 

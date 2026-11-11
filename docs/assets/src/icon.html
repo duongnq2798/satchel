@@ -1,0 +1,23 @@
+<!doctype html>
+<!--
+  The site's icon as PNG, from web/public/icon.svg. render.mjs renders icon.html#apple (180 x 180, on
+  paper, since iOS fills a transparent icon with black) as web/src/app/apple-icon.png, and icon.html#ico
+  (128 x 128, transparent) at 1/8 and 1/4 scale, 16 and 32 pixels, into web/src/app/favicon.ico.
+  Headless Edge lays a small window out wider than asked, so the box has a fixed size at the top left.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; overflow: hidden; background: transparent; }
+  .box { display: grid; place-items: center; width: 128px; height: 128px; }
+  .apple { width: 180px; height: 180px; background: #f5f0e6; }
+  svg { display: block; width: 100%; height: 100%; }
+  .apple svg { width: 76%; height: 76%; }
+</style>
+</head>
+<body>
+  <div class="box"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="10" width="24" height="18" rx="4" fill="#17140f"/><path d="M11 10V7a5 5 0 0 1 10 0v3" stroke="#17140f" stroke-width="3" fill="none"/><circle cx="16" cy="19" r="3" fill="#c8962e"/></svg></div>
+  <script>if (location.hash === "#apple") document.querySelector(".box").classList.add("apple");</script>
+</body>
+</html>

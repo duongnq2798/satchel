@@ -66,31 +66,42 @@ export function NetLink({
   href: path,
   follow = false,
   className,
+  current,
   children,
 }: {
   href: string;
   follow?: boolean;
   className?: string;
+  /** aria-current: "page" for the page on screen, "true" for the section it is in. */
+  current?: "page" | "true";
   children: ReactNode;
 }) {
   const net = useNetwork();
   const href = follow ? appPath(net, path) : path;
   if (networkForPath(href.split("#")[0] || "/").id !== net.id) {
     return (
-      <a href={href} className={className}>
+      <a href={href} className={className} aria-current={current}>
         {children}
       </a>
     );
   }
   return (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} aria-current={current}>
       {children}
     </Link>
   );
 }
 
+/** Where a header link points, for aria-current: the page itself, or for the docs, any page in them. */
+function currentFor(href: string, pathname: string | null): "page" | "true" | undefined {
+  if (pathname === href) return "page";
+  if (href === "/docs" && pathname?.startsWith("/docs/")) return "true";
+  return undefined;
+}
+
 export function SiteHeader() {
   const net = useNetwork();
+  const pathname = usePathname();
   return (
     <header className="z-40 border-b border-line bg-paper/90 backdrop-blur md:sticky md:top-0">
       <div className="mx-auto flex max-w-(--page-max) flex-wrap items-center justify-between gap-3 px-4 py-4">
@@ -100,11 +111,19 @@ export function SiteHeader() {
             Satchel
           </Link>
           <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
-            {NAV.map((n) => (
-              <NetLink key={n.href} href={n.perNetwork ? appPath(net, n.href) : n.href} className="hover:text-ink">
-                {n.label}
-              </NetLink>
-            ))}
+            {NAV.map((n) => {
+              const href = n.perNetwork ? appPath(net, n.href) : n.href;
+              return (
+                <NetLink
+                  key={n.href}
+                  href={href}
+                  current={currentFor(href, pathname)}
+                  className="hover:text-ink aria-[current]:font-medium aria-[current]:text-ink"
+                >
+                  {n.label}
+                </NetLink>
+              );
+            })}
           </nav>
         </div>
         <div className="flex items-center gap-3">

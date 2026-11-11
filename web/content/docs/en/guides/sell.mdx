@@ -10,9 +10,18 @@ to pay is the satchel's [clean transfer report](/docs/concepts/clean-transfer-re
 - If its report doesn't read <Verdict v="clean" /> yet, its address funded on the chains where you need to
   clean up, for gas.
 
+<Callout type="note" title="The demo satchels">
+The README quotes the state of testnet satchels #1 to #8 and mainnet #1 and #2, so on their pages the app's
+owner and buy actions are off until 2026-11-25: list, delist, transfer, send and the **Make it clean**
+buttons. That is a guard in the app, not a protection: the `satchel-nft` CLI and the near CLI can still sign
+for them. To try these steps, [mint your own satchel](/docs/guides/mint-and-fund).
+</Callout>
+
 ## Get the report to read clean
 
-Open the satchel's page and read its report. Each failing check has its own fix, and one has none.
+Open the satchel's page and read its report. Each failing check has its own fix, and one has none. When the
+report isn't clean, the **Make it clean** card under it lists the transactions that would fix checks 2 and
+3, with their calldata. Anyone can read it; only the owner gets its buttons.
 
 | Check | What makes it fail | How to make it pass |
 | --- | --- | --- |
@@ -35,27 +44,76 @@ For every chain in the record, the report compares the address's nonce at a fina
 highest nonce the contract ever signed there. It passes once the finalized nonce is above it: every
 transaction the satchel ever signed has either landed or can never land.
 
-If a signed transaction was never broadcast, send any transaction from the app on that chain. The app
-uses the address's next unspent nonce, which is the open one, so your new transaction takes its slot and
-the old signature can never be used. A send to yourself of a tiny amount is enough. Then wait until its
-block is finalized (about 13 minutes on Sepolia) and click **Check again**.
+A signed transaction that was never broadcast leaves its nonce open. **Make it clean** reads each chain's
+latest block and counts the open nonces, from the address's next unspent nonce up to the highest signed
+one. Every send takes the next unspent nonce, a revoke on the same chain included, so the card offers
+**Spend nonce** only for the open nonces its revokes don't spend. Each one sends 0 to the satchel's own
+address with empty calldata, through the same steps, checks and wallet prompt as **Send from this
+satchel**. It takes the open nonce's slot, so the old signature can never be used.
+
+<Steps>
+
+1. **Click Spend nonce** on each line the card lists for the chain, and approve `sign_evm` in your wallet
+   each time. A plain transfer is never itemized, so it costs no approval slot.
+
+2. **Wait until the last one's block is finalized**, then click **Check again** under the card.
+
+</Steps>
+
+The card shows a note instead of a button when:
+
+| The card says | Why | What to do |
+| --- | --- | --- |
+| `… nonces are open on Sepolia, more than the app sends one by one (10), so they can't be fixed from here.` | More than 10 nonces are open on that chain | Run the terminal command the note prints, once for each open nonce the card's revokes don't take |
+| `The transaction at nonce 4 is in a recent block that isn't finalized yet, so no nonce is left to spend.` | Nothing is open: the last send landed, and its block isn't finalized yet | Wait, then click **Check again** |
+| `A transaction at nonce 4 is sent but not in a block yet, so no nonce is left to spend.` | The last send hasn't been mined yet | Wait for it, and for its block to be finalized |
+| `The RPC for Sepolia answered 3 as the next nonce, though …` | The chain's RPC answered a nonce that is already spent, so a send could sign at it. The card sends nothing on that chain | Click **Check again** |
+
+Each fix pays its gas from the satchel's balance on that chain. On a chain where it holds 0, the card says
+so, and a send stops before your wallet opens until you [fund the address](/docs/guides/mint-and-fund).
+
+<Callout type="warning" title="Funding the address lets the old transaction land first">
+The transaction signed at each open nonce is public: its arguments are in the `sign_evm` call on NEAR, and
+its signature is in that call's receipt. Only a lack of gas keeps it off chain. Once the address can pay for
+it, anyone can broadcast it before your fix, the account that signed it included. **History** on the
+satchel's page lists what each one sends. Fund only what the fixes need, and send them right after.
+</Callout>
+
+From a terminal, `satchel-nft send <id> --chain <chain> --to <the satchel's address> --value 0` spends one
+open nonce each time you run it. Neither the app nor the CLI lets you type a nonce.
 
 ### Revoke every approval
 
-Check 3 reads each approval row in the record on chain, at a finalized block. To revoke, call the token
-contract from the satchel's send panel: **To** is the contract the approval row names (the token
-contract, or Permit2 for a Permit2 approval), **Amount** is empty, and **Calldata (advanced)** is the
-revoking call.
+Check 3 reads each approval row in the record on chain, at a finalized block. **Make it clean** reads each
+row at the chain's latest block. For each one still live, it builds the revoking call, shows its
+calldata, and gives the owner a **Revoke** button. The button sends it through the same steps, checks and
+wallet prompt as **Send from this satchel**: to the contract the row names (the token contract, or Permit2
+for a Permit2 approval), with a value of 0 and the revoking call as calldata. Wait until its block is
+finalized, then click **Check again**.
 
-| What was granted | Revoke with | How the record treats it |
+| What was granted | The card revokes with | How the record treats it |
 | --- | --- | --- |
 | ERC-20 `approve(spender, amount)` or `increaseAllowance` | `approve(spender, 0)` | A new approval row, which reads `allowance is 0`. It takes one of the 32 slots |
-| ERC-721 `approve(spender, tokenId)` | `approve(0x0000000000000000000000000000000000000000, tokenId)` | A new row granted to the zero address, which reads as no right |
+| ERC-721 `approve(spender, tokenId)` | `approve(0x0000000000000000000000000000000000000000, tokenId)` | A new row granted to the zero address, which reads as no right. It takes a slot too |
 | `setApprovalForAll(operator, true)` | `setApprovalForAll(operator, false)` | A revocation: logged, never itemized, so it takes no slot |
-| Permit2 `approve(token, spender, amount, expiration)` | Permit2 `approve(token, spender, 0, expiration)` | A revocation: logged, never itemized. A Permit2 allowance that has expired also reads as revoked |
+| Permit2 `approve(token, spender, amount, expiration)` | Permit2 `approve(token, spender, 0, 0)` | A revocation: logged, never itemized. A Permit2 allowance that has expired also reads as revoked |
 
 `increaseAllowance(spender, 0)` is also logged as a revocation, but it changes nothing on chain: it doesn't
-clear an allowance. Use `approve(spender, 0)`.
+clear an allowance. The card never sends it, or `decreaseAllowance`: it uses `approve(spender, 0)`.
+
+An identical row is merged into the one already itemized, so it costs no slot. The card lists the free
+revokes first, and shows the slot each new row takes, as `Takes approval slot 3 of 32`. While check 4
+passes, it won't send a revoke that would be the 33rd row: the contract only counts that one, and check 4
+then fails for good. To revoke it anyway, send its calldata under **Calldata (advanced)** in **Send from
+this satchel**, knowing the satchel can then never read clean. Once check 4 already fails, the card sends
+it: a counted row costs the record nothing more. Before a revoke that takes a slot, the card reads the
+record again: if something else signed since the plan was read, from the CLI or another tab, it refuses
+with `The record changed since this plan was read. Click Check again.`
+
+The card has no button for a row it can't read at the latest block, or for an `approve` row that both reads
+find live: the token contract answers ERC-20's `allowance` and ERC-721's `getApproved`, so the card can't tell
+which call clears it. It shows both calls and their calldata instead. Pick the one for the token's standard
+and send it under **Calldata (advanced)**.
 
 ERC-20 `approve(spender, 0)` as calldata is the selector `0x095ea7b3`, then the spender's address padded to
 32 bytes, then 32 zero bytes. For a spender `0x1111111111111111111111111111111111111111`:
@@ -64,8 +122,8 @@ ERC-20 `approve(spender, 0)` as calldata is the selector `0x095ea7b3`, then the 
 0x095ea7b300000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000
 ```
 
-From a terminal, `satchel-nft send` takes the same calldata as `--data`, with
-`--value 0`.
+From a terminal, `satchel-nft send` takes the same calldata as `--data`, with `--value 0`, sent to the
+contract the row names. Copy the calldata from the card.
 
 ## List it
 
@@ -74,7 +132,7 @@ From a terminal, `satchel-nft send` takes the same calldata as `--data`, with
 1. **Read the report one last time.** Click **Check again** on the satchel's page. Listing pins the record's
    current version, so what a buyer checks is what you see now.
 
-2. **Enter a price in NEAR** under **Sell or transfer** (the field reads `Price in NEAR, like 5`), and click
+2. **Enter a price in NEAR** under **Sell or transfer**, in the field labeled **Price in NEAR**, and click
    **List for sale**. Up to 24 decimal places; it must be above 0.
 
 3. **Approve `list` in your wallet**: 1 yoctoNEAR, 30 TGas. The card then reads:
@@ -142,11 +200,13 @@ buy from you (`Satchel: the seller cannot buy`), and a buy with less than the pr
 ## In a terminal
 
 ```bash
-npx -y satchel-nft@0.2.0 list 7 0.5 --as satchel-nft.testnet
-npx -y satchel-nft@0.2.0 delist 7 --as satchel-nft.testnet
+npx -y satchel-nft@0.2.0 list <id> 0.5 --as <account>
+npx -y satchel-nft@0.2.0 delist <id> --as <account>
 ```
 
-Before signing, `list` refuses if the account doesn't own the satchel, and shows what it will sign:
+Use a satchel you minted for `<id>`, and its owner, an account the near CLI can sign for, for `<account>`.
+Before signing, `list` refuses if the account doesn't own the satchel, and shows what it will sign. When
+satchel-nft.testnet listed satchel #7 for 0.5 NEAR, it showed:
 
 ```text
   v1.satchel-nft.testnet.list({"price":"500000000000000000000000","token_id":"7"})
