@@ -6,6 +6,25 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The README goes through the other three tracks Satchel is entered in, each track's brief and
+  example prompt requirement by requirement, Met, Partly or Missing, with where to look: Open
+  Innovation (an inheritance account), Unstoppable DeFi (a cross-chain DCA vault) and Social Money (a
+  bounty board with earned trust), and a line on which of the tracks' "Lean on" hints Satchel uses and why not
+  the others. Where it falls short, it says so: the swap through 1Click ran once, from a script and
+  the app's Send panel; the script's dry quote (`plan`) needs a funded mainnet satchel other than #1
+  and #2, so it can't run with no funds; no bounties, reputation, payout tiers or board exist. Two
+  new sections: "Failure cases", read from the locked contract (a lost or stolen NEAR key, the MPC
+  network or NEAR down or slow, a DAO council that loses its keys or turns hostile, a holder offline
+  during a 1Click refund, a lying RPC, satchelnft.xyz down), and "The case against Satchel". "Not a
+  way to launder an existing wallet" now says what a satchel is not for, that `PROVABLY CLEAN` is not
+  AML-clean, and that every sale through `buy` is public on NEAR, and a new paragraph, "Who it is
+  for", names payees, offboarding and inheritance through a DAO and says Satchel can't recover a lost
+  key. The Libraries section says Claude Code loaded NEAR's `near-intents` agent skill while
+  building the swap. The demo kit enters Social Money too (track ids `nfts`, `open`, `defi`,
+  `social`) under the project name "Satchel (satchelnft.xyz)", since another entry is named
+  "Satchel: membership cards that are wallets", and the "What did you build?" text names the
+  DAO-owned satchel. The docs' use cases gain payees, offboarding and inheritance through a DAO, and
+  what Satchel is not for; the security model gains "When something fails".
 - A swap through NEAR Intents' 1Click that keeps a satchel provably clean, run once on mainnet.
   `tools/oneclick-exit.mjs` asks 1Click for an `EXACT_INPUT` quote from ETH on Base to USDC on
   Arbitrum One with the satchel's own address as `recipient` and `refundTo`, checks that 1Click
