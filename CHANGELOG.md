@@ -20,7 +20,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   gets both calls and no button; a listed satchel, or one whose check 1 fails, gets no buttons, and
   neither does a chain whose pending nonce read lags the report or the chain's latest block; check 4
   has no fix. On a chain with open nonces, it warns that funding the address lets anyone broadcast
-  what was signed at them first. Not yet run on chain. In the package, unreleased and not in npm
+  what was signed at them first. Not yet run on chain: `tools/make-clean-demo.mjs` left testnet
+  satchel #9 in the state it fixes (`deployments/testnet-make-clean.json`), and its owner hasn't
+  pressed the buttons yet. In the package, unreleased and not in npm
   0.2.0: `fixPlan`, `readFixInputs` and `revokeCalldata` in `clean.ts`, with tests that run each
   call it builds through a model of the contract's classifier for those calls (`contractClass` in
   `clean.test.ts`), and `Liveness.standard`, which says whether the ERC-20 or the ERC-721 read found
