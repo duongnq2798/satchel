@@ -347,32 +347,14 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
     built.push({ chain, revokes });
   }
 
-  // Slots are counted over the whole plan: the app's own chains first, in their order.
-  const itemized = [...record.approvals];
-  const slotOf = (adds: ApprovalRecord | null): SlotCost => {
-    if (adds === null) return { kind: "none" };
-    const same = itemized.findIndex((r) => sameRow(r, adds));
-    if (same >= 0) return { kind: "merges", row: same + 1 };
-    if (itemized.length >= MAX_APPROVAL_ROWS) return { kind: "over" };
-    itemized.push(adds);
-    return { kind: "takes", slot: itemized.length };
-  };
-  const slots = new Map<Revoke, SlotCost>();
-  for (const sendable of [true, false]) {
-    for (const { chain, revokes } of built) {
-      if (chain.sendable === sendable) for (const r of revokes) slots.set(r, slotOf(r.adds));
-    }
-  }
-
-  for (const { chain, revokes } of built) {
+  // Each chain's nonces, before any slot is counted: a chain whose nonce read lags sends nothing.
+  const lagging = new Set<ChainFix>();
+  for (const { chain } of built) {
     const { chainId, name } = chain;
-    const elsewhere = `The app doesn't send on ${name} from a ${report.network} satchel: it sends only on the ${own.length} ${mainnet ? "mainnets" : "testnets"}.`;
-
     const signed = record.evm.find((e) => Number(e.chain_id) === chainId);
     const state = chains.find((c) => c.chainId === chainId);
     // The RPC answered a next nonce that is already spent: check 2 read more at a finalized block, or
     // the latest block holds more. A send now could sign at a spent nonce, so the plan sends nothing.
-    let lagging = false;
     if (signed) {
       const max = BigInt(signed.max_nonce);
       const next = chain.nextNonce;
@@ -383,7 +365,7 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
           chain.notes.push(`Couldn't read the satchel's nonce on ${name}, so the plan can't count its open nonces. Check again in a few minutes.`);
         }
       } else if (next <= max && (passes || (latest !== null && latest > next))) {
-        lagging = true;
+        lagging.add(chain);
         chain.notes.push(
           `The RPC for ${name} answered ${next} as the next nonce, though ${passes ? "the report read a later one at a finalized block" : `the address's nonce at its latest block is already ${latest}`}. A send there now could sign a nonce that is already spent, so the plan sends nothing on ${name}. Check again.`,
         );
@@ -399,8 +381,34 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
         );
       }
     }
+  }
 
-    let nonce = lagging ? null : chain.nextNonce;
+  // Slots are counted over the whole plan: first the revokes the app sends, chain by chain, then
+  // those it refuses (another network's chain, or one whose nonce read lags), so a refused revoke
+  // never takes a slot one it sends would need.
+  const sends = (chain: ChainFix) => chain.sendable && !lagging.has(chain);
+  const itemized = [...record.approvals];
+  const slotOf = (adds: ApprovalRecord | null): SlotCost => {
+    if (adds === null) return { kind: "none" };
+    const same = itemized.findIndex((r) => sameRow(r, adds));
+    if (same >= 0) return { kind: "merges", row: same + 1 };
+    if (itemized.length >= MAX_APPROVAL_ROWS) return { kind: "over" };
+    itemized.push(adds);
+    return { kind: "takes", slot: itemized.length };
+  };
+  const slots = new Map<Revoke, SlotCost>();
+  for (const first of [true, false]) {
+    for (const { chain, revokes } of built) {
+      if (sends(chain) === first) for (const r of revokes) slots.set(r, slotOf(r.adds));
+    }
+  }
+
+  for (const { chain, revokes } of built) {
+    const { chainId, name } = chain;
+    const elsewhere = `The app doesn't send on ${name} from a ${report.network} satchel: it sends only on the ${own.length} ${mainnet ? "mainnets" : "testnets"}.`;
+    const lags = lagging.has(chain);
+
+    let nonce = lags ? null : chain.nextNonce;
     const take = () => {
       const n = nonce;
       if (nonce !== null) nonce += 1n;
@@ -430,11 +438,12 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
                   : `No slot left: the record's ${MAX_APPROVAL_ROWS} approval rows are full, counting the revokes this plan sends before it.`,
         nonce: null,
       };
-      if (slot.kind === "over" && !counted) {
+      // On a chain whose nonce read lags, the lag is why: its revokes were counted after the rest.
+      if (slot.kind === "over" && !counted && !lags) {
         action.refused = `This revoke would be a 33rd approval row, which the contract only counts, and check 4 would then fail for good. The app won't send it. Revoking it still protects what the address holds: to do that anyway, send this call under Calldata (advanced) in Send from this satchel, knowing the satchel can then never read clean.`;
       } else if (!chain.sendable) {
         action.refused = elsewhere;
-      } else if (lagging) {
+      } else if (lags) {
         action.refused = `The RPC for ${name} answered a nonce that is already spent, so this send could sign at it and revoke nothing. Check again.`;
       } else {
         action.nonce = take();

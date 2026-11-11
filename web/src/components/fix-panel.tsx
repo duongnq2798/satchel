@@ -5,6 +5,7 @@ import type { Address } from "viem";
 import {
   type ChainFix,
   type FixAction,
+  type FixPlan,
   type ManualFix,
   type Report,
   type SatchelView,
@@ -66,13 +67,18 @@ export function FixPanel({
   );
   const plan = useMemo(() => (inputs.data ? fixPlan(inputs.data) : null), [inputs.data]);
   const sender = useSatchelSend(token.token_id, address);
-  const [running, setRunning] = useState<string | null>(null);
+  // The fix being sent, and the plan it was clicked in: a key only names an action within its plan.
+  const [running, setRunning] = useState<{ key: string; plan: FixPlan | null } | null>(null);
   // The fixes sent since this plan was read, so their buttons don't offer them again.
   const [sent, setSent] = useState<{ key: string; status: Sent }[]>([]);
   // How many of them reached sign_evm, so the record's version is expected to have gone up by as many.
   const signedSince = useRef(0);
+  // The plan on screen. A send still running when a new one arrives (Check again, a sale action)
+  // counts for the plan it was clicked in, not the new one.
+  const current = useRef(plan);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new plan is what should clear the list
   useEffect(() => {
+    current.current = plan;
     setSent([]);
     signedSince.current = 0;
   }, [plan]);
@@ -88,7 +94,8 @@ export function FixPanel({
   async function fix(action: FixAction, key: string) {
     // One at a time: a second click while one runs would only move the spinner (the lock refuses it).
     if (sender.busy) return;
-    setRunning(key);
+    const from = plan;
+    setRunning({ key, plan: from });
     const { result, reached } = await sender.run(async () => {
       const chain = chainInfo(action.chainId);
       if (!chain) throw new Error(`Chain ${action.chainId} isn't one the app knows. Nothing was signed.`);
@@ -103,6 +110,10 @@ export function FixPanel({
       }
       return { chain, to: action.to, value: action.value, data: action.data };
     });
+    // A plan read since then counts from the record it read itself: adding this send to it could let a
+    // signature from elsewhere past the check above, and its keys name other actions. The steps under
+    // the plan still show what became of this send.
+    if (current.current !== from) return;
     if (reached !== null && SIGNED.includes(reached)) signedSince.current += 1;
     if (result) setSent((s) => [...s, { key, status: result.status }]);
     else if (reached === "confirm") setSent((s) => [...s, { key, status: "broadcast" }]);
@@ -160,7 +171,7 @@ export function FixPanel({
                 key={chain.chainId}
                 chain={chain}
                 canClick={canClick}
-                running={sender.busy ? running : null}
+                running={sender.busy && running?.plan === plan ? running.key : null}
                 sent={sent}
                 onFix={fix}
               />
@@ -181,7 +192,7 @@ export function FixPanel({
             </Button>
             <p className="min-w-0 flex-1 text-sm text-muted">
               The report reads each chain at a finalized block, which can lag its latest block: about 3 s on Avalanche Fuji,
-              about 15 to 20 minutes on Sepolia. If a line hasn&apos;t changed yet, check again a little later.
+              about 13 minutes on Sepolia, sometimes longer. If a line hasn&apos;t changed yet, check again a little later.
             </p>
           </div>
         )}

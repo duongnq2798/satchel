@@ -447,6 +447,22 @@ describe("fixPlan", () => {
       ]);
     });
 
+    it("counts a revoke on a chain whose nonce read lags after the ones it sends, so it takes no slot they need", () => {
+      // 29 old rows, a live one on Sepolia, listed first, whose RPC answers a spent nonce, and one on Fuji: 31.
+      const p = plan({
+        record: { evm: [evm(SEPOLIA, 4), evm(FUJI, 0)] },
+        nonces: [spent(SEPOLIA, 4), spent(FUJI, 0)],
+        rows: [...filler(29), live({ chain_id: String(SEPOLIA), contract: NFT }), live()],
+        chains: [state(SEPOLIA, 3), state(FUJI, 1)],
+      });
+      const [sepolia, fuji] = [SEPOLIA, FUJI].map((id) => p.chains.find((c) => c.chainId === id)?.actions[0]);
+      expect(fuji).toMatchObject({ slot: { kind: "takes", slot: 32 }, nonce: 1n });
+      expect(fuji?.refused).toBeUndefined();
+      expect(sepolia).toMatchObject({ slot: { kind: "over" }, nonce: null });
+      expect(sepolia?.refused).toMatch(/^The RPC for Sepolia answered a nonce that is already spent/);
+      checkCosts(p);
+    });
+
     it("sends a revoke whose row is already there with all 32 full: the contract merges it", () => {
       const revoked = { row: row({ arg: word(0n) }), then: OFF, now: OFF };
       const p = plan({ ...base, rows: [...filler(30), revoked, live()] });
