@@ -8,6 +8,7 @@ import {
   OneClickError,
   type QuoteRequest,
   QuoteRefused,
+  SLIPPAGE_CHOICES,
   appFeeBps,
   assetKey,
   checkQuote,
@@ -22,6 +23,7 @@ import {
   parseAmount,
   parseStatus,
   parseTokens,
+  payoutUrl,
   quotableAssets,
   quoteRequest,
   sendKey,
@@ -37,6 +39,8 @@ import {
 // (deployments/mainnet-1click-exit.json), and /v0/tokens' entries on the satchel's 7 chains.
 const SATCHEL_2 = "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f";
 const DEPOSIT = "0x588f8C4419974bC735Ac784B3dA41B44c42bb64b";
+/** The swap's USDC payout to satchel #2 on Arbitrum One, the one hash in the status's destinationChainTxHashes. */
+const PAYOUT = "0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209";
 const listed = parseTokens(tokens);
 
 const asset = (chainId: number, kind?: "USDC" | "USDT") => {
@@ -53,7 +57,8 @@ const entry = (a: ReturnType<typeof asset>) => {
 };
 
 /** The request the fixture answers, as the panel built it: its deadline is an hour after it asked. */
-const asked = () => quoteRequest(entry(ARB_USDC), entry(BASE_ETH), 5_280_549n, SATCHEL_2, Date.parse(quote.quoteRequest.deadline) - 60 * 60_000);
+const asked = (slippageBps?: number) =>
+  quoteRequest(entry(ARB_USDC), entry(BASE_ETH), 5_280_549n, SATCHEL_2, Date.parse(quote.quoteRequest.deadline) - 60 * 60_000, slippageBps);
 
 /** Satchel #2's mainnet send to the deposit address, as FastNEAR's index returned it on 2026-11-11. */
 const SEND_2: Extract<HistoryEntry, { kind: "sign_evm" }> = {
@@ -90,6 +95,15 @@ const tampered = <T>(value: T, change: (copy: T) => void): T => {
   change(copy);
   return copy;
 };
+/**
+ * 1Click's real status for satchel #2's deposit address, changed the way a swap that didn't complete
+ * reads in 1Click's status schema: its status, nothing out, and nothing paid on the destination chain.
+ */
+const unfinished = (name: "REFUNDED" | "FAILED") =>
+  tampered(status, (s) => {
+    s.status = name;
+    Object.assign(s.swapDetails, { amountOut: "0", amountOutFormatted: "0", amountOutUsd: "0", destinationChainTxHashes: [] });
+  });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -169,6 +183,13 @@ describe("the quote request", () => {
     expect(() => quoteRequest(entry(ARB_USDC), entry(BASE_ETH), 1n, "satchel-nft.near" as `0x${string}`)).toThrow(QuoteRefused);
   });
 
+  it("asks for the slippage limit picked, 0.5 %, 1 % or 3 %, and no other", () => {
+    expect(SLIPPAGE_CHOICES).toEqual([50, 100, 300]);
+    expect(SLIPPAGE_CHOICES.map((bps) => asked(bps).slippageTolerance)).toEqual([50, 100, 300]);
+    expect(asked().slippageTolerance).toBe(100);
+    for (const bad of [0, 99, 1000, 10_000, 100.5, Number.NaN]) expect(() => asked(bad), String(bad)).toThrow(QuoteRefused);
+  });
+
   it("posts dry: true and reads the answer", async () => {
     const fetch = serve(() => json(quote, 201));
     const got = await dryQuote(asked());
@@ -237,6 +258,22 @@ describe("checkQuote", () => {
     expect(() => checkQuote(asked(), tampered(quote, (q) => (q.quote.amountOut = "lots")))).toThrow("minimum out");
   });
 
+  it("checks the echo and the minimum against the slippage limit asked", () => {
+    // 1Click's amount out and minimum in a dry quote of the same 5.280549 USDC at 300 bps, on 2026-11-11.
+    const at300 = tampered(quote, (q) => {
+      q.quoteRequest.slippageTolerance = 300;
+      q.quote.amountOut = "2564059772479938";
+      q.quote.minAmountOut = "2487137979305539";
+    });
+    expect(checkQuote(asked(300), at300).minAmountOut).toBe(2_487_137_979_305_539n);
+    // Asked at 1 %, the same answer is refused: its echo says 300.
+    expect(() => checkQuote(asked(), at300)).toThrow("slippageTolerance");
+    // Asked at 0.5 %, 1Click's real 1 % answer is refused: its echo says 100.
+    expect(() => checkQuote(asked(50), quote)).toThrow("slippageTolerance");
+    // At 3 %, a minimum more than 3 % below the amount out is refused.
+    expect(() => checkQuote(asked(300), tampered(at300, (q) => (q.quote.minAmountOut = "2400000000000000")))).toThrow("minimum out");
+  });
+
   it("refuses fees or a time it can't read, and an answer with no quote", () => {
     expect(() => checkQuote(asked(), tampered(quote, (q) => Object.assign(q.quoteRequest, { appFees: [{ fee: "20" }] })))).toThrow("fees");
     expect(() => checkQuote(asked(), tampered(quote, (q) => Object.assign(q.quote, { timeEstimate: "soon" })))).toThrow("time estimate");
@@ -285,6 +322,7 @@ describe("statusOf", () => {
       destinationAsset: "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near",
       recipient: SATCHEL_2,
       amountOut: 5_280_549n,
+      destinationTxs: [PAYOUT],
     });
     expect(fetch.mock.calls[0][0]).toBe(statusUrl(DEPOSIT));
     expect(statusUrl(DEPOSIT)).toBe(`${ONE_CLICK}/v0/status?depositAddress=${DEPOSIT}`);
@@ -303,6 +341,7 @@ describe("statusOf", () => {
       destinationAsset: null,
       recipient: null,
       amountOut: null,
+      destinationTxs: [],
     });
   });
 });
@@ -334,6 +373,31 @@ describe("the history's 1Click lines", () => {
     expect(swapLine(SEND_2, { ...parseStatus(status), destinationAsset: "nep141:unknown" }, listed, SATCHEL_2)).toBe("1Click swap · SUCCESS");
   });
 
+  it.each(["REFUNDED", "FAILED"] as const)("says a %s swap's status and what it was for, and links 1Click's status", async (name) => {
+    const got = parseStatus(unfinished(name));
+    expect(got).toMatchObject({ status: name, amountOut: 0n, destinationTxs: [] });
+    expect(swapLine(SEND_2, got, listed, SATCHEL_2)).toBe(`1Click swap · ${name} · for USDC to this satchel on Arbitrum One`);
+    expect(payoutUrl(got, listed)).toBeNull();
+    serve((url) => (url.endsWith("/v0/tokens") ? json(tokens) : json(unfinished(name))));
+    expect([...(await swapMarks([SEND_2], SATCHEL_2))]).toEqual([
+      [sendKey(SEND_2), { line: `1Click swap · ${name} · for USDC to this satchel on Arbitrum One`, url: statusUrl(DEPOSIT), payout: false }],
+    ]);
+  });
+
+  it("links the payout on the destination chain's explorer only for a swap 1Click calls SUCCESS", () => {
+    expect(payoutUrl(parseStatus(status), listed)).toBe(`https://arbiscan.io/tx/${PAYOUT}`);
+    // A refund never shows an amount as having come out, or a destination hash as its payout, even one 1Click gave.
+    const refunded = parseStatus(tampered(status, (s) => (s.status = "REFUNDED")));
+    expect(swapLine(SEND_2, refunded, listed, SATCHEL_2)).toBe("1Click swap · REFUNDED · for USDC to this satchel on Arbitrum One");
+    expect(payoutUrl(refunded, listed)).toBeNull();
+    // No hash, one that isn't an EVM transaction's, or a destination that isn't one of the satchel's mainnets: no link.
+    expect(payoutUrl({ ...parseStatus(status), destinationTxs: [] }, listed)).toBeNull();
+    expect(payoutUrl({ ...parseStatus(status), destinationTxs: ["HnJYvejk1Nep7CkjhaJRgAGToE3K2oqthD1F4NpNVpp4"] }, listed)).toBeNull();
+    const wnear = { assetId: "nep141:wrap.near", blockchain: "near", symbol: "wNEAR", decimals: 24, price: null, contractAddress: "wrap.near" };
+    expect(payoutUrl({ ...parseStatus(status), destinationAsset: wnear.assetId }, [...listed, wnear])).toBeNull();
+    expect(parseStatus(tampered(status, (s) => Object.assign(s.swapDetails, { destinationChainTxHashes: [{ hash: 7 }, null, { hash: PAYOUT }] }))).destinationTxs).toEqual([PAYOUT]);
+  });
+
   it("leaves a send unmarked when 1Click's swap didn't start from that chain's native coin", () => {
     expect(swapLine({ ...SEND_2, chainId: "42161" }, parseStatus(status), listed, SATCHEL_2)).toBeNull();
     const fromUsdc = { ...parseStatus(status), originAsset: entry(asset(8453, "USDC")).assetId };
@@ -345,7 +409,7 @@ describe("the history's 1Click lines", () => {
     serve((url) => (url.endsWith("/v0/tokens") ? json(tokens) : json(status)));
     const marks = await swapMarks([SEND_2], SATCHEL_2);
     expect([...marks]).toEqual([
-      [sendKey(SEND_2), { line: "1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One", url: statusUrl(DEPOSIT) }],
+      [sendKey(SEND_2), { line: "1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One", url: `https://arbiscan.io/tx/${PAYOUT}`, payout: true }],
     ]);
 
     forgetTokens();

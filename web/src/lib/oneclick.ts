@@ -23,6 +23,8 @@ export const BLOCKCHAINS: Readonly<Record<number, string>> = {
 
 /** As tools/oneclick-exit.mjs asks: 1 % of slippage, and a deadline an hour out. */
 export const SLIPPAGE_BPS = 100;
+/** The slippage limits, in basis points, the panel offers: 0.5 %, 1 % (the default) and 3 %. */
+export const SLIPPAGE_CHOICES: readonly number[] = [50, SLIPPAGE_BPS, 300];
 export const QUOTE_MINUTES = 60;
 /** How many of a satchel's latest sends its history asks 1Click about. */
 export const STATUS_LOOKUPS = 5;
@@ -225,19 +227,27 @@ export interface QuoteRequest {
 }
 
 /**
- * A dry, exact-input quote of `amount` of `origin` for `destination`. The satchel is both the
- * recipient and the refund address, as in tools/oneclick-exit.mjs: what comes out, and any refund,
- * would land back in it.
+ * A dry, exact-input quote of `amount` of `origin` for `destination`, with one of SLIPPAGE_CHOICES
+ * as its slippage limit. The satchel is both the recipient and the refund address, as in
+ * tools/oneclick-exit.mjs: what comes out, and any refund, would land back in it.
  */
-export function quoteRequest(origin: OneClickToken, destination: OneClickToken, amount: bigint, satchel: Address, now = Date.now()): QuoteRequest {
+export function quoteRequest(
+  origin: OneClickToken,
+  destination: OneClickToken,
+  amount: bigint,
+  satchel: Address,
+  now = Date.now(),
+  slippageBps = SLIPPAGE_BPS,
+): QuoteRequest {
   if (amount <= 0n) throw new QuoteRefused("enter an amount above 0");
   if (origin.assetId === destination.assetId) throw new QuoteRefused("pick a destination other than the origin");
   if (!isAddress(satchel, { strict: false })) throw new QuoteRefused(`${satchel} is not an EVM address`);
+  if (!SLIPPAGE_CHOICES.includes(slippageBps)) throw new QuoteRefused(`pick a slippage of ${SLIPPAGE_CHOICES.map((b) => `${b / 100} %`).join(", ")}`);
   const address = getAddress(satchel);
   return {
     dry: true,
     swapType: "EXACT_INPUT",
-    slippageTolerance: SLIPPAGE_BPS,
+    slippageTolerance: slippageBps,
     originAsset: origin.assetId,
     depositType: "ORIGIN_CHAIN",
     destinationAsset: destination.assetId,
@@ -346,6 +356,8 @@ export interface SwapStatus {
   recipient: string | null;
   /** What came out, in the destination's smallest unit. */
   amountOut: bigint | null;
+  /** The hashes in 1Click's `destinationChainTxHashes`, in its order; empty where it names none. */
+  destinationTxs: string[];
 }
 
 export function parseStatus(body: unknown): SwapStatus {
@@ -353,12 +365,15 @@ export function parseStatus(body: unknown): SwapStatus {
   const status = b?.status;
   if (typeof status !== "string" || !/^[A-Z_]{1,40}$/.test(status)) throw new OneClickError("1Click's status answer has no status");
   const asked = record(record(b?.quoteResponse)?.quoteRequest);
+  const details = record(b?.swapDetails);
+  const hashes = Array.isArray(details?.destinationChainTxHashes) ? details.destinationChainTxHashes : [];
   return {
     status,
     originAsset: str(asked?.originAsset),
     destinationAsset: str(asked?.destinationAsset),
     recipient: str(asked?.recipient),
-    amountOut: units(record(b?.swapDetails)?.amountOut),
+    amountOut: units(details?.amountOut),
+    destinationTxs: hashes.flatMap((h) => str(record(h)?.hash) ?? []),
   };
 }
 
@@ -397,10 +412,12 @@ export function sendsToLookUp(entries: readonly HistoryEntry[]): SignEvmEntry[] 
 /** The key a history row and its 1Click line share. */
 export const sendKey = (e: SignEvmEntry) => `${e.tx}:${e.chainId}:${e.nonce}`;
 
-const chainNamed = (blockchain: string) => {
+/** The satchel's mainnet that 1Click calls `blockchain`, if it is one. */
+const chainOf = (blockchain: string): ChainInfo | undefined => {
   const id = Object.keys(BLOCKCHAINS).find((k) => BLOCKCHAINS[Number(k)] === blockchain);
-  return (id && chainInfo(Number(id))?.name) || blockchain;
+  return id === undefined ? undefined : chainInfo(Number(id));
 };
+const chainNamed = (blockchain: string) => chainOf(blockchain)?.name ?? blockchain;
 
 /**
  * The line a send's row gets from 1Click's status for its recipient: "1Click swap · SUCCESS ·
@@ -425,10 +442,28 @@ export function swapLine(send: SignEvmEntry, status: SwapStatus, tokens: readonl
   return parts.join(" · ");
 }
 
+/**
+ * The payout on the destination chain's explorer: the first EVM transaction hash in 1Click's
+ * `destinationChainTxHashes`, for a swap 1Click calls SUCCESS whose destination is one of the
+ * satchel's mainnets. Null otherwise, refunds and failures included.
+ */
+export function payoutUrl(status: SwapStatus, tokens: readonly OneClickToken[]): string | null {
+  if (status.status !== "SUCCESS") return null;
+  const destination = tokens.find((t) => t.assetId === status.destinationAsset);
+  const chain = destination && chainOf(destination.blockchain);
+  const hash = status.destinationTxs.find((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+  return chain && hash ? `${chain.explorer}/tx/${hash}` : null;
+}
+
 export interface SwapMark {
   line: string;
-  /** 1Click's status for the send's recipient, which says it all in 1Click's own words. */
+  /**
+   * The payout's transaction (`payoutUrl`) when 1Click names one; otherwise 1Click's status for the
+   * send's recipient, which says it all in 1Click's own words.
+   */
   url: string;
+  /** Whether `url` is the payout's transaction rather than 1Click's status. */
+  payout: boolean;
 }
 
 /**
@@ -444,7 +479,9 @@ export async function swapMarks(sends: readonly SignEvmEntry[], satchel: Address
   sends.forEach((send, i) => {
     const status = statuses[i];
     const line = status && swapLine(send, status, tokens, satchel);
-    if (line) marks.set(sendKey(send), { line, url: statusUrl(send.to) });
+    if (!status || !line) return;
+    const payout = payoutUrl(status, tokens);
+    marks.set(sendKey(send), { line, url: payout ?? statusUrl(send.to), payout: payout !== null });
   });
   return marks;
 }

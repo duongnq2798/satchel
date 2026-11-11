@@ -87,7 +87,7 @@ function HistoryCard({ tokenId, record, refresh }: Props) {
                     {describeEntry(e)} · <ExternalLink href={nearTxUrl(net, e.tx)}>tx</ExternalLink>
                     {swap && (
                       <span className="mt-0.5 block text-xs text-ink-2">
-                        {swap.line} · <ExternalLink href={swap.url}>1Click&apos;s status</ExternalLink>
+                        {swap.line} · <ExternalLink href={swap.url}>{swap.payout ? "payout tx" : "1Click's status"}</ExternalLink>
                       </span>
                     )}
                   </span>
