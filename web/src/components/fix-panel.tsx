@@ -61,10 +61,10 @@ export function FixPanel({
     report.address === address
       ? report
       : undefined;
-  // Sends from this card that reached sign_evm, counted as each one returns. Each read keeps the count
-  // it began at, then reads the record itself: the page's can predate a send that returned since, and a
-  // send that returns later may have been signed after the read. fixPlan refuses a record newer than
-  // the report's.
+  // Sends from this card that reached sign_evm, or may have, counted as each one returns. Each read
+  // keeps the count it began at, then reads the record itself: the page's can predate a send that
+  // returned since, and a send that returns later may have been signed after the read. fixPlan
+  // refuses a record newer than the report's.
   const [signed, setSigned] = useState(0);
   const read = useAsync(
     async () => {
@@ -95,8 +95,9 @@ export function FixPanel({
   if (!about) return null;
 
   const owner = accountId !== null && accountId === token.owner_id;
-  // A send clicked in an earlier plan, still running or signed since this plan's read began: this plan
-  // may have read the chains before it went out, and offer its fix again.
+  // A send clicked in an earlier plan still running, or any send signed (or maybe signed) since this
+  // plan's read began and not counted for it: this plan may have read the chains before it went out,
+  // and offer its fix again.
   const earlier = read.data
     ? (sender.busy && running?.plan !== plan) || signed - read.data.at > signedFor(plan)
     : false;
@@ -130,7 +131,10 @@ export function FixPanel({
       return { chain, to: action.to, value: action.value, data: action.data };
     });
     const signs = reached !== null && SIGNED.includes(reached);
-    if (signs) setSigned((n) => n + 1);
+    // A send that ended at the wallet step may have run sign_evm without returning its signature: a
+    // wallet that gave up after sending, or no final outcome in time. It counts as maybe signed, so
+    // every plan read before it waits for Check again, even after a plain rejection in the wallet.
+    if (signs || reached === "wallet") setSigned((n) => n + 1);
     // A plan read since then counts from the record it read itself: adding this send to it could let a
     // signature from elsewhere past the check above, and its keys name other actions. The steps under
     // the plan still show what became of this send, and the plan waits for Check again (`earlier`).
@@ -171,7 +175,7 @@ export function FixPanel({
               <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
                 {sender.busy
                   ? "A fix sent from the plan before this one is still running, and its steps are below. This plan may have read the chains before it went out, so it offers no buttons: check again once that send is done."
-                  : "A fix sent from the plan before this one was signed after this plan began reading the chains, so this plan may offer it again. Check again to read them after it."}
+                  : "A send from this card was signed, or may have been, after this plan began reading the chains, so this plan may offer its fix again. Check again to read them after it."}
               </p>
             )}
             {plan.notes.map((note) => (
