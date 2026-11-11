@@ -45,6 +45,30 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   before the wallet opens; focus moves to that question, and the receiver can't be edited while it
   is checked or the wallet is open.
 
+- A share card, and a section on `/mainnet` for the two satchels that have sent real ETH. A link
+  to any page shows `web/src/app/opengraph-image.png` (and the same `twitter-image.png`), 1200 x
+  630, with alt text, rendered from `docs/assets/src/og.html` by `render.mjs`; it carries no
+  verdict, since a site can keep a card for days and a report can change. Each page has its own
+  title, description and `og:url`. `apple-icon.png` and a 16 and 32 pixel `favicon.ico` come from
+  the same script. `/mainnet#showcase` links the transactions behind each story: satchel #1 sent
+  0.0001 ETH on Base from its page here, and #2 sent 0.00258 ETH on Base to 1Click's deposit
+  address and received 5.280549 USDC on Arbitrum One. The numbers are in `web/src/lib/showcase.ts`, and
+  `showcase.test.ts` checks each against `deployments/mainnet-first-send.json` and
+  `deployments/mainnet-1click-exit.json`. The landing page and the empty mainnet market link to it.
+
+- The verify page takes `5`, `#5` or a satchelnft.xyz link to a satchel's page or room (a mainnet
+  link opens on mainnet), and offers testnet #1 and #3 to #6 and mainnet #1 and #2 as quick picks,
+  each with one line on what was done with it. The sitemap and `llms.txt` list their pages, and
+  testnet #7's.
+
+- A satchel's page, as the server sends it, says what the page checks and on which network, and
+  gives the same report's command: `npx -y satchel-nft@0.2.0 verify <id>`, with `--network mainnet`
+  on mainnet. It reads nothing from NEAR to say so.
+
+- `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin` on every
+  response (`web/next.config.ts`), and a "No page here" page for
+  an address the site has no page for.
+
 - A swap through NEAR Intents' 1Click that keeps a satchel provably clean, run once on mainnet.
   `tools/oneclick-exit.mjs` asks 1Click for an `EXACT_INPUT` quote from ETH on Base to USDC on
   Arbitrum One with the satchel's own address as `recipient` and `refundTo`, checks that 1Click
@@ -317,6 +341,22 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- A satchel's page: the heading reads "Satchel #N", with one line on what a satchel is and what the
+  page checks; the verdict at the top links to the report; and "Your satchels" on the card for a
+  satchel that doesn't exist is a link. While the page reads NEAR, placeholders the size of what
+  loads stand in for "Loading satchel #N…", for the address while the app checks the deployment,
+  and for the report's checks, so less of the page moves as it loads. The report's command gains
+  `-y`.
+- Keyboard and screen readers: a skip link to each page's content and `aria-current` on the
+  header's links. The focus ring is two rings, an outline 5.33:1 or more on the light backgrounds
+  and inside it one in the card color, 17.3:1 on ink and 8.4:1 on leather; form fields, which sit
+  on paper or card, get the outline alone. A form field's border is 3.71:1 or more, up from 1.31:1.
+  `ErrorNote` has `role="alert"`; the report's verdict and the verify page's message are
+  `aria-live` regions; the verify input sets `aria-invalid` and `aria-describedby`. The address's
+  Copy button is named "Copy address" and announces the copy, or that it failed. The verify page's
+  check numbers are gold-deep, 3.57:1 on paper, where gold is 2.35:1.
+- The landing card's animation moves its dot with `transform` and lights each chain with
+  `opacity`, so the browser composites it instead of laying the card out again.
 - `node scripts/check-claims.mjs --network mainnet` checks 15 claims, up from 11: satchel #2 minted
   before its Base address held any ETH (its balance read at the blocks around the funding, so
   `BASE_RPC` must serve old state), its first `sign_evm` a plain transfer of the quoted amount to

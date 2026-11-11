@@ -146,6 +146,10 @@ export default function Home() {
                 <a href="/mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
                   live on mainnet
                 </a>
+                , where{" "}
+                <a href="/mainnet#showcase" className="underline decoration-line underline-offset-2 hover:text-ink">
+                  two satchels have sent real ETH
+                </a>
                 . Not audited. Reading a report needs no wallet.
               </p>
             </div>
@@ -238,7 +242,7 @@ export default function Home() {
               ))}
             </ol>
             <div>
-              <pre className="rounded-xl border border-paper/15 bg-black/40 p-5 font-mono text-xs leading-relaxed whitespace-pre-wrap text-paper-2">
+              <pre className="rounded-xl border border-paper/15 bg-black/40 p-5 font-mono text-xs leading-relaxed whitespace-pre-wrap text-paper-2 [overflow-wrap:anywhere]">
                 {VERIFY_OUTPUT.split("\n").map((line, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: a fixed text whose lines can repeat
                   <span key={i} className={`block min-h-[1lh] ${line.startsWith("[FAIL]") || line === "NOT PROVABLE" ? "text-[#f0997b]" : ""}`}>

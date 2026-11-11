@@ -280,7 +280,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 27 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 44 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 61 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -970,13 +970,13 @@ no database and no session.
 
 | Page | What you can do there |
 | --- | --- |
-| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the demo satchels and the refused calls, a sale step by step, a comparison with seed phrases and token-bound accounts, and a link to every transaction behind a claim |
+| `/` | What Satchel is: satchel #1's hand-over with its verdict checked live, facts about the deployment (contract keys, chains, MPC signer, supply), "Try to cheat the buyer" with the demo satchels and the refused calls, a sale step by step, a comparison with seed phrases and token-bound accounts, a link to every transaction behind a claim, and one to the two mainnet satchels that have sent real ETH |
 | `/satchels` | Connect a NEAR wallet, mint a satchel for 0.1 NEAR, see the ones you own |
-| `/satchel/<id>` | The token's address, what it holds on the 8 testnets (the native coin, and USDC and WETH where a testnet deployment is listed), the clean transfer report, its history from the mint on; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy |
+| `/satchel/<id>` | The token's address, what it holds on the 8 testnets (the native coin, and USDC and WETH where a testnet deployment is listed), the clean transfer report, its history from the mint on; as owner, send from the address, list, delist or transfer the NFT; as a buyer, buy. The verdict at the top links to the report. Placeholders hold the layout while the page reads NEAR, and the HTML the server sends says what the page checks and gives the same report's command, `npx -y satchel-nft@0.2.0 verify <id>` |
 | `/satchel/<id>/room` | The holder room: connect the wallet that owns the satchel and sign a message, then see a holder card and a handover kit, what to do before you sell |
 | `/market` | The listed satchels, each with its price and the verdict of its report |
-| `/verify` | Enter a token id and read its report, no wallet needed |
-| `/mainnet`, `/mainnet/satchels`, `/mainnet/satchel/<id>`, `/mainnet/satchel/<id>/room`, `/mainnet/market`, `/mainnet/verify` | The same pages on mainnet, with the deployment's facts read live |
+| `/verify` | Enter a token id (`5` or `#5`) or paste the link to a satchel's page on satchelnft.xyz, or pick a demo satchel, each with one line on what was done with it, and read its report, no wallet needed. A link to a mainnet satchel opens it on mainnet |
+| `/mainnet`, `/mainnet/satchels`, `/mainnet/satchel/<id>`, `/mainnet/satchel/<id>/room`, `/mainnet/market`, `/mainnet/verify` | The same pages on mainnet, with the deployment's facts read live. `/mainnet` also shows what satchels #1 and #2 did, with links to the transactions behind each story: #1 sent 0.0001 ETH on Base, and #2 sent 0.00258 ETH on Base to 1Click's deposit address and received 5.280549 USDC on Arbitrum One. The numbers are in [`showcase.ts`](web/src/lib/showcase.ts), and its test checks them against the records in [`deployments`](deployments) |
 
 <table>
 <tr>
@@ -1016,6 +1016,19 @@ the L1 data fee included), and shows that fee while your wallet asks.
 **Wallets.** The app lists a pinned set of NEAR wallets. On testnet that is Meteor, Intear,
 Nightly, Ledger and NEAR CLI; on mainnet, those and HOT and MyNearWallet. Each network remembers
 its own wallet, and an account from the other network is refused with a message saying so.
+
+**Links, keyboards and screen readers.** Every page has its own title and description. A shared
+link shows one card for the whole site, [`og.html`](docs/assets/src/og.html) rendered by
+[`render.mjs`](docs/assets/src/render.mjs), with no verdict on it: a site that shows the link can
+keep the card for days, and a satchel's report can change. A skip link leads to each page's
+content. The focus outline is 5.33:1 or more against the light backgrounds and a form field's border
+3.71:1 or more (WCAG 1.4.11 asks for 3:1). Error notes (`ErrorNote` in
+[`ui.tsx`](web/src/components/ui.tsx)), the verify page's message, a copied address and a report's
+verdict are announced to screen readers. Every response carries `X-Content-Type-Options: nosniff`
+and `Referrer-Policy: strict-origin-when-cross-origin` (`headers()` in
+[`next.config.ts`](web/next.config.ts)); the app may be framed, since some wallets open apps in a
+frame of their own. The [sitemap](web/src/app/sitemap.ts) and
+[`llms.txt`](web/src/app/llms.txt/route.ts) list the demo satchels' pages.
 
 To run it yourself:
 
@@ -1292,12 +1305,13 @@ three workflows directly, each when its paths change.
 | Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 
-The tests, as of 2026-11-10: 61 Rust unit tests in
+The tests, as of 2026-11-11: 61 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 191 package tests in 16 files: `evm.test.ts` 26, `dao.test.ts` 25,
 `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13,
 `history.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;
-and 27 app tests: 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`, and 12 in `docs.test.ts`,
+and 44 app tests: 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`, 17 in `showcase.test.ts`,
+which checks the mainnet showcase against `deployments/`, and 12 in `docs.test.ts`,
 which compile every docs page and check its links and anchors. Some rules have no
 unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, the sale panel's use of the report's version and price was

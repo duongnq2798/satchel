@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CHAINS, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, tokenAddress } from "satchel-nft";
+import { CHAINS, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, sendChains, tokenAddress } from "satchel-nft";
 import { isFrozen } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
 import { Contents } from "./contents";
@@ -13,9 +13,71 @@ import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale, checkedListing } from "./sale-panel";
 import { SendPanel } from "./send-panel";
-import { Badge, Button, Card, CopyButton, ErrorNote, ExternalLink, Mono, VERDICT } from "./ui";
+import { Badge, Button, Card, CopyButton, ErrorNote, ExternalLink, Mono, Placeholder, VERDICT } from "./ui";
 import { useAsync } from "./use-async";
 import { useWallet } from "./wallet";
+
+/** The page's heading, the same while the satchel loads and after, so it never moves. */
+function Heading({ tokenId }: { tokenId: string }) {
+  return (
+    <>
+      <h1 className="font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere]">Satchel #{tokenId}</h1>
+      <p className="mt-2 max-w-2xl text-ink-2">
+        A satchel is an NFT on NEAR that controls one address on {CHAINS.length} EVM chains, and this page checks, in
+        your browser, what its previous owners could have kept back.
+      </p>
+    </>
+  );
+}
+
+/**
+ * The address card's shape before the address shows: while the satchel loads, and while the
+ * contract's check runs (`deployment` then says so where the address goes). The chains are the ones
+ * "What's inside" reads, each still to be read.
+ */
+function AddressPending({ deployment }: { deployment?: ReturnType<typeof useDeployment> }) {
+  const net = useNetwork();
+  return (
+    <>
+      <div className="mt-1 flex min-h-14 items-center sm:min-h-7">
+        {deployment ? <DeploymentNote deployment={deployment} /> : <Placeholder className="h-6 w-full max-w-md" />}
+      </div>
+      <Placeholder className="mt-1 h-12 sm:h-8 lg:h-4" />
+      <h2 className="mt-5 font-display text-xl font-semibold">What&apos;s inside</h2>
+      <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {sendChains(net).map((chain) => (
+          <li key={chain.id} className="rounded-xl border border-line px-3 py-2">
+            <p className="text-xs text-muted">{chain.name}</p>
+            <p className="text-sm">…</p>
+          </li>
+        ))}
+      </ul>
+      <Placeholder className="mt-3 h-32 sm:h-16 lg:h-12" />
+    </>
+  );
+}
+
+/** The page while the satchel loads: its heading, then each card at about its loaded height. */
+function TokenSkeleton({ tokenId }: { tokenId: string }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Heading tokenId={tokenId} />
+        <p role="status" className="sr-only">
+          Reading satchel #{tokenId} from NEAR…
+        </p>
+        <Placeholder className="mt-2 h-5 w-full max-w-sm" />
+      </div>
+      <Card>
+        <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, controlled by whoever owns this NFT</p>
+        <AddressPending />
+      </Card>
+      <ReportCard report={undefined} loading error={null} onRecheck={() => {}} />
+      <Placeholder className="h-36 rounded-2xl!" />
+      <Placeholder className="h-64 rounded-2xl!" />
+    </div>
+  );
+}
 
 export function TokenView({ tokenId }: { tokenId: string }) {
   const { accountId } = useWallet();
@@ -48,9 +110,12 @@ export function TokenView({ tokenId }: { tokenId: string }) {
   }, [loaded]);
 
   if (token.data === undefined) {
-    if (!token.error) return <p className="text-muted">Loading satchel #{tokenId}…</p>;
+    if (!token.error) return <TokenSkeleton tokenId={tokenId} />;
     return (
       <div className="space-y-3">
+        <div>
+          <Heading tokenId={tokenId} />
+        </div>
         <ErrorNote error={token.error} />
         <Button onClick={token.reload}>Try again</Button>
       </div>
@@ -59,9 +124,16 @@ export function TokenView({ tokenId }: { tokenId: string }) {
   if (token.data === null) {
     return (
       <Card>
-        <h1 className="font-display text-2xl font-semibold">No satchel #{tokenId}</h1>
+        <h1 className="font-display text-2xl font-semibold [overflow-wrap:anywhere]">No satchel #{tokenId}</h1>
         <p className="mt-2 text-sm text-muted">
-          {net.contract} has no token with this id. Mint one from Your satchels.
+          {net.contract} has no token with this id. Mint one from{" "}
+          <Link
+            href={appPath(net, "/satchels")}
+            className="font-medium text-leather underline decoration-line underline-offset-4 hover:decoration-ink"
+          >
+            Your satchels
+          </Link>
+          .
         </p>
       </Card>
     );
@@ -78,16 +150,23 @@ export function TokenView({ tokenId }: { tokenId: string }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">Satchel</p>
-          <h1 className="font-display text-4xl font-semibold tracking-tight">#{view.token_id}</h1>
-          <p className="mt-1 text-sm text-ink-2">
+          <Heading tokenId={view.token_id} />
+          <p className="mt-2 text-sm text-ink-2">
             {isOwner ? "Owned by you" : <>Owned by <ExternalLink href={nearAccountUrl(net, view.owner_id)}>{view.owner_id}</ExternalLink></>} · path{" "}
             <Mono>{view.path}</Mono> · record version {record.version}
           </p>
         </div>
         <div className="flex gap-2">
           {view.listing && <Badge tone="gold">Listed</Badge>}
-          {report.data && <Badge tone={VERDICT[report.data.verdict].tone}>{VERDICT[report.data.verdict].label}</Badge>}
+          {report.data && (
+            <a
+              href="#report"
+              aria-label={`${VERDICT[report.data.verdict].label}: read the report`}
+              className="inline-flex rounded-full transition hover:opacity-80"
+            >
+              <Badge tone={VERDICT[report.data.verdict].tone}>{VERDICT[report.data.verdict].label}</Badge>
+            </a>
+          )}
         </div>
       </div>
       <ErrorNote error={token.error} />
@@ -116,7 +195,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           <>
             <div className="mt-1 flex items-center justify-between gap-3">
               <Mono className="text-lg">{address}</Mono>
-              <CopyButton value={address} />
+              <CopyButton value={address} name="Copy address" />
             </div>
             <p className="mt-1 text-xs text-muted">
               Derived in your browser from the MPC network&apos;s root key, the contract and the path{" "}
@@ -127,10 +206,12 @@ export function TokenView({ tokenId }: { tokenId: string }) {
               <Contents address={address} refresh={refresh} />
             </div>
           </>
-        ) : (
+        ) : deployment.error ? (
           <div className="mt-3">
             <DeploymentNote deployment={deployment} />
           </div>
+        ) : (
+          <AddressPending deployment={deployment} />
         )}
       </Card>
 
