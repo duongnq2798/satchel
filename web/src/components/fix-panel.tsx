@@ -70,8 +70,12 @@ export function FixPanel({
     async () => {
       if (!about) return null;
       const at = signed;
-      const record = (await satchel(net).get(token.token_id))?.record ?? token.record;
-      return { at, inputs: await readFixInputs(about, record) };
+      const fresh = await satchel(net)
+        .get(token.token_id)
+        .catch(() => null);
+      // Without it, the page's record, which may predate every send from this card: they all count.
+      if (!fresh) return { at: 0, inputs: await readFixInputs(about, token.record) };
+      return { at, inputs: await readFixInputs(about, fresh.record) };
     },
     `${net.id}:${token.token_id}:${about?.checkedAt ?? "none"}:${token.record.version}`,
   );
@@ -105,9 +109,9 @@ export function FixPanel({
   // while the page shows a listing either, even one the report didn't see: a listed satchel can't sign.
   const canClick = owner && !frozen && !token.listing && plan?.canSend === true && !read.loading && !earlier;
   // A fix whose receipt wait failed after its broadcast still went out: offer Check again for it too,
-  // and after any other error, whose text may ask for it.
+  // and after any other error, whose text may ask for it, or a read that failed.
   const broadcast = sender.result !== null || (sender.step === "confirm" && sender.error !== null);
-  const recheck = !sender.busy && (broadcast || earlier || sender.error !== null);
+  const recheck = !sender.busy && (broadcast || earlier || sender.error !== null || read.error !== null);
 
   async function fix(action: FixAction, key: string) {
     // One at a time: a second click while one runs would only move the spinner (the lock refuses it).
@@ -175,7 +179,7 @@ export function FixPanel({
               <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
                 {sender.busy
                   ? "A fix sent from the plan before this one is still running, and its steps are below. This plan may have read the chains before it went out, so it offers no buttons: check again once that send is done."
-                  : "A send from this card was signed, or may have been, after this plan began reading the chains, so this plan may offer its fix again. Check again to read them after it."}
+                  : "A send from this card finished after this plan began reading the chains, so the plan may have read them before that send went out and offer its fix again. Check again to read them after it."}
               </p>
             )}
             {plan.notes.map((note) => (
