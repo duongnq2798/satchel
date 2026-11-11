@@ -13,6 +13,7 @@ import {
   nearBlockUrl,
   roomMessage,
 } from "satchel-nft";
+import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import type { RoomResponse } from "@/lib/room-request";
 import { appPath } from "@/lib/routes";
 import { NoMessageSigning, signMessage } from "@/lib/wallet";
@@ -268,8 +269,16 @@ function Kit({ room }: { room: RoomResponse }) {
       </div>
       <p className="mt-1 text-sm text-muted">
         What to do before you sell satchel #{holder.tokenId}, from its clean transfer report, read on the server just now.
-        Anyone can read the same report on the satchel&apos;s page.
+        Anyone can read the same report on the satchel&apos;s page. When it isn&apos;t clean, the page also shows Make it clean
+        under the report: the revokes and nonce spends that would fix checks 2 and 3, and an owner&apos;s button for each one
+        the app can send.
       </p>
+      {isFrozen(net, holder.tokenId) && (
+        <p className="mt-3 rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-2">
+          {FROZEN_NOTE} On this satchel&apos;s page, Make it clean shows the plan without its buttons, so the steps below that
+          name a button don&apos;t apply here until then. This is a guard in the app only: the CLI commands below still sign.
+        </p>
+      )}
       {room.reportError && (
         <p className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">{room.reportError}. Open the report on the satchel&apos;s page instead.</p>
       )}

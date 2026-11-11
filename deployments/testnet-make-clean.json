@@ -1,0 +1,42 @@
+{
+  "satchel": {
+    "tokenId": "9",
+    "contract": "v1.satchel-nft.testnet",
+    "owner": "satchel-nft.testnet",
+    "address": "0xec0e9015578bac30fc60345a963a9e8d10d52e68",
+    "chainId": 11155111,
+    "mintTx": "3zktKGvbffGQKkPnW7DR8goEwQdJAcY67xg7c7XsoYBx"
+  },
+  "funding": {
+    "sepoliaTx": "0xa6f14a1f81853a479e85be4643417547a5c35cf019ccec6dd0e2a7fed8471b89",
+    "block": "12110189",
+    "value": "50000000000000000",
+    "note": "0.05 Sepolia ETH from the owner, so the satchel can pay gas. The mint and this funding came before the script ran; both were written into this file by hand."
+  },
+  "approved": {
+    "nearTx": "moJuat6GN1SqEUe2p1UhBBNvRzfZq3aCymMeXoUqDND",
+    "nonce": 0,
+    "sepoliaTx": "0xdeef1d5c70b00db68cf1fa2fc568535bd12686b4c690d6218f82f5dba88cab42",
+    "block": "12110199",
+    "token": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "spender": "0x65c60dbfc8b3c949ae7eb104ef47a08286ab9c8e",
+    "spenderSatchel": "7",
+    "amount": "unlimited (2^256 - 1)"
+  },
+  "kept1": {
+    "nearTx": "CLpsgUtaBSN5s4rvZgXHDpUJf9MQeE4QzQZVPrC22D2Y",
+    "nonce": 1,
+    "to": "0x000000000000000000000000000000000000dEaD",
+    "value": "10000000000000000",
+    "signingHash": "0x5b8d77c87698f0f1f7663e4e3088c178ff6e56fb2a8f0a24249cc50e12a3c98a",
+    "broadcast": false
+  },
+  "kept2": {
+    "nearTx": "E33gHExEGo1xkUr49UrMR2uLj5UUH95tCWHhxUnKQDHJ",
+    "nonce": 2,
+    "to": "0x000000000000000000000000000000000000dEaD",
+    "value": "10000000000000000",
+    "signingHash": "0xa857f9a98b56f9966db485c0d6e624a869a4649ca526b2cc692c0f9b296e3353",
+    "broadcast": false
+  }
+}

@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CHAINS, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, sendChains, tokenAddress } from "satchel-nft";
+import { isFrozen } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
 import { Contents } from "./contents";
 import { DeploymentNote, useDeployment } from "./deployment";
+import { FixPanel } from "./fix-panel";
 import { History } from "./history";
 import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
@@ -139,6 +141,8 @@ export function TokenView({ tokenId }: { tokenId: string }) {
 
   const { view, address } = token.data;
   const isOwner = accountId === view.owner_id;
+  // A demo satchel the README quotes: the app's owner and buy actions are off on it (lib/frozen.ts).
+  const frozen = isFrozen(net, view.token_id);
   const record = view.record;
   const listing = view.listing && (checkedListing(view, report.data ?? undefined, net)?.listing ?? view.listing);
 
@@ -172,14 +176,16 @@ export function TokenView({ tokenId }: { tokenId: string }) {
         <Card className="flex flex-wrap items-center justify-between gap-3 border-gold/60!">
           <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
             For sale: <strong className="font-display text-lg">{formatNear(listing.price)} NEAR</strong>, sold by{" "}
-            {listing.seller}. Read the report, then buy.
+            {listing.seller}. {frozen ? "Buying it from the app is off on this demo satchel until 2026-11-25." : "Read the report, then buy."}
           </p>
-          <a
-            href="#buy"
-            className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
-          >
-            Go to buy
-          </a>
+          {!frozen && (
+            <a
+              href="#buy"
+              className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
+            >
+              Go to buy
+            </a>
+          )}
         </Card>
       )}
 
@@ -217,6 +223,9 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           onRecheck={() => reloadAll()}
         />
       </div>
+      {deployment.data && (
+        <FixPanel token={view} address={address} report={report.data ?? undefined} frozen={frozen} onRecheck={() => reloadAll()} />
+      )}
 
       {lastTx && (
         <p className="text-sm text-ok">
@@ -225,11 +234,11 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       )}
       {view.listing && !isOwner && (
         <div id="buy" className="scroll-mt-24">
-          <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} />
+          <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} frozen={frozen} />
         </div>
       )}
-      {isOwner && !view.listing && deployment.data && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} />}
-      {isOwner && <OwnerSale token={view} onDone={reloadAll} />}
+      {isOwner && !view.listing && deployment.data && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} frozen={frozen} />}
+      {isOwner && <OwnerSale token={view} onDone={reloadAll} frozen={frozen} />}
 
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 max-w-2xl">

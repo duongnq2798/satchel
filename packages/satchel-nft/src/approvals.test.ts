@@ -38,17 +38,23 @@ describe("approval liveness", () => {
 
   it("finds a live ERC-20 allowance", async () => {
     const r = await approvalLiveness(fakeClient({ allowance: 7n }), WALLET, row("Approve"), AT);
-    expect(r.live).toBe(true);
+    expect(r).toMatchObject({ live: true, standard: "erc20" });
+    expect((await approvalLiveness(fakeClient({ allowance: 7n }), WALLET, row("IncreaseAllowance"), AT)).standard).toBe("erc20");
   });
 
   it("finds a live ERC-721 approval of the row's token id", async () => {
     const r = await approvalLiveness(fakeClient({ getApproved: SPENDER }), WALLET, row("Approve"), AT);
-    expect(r.live).toBe(true);
+    expect(r).toMatchObject({ live: true, standard: "erc721" });
   });
 
-  it("counts an Approve row live if either reading says so", async () => {
+  it("counts an Approve row live if either reading says so, and says which", async () => {
     const r = await approvalLiveness(fakeClient({ allowance: 0n, getApproved: SPENDER }), WALLET, row("Approve"), AT);
-    expect(r.live).toBe(true);
+    expect(r).toMatchObject({ live: true, standard: "erc721" });
+    // A contract that answers both reads live: the fix plan can't tell which revoke it takes.
+    const both = await approvalLiveness(fakeClient({ allowance: 3n, getApproved: SPENDER }), WALLET, row("Approve"), AT);
+    expect(both).toMatchObject({ live: true, detail: "allowance of 3 still granted", standard: "both" });
+    // Not live: no standard to name.
+    expect((await approvalLiveness(fakeClient({ allowance: 0n }), WALLET, row("Approve"), AT)).standard).toBeUndefined();
   });
 
   it("passes a revoked approval and refuses to guess when nothing can be read", async () => {
