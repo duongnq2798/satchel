@@ -6,6 +6,23 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The landing page's "Beyond a sale" section has four cards. Each is one satchel, with the transactions behind
+  it where there are any:
+  - testnet #4's holder room;
+  - satchel #8, which a DAO owned;
+  - mainnet #2's swap through 1Click;
+  - Make it clean on testnet #9, dated 2026-11-11, before its owner runs the clean-up.
+
+  Each card says what happened and links the satchel's page and a docs page; the verdict is left to the live
+  report. The cards are `TOUR` in `showcase.ts`. Its tests check each card's transactions against
+  `deployments/`, and each link against the app's routes and the docs pages and their anchors. The demo kit
+  adds the cards to what changes with a demo satchel.
+- The landing page's "Built on NEAR" list adds:
+  - NEAR Intents;
+  - Sputnik DAO;
+  - NEAR Connect with NEP-413.
+
+  It also links the README's table, which says where each one is used.
 - Make it clean: under a report that isn't clean, a satchel's page lists the transactions that would
   fix checks 2 and 3, with their calldata, and gives the owner a button for each one the app can
   send. **Revoke** builds `approve(spender, 0)` for an ERC-20 allowance, `approve(0x0, id)` for an
@@ -385,6 +402,22 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The landing page no longer says to buy testnet satchel #4 with any NEAR wallet. While the demo satchels are
+  frozen, #4's card says the app won't buy it until 2026-11-25. It also says how to see a sale through: mint a
+  satchel, list it, and buy it from a second wallet.
+- The market tags each demo satchel. When every listing is a demo satchel, the market says the same thing.
+- Two landing-page lines overstated what Satchel does:
+  - The NFT line now says a satchel has no picture per token and no NEP-178 approvals, so a sale goes through
+    the contract's own list and buy.
+  - The audit line now matches the README's Limits: two internal reviews of the contract, one of them
+    adversarial. The security page and the threat model said both were adversarial; they now say the same as
+    the README.
+- The landing page's Chain Signatures line names both MPC contracts, and its FAQ no longer says that every
+  example on the page is on testnet.
+- The demo kit no longer says that its 1:18 and 1:42 scenes run only in a local build. It says that the
+  clean-up in the 1:18 scene hasn't run. Its rules were read again from the live HACKATHON.md on
+  2026-11-11, and they still match.
+- The app has 86 tests.
 - The README, AGENTS.md and the docs: 222 package tests in 17 files and 81 app tests, the threat
   model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
   now that the app asks 1Click for dry quotes and shows its status: the dry-run row is met. The
