@@ -99,7 +99,7 @@ transaction on testnet that shows it working.
 | 7 | Sign more while the satchel is listed | `assert_can_sign` refuses while a listing is active | `5ZaKqJUx…` refused: `signing is frozen while the token is listed` | |
 | 8 | Delist, sign, relist, or move the NFT to another account and back, between the buyer's check and the purchase | Every signature bumps the record version. `buy` requires the current version, the listing's version and the version the buyer names to be the same, and a transfer or relist cannot reset it | `7HQPu9qe…` refused: `the signing record changed since you checked it`, 1 NEAR refunded | |
 | 9 | Raise the price after the buyer checked | `buy` requires the price the buyer names to equal the listing's price | Unit test `buy_refuses_a_changed_price` | |
-| 10 | Let someone else's account move the NFT from under the listing | The contract does not offer NEP-178 approvals, so only the owner can transfer. Any transfer, including `nft_transfer_call`, removes the listing. A listing whose seller no longer owns the token is ignored (`active_listing`) | Unit tests `a_transfer_cancels_the_sale`, `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_bounced_transfer_call_voids_the_receivers_listing`, `list_refuses_a_non_owner` | No unit test yet for `nft_transfer_call` removing the seller's own listing (the code does, in `nft_transfer_call`), or for a non-owner's `nft_transfer` failing (near-contract-standards refuses it) |
+| 10 | Let someone else's account move the NFT from under the listing | The contract does not offer NEP-178 approvals, so only the owner can transfer. Any transfer, including `nft_transfer_call`, removes the listing. A listing whose seller no longer owns the token is ignored (`active_listing`) | Unit tests `a_transfer_cancels_the_sale`, `nft_transfer_ends_the_listing_and_moves_signing_rights`, `nft_transfer_call_ends_the_sellers_listing`, `a_bounced_transfer_call_voids_the_receivers_listing`, `a_non_owner_cannot_nft_transfer_the_token` (near-contract-standards refuses it: `Approval extension is disabled`), `list_refuses_a_non_owner` | |
 
 ### The contract or its deployer
 
@@ -142,7 +142,7 @@ transaction on testnet that shows it working.
 
 | # | Attack | What stops it |
 |---|---|---|
-| 22 | Grow a token's record until the contract runs out of storage | Each mint pays 0.1 NEAR, which covers 10 KB. Approvals are capped at 32 rows and chains at the 16 supported ids; everything past the cap is a counter. At the caps, with a listing, a record is about 8.5 KB by estimate; no test measures it yet |
+| 22 | Grow a token's record until the contract runs out of storage | Each mint pays 0.1 NEAR, which covers 10 KB. Approvals are capped at 32 rows and chains at the 16 supported ids; everything past the cap is a counter. The unit test `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` measures the worst case: a 20-digit token id owned by a 64-character account, signed for on all 16 chains, with 32 Permit2 rows (the longest kind) and a listing, takes 8,558 bytes of the 10,000 its mint paid for, and signing past the caps adds none |
 | 23 | Ask for signatures on chains that do not exist yet | `SUPPORTED_CHAINS` is a fixed list; `sign_evm` refuses any other chain id |
 
 ### The holder room

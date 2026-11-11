@@ -212,6 +212,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   is refused once `buy` has run, while their NEAR is still a pending transfer. A unit test can't run
   the MPC call, so both pin the state each step leaves, not the race between receipts. The deployed
   contract is unchanged.
+- Three contract tests for gaps the threat model named (64 in all).
+  `nft_transfer_call_ends_the_sellers_listing` shows `nft_transfer_call` deletes the seller's own
+  listing row, not only hides it, and the receiver who keeps the token starts unlisted and free to
+  sign; with that line taken out, it fails and the bounced-transfer test still passes.
+  `a_non_owner_cannot_nft_transfer_the_token` shows near-contract-standards refuses another account
+  moving a listed satchel (`Approval extension is disabled`).
+  `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` measures the worst case: a 20-digit
+  token id owned by a 64-character account, signed for on all 16 chains, with 32 Permit2 rows and a
+  listing, takes 8,558 of the 10,000 bytes its 0.1 NEAR mint paid for, and signing past the caps
+  adds none. The threat model's rows 10 and 22, which said no test covered these, now name the
+  tests. The deployed contract is unchanged.
 - The README goes through the NFT track's brief point by point: what a satchel does for owning money,
   earning royalties (not built in: any address can be a payee, and a satchel pays none), holding
   inventory and carrying access rights, then the track's example prompt requirement by requirement
