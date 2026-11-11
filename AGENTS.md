@@ -200,7 +200,7 @@ cargo test
 cd ../..
 ```
 
-You should see `test result: ok. 61 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
+You should see `test result: ok. 64 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
 rustup installs it on first use. On Windows, a dependency (`aws-lc-sys`) needs NASM unless you set
 `AWS_LC_SYS_PREBUILT_NASM=1` first: `$env:AWS_LC_SYS_PREBUILT_NASM=1` in PowerShell, `export
 AWS_LC_SYS_PREBUILT_NASM=1` in Git Bash.
@@ -265,9 +265,10 @@ of these checks.
 | The record is written before the MPC request | `sign_evm`, `sign_raw`, `request_signature` in `contracts/satchel/src/lib.rs`. The record is saved when the `sign_evm` receipt succeeds; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` (they show the record and the MPC call; the order follows from NEAR's receipts) |
 | Every call is classified: transfer, asset transfer, approval, revocation or unclassified | `Eip1559Tx::classify` in `evm.rs` | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
 | 32 approvals are itemized, more are counted | `sign_evm`, `MAX_APPROVALS` | `approvals_beyond_the_cap_are_counted_not_dropped` |
+| A satchel at the caps (16 chains, 32 approvals, a listing) fits in the storage its mint paid for: 8,558 of 10,000 bytes, with a 20-digit id and a 64-character owner | `MINT_DEPOSIT`, `MAX_APPROVALS`, `SUPPORTED_CHAINS` | `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` |
 | Only the owner signs; listing freezes signing | `assert_can_sign` | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | `buy` pins the record version and price | `buy` | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
-| Any transfer ends the listing, a bounced `nft_transfer_call` too | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
+| Any transfer ends the listing, a bounced `nft_transfer_call` too; only the owner transfers | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer`, `active_listing` | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `nft_transfer_call_ends_the_sellers_listing`, `a_bounced_transfer_call_voids_the_receivers_listing`, `a_non_owner_cannot_nft_transfer_the_token` |
 | Only 16 chain ids can be signed for | `SUPPORTED_CHAINS` in `contracts/satchel/src/evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
 | Check 1: the contract can't sign behind the record | `contractCheck`, `contractFacts` in `packages/satchel-nft/src/report.ts` | `packages/satchel-nft/src/report.test.ts` |
 | Check 2: no signed transaction is still pending (nonce at a finalized block) | `pendingCheck`, `finalizedAt` in `report.ts` | `report.test.ts` (`pendingCheck`; `finalizedAt` reads live chains and has no unit test) |

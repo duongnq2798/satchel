@@ -286,14 +286,14 @@ the record changed).
    The web app's own 81 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
-   The contract's 61 unit tests need Rust (rustup installs the pinned 1.99.1 from
+   The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
    `contracts/satchel/rust-toolchain.toml` on first use). On Windows, set
    `AWS_LC_SYS_PREBUILT_NASM=1` first. With the dependencies already compiled, this took 43 s here;
    a first run compiles them before it starts.
 
    ```bash
    cd contracts/satchel
-   cargo test           # test result: ok. 61 passed
+   cargo test           # test result: ok. 64 passed
    ```
 
 **Reviewing security:** [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) goes through 40 attacks (the
@@ -708,10 +708,10 @@ flowchart LR
 | **The contract builds what it signs** | Every `sign_evm` signature is over an EIP-1559 transaction the contract RLP-encoded and hashed itself; anything else goes through `sign_raw` and is counted as opaque | `Eip1559Tx::signing_hash` in [`evm.rs`](contracts/satchel/src/evm.rs) | `evm_hash_and_rlp_match_viem_for_every_vector`, `evm_signing_hash_view_matches_the_hash_sign_evm_sends` |
 | **Record first** | The record is saved in the `sign_evm` receipt; the MPC `sign` call is a later receipt, so whatever happens to it cannot undo the record | `sign_evm`, `sign_raw`, `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs) | `sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`, `sign_raw_counts_as_opaque`, `a_sale_in_the_middle_of_a_payout_keeps_the_send_on_record` |
 | **Every call classified** | Transfer, asset transfer, approval, revocation or unclassified; selectors are checked against the keccak of their signatures | `Eip1559Tx::classify` in [`evm.rs`](contracts/satchel/src/evm.rs) | `value_and_asset_transfers_are_classified`, `a_call_satchel_cannot_classify_is_counted`, `revocations_are_logged_but_never_take_an_approval_slot`, `approval_selectors_are_the_keccak_of_their_signatures` |
-| **Approvals itemized, then counted** | 32 distinct approvals listed per token; beyond that, counted, never dropped | `sign_evm`, `MAX_APPROVALS` in [`lib.rs`](contracts/satchel/src/lib.rs) | `approvals_beyond_the_cap_are_counted_not_dropped`, `erc721_approvals_of_two_token_ids_stay_two_rows` |
+| **Approvals itemized, then counted** | 32 distinct approvals listed per token; beyond that, counted, never dropped. At the caps, a listed satchel takes 8,558 of the 10,000 bytes its mint paid for | `sign_evm`, `MAX_APPROVALS`, `MINT_DEPOSIT` in [`lib.rs`](contracts/satchel/src/lib.rs) | `approvals_beyond_the_cap_are_counted_not_dropped`, `erc721_approvals_of_two_token_ids_stay_two_rows`, `a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit` |
 | **Owner only; listing freezes signing** | Only the current owner signs, with 1 yoctoNEAR and at least 50 TGas, and never while listed | `assert_can_sign` in [`lib.rs`](contracts/satchel/src/lib.rs) | `sign_evm_refuses_a_non_owner`, `sign_evm_is_frozen_while_listed`, `sign_raw_is_frozen_while_listed`, `the_previous_owner_cannot_sign_after_a_transfer`, `the_seller_cannot_sign_while_their_payment_is_in_flight` |
 | **`buy` pins what the buyer checked** | The record version and the price must be the ones the buyer names | `buy` in [`lib.rs`](contracts/satchel/src/lib.rs) | `buy_refuses_a_stale_record_version`, `buy_refuses_after_the_seller_delists_signs_and_relists`, `buy_refuses_a_changed_price` |
-| **Any transfer ends the listing** | `nft_transfer`, `nft_transfer_call` and a bounced transfer each void the listing | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer` in [`lib.rs`](contracts/satchel/src/lib.rs) | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `a_bounced_transfer_call_voids_the_receivers_listing` |
+| **Any transfer ends the listing** | `nft_transfer`, `nft_transfer_call` and a bounced transfer each void the listing, and only the owner can transfer | `nft_transfer`, `nft_transfer_call`, `nft_resolve_transfer` in [`lib.rs`](contracts/satchel/src/lib.rs) | `nft_transfer_ends_the_listing_and_moves_signing_rights`, `a_transfer_cancels_the_sale`, `nft_transfer_call_ends_the_sellers_listing`, `a_bounced_transfer_call_voids_the_receivers_listing`, `a_non_owner_cannot_nft_transfer_the_token` |
 | **A fixed chain list** | Only the 16 chain ids in `SUPPORTED_CHAINS` can be signed for, so every record is checkable | `SUPPORTED_CHAINS` in [`evm.rs`](contracts/satchel/src/evm.rs) | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
 | **The four checks** | Each chain read at a finalized block; anything unreadable is "unknown", never a pass | `contractCheck`, `pendingCheck`, `approvalsCheck`, `countersCheck` in [`report.ts`](packages/satchel-nft/src/report.ts), [`approvals.ts`](packages/satchel-nft/src/approvals.ts) | [`report.test.ts`](packages/satchel-nft/src/report.test.ts), [`approvals.test.ts`](packages/satchel-nft/src/approvals.test.ts) |
 | **App and CLI guards** | No address and no signature until the network's contract passes check 1; only this network's contract, from an account on this network; no transfer to an account that doesn't exist | `assertDeployment`, `assertTxFor`, `assertReceiver` in [`guard.ts`](packages/satchel-nft/src/guard.ts) | [`guard.test.ts`](packages/satchel-nft/src/guard.test.ts) |
@@ -1382,7 +1382,7 @@ all of this with the near CLI's key, checking each step
 
 | Path | What it holds |
 | --- | --- |
-| [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 61 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
+| [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 222 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 81 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
@@ -1411,7 +1411,7 @@ package and the web app: Node.js 22 or later (CI uses 22 for the package, 24 for
 
 ```bash
 cd contracts/satchel
-cargo test                                   # 61 unit tests
+cargo test                                   # 64 unit tests
 cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
@@ -1440,7 +1440,7 @@ three workflows directly, each when its paths change.
 | Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 
-The tests, as of 2026-11-11: 61 Rust unit tests in
+The tests, as of 2026-11-11: 64 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 222 package tests in 17 files: `clean.test.ts` 31, `evm.test.ts` 26,
 `dao.test.ts` 25, `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13,
 `history.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
@@ -1465,9 +1465,17 @@ What the tests pin down:
   `multicall` is counted as unclassified; a safe transfer with data, an ERC-1155 transfer of 0 and
   a batch transfer are unclassified; revocations never take an approval slot; a seller who delists,
   signs and relists cannot complete a sale against the version the buyer checked; a bounced
-  `nft_transfer_call` voids the listing the receiver made while holding the token; a previous owner
-  cannot sign after a transfer; a sale while the seller's send waits on the MPC network leaves that
-  send on the record the buyer bought, and the seller is refused while their payment is on its way.
+  `nft_transfer_call` voids the listing the receiver made while holding the token, and any
+  `nft_transfer_call` removes the seller's own listing; a non-owner's `nft_transfer` is refused; a
+  previous owner cannot sign after a transfer; a sale while the seller's send waits on the MPC
+  network leaves that send on the record the buyer bought, and the seller is refused while their
+  payment is on its way.
+- **Storage at the caps.** A satchel with a 20-digit id, owned by a 64-character account, signed
+  for on all 16 chains, with 32 Permit2 rows (the longest kind) and a listing, takes 8,558 of the
+  10,000 bytes its 0.1 NEAR mint paid for, counted the way the NEAR runtime counts storage (key,
+  value and 40 bytes per entry); signing past the caps adds none
+  (`a_record_at_the_caps_and_its_listing_fit_in_the_mint_deposit`; add `-- --nocapture` to
+  `cargo test` to see the numbers).
 - **The web app's own rules:** the address derivation and the full signing round trip against the
   real `sign_evm` result from the end-to-end run (same hash, same signer, same raw transaction byte
   for byte), each check and the verdict order, every approval kind (a cleared ERC-721 approval
