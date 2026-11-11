@@ -385,7 +385,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
-- The README, AGENTS.md and the docs: 222 package tests in 17 files and 81 app tests, the threat
+- 1Click in the app: a history line for a swap 1Click calls `SUCCESS` links the payout's
+  transaction on the destination chain's explorer, the first EVM hash in its status's
+  `swapDetails.destinationChainTxHashes` (satchel #2's line links `0x417322bd…` on Arbiscan); a line
+  whose status names none, `REFUNDED` and `FAILED` included, still links 1Click's status. **Quote an
+  exit** has a slippage limit picker, 0.5 %, 1 % or 3 % (1 % by default, as before); `quoteRequest`
+  refuses any other value, `checkQuote` still refuses an answer that doesn't echo the limit asked or
+  whose minimum doesn't match it, and every request is still `dry: true`, with no deposit address
+  asked for or shown. Tests add a `REFUNDED` and a `FAILED` status for `swapLine` and `swapMarks`,
+  each 1Click's real status answer for satchel #2's deposit with the status changed and nothing
+  paid out, and a check against 1Click's real minimum in a dry quote at 300 bps: 86 app tests. The
+  README's DeFi track says why the schedule row is missing: each `sign_evm` needs 1 yoctoNEAR, which
+  a function-call key can't attach, so a keeper or bot could sign on a schedule only holding the
+  owner's full-access key.
+- The README, AGENTS.md and the docs: 222 package tests in 17 files and 86 app tests, the threat
   model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
   now that the app asks 1Click for dry quotes and shows its status: the dry-run row is met. The
   demo kit's 1:18 scene is Make it clean on testnet satchel #9, and its 1:42 scene is mainnet
