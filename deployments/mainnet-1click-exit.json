@@ -1,0 +1,221 @@
+{
+  "network": "mainnet",
+  "contract": "v1.satchel-nft.near",
+  "tokenId": "2",
+  "path": "satchel/2",
+  "owner": "satchel-nft.near",
+  "address": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+  "recordVersionBefore": "0",
+  "nonceBefore": 0,
+  "balanceBefore": {
+    "chainId": "8453",
+    "wei": "2600000000000000"
+  },
+  "route": {
+    "origin": {
+      "assetId": "nep141:base.omft.near",
+      "decimals": 18,
+      "blockchain": "base",
+      "symbol": "ETH",
+      "price": 2057.96,
+      "priceUpdatedAt": "2026-11-11T01:53:00.987Z",
+      "coingeckoId": "ethereum"
+    },
+    "destination": {
+      "assetId": "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near",
+      "decimals": 6,
+      "blockchain": "arb",
+      "symbol": "USDC",
+      "price": 0.999534,
+      "priceUpdatedAt": "2026-11-11T01:53:00.987Z",
+      "contractAddress": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+      "coingeckoId": "usd-coin"
+    }
+  },
+  "depositIsContract": false,
+  "quotedAt": "2026-11-11T01:53:48.571Z",
+  "quote": {
+    "quote": {
+      "amountIn": "2580000000000000",
+      "amountInFormatted": "0.00258",
+      "amountInUsd": "5.309536800000",
+      "minAmountIn": "2580000000000000",
+      "amountOut": "5285374",
+      "amountOutFormatted": "5.285374",
+      "amountOutUsd": "5.282911015716",
+      "minAmountOut": "5232520",
+      "timeEstimate": 34,
+      "refundFee": "560000000000",
+      "withdrawFee": "5300",
+      "deadline": "2026-11-14T02:53:46.734Z",
+      "timeWhenInactive": "2026-11-14T02:53:46.734Z",
+      "depositAddress": "0x588f8C4419974bC735Ac784B3dA41B44c42bb64b"
+    },
+    "quoteRequest": {
+      "dry": false,
+      "depositMode": "SIMPLE",
+      "swapType": "EXACT_INPUT",
+      "slippageTolerance": 100,
+      "originAsset": "nep141:base.omft.near",
+      "depositType": "ORIGIN_CHAIN",
+      "destinationAsset": "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near",
+      "amount": "2580000000000000",
+      "refundTo": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+      "refundType": "ORIGIN_CHAIN",
+      "recipient": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+      "recipientType": "DESTINATION_CHAIN",
+      "deadline": "2026-11-11T02:53:46.734Z",
+      "confidentiality": "public",
+      "referral": "satchel",
+      "quoteWaitingTimeMs": 0,
+      "insured": false,
+      "appFees": [
+        {
+          "recipient": "5880ad2b362620fadf759cbceb1cd5737ce8c6ed7fb8e9942881e6731f9247dd",
+          "fee": 20,
+          "limitOrderId": null
+        }
+      ]
+    },
+    "signature": "ed25519:33QGmuQSyx11gMbect8krrCusihtfVsDgNHRTqzyCW1HQe3AotxvyqUkisGd8xbTJ7rxugDS5qutLmTNnBS8d1ZT",
+    "timestamp": "2026-11-11T01:53:49.801Z",
+    "correlationId": "fb326e1a-83c7-42c1-b543-11c34811f3ba"
+  },
+  "deposit": {
+    "chainId": "8453",
+    "tx": "0x2d9b1a1c1b25c4443390af46dd176af24b93ebbb9e59d602bec76d585b607d74",
+    "nonce": "0",
+    "block": "55860595",
+    "feeWei": "126456114997",
+    "nearTx": "FnFSMSh1dpjkYC6fMT2aSgvFNYUjyuc6xVLGAymcupEA",
+    "nearSigner": "satchel-nft.near",
+    "nearBlockHash": "Gd6tP7TzLDwnVKZ2Ur3epU6mxvm9PaEncybv6gusq9kR"
+  },
+  "status": {
+    "status": "SUCCESS",
+    "updatedAt": "2026-11-11T02:01:58.000Z",
+    "correlationId": "7bc624a7-ee2a-443a-b766-567da4645ae7",
+    "swapDetails": {
+      "depositedAmount": "2580000000000000",
+      "depositedAmountUsd": "5.293463400000",
+      "depositedAmountFormatted": "0.00258",
+      "intentHashes": [
+        "GbWoaJXT4YEWVDKbRQAmipaZGR7YRJf4EHd6WnHVYLYo",
+        "3Z7khb1LFFBmC9LKp7L9crW2wi4U8VKk6Ck3yL86j5c7"
+      ],
+      "nearTxHashes": [
+        "HnJYvejk1Nep7CkjhaJRgAGToE3K2oqthD1F4NpNVpp4",
+        "J8pzvGsqBUFJ8LZ1MhL9sCKBuimyhxh87zpCKeqxNdSS",
+        "8ocAGPDZ5aWTsgQGRozUUm2zZoN2o95k9Txz7QHyDUi7",
+        "H1CHqC76KifhFALRCc5dGXHTCwdKi3U3tdBNuYLwnNgu"
+      ],
+      "amountIn": "2580000000000000",
+      "amountInFormatted": "0.00258",
+      "amountInUsd": "5.293463400000",
+      "amountOut": "5280549",
+      "amountOutFormatted": "5.280549",
+      "amountOutUsd": "5.278014336480",
+      "slippage": 9,
+      "refundedAmount": "0",
+      "refundedAmountFormatted": "0",
+      "refundedAmountUsd": "0",
+      "refundReason": null,
+      "refundFee": "560000000000",
+      "withdrawFee": "5300",
+      "originChainTxHashes": [
+        {
+          "hash": "0x2d9b1a1c1b25c4443390af46dd176af24b93ebbb9e59d602bec76d585b607d74",
+          "explorerUrl": ""
+        }
+      ],
+      "destinationChainTxHashes": [
+        {
+          "hash": "0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209",
+          "explorerUrl": ""
+        }
+      ]
+    },
+    "quoteResponse": {
+      "timestamp": "2026-11-11T01:53:49.801Z",
+      "signature": "ed25519:33QGmuQSyx11gMbect8krrCusihtfVsDgNHRTqzyCW1HQe3AotxvyqUkisGd8xbTJ7rxugDS5qutLmTNnBS8d1ZT",
+      "quoteRequest": {
+        "dry": false,
+        "swapType": "EXACT_INPUT",
+        "depositMode": "SIMPLE",
+        "slippageTolerance": 100,
+        "originAsset": "nep141:base.omft.near",
+        "depositType": "ORIGIN_CHAIN",
+        "destinationAsset": "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near",
+        "amount": "2580000000000000",
+        "refundTo": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+        "refundType": "ORIGIN_CHAIN",
+        "recipient": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+        "recipientType": "DESTINATION_CHAIN",
+        "deadline": "2026-11-11T02:53:46.734Z",
+        "appFees": [
+          {
+            "limitOrderId": null,
+            "recipient": "5880ad2b362620fadf759cbceb1cd5737ce8c6ed7fb8e9942881e6731f9247dd",
+            "fee": 20
+          }
+        ],
+        "virtualChainRecipient": null,
+        "virtualChainRefundRecipient": null,
+        "referral": "satchel",
+        "confidentiality": "public"
+      },
+      "quote": {
+        "amountIn": "2580000000000000",
+        "amountInFormatted": "0.00258",
+        "amountInUsd": "5.309536800000",
+        "minAmountIn": "2580000000000000",
+        "amountOut": "5285374",
+        "amountOutFormatted": "5.285374",
+        "amountOutUsd": "5.282911015716",
+        "minAmountOut": "5232520",
+        "timeWhenInactive": "2026-11-14T02:53:46.734Z",
+        "depositAddress": "0x588f8C4419974bC735Ac784B3dA41B44c42bb64b",
+        "deadline": "2026-11-14T02:53:46.734Z",
+        "timeEstimate": 34,
+        "refundFee": "560000000000",
+        "withdrawFee": "5300"
+      }
+    }
+  },
+  "statusReadAt": "2026-11-11T02:02:18.778Z",
+  "arrival": {
+    "chainId": "42161",
+    "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "received": "5280549",
+    "txs": [
+      {
+        "hash": "0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209",
+        "block": "523152635",
+        "logIndex": 6,
+        "value": "5280549"
+      }
+    ]
+  },
+  "mint": {
+    "tx": "8NE2xLniZaPhbitfZiD2qww1P1nC1zqQQ3QBTCdjYo1d",
+    "block": "223999960",
+    "at": "2026-11-11T01:49:55Z"
+  },
+  "funded": {
+    "chainId": "8453",
+    "wei": "2600000000000000",
+    "tx": "0x9c786eab80d294e8bb674b14ae68df64cd7b47f74a3597873e6d83a04d2c4703",
+    "block": "55857953",
+    "at": "2026-11-11T01:52:46Z"
+  },
+  "verified": {
+    "command": "npx -y satchel-nft@0.2.0 verify --network mainnet 2",
+    "result": "PROVABLY CLEAN",
+    "checkedAt": "2026-11-11T02:18:23.291Z",
+    "pending": "Base: signed up to nonce 0, finalized nonce is 1",
+    "readFrom": [
+      "https://rpc.mainnet.fastnear.com",
+      "https://base-rpc.publicnode.com"
+    ]
+  }
+}

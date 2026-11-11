@@ -117,6 +117,12 @@ It is signed, and the record counts it as an unclassified call. That count never
 satchel can't read as provably clean again, for you or any later owner.
 [The signing record](/docs/concepts/signing-record) lists what the contract can classify.
 
+A swap through a DEX router is such a call. A swap through NEAR Intents' 1Click is not: the satchel
+sends the coin or the token, as a plain transfer, to the deposit address 1Click quotes, and 1Click
+pays the output to the address the quote names. Mainnet satchel #2 swapped ETH on Base for USDC on
+Arbitrum One this way and still reads clean. The output, or a refund, arrives only if 1Click's
+system sends it, and the report doesn't count it while it is in flight.
+
 ## Fees and costs
 
 ### What does it cost?
