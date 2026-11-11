@@ -50,7 +50,7 @@ type Tone = "ok" | "warn" | "bad";
 const TONE_TEXT: Record<Tone, string> = { ok: "text-ok", warn: "text-warn", bad: "text-bad" };
 
 /** Real output, trimmed to the check titles and the pending line (0.1.0 on 2026-11-09; 0.2.0 printed the same on 2026-11-10). */
-const VERIFY_OUTPUT = `$ npx satchel-nft@0.2.0 verify 5
+const VERIFY_OUTPUT = `$ npx -y satchel-nft@0.2.0 verify 5
 Satchel #5 on v1.satchel-nft.testnet (testnet)
 owner satchel-nft.testnet, address 0x81149BF1C907579A150e9AB882E951B648853dA3, record version 1
 
@@ -78,7 +78,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
     a: (
       <>
         You don't have to. It runs in your browser against public RPCs and names every one it read. In a terminal,{" "}
-        <code className="font-mono text-[0.9em]">npx satchel-nft verify</code> does the same and takes your own nodes through{" "}
+        <code className="font-mono text-[0.9em]">npx -y satchel-nft@0.2.0 verify</code> does the same and takes your own nodes through{" "}
         <code className="font-mono text-[0.9em]">NEAR_RPC</code> and <code className="font-mono text-[0.9em]">RPC_&lt;chain id&gt;</code>.
       </>
     ),
@@ -145,6 +145,10 @@ export default function Home() {
                 These examples are on testnet; Satchel is also{" "}
                 <a href="/mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
                   live on mainnet
+                </a>
+                , where{" "}
+                <a href="/mainnet#showcase" className="underline decoration-line underline-offset-2 hover:text-ink">
+                  two satchels have sent real ETH
                 </a>
                 . Not audited. Reading a report needs no wallet.
               </p>
@@ -238,7 +242,7 @@ export default function Home() {
               ))}
             </ol>
             <div>
-              <pre className="rounded-xl border border-paper/15 bg-black/40 p-5 font-mono text-xs leading-relaxed whitespace-pre-wrap text-paper-2">
+              <pre className="rounded-xl border border-paper/15 bg-black/40 p-5 font-mono text-xs leading-relaxed whitespace-pre-wrap text-paper-2 [overflow-wrap:anywhere]">
                 {VERIFY_OUTPUT.split("\n").map((line, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: a fixed text whose lines can repeat
                   <span key={i} className={`block min-h-[1lh] ${line.startsWith("[FAIL]") || line === "NOT PROVABLE" ? "text-[#f0997b]" : ""}`}>
@@ -288,7 +292,7 @@ export default function Home() {
                 The same report as the browser, from npm with Node 22 or later, and your own nodes if you want them.
               </p>
               <div className="mt-4">
-                <Code>{"npx satchel-nft@0.2.0 verify 6"}</Code>
+                <Code>{"npx -y satchel-nft@0.2.0 verify 6"}</Code>
               </div>
             </div>
             <div className="rounded-2xl border border-line bg-card p-6">

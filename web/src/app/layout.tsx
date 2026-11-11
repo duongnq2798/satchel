@@ -16,7 +16,15 @@ export const metadata: Metadata = {
   title: { default: "Satchel: an NFT that is one wallet on 16 EVM chains", template: "%s · Satchel" },
   description:
     "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Sell the NFT and the wallet moves with it; a public signing record proves what the seller could have kept back.",
-  icons: { icon: "/icon.svg" },
+  // With icons set here, Next.js links no icon file by itself: apple-icon.png beside this file is named
+  // here. favicon.ico is the one it always links.
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
+  // A share card for every page. Its title and description are left out on purpose: Next.js then fills
+  // og:title, og:description and the X card's from each page's own title and description, where these
+  // would stand for every page. "./" is the page's own address. The image is opengraph-image.png and
+  // twitter-image.png beside this file, with no verdict on it, since X keeps a card for days.
+  openGraph: { siteName: "Satchel", type: "website", locale: "en_US", url: "./" },
+  twitter: { card: "summary_large_image" },
 };
 
 /** `follow` links go to the same page on the network on screen; the rest go where they say. */
@@ -60,9 +68,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen">
         <NetworkProvider>
           <WalletProvider>
+            <a
+              href="#main"
+              className="sr-only rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+            >
+              Skip to content
+            </a>
             <NetworkBanner />
             <SiteHeader />
-            <main className="mx-auto max-w-(--page-max) px-4 py-10">{children}</main>
+            <main id="main" className="mx-auto max-w-(--page-max) scroll-mt-20 px-4 py-10">
+              {children}
+            </main>
             <footer className="mt-16 border-t border-line bg-paper-2">
               <div className="mx-auto grid max-w-(--page-max) gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>

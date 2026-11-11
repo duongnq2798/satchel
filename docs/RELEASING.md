@@ -92,11 +92,11 @@ git grep -n -i -e '0\.1\.0' -e '728ed74' -e '599980b6' -e 'on npm yet' -e 'next 
 ```
 
 These stay as they are: the contract's own version in `contracts/`, the MPC derivation's
-`near-mpc-recovery v0.1.0`, the run records in `deployments/`, the CHANGELOG's history, and
-everything in `packages/satchel-nft`. The package's README and code go into the tarball, so
-changing them after the publish would make this repository's 0.2.0 differ from npm's: they change
-with the next version. That includes the handover kit (`packages/satchel-nft/src/kit.ts`), which
-keeps `satchel-nft@0.1.0`, a release that has every command it prints.
+`near-mpc-recovery v0.1.0`, the run records in `deployments/`, and the CHANGELOG's history.
+`packages/satchel-nft` is left out of the searches: its README and code go into the next tarball,
+and every change to them after a publish is listed under Unreleased in the CHANGELOG until that
+version is out. Since 0.2.0, the handover kit (`packages/satchel-nft/src/kit.ts`) pins
+`satchel-nft@0.2.0`, a release that has every command it prints; npm's 0.2.0 still pins 0.1.0.
 
 - Every `satchel-nft@0.1.0` command becomes `satchel-nft@0.2.0`: the README, AGENTS.md,
   `docs/DEMO.md`, the docs under `web/content/docs`, the app's own pages (`web/src/app/page.tsx`,

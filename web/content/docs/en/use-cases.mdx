@@ -99,6 +99,28 @@ node scripts/check-claims.mjs
 
 **Read next:** [Check every claim](/docs/security/check-every-claim), [Security model](/docs/security).
 
+## Pass on a payee, a team's address or an estate
+
+**Who:** a creator or a project whose address a contract has fixed as its payee; a team or a DAO
+whose address must outlast the person who holds it; someone planning who controls an address after them.
+
+**How:**
+
+- **A payee that can't be changed.** Make the satchel's address the payee where the paying contract
+  fixes it for good, such as a royalty receiver its NFT contract can't change. Income paid to the
+  address keeps landing there for whoever holds the satchel, so selling the satchel sells the stream.
+  Where the payee can be changed, whoever controls the paying contract can still redirect it, and the
+  record can't see that.
+- **Offboarding.** See [Hand control of an address to someone else](#hand-control-of-an-address-to-someone-else).
+- **Inheritance through a DAO.** Have a Sputnik DAO, with the heirs on its council, own the satchel; a
+  vote hands it on. Satchel has no check-ins, timers or waiting period: the DAO's policy is the whole
+  plan, and a council that can no longer pass a vote leaves the satchel stuck. Heirs with enough votes
+  can hand it to themselves at any time; nothing waits for the owner to be gone. A Sputnik DAO owned
+  testnet satchel #8, and a vote handed it on.
+
+**Read next:** [A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel),
+[Transfer a satchel](/docs/guides/transfer), [When something fails](/docs/security#when-something-fails).
+
 ## When Satchel is the wrong tool
 
 Satchel proves what a key signed, and only for some kinds of signatures. Be clear about these before
@@ -113,6 +135,9 @@ you build on it or put value in it.
 | **A new chain** | The 16 chain ids are fixed for the life of the contract. There is no admin to add one; it would take a new contract |
 | **More than 32 distinct approvals** | They are counted, not itemized, and the report fails. The limit is per token and permanent |
 | **An audited system** | Satchel is not audited. It is live on mainnet, where a satchel's address holds real funds: keep in one only what you can afford to lose |
+| **Funds that are clean in the AML sense** | <Verdict v="clean" /> means nothing the seller can still sign. It says nothing about where the funds came from. Every sale through `buy` is public on NEAR: its `sale` event names the seller, the buyer, the price and the record version. A satchel handed over with `nft_transfer` shows both accounts, but no price |
+| **Selling what a person earned** | Airdrop eligibility, a reputation score or an identity check is bound to a person. The protocol that granted it may forbid the sale, and anyone can list every satchel's address to exclude them |
+| **A way back into a lost NEAR account** | Satchel can't recover a key. Whoever controls the account that owns a satchel controls it; with no key, nothing can sign for it, list it or transfer it. Keep a second full-access key on that account, or have a DAO own the satchel |
 
 <Callout type="danger" title="Testnet satchels and real funds">
 A testnet satchel's address is a valid address on mainnet chains too, but NEAR's testnet MPC network
