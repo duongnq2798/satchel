@@ -62,10 +62,17 @@ export function FixPanel({
       ? report
       : undefined;
   // Sends from this card that reached sign_evm, counted as each one returns. Each read keeps the count
-  // it began at, since one that returns later may have been signed after it read the chains.
+  // it began at, then reads the record itself: the page's can predate a send that returned since, and a
+  // send that returns later may have been signed after the read. fixPlan refuses a record newer than
+  // the report's.
   const [signed, setSigned] = useState(0);
   const read = useAsync(
-    async () => (about ? { at: signed, inputs: await readFixInputs(about, token.record) } : null),
+    async () => {
+      if (!about) return null;
+      const at = signed;
+      const record = (await satchel(net).get(token.token_id))?.record ?? token.record;
+      return { at, inputs: await readFixInputs(about, record) };
+    },
     `${net.id}:${token.token_id}:${about?.checkedAt ?? "none"}:${token.record.version}`,
   );
   const plan = useMemo(() => (read.data ? fixPlan(read.data.inputs) : null), [read.data]);
@@ -96,8 +103,10 @@ export function FixPanel({
   // Not while a new read is on its way: the plan on screen may be the one before the last fix. Not
   // while the page shows a listing either, even one the report didn't see: a listed satchel can't sign.
   const canClick = owner && !frozen && !token.listing && plan?.canSend === true && !read.loading && !earlier;
-  // A fix whose receipt wait failed after its broadcast still went out: offer Check again for it too.
+  // A fix whose receipt wait failed after its broadcast still went out: offer Check again for it too,
+  // and after any other error, whose text may ask for it.
   const broadcast = sender.result !== null || (sender.step === "confirm" && sender.error !== null);
+  const recheck = !sender.busy && (broadcast || earlier || sender.error !== null);
 
   async function fix(action: FixAction, key: string) {
     // One at a time: a second click while one runs would only move the spinner (the lock refuses it).
@@ -204,7 +213,7 @@ export function FixPanel({
           </>
         )}
         <SendSteps sender={sender} />
-        {(broadcast || (earlier && !sender.busy)) && (
+        {recheck && (
           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
             <Button variant="primary" onClick={onRecheck}>
               Check again
