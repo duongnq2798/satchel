@@ -146,6 +146,10 @@ export default function Home() {
                 <a href="/mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
                   live on mainnet
                 </a>
+                , where{" "}
+                <a href="/mainnet#showcase" className="underline decoration-line underline-offset-2 hover:text-ink">
+                  two satchels have sent real ETH
+                </a>
                 . Not audited. Reading a report needs no wallet.
               </p>
             </div>

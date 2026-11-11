@@ -72,21 +72,33 @@ export function Mono({ children, className = "" }: { children: ReactNode; classN
   return <span className={`font-mono text-[0.92em] break-all ${className}`}>{children}</span>;
 }
 
-export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
+/** A grey block where text will be, so the page keeps its shape while it loads. */
+export function Placeholder({ className = "" }: { className?: string }) {
+  return <div aria-hidden="true" className={`rounded-lg bg-paper-2 motion-safe:animate-pulse ${className}`} />;
+}
+
+/** `name` is what a screen reader calls the button while it shows `label`; it starts with `label`'s words. */
+export function CopyButton({ value, label = "Copy", name }: { value: string; label?: string; name?: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  const show = (next: "copied" | "failed") => {
+    setState(next);
+    setTimeout(() => setState("idle"), 1500);
+  };
   return (
-    <button
-      type="button"
-      onClick={() =>
-        navigator.clipboard.writeText(value).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        })
-      }
-      className="shrink-0 rounded-full border border-line px-3 py-1 text-xs text-ink-2 transition hover:border-ink"
-    >
-      {copied ? "Copied" : label}
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label={state === "idle" ? name : undefined}
+        onClick={() => navigator.clipboard.writeText(value).then(() => show("copied"), () => show("failed"))}
+        className="shrink-0 rounded-full border border-line px-3 py-1 text-xs text-ink-2 transition hover:border-ink"
+      >
+        {state === "copied" ? "Copied" : state === "failed" ? "Couldn't copy" : label}
+      </button>
+      {/* Always in the page, so a screen reader hears the change. */}
+      <span role="status" className="sr-only">
+        {state === "copied" ? "Copied to the clipboard" : state === "failed" ? "Couldn't copy to the clipboard" : ""}
+      </span>
+    </>
   );
 }
 
@@ -105,7 +117,11 @@ export function errorMessage(error: unknown): string {
 export function ErrorNote({ error }: { error: unknown }) {
   if (error === null || error === undefined) return null;
   const message = errorMessage(error);
-  return <p className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">{message}</p>;
+  return (
+    <p role="alert" className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
+      {message}
+    </p>
+  );
 }
 
 export function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
