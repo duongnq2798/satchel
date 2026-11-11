@@ -19,6 +19,7 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import { formatEther, getAddress, isAddress, parseEther } from "viem";
 
 const {
@@ -60,7 +61,32 @@ const TERMINAL = new Set(["SUCCESS", "REFUNDED", "FAILED"]);
 const TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const DEAD = "0x000000000000000000000000000000000000dEaD";
 
-const [command, first] = process.argv.slice(2);
+/** The flags each command takes, and how many arguments: anything else is refused before any request. */
+const USAGE = {
+  plan: { flags: ["amount", "out"], args: 1 },
+  quote: { flags: ["amount", "out", "replace"], args: 1 },
+  ready: { flags: ["out"], args: 0 },
+  submit: { flags: ["near-tx", "out"], args: 1 },
+  status: { flags: ["wait", "out"], args: 0 },
+};
+let parsed = { values: {}, positionals: [] };
+let argError = null;
+try {
+  parsed = parseArgs({
+    strict: true,
+    allowPositionals: true,
+    options: {
+      amount: { type: "string" },
+      out: { type: "string" },
+      "near-tx": { type: "string" },
+      replace: { type: "boolean" },
+      wait: { type: "boolean" },
+    },
+  });
+} catch (err) {
+  argError = err.message;
+}
+const [command, first] = parsed.positionals;
 const OUT = arg("--out") ?? fileURLToPath(new URL("../deployments/mainnet-1click-exit.json", import.meta.url));
 /** This script's command line for a next step, with the same --out. */
 const cmd = (rest) => {
@@ -69,9 +95,9 @@ const cmd = (rest) => {
 };
 
 function arg(name) {
-  const i = process.argv.indexOf(name);
-  return i === -1 ? null : process.argv[i + 1];
+  return parsed.values[name.slice(2)] ?? null;
 }
+const flag = (name) => parsed.values[name.slice(2)] === true;
 
 /** A refusal, printed with exit code 1. Thrown rather than process.exit, which can crash Node on Windows while sockets close. */
 class Stop extends Error {
@@ -306,7 +332,7 @@ async function quote(tokenId) {
         fail(`1Click reads ${now.status} for the saved quote's ${old.depositAddress}: don't send to it. Keep ${OUT}; move it before asking again.`);
       }
       await refuseIfSent(saved, "don't ask for a new quote");
-      if (Date.parse(old.deadline) > Date.now() && !process.argv.includes("--replace")) {
+      if (Date.parse(old.deadline) > Date.now() && !flag("--replace")) {
         fail(
           sendBy(saved.quote) - Date.now() > 2 * 60_000
             ? `${OUT} holds a quote for ${old.depositAddress} that 1Click still waits on. To use it: ${cmd("ready")}, then send. Pass --replace only if nothing was sent.`
@@ -392,8 +418,20 @@ async function submit(hash) {
     fail(`${hash} sends ${tx.value} wei from ${tx.from} to ${tx.to}, not ${q.amountIn} from the satchel to ${q.depositAddress}`);
   }
   const receipt = await base.waitForTransactionReceipt({ hash, timeout: 180_000 });
+  // viem follows a replacement at the same nonce and returns its receipt: the checks above were on this hash.
+  if (!same(receipt.transactionHash, hash)) {
+    fail(
+      `${hash} was replaced on Base by ${receipt.transactionHash} at nonce ${tx.nonce}, so nothing was saved. ` +
+        `If that one is the deposit: ${cmd(`submit ${receipt.transactionHash} --near-tx <its sign_evm hash>`)}`,
+    );
+  }
   if (receipt.status !== "success") fail(`${hash} reverted on Base`);
+  if (saved.deposit && !same(saved.deposit.tx, hash)) {
+    fail(`the deposit ${saved.deposit.tx} is already saved and ${hash} is a second one to the same address: nothing was saved. Run ${cmd("status")}.`);
+  }
+  // Submitting again without --near-tx keeps the sign_evm saved the first time.
   let near = {};
+  if (saved.deposit?.nearTx) near = { nearTx: saved.deposit.nearTx, nearSigner: saved.deposit.nearSigner, nearBlockHash: saved.deposit.nearBlockHash };
   if (nearTx !== null) {
     // Saved only if it is the sign_evm that built this very transaction for this satchel.
     const t = await readTxStatus(MAINNET, nearTx);
@@ -463,7 +501,7 @@ async function arrival(saved, details) {
 async function status() {
   const saved = readSaved();
   const q = saved.quote.quote;
-  const wait = process.argv.includes("--wait");
+  const wait = flag("--wait");
   const until = Math.max(Date.now() + 45 * 60_000, Date.parse(saved.quote.quoteRequest.deadline) + 30 * 60_000);
   let now;
   let shown = null;
@@ -510,6 +548,15 @@ async function status() {
 }
 
 try {
+  if (argError !== null) fail(argError);
+  const usage = Object.hasOwn(USAGE, command ?? "") ? USAGE[command] : null;
+  if (usage !== null) {
+    const extra = Object.keys(parsed.values).filter((k) => !usage.flags.includes(k));
+    if (extra.length > 0) fail(`${command} doesn't take ${extra.map((k) => `--${k}`).join(", ")}`);
+    if (parsed.positionals.length > 1 + usage.args) fail(`${command} takes ${usage.args === 0 ? "no argument" : "one argument"}, not ${parsed.positionals.slice(1).join(" ")}`);
+  }
+  const amount = arg("--amount");
+  if (amount !== null && !/^\d+(\.\d{1,18})?$/.test(amount)) fail(`--amount ${amount} is not an amount of ETH like 0.0025`);
   if (chainInfo(BASE)?.name !== "Base" || chainInfo(ARBITRUM)?.name !== "Arbitrum One") fail("the package's chain list changed");
   if (command === "plan") await plan(first);
   else if (command === "quote") await quote(first);
