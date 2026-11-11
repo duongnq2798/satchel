@@ -8,6 +8,7 @@ import { Contents } from "./contents";
 import { DeploymentNote, useDeployment } from "./deployment";
 import { History } from "./history";
 import { useNetwork } from "./network";
+import { QuotePanel } from "./quote-panel";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale, checkedListing } from "./sale-panel";
 import { SendPanel } from "./send-panel";
@@ -127,6 +128,9 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           </div>
         )}
       </Card>
+
+      {/* A dry 1Click quote for what the satchel holds, once the contract passed check 1. A refresh closes it, so it reads the balances again. */}
+      {deployment.data && <QuotePanel key={refresh} address={address} />}
 
       <div id="report" className="scroll-mt-24">
         <ReportCard

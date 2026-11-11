@@ -106,6 +106,12 @@ export const DOCS: DocSection[] = [
         description: "Send native coins or a contract call from a satchel's address, with every check the app runs before it broadcasts.",
       },
       {
+        slug: "guides/quote-an-exit",
+        title: "Quote an exit through 1Click",
+        nav: "Quote an exit",
+        description: "Ask NEAR Intents' 1Click for a dry quote of what a mainnet satchel holds, paid and refunded to the satchel itself. No wallet, and nothing is sent.",
+      },
+      {
         slug: "guides/sell",
         title: "Sell a satchel",
         description: "Get a satchel to read provably clean, list it, and what a buyer sees. Includes how to recover from each failing check.",

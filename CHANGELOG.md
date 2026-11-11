@@ -6,6 +6,30 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Quote an exit: a dry 1Click quote on every mainnet satchel's page, with no wallet. Its panel,
+  under the address, reads what the satchel holds of the native coin, USDC and USDT on the 7
+  mainnets 1Click serves (not Aurora) and 1Click's `/v0/tokens`, which gives each asset id by
+  blockchain and contract address (entries marked "(DEPRECATED)" left out), then posts a dry
+  `EXACT_INPUT` quote to `/v0/quote` with the satchel's own address as `recipient` and `refundTo`
+  and a destination on one of its own mainnets. The origin defaults to the largest holding at
+  1Click's prices, the destination to ETH on Base. `QuoteRequest` in `web/src/lib/oneclick.ts`
+  holds `dry: true` and no other value, `dryQuote` refuses any other, and the app never asks for a
+  deposit address or shows one. `checkQuote` refuses an answer that doesn't echo the assets, amount,
+  recipient, refund address, slippage and deadline asked for, or that carries a deposit address, and
+  the panel shows the amount out, the minimum after 1 % slippage, the sum of the quote's `appFees`
+  and 1Click's time estimate, and 1Click's errors (a minimum, in the origin's units) as 1Click words
+  them. On testnet, which 1Click doesn't serve, the panel is a line that points to mainnet satchel
+  #2. On mainnet pages, a satchel's history asks `/v0/status` about the recipients of its latest 5
+  native-coin sends and marks a send whose recipient 1Click knows as a deposit address, from the
+  chain's native coin, in 1Click's words: satchel #2's Base send reads `1Click swap · SUCCESS ·
+  5.280549 USDC to this satchel on Arbitrum One`. Both are silent or contained when 1Click fails, and
+  the report reads neither. 35 tests with 1Click's real answers of 2026-11-11 as fixtures (a dry quote
+  for satchel #2's USDC, the status of its swap's deposit address, and `/v0/tokens` on the 7 chains).
+  The guide [Quote an exit through 1Click](https://satchelnft.xyz/docs/guides/quote-an-exit) has the
+  request, the checks, the fees seen that day (20 bps of `appFees` on most routes, 1 bp on some
+  stablecoin routes) and a `curl` to read them again; the FAQ answers whether the app swaps (it quotes),
+  and the README says what a real swap still takes: a deposit address from a quote that isn't dry,
+  which the app never asks for.
 - A swap through NEAR Intents' 1Click that keeps a satchel provably clean, run once on mainnet.
   `tools/oneclick-exit.mjs` asks 1Click for an `EXACT_INPUT` quote from ETH on Base to USDC on
   Arbitrum One with the satchel's own address as `recipient` and `refundTo`, checks that 1Click
