@@ -120,8 +120,18 @@ satchel can't read as provably clean again, for you or any later owner.
 A swap through a DEX router is such a call. A swap through NEAR Intents' 1Click is not: the satchel
 sends the coin or the token, as a plain transfer, to the deposit address 1Click quotes, and 1Click
 pays the output to the address the quote names. Mainnet satchel #2 swapped ETH on Base for USDC on
-Arbitrum One this way and still reads clean. The output, or a refund, arrives only if 1Click's
-system sends it, and the report doesn't count it while it is in flight.
+Arbitrum One this way and still reads clean. The output, or a refund, depends on 1Click's system
+sending it, and the report doesn't count it while it is in flight.
+
+### Can the app swap a satchel's coins through 1Click?
+
+It quotes; it doesn't swap. On a mainnet satchel's page, **Quote an exit** asks 1Click for a dry
+quote of what the satchel holds, with no wallet, and with the satchel as the recipient and the refund
+address. A dry quote has no deposit address, and nothing is sent. A swap needs the deposit address of
+a quote that isn't dry, which the app never asks for: satchel #2's came from `tools/oneclick-exit.mjs`,
+and its deposit went out from the Send panel. The satchel's history marks that send with 1Click's
+status for it. 1Click has no testnet. [Quote an exit](/docs/guides/quote-an-exit) has the details,
+and the fee each quote carries.
 
 ## Fees and costs
 

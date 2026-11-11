@@ -60,6 +60,11 @@ transaction on testnet that shows it working.
   deployment list names; `contents.ts` gives each source. A
   token at any other address, a look-alike included, isn't shown; each chain's explorer, linked
   from the page, shows everything. Nothing in the report depends on these balances.
+- **NEAR Intents' 1Click, for the quote panel and the history's swap lines (mainnet).** The app asks
+  `https://1click.chaindefuser.com` for `/v0/tokens`, dry `/v0/quote` and `/v0/status` from the
+  browser. It shows the answers as 1Click's word, refuses a quote that doesn't echo what was asked
+  (`checkQuote` in `web/src/lib/oneclick.ts`), and never asks for a deposit address. The report reads
+  none of it.
 - **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**
   Version 0.2.0 was published on 2026-11-10 from the owner's npm account and a clean Windows clone
   of commit `2dd4209`, which npm records as its `gitHead`, without npm provenance. Packing that

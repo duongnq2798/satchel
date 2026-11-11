@@ -1,0 +1,150 @@
+A mainnet satchel's page has a **Quote an exit** panel under its address. It asks NEAR Intents' 1Click
+API what the satchel's coins would swap for, from your browser, with no wallet. The quote is dry:
+1Click's answer has no deposit address, and the app signs and sends nothing. It is a dry run of the
+swap that [mainnet satchel #2](/mainnet/satchel/2) made for real.
+
+<Callout type="note" title="Nothing is sent">
+Every quote the app asks for has `dry: true`. Its request type in `web/src/lib/oneclick.ts` can't hold
+any other value, and the function that posts it refuses one that does. A swap needs a deposit address,
+which a dry quote doesn't have: see [what a real swap takes](#what-a-real-swap-takes).
+</Callout>
+
+## What you need
+
+- A mainnet satchel's page, `/mainnet/satchel/<id>`. 1Click has no testnet, so on a testnet satchel's
+  page the panel is one line that points to [mainnet satchel #2](/mainnet/satchel/2).
+- Nothing else: no wallet, no NEAR account and no API key. 1Click answers the browser directly.
+
+## Get a quote
+
+<Steps>
+
+1. **Open the satchel's page** and find **Quote an exit**, under the address and what's inside.
+
+2. **Click Quote an exit.** The panel reads the satchel's balances on the 7 mainnets 1Click serves
+   (Ethereum, Base, Arbitrum One, OP Mainnet, Polygon, BNB Chain and Avalanche; 1Click doesn't serve
+   Aurora) and 1Click's token list, `GET /v0/tokens`. Nothing is quoted yet.
+
+3. **Pick what to quote.**
+
+   | Field | What it offers |
+   | --- | --- |
+   | From | What the satchel holds of the native coin, USDC and USDT on those chains, where 1Click lists it. The largest holding at 1Click's prices comes up by default |
+   | To | The native coin, USDC or USDT on the satchel's own mainnets, so the output would land at an address the contract signs for. ETH on Base by default, or USDC on Arbitrum One when ETH on Base goes in |
+   | Amount | The whole holding by default. You can quote less, not more |
+
+4. **Click Get a quote.** The panel posts the dry request to `POST /v0/quote`, checks the answer, and
+   shows it:
+
+   | Line | What it is |
+   | --- | --- |
+   | In | The amount quoted, and its value at 1Click's prices |
+   | Out | What 1Click quotes to deliver |
+   | At least | The quote's minimum, after 1 % slippage |
+   | Fees | The sum of the quote's `appFees`, in basis points, and the withdrawal fee 1Click already took off the output |
+   | Time | 1Click's estimate, in seconds after it sees a deposit |
+
+</Steps>
+
+Under the form, **Recipient and refund: this satchel's address** names the address the quote pays
+and refunds: what would come out, and any refund, lands back in the satchel.
+
+## Satchel #2's quote on 2026-11-11
+
+Mainnet satchel #2 holds the 5.280549 USDC on Arbitrum One that its swap delivered, and some ETH dust
+on Base. For its USDC to ETH on Base, the panel builds this request:
+
+```json title="POST https://1click.chaindefuser.com/v0/quote"
+{
+  "dry": true,
+  "swapType": "EXACT_INPUT",
+  "slippageTolerance": 100,
+  "originAsset": "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near",
+  "depositType": "ORIGIN_CHAIN",
+  "destinationAsset": "nep141:base.omft.near",
+  "amount": "5280549",
+  "recipient": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+  "recipientType": "DESTINATION_CHAIN",
+  "refundTo": "0xf5383275EFedde8B90F59de8E8D15b1E23B4965f",
+  "refundType": "ORIGIN_CHAIN",
+  "deadline": "2026-11-11T07:47:20.024Z",
+  "referral": "satchel"
+}
+```
+
+On 2026-11-11 at 06:47 UTC, 1Click quoted 0.002562013507100062 ETH on Base, at least
+0.002536393372029061, with 20 bps in `appFees` and a time estimate of 27 s. Its answer is saved in
+`web/src/lib/__fixtures__/oneclick-quote-2.json`, and the app's tests check the panel's code against
+it. Prices move, so a quote today differs.
+
+**The fee is the one in the quote.** On 2026-11-11, dry quotes without an API key carried 20 bps
+of `appFees` on most routes, and 1 bp on some stablecoin routes (USDC on Arbitrum One to USDC on
+Base, or to USDT on BNB Chain); 1Click's docs say 25 bps. The panel shows the sum of the quote's
+`appFees`, whatever it is. To see it yourself, post the
+request above with a deadline in the future:
+
+```bash
+curl -s -X POST https://1click.chaindefuser.com/v0/quote -H 'content-type: application/json' -d '{"dry":true,"swapType":"EXACT_INPUT","slippageTolerance":100,"originAsset":"nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near","depositType":"ORIGIN_CHAIN","destinationAsset":"nep141:base.omft.near","amount":"5280549","recipient":"0xf5383275EFedde8B90F59de8E8D15b1E23B4965f","recipientType":"DESTINATION_CHAIN","refundTo":"0xf5383275EFedde8B90F59de8E8D15b1E23B4965f","refundType":"ORIGIN_CHAIN","deadline":"2030-01-01T00:00:00.000Z","referral":"satchel"}'
+```
+
+## What the panel checks
+
+Each asset id comes from 1Click's token list, matched by blockchain and contract address (or by having
+none, for a native coin); the app never writes one by hand. 1Click lists some coins twice, once with
+"(DEPRECATED)" in the symbol, and the panel leaves those out.
+
+Before it shows an answer, the panel refuses one that isn't the quote it asked for (`checkQuote`):
+
+- 1Click must echo `dry: true` and the same swap type, assets, amount, deposit, recipient and refund
+  types, slippage and deadline.
+- The recipient and the refund address must be the satchel's address, in any letter case.
+- The quote must take the amount asked for, and carry no deposit address.
+- Its minimum must match 1 % of slippage on the amount out.
+- Its fees and its time estimate must be numbers it can read.
+
+## What a real swap takes
+
+A swap needs a deposit address, which comes from a quote that isn't dry, and the app never asks for one.
+Mainnet satchel #2's swap went this way: `node tools/oneclick-exit.mjs quote 2` asked 1Click for the
+real quote, the owner sent the deposit, a plain transfer, from the satchel's
+[Send panel](/docs/guides/send), and 1Click delivered 5.280549 USDC to the satchel on Arbitrum One. The
+[README](https://github.com/duongnq2798/satchel#a-swap-through-near-intents-that-keeps-the-proof) has
+every step and what the run doesn't show.
+
+A deposit is a plain transfer, so the contract records it as a `value_transfer` and the satchel can
+still read provably clean ([the signing record](/docs/concepts/signing-record)). The rest of the swap
+is 1Click's: the output, or a refund, depends on 1Click's system sending it, nothing in the contract
+or the report enforces the quote, and the report doesn't count what is in flight.
+
+## Swaps in a satchel's history
+
+On mainnet pages, the **History** card asks 1Click about the recipients of the satchel's latest 5
+native-coin sends, `GET /v0/status?depositAddress=…`. When 1Click knows a recipient as a deposit
+address, and its copy of the quote starts from the native coin of the chain the satchel sent on, the
+row gets a second line in 1Click's words, linked to 1Click's status. Satchel #2's send on Base reads:
+
+```text
+satchel-nft.near had a send of 0.00258 ETH to 0x588f8C4419974bC735Ac784B3dA41B44c42bb64b signed on Base, nonce 0 · tx
+1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One · 1Click's status
+```
+
+The line says "to this satchel" when 1Click's copy of the quote names the satchel's address as the
+recipient, and names the other address when it doesn't. If 1Click doesn't know an address, or doesn't
+answer, the row stays as it was. The record and the report don't read any of it.
+
+## If something goes wrong
+
+| You see | What it means | What to do |
+| --- | --- | --- |
+| `1Click didn't answer (…)` | 1Click is down, or the browser couldn't reach it | Try again later. The report doesn't use 1Click, and the history shows its rows without 1Click's lines |
+| `1Click answered 400: Amount is too low for bridge, try at least …: that is …, 1Click's minimum for this route.` | The amount is under 1Click's minimum. On 2026-11-11 that was 0.000035000000000001 ETH from Ethereum and 0.15 USDC from Base | Quote more, or another holding |
+| `1Click's answer isn't the quote asked for, so it isn't shown: …` | The answer failed one of the checks above | Ask again. If it keeps failing, [report it](/docs/security/report-a-vulnerability) |
+| `Nothing to quote: …` | The satchel holds none of these coins on the 7 chains | Fund it ([Mint and fund](/docs/guides/mint-and-fund)) |
+| `Nothing to quote among the balances that could be read.` | No coin turned up in the balances that were read, and some chains' balances couldn't be read | Reload the page |
+| `Some balances couldn't be read on …` | A chain's RPC didn't answer | Reload the page |
+
+## Related
+
+- [Send from a satchel](/docs/guides/send): the panel a real deposit goes through.
+- [The signing record](/docs/concepts/signing-record): why a plain transfer keeps a satchel provable.
+- [FAQ](/docs/faq#can-the-app-swap-a-satchels-coins-through-1click): the short answers about 1Click.
