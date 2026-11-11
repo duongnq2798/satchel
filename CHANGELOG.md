@@ -6,6 +6,45 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Make it clean: under a report that isn't clean, a satchel's page lists the transactions that would
+  fix checks 2 and 3, with their calldata, and gives the owner a button for each one the app can
+  send. **Revoke** builds `approve(spender, 0)` for an ERC-20 allowance, `approve(0x0, id)` for an
+  ERC-721 approval, `setApprovalForAll(operator, false)` or Permit2 `approve(token, spender, 0, 0)`,
+  never `increaseAllowance` or `decreaseAllowance`. **Spend nonce** sends 0 to the satchel's own
+  address with empty calldata, for each open nonce a revoke on that chain doesn't spend. Each button
+  runs `sendFromSatchel`, with the same guards and wallet prompt as Send from this satchel, and then
+  offers Check again, also when the send went out but its receipt wasn't read. The card lists free
+  revokes first, shows the approval slot each new row takes, re-reads the record before a revoke
+  that takes one, and won't send a 33rd while check 4 passes; more than 10 open nonces on a chain get
+  a terminal command instead; an `approve` row that both reads find live, or one it couldn't read,
+  gets both calls and no button; a listed satchel, or one whose check 1 fails, gets no buttons, and
+  neither does a chain whose pending nonce read lags the report or the chain's latest block; check 4
+  has no fix. On a chain with open nonces, it warns that funding the address lets anyone broadcast
+  what was signed at them first. Not yet run on chain: `tools/make-clean-demo.mjs` left testnet
+  satchel #9 in the state it fixes (`deployments/testnet-make-clean.json`), and its owner hasn't
+  pressed the buttons yet. In the package, unreleased and not in npm
+  0.2.0: `fixPlan`, `readFixInputs` and `revokeCalldata` in `clean.ts`, with tests that run each
+  call it builds through a model of the contract's classifier for those calls (`contractClass` in
+  `clean.test.ts`), and `Liveness.standard`, which says whether the ERC-20 or the ERC-721 read found
+  a live `approve` row. The handover kit, also unreleased, points to the card's buttons, pins
+  `satchel-nft@0.2.0` in its commands, and no longer says there is no revoke button. The threat
+  model adds row 21i.
+
+- The demo satchels' guard: on testnet #1 to #8 and mainnet #1 and #2, whose state the README
+  quotes, the app shows a note in place of send, list, delist, transfer, buy and the Make it clean
+  buttons until 2026-11-25, with a link to mint your own (`web/src/lib/frozen.ts`). The holder room
+  stays open, and its kit says the card's buttons are off on them. It is a guard in the app, not a
+  protection: the CLI and the near CLI can still sign for them. The buy, sell, send and transfer
+  guides, the try-to-cheat tutorial and the README now point readers to a satchel they mint instead
+  of those ids, and the threat model adds row 21h.
+
+- Send and sale panels: a send that was mined but reverted reads as a warning, and screen readers
+  hear which send step is running, then the error or the result. One send runs at a time per
+  satchel, not per page. The price and receiver fields have labels ("Price in NEAR", "Receiver's
+  NEAR account"), and a transfer asks the owner to confirm the receiver, after the receiver check,
+  before the wallet opens; focus moves to that question, and the receiver can't be edited while it
+  is checked or the wallet is open.
+
 - A swap through NEAR Intents' 1Click that keeps a satchel provably clean, run once on mainnet.
   `tools/oneclick-exit.mjs` asks 1Click for an `EXACT_INPUT` quote from ETH on Base to USDC on
   Arbitrum One with the satchel's own address as `recipient` and `refundTo`, checks that 1Click

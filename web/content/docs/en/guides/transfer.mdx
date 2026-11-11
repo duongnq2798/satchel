@@ -14,6 +14,10 @@ receiver's account name character by character.
   sale; [delist it](/docs/guides/sell#delist) first if it is.
 - The receiver's NEAR account on the same network: `friend.testnet` on testnet, `friend.near` on mainnet.
 - Your NEAR wallet, connected ([Connect a NEAR wallet](/docs/guides/wallets)).
+- A satchel that isn't a demo satchel. The README quotes the state of testnet #1 to #8 and mainnet #1 and
+  #2, so on their pages the card shows a note instead of the transfer field until 2026-11-25. That is a
+  guard in the app, not a protection: the `satchel-nft` CLI and the near CLI can still transfer them.
+  [Mint your own](/docs/guides/mint-and-fund) to try this.
 
 ## Transfer
 
@@ -21,16 +25,25 @@ receiver's account name character by character.
 
 1. **Open the satchel's page** (`/satchel/<id>`, or `/mainnet/satchel/<id>`) and find **Sell or transfer**.
 
-2. **Enter the receiver's account** in the field that reads `Receiver, like friend.testnet` (or
-   `friend.near` on mainnet), and click **Transfer the NFT**.
+2. **Enter the receiver's account** in the field labeled **Receiver's NEAR account** (its placeholder reads
+   `friend.testnet`, or `friend.near` on mainnet), and click **Transfer the NFT**.
 
-3. **The app checks the receiver** before your wallet opens. See
+3. **The app checks the receiver** before it asks you anything. See
    [the receiver check](#the-receiver-check).
 
-4. **Approve `nft_transfer` in your wallet**: 1 yoctoNEAR, 30 TGas. Its arguments are the token id and the
+4. **Confirm.** The card asks, in a warning box:
+
+   ```text
+   Give satchel #<id>, and whatever its address holds on every chain, to friend.testnet? A transfer can't be undone: only friend.testnet can send it back.
+   ```
+
+   Click **Yes, transfer it**, or **Cancel**. Changing the receiver cancels it too. The app checks the
+   receiver again before your wallet opens.
+
+5. **Approve `nft_transfer` in your wallet**: 1 yoctoNEAR, 30 TGas. Its arguments are the token id and the
    receiver; check the receiver once more there.
 
-5. **Done.** The page reads again and links to the transaction. The satchel now shows its new owner, and
+6. **Done.** The page reads again and links to the transaction. The satchel now shows its new owner, and
    it no longer appears in your satchels.
 
 </Steps>
@@ -70,20 +83,19 @@ receiving end of a satchel, read its report at [Verify](/verify) first, as you w
 ## In a terminal
 
 ```bash
-npx -y satchel-nft@0.2.0 transfer 7 friend.testnet --as alice.testnet
+npx -y satchel-nft@0.2.0 transfer <id> friend.testnet --as <account>
 ```
 
-Use your own satchel's id and your own account for `--as`: as written, it is refused, because
-`alice.testnet` doesn't own satchel #7.
+Use a satchel you minted for `<id>`, and its owner, an account the near CLI can sign for, for `<account>`.
 
 It refuses an account that doesn't own the satchel, then runs the same receiver check, then shows what it
 will sign:
 
 ```text
-Gives satchel #7, and whatever its address holds on every chain, to friend.testnet.
+Gives satchel #<id>, and whatever its address holds on every chain, to friend.testnet.
 ```
 
-After you type `yes`, it prints `Sent satchel #7 to friend.testnet:` and the transaction's link. A refused
+After you type `yes`, it prints `Sent satchel #<id> to friend.testnet:` and the transaction's link. A refused
 receiver exits with code 1 and nothing signed. The [CLI reference](/docs/developers/cli) has every option.
 
 ## Next steps

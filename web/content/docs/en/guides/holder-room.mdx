@@ -16,8 +16,8 @@ proves is the gate, not its contents.
   any new signature.
 
 The kit's fixes are the ones in [Sell a satchel](/docs/guides/sell#get-the-report-to-read-clean): spend each
-open nonce with a send, revoke each live approval with calldata you write (the app has no revoke button),
-and tell the buyer about a counter, which nothing undoes. Check 1 is about the deployment, not your
+open nonce with a send, revoke each live approval (the satchel's page builds each one under **Make it
+clean**, with a button for its owner), and tell the buyer about a counter, which nothing undoes. Check 1 is about the deployment, not your
 satchel, so the kit says it isn't yours to fix; while it fails, the app and the CLI sign nothing, so the
 kit gives no other fix either. The app and the CLI send only on the chains of the satchel's own network:
 for a chain of the other network, which a record names only if someone called `sign_evm` directly, the kit

@@ -6,6 +6,7 @@
 //   const report = await buildReport(MAINNET, "1");
 //   report?.verdict; // "clean", "not-provable" or "unknown"
 export * from "./approvals.js";
+export * from "./clean.js";
 export * from "./config.js";
 export * from "./contents.js";
 export * from "./dao.js";

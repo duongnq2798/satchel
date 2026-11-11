@@ -718,7 +718,7 @@ On Windows, give the path of `near.exe` itself. npm's `near.cmd` is a script tha
 shell, and `satchel-nft` refuses `.cmd`, `.bat` and `.ps1` files:
 
 ```powershell
-npx -y satchel-nft@0.2.0 list 7 0.5 --as satchel-nft.testnet --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
+npx -y satchel-nft@0.2.0 list <id> 0.5 --as <account> --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
 ```
 
 If none is found, the command stops with

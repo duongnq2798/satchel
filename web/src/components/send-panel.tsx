@@ -1,6 +1,7 @@
 "use client";
 
-import { type FormEvent, useRef, useState } from "react";
+import Link from "next/link";
+import { type FormEvent, useState } from "react";
 import { type Address, type Hex, formatEther, isAddress, isHex, parseEther } from "viem";
 import {
   type ChainInfo,
@@ -12,6 +13,8 @@ import {
   sendChains,
   sendFromSatchel,
 } from "satchel-nft";
+import { FROZEN_NOTE } from "@/lib/frozen";
+import { appPath } from "@/lib/routes";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote, ExternalLink } from "./ui";
 import { useWallet } from "./wallet";
@@ -25,53 +28,78 @@ const STEPS: { id: SendStep; label: string }[] = [
   { id: "confirm", label: "Wait for the receipt" },
 ];
 
-export function SendPanel({ tokenId, address, onDone }: { tokenId: string; address: Address; onDone: () => void }) {
+/**
+ * The satchels with a send running, as `<network>:<token id>`: one send at a time per satchel, from
+ * any panel, since a second one would sign the same pending nonce again. Keyed, so a send left
+ * running on one satchel's page doesn't block another satchel after the app navigates.
+ */
+const sending = new Set<string>();
+
+export interface SendInput {
+  chain: ChainInfo;
+  to: Address;
+  value: bigint;
+  data: Hex;
+}
+
+export interface SendRun {
+  /** False when nothing was sent: another send was running, or `build` threw (its error is shown). */
+  started: boolean;
+  result: SendResult | null;
+  /** The last step the send reached, so a caller can tell a send that was broadcast from one that wasn't. */
+  reached: SendStep | null;
+}
+
+/**
+ * Sends from a satchel through `sendFromSatchel`, with every guard it runs and the wallet's prompt,
+ * and keeps the steps, the links and the result for `SendSteps`. Send from this satchel and the
+ * Make it clean card both send this way.
+ */
+export function useSatchelSend(tokenId: string, address: Address) {
   const { send } = useWallet();
   const net = useNetwork();
-  const chains = sendChains(net);
-  const [chainId, setChainId] = useState(chains[0].id);
-  const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
-  const [data, setData] = useState("0x");
   const [step, setStep] = useState<SendStep | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<SendResult | null>(null);
   // The links stay up if a later step fails: the NEAR call, and the EVM hash once it is signed.
   const [links, setLinks] = useState<{ chain?: ChainInfo; fee?: bigint; nearTx?: string; evmTx?: string }>({});
-  const running = useRef(false);
   const [busy, setBusy] = useState(false);
-  const chain = chains.find((c) => c.id === chainId) ?? chains[0];
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    // One flow at a time: a second one would sign the same pending nonce again.
-    if (running.current) return;
+  /**
+   * Builds the transaction's fields with `build`, which may read the chain first, then sends. The
+   * lock is taken before `build` runs, so a second click can't start a send meanwhile.
+   */
+  async function run(build: () => SendInput | Promise<SendInput>): Promise<SendRun> {
+    const lock = `${net.id}:${tokenId}`;
+    if (sending.has(lock)) {
+      if (!busy) setError(new Error("Another send from this satchel is still running. Wait for it to finish."));
+      return { started: false, result: null, reached: null };
+    }
+    sending.add(lock);
+    setBusy(true);
     setError(null);
     setResult(null);
     setStep(null);
     setLinks({});
-    let value: bigint;
+    let reached: SendStep | null = null;
     try {
-      if (!isAddress(to)) throw new Error("Enter the recipient's 0x address");
-      value = parseEther(amount.trim() === "" ? "0" : amount.trim());
-      if (value < 0n) throw new Error(`Enter an amount in ${chain.symbol}`);
-      if (!isHex(data) || data.length % 2 !== 0) throw new Error("Calldata must be 0x followed by whole bytes");
-    } catch (err) {
-      setError(err instanceof Error && !/parseEther|Number/.test(err.message) ? err : new Error(`Enter an amount in ${chain.symbol}`));
-      return;
-    }
-    const signWithWallet = async (tx: Parameters<typeof send>[0]) => {
-      const { hash, value: signature } = await send<MpcSignature>(tx);
-      return { hash, signature };
-    };
-    running.current = true;
-    setBusy(true);
-    setLinks({ chain });
-    try {
+      let input: SendInput;
+      try {
+        input = await build();
+      } catch (err) {
+        setError(err);
+        return { started: false, result: null, reached };
+      }
+      const signWithWallet = async (tx: Parameters<typeof send>[0]) => {
+        const { hash, value: signature } = await send<MpcSignature>(tx);
+        return { hash, signature };
+      };
+      setLinks({ chain: input.chain });
       const done = await sendFromSatchel(
-        { net, tokenId, from: address, chain, to: to as Address, value, data: data as Hex },
+        { net, tokenId, from: address, ...input },
         liveSendDeps(net, signWithWallet),
         (s, detail) => {
+          reached = s;
           setStep(s);
           if (s === "wallet" && detail) setLinks((l) => ({ ...l, fee: BigInt(detail) }));
           if (s === "recover" && detail) setLinks((l) => ({ ...l, nearTx: detail }));
@@ -79,99 +107,65 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
         },
       );
       setResult(done);
+      return { started: true, result: done, reached };
     } catch (err) {
       setError(err);
+      return { started: true, result: null, reached };
     } finally {
-      running.current = false;
+      sending.delete(lock);
       setBusy(false);
-      onDone();
     }
   }
 
+  return { step, error, result, links, busy, run };
+}
+
+/**
+ * The steps of the last send, as they run, then its result and links. Screen readers hear the step
+ * running as a sentence (the glyphs are hidden from them), then the error or the result.
+ */
+export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend> }) {
+  const net = useNetwork();
+  const { step, error, result, links } = sender;
   const reached = step ? STEPS.findIndex((s) => s.id === step) : -1;
+  const running = reached >= 0 && !result && !error ? `Step ${reached + 1} of ${STEPS.length}: ${STEPS[reached].label}` : "";
   return (
-    <Card>
-      <h2 className="font-display text-xl font-semibold">Send from this satchel</h2>
-      <p className="mt-1 text-sm text-muted">
-        The contract builds and hashes the transaction, records its nonce in the public record, then asks the MPC network to
-        sign. Your wallet only approves the NEAR call.
+    <div>
+      <p role="status" className="sr-only">
+        {running || (error && reached >= 0 ? `Failed at step ${reached + 1}: ${STEPS[reached].label}` : "")}
       </p>
-      <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-[1fr_2fr_1fr]">
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">Chain</span>
-          <select
-            value={chainId}
-            onChange={(e) => setChainId(Number(e.target.value))}
-            className="rounded-xl border border-line bg-paper px-3 py-2"
-          >
-            {chains.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">To</span>
-          <input
-            value={to}
-            onChange={(e) => setTo(e.target.value.trim())}
-            placeholder="0x000000000000000000000000000000000000dEaD"
-            className="rounded-xl border border-line bg-paper px-3 py-2 font-mono text-xs"
-          />
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">Amount ({chain.symbol})</span>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.0001"
-            inputMode="decimal"
-            className="rounded-xl border border-line bg-paper px-3 py-2"
-          />
-        </label>
-        <details className="text-sm sm:col-span-3">
-          <summary className="cursor-pointer text-muted">Calldata (advanced)</summary>
-          <textarea
-            value={data}
-            onChange={(e) => setData(e.target.value.trim())}
-            rows={2}
-            className="mt-2 w-full rounded-xl border border-line bg-paper px-3 py-2 font-mono text-xs"
-          />
-          <p className="mt-1 text-xs text-muted">
-            The contract classifies the call. Approvals are itemized and must be revoked before a clean sale; anything it
-            can't classify makes this satchel unprovable for every later owner.
-          </p>
-        </details>
-        <div className="sm:col-span-3">
-          <Button type="submit" variant="primary" busy={busy}>
-            Sign and send
-          </Button>
-        </div>
-      </form>
       {step && (
         <ol className="mt-4 space-y-1 text-sm">
-          {STEPS.map((s, i) => (
-            <li key={s.id} className={i <= reached ? "text-ink" : "text-muted"}>
-              {i < reached || result ? "✓" : i === reached ? (error ? "✗" : "…") : "·"} {s.label}
-              {s.id === "wallet" && links.fee !== undefined && links.chain && (
-                <span className="text-muted">
-                  {" "}
-                  (fees up to {formatEther(links.fee)} {links.chain.symbol}, paid by the satchel)
-                </span>
-              )}
-            </li>
-          ))}
+          {STEPS.map((s, i) => {
+            const done = i < reached || result !== null;
+            const current = i === reached && !done;
+            return (
+              <li key={s.id} className={i <= reached ? "text-ink" : "text-muted"}>
+                <span aria-hidden="true">{done ? "✓" : current ? (error ? "✗" : "…") : "·"}</span>{" "}
+                <span className="sr-only">{done ? "Done: " : current ? (error ? "Failed: " : "Running: ") : "Next: "}</span>
+                {s.label}
+                {s.id === "wallet" && links.fee !== undefined && links.chain && (
+                  <span className="text-muted">
+                    {" "}
+                    (fees up to {formatEther(links.fee)} {links.chain.symbol}, paid by the satchel)
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ol>
       )}
-      <div className="mt-3">
-        <ErrorNote error={error} />
+      <div aria-live="polite">
+        <div className="mt-3">
+          <ErrorNote error={error} />
+        </div>
+        {result &&
+          (result.status === "success" ? (
+            <p className="mt-3 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">Sent.</p>
+          ) : (
+            <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">Included, but the transaction reverted.</p>
+          ))}
       </div>
-      {result && (
-        <p className="mt-3 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
-          {result.status === "success" ? "Sent." : "Included, but the transaction reverted."}
-        </p>
-      )}
       {(links.nearTx || links.evmTx) && (
         <p className="mt-2 text-sm">
           {links.evmTx && links.chain && (
@@ -181,6 +175,128 @@ export function SendPanel({ tokenId, address, onDone }: { tokenId: string; addre
           {links.nearTx && <ExternalLink href={nearTxUrl(net, links.nearTx)}>sign_evm on NEAR</ExternalLink>}
         </p>
       )}
+    </div>
+  );
+}
+
+/** In place of a panel's owner or buy actions on a demo satchel (`lib/frozen.ts`). */
+export function FrozenNote() {
+  const net = useNetwork();
+  return (
+    <p className="mt-3 rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-2">
+      {FROZEN_NOTE}{" "}
+      <Link href={appPath(net, "/satchels")} className="underline decoration-line underline-offset-4 hover:decoration-ink">
+        Mint your own satchel
+      </Link>{" "}
+      to try them.
+    </p>
+  );
+}
+
+export function SendPanel({
+  tokenId,
+  address,
+  onDone,
+  frozen = false,
+}: {
+  tokenId: string;
+  address: Address;
+  onDone: () => void;
+  /** A demo satchel: the form is off (`lib/frozen.ts`). */
+  frozen?: boolean;
+}) {
+  const net = useNetwork();
+  const chains = sendChains(net);
+  const [chainId, setChainId] = useState(chains[0].id);
+  const [to, setTo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [data, setData] = useState("0x");
+  const sender = useSatchelSend(tokenId, address);
+  const chain = chains.find((c) => c.id === chainId) ?? chains[0];
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const { started } = await sender.run(() => {
+      if (!isAddress(to)) throw new Error("Enter the recipient's 0x address");
+      let value: bigint;
+      try {
+        value = parseEther(amount.trim() === "" ? "0" : amount.trim());
+      } catch {
+        throw new Error(`Enter an amount in ${chain.symbol}`);
+      }
+      if (value < 0n) throw new Error(`Enter an amount in ${chain.symbol}`);
+      if (!isHex(data) || data.length % 2 !== 0) throw new Error("Calldata must be 0x followed by whole bytes");
+      return { chain, to: to as Address, value, data: data as Hex };
+    });
+    if (started) onDone();
+  }
+
+  return (
+    <Card>
+      <h2 className="font-display text-xl font-semibold">Send from this satchel</h2>
+      <p className="mt-1 text-sm text-muted">
+        The contract builds and hashes the transaction, records its nonce in the public record, then asks the MPC network to
+        sign. Your wallet only approves the NEAR call.
+      </p>
+      {frozen ? (
+        <FrozenNote />
+      ) : (
+        <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-[1fr_2fr_1fr]">
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted">Chain</span>
+            <select
+              value={chainId}
+              onChange={(e) => setChainId(Number(e.target.value))}
+              className="rounded-xl border border-line bg-paper px-3 py-2"
+            >
+              {chains.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted">To</span>
+            <input
+              value={to}
+              onChange={(e) => setTo(e.target.value.trim())}
+              placeholder="0x000000000000000000000000000000000000dEaD"
+              className="rounded-xl border border-line bg-paper px-3 py-2 font-mono text-xs"
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted">Amount ({chain.symbol})</span>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.0001"
+              inputMode="decimal"
+              className="rounded-xl border border-line bg-paper px-3 py-2"
+            />
+          </label>
+          <details className="text-sm sm:col-span-3">
+            <summary className="cursor-pointer text-muted">Calldata (advanced)</summary>
+            <textarea
+              value={data}
+              onChange={(e) => setData(e.target.value.trim())}
+              rows={2}
+              aria-label="Calldata"
+              className="mt-2 w-full rounded-xl border border-line bg-paper px-3 py-2 font-mono text-xs"
+            />
+            <p className="mt-1 text-xs text-muted">
+              The contract classifies the call. Approvals are itemized and must be revoked before a clean sale; anything it
+              can&apos;t classify makes this satchel unprovable for every later owner.
+            </p>
+          </details>
+          <div className="sm:col-span-3">
+            <Button type="submit" variant="primary" busy={sender.busy}>
+              Sign and send
+            </Button>
+          </div>
+        </form>
+      )}
+      <SendSteps sender={sender} />
     </Card>
   );
 }
