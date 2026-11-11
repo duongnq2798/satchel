@@ -385,7 +385,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
-- The README, AGENTS.md and the docs: 221 package tests in 17 files and 81 app tests, the threat
+- The README, AGENTS.md and the docs: 222 package tests in 17 files and 81 app tests, the threat
   model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
   now that the app asks 1Click for dry quotes and shows its status: the dry-run row is met. The
   demo kit's 1:18 scene is Make it clean on testnet satchel #9, and its 1:42 scene is mainnet

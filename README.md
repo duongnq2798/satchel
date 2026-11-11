@@ -279,7 +279,7 @@ the record changed).
    now if you skipped it):
 
    ```bash
-   npm test -w satchel-nft             # 221 tests in 17 files: 6 s here
+   npm test -w satchel-nft             # 222 tests in 17 files: 6 s here
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
@@ -1416,7 +1416,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 221 package tests, 81 app tests
+npm run typecheck && npm test              # both workspaces: 222 package tests, 81 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1441,7 +1441,7 @@ three workflows directly, each when its paths change.
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 
 The tests, as of 2026-11-11: 61 Rust unit tests in
-[`tests.rs`](contracts/satchel/src/tests.rs); 221 package tests in 17 files: `clean.test.ts` 30, `evm.test.ts` 26,
+[`tests.rs`](contracts/satchel/src/tests.rs); 222 package tests in 17 files: `clean.test.ts` 31, `evm.test.ts` 26,
 `dao.test.ts` 25, `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13,
 `history.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;

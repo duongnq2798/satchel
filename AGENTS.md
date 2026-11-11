@@ -186,7 +186,7 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  221 passed (221)` for `satchel-nft`, then
+Each runs in both workspaces. You should see `Tests  222 passed (222)` for `satchel-nft`, then
 `Tests  81 passed (81)` for the app, then no type errors.
 
 ```bash
