@@ -385,6 +385,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The README, AGENTS.md and the docs: 220 package tests in 17 files and 81 app tests, the threat
+  model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
+  now that the app asks 1Click for dry quotes and shows its status: the dry-run row is met. The
+  demo kit's 1:18 scene is Make it clean on testnet satchel #9, and its 1:42 scene is mainnet
+  satchel #2 with a dry quote.
 - A satchel's page: the heading reads "Satchel #N", with one line on what a satchel is and what the
   page checks; the verdict at the top links to the report; and "Your satchels" on the card for a
   satchel that doesn't exist is a link. While the page reads NEAR, placeholders the size of what
