@@ -192,7 +192,7 @@ npm run typecheck
 ```
 
 Each runs in both workspaces. You should see `Tests  222 passed (222)` for `satchel-nft`, then
-`Tests  81 passed (81)` for the app, then no type errors.
+`Tests  86 passed (86)` for the app, then no type errors.
 
 ```bash
 cd contracts/satchel
@@ -300,7 +300,7 @@ of these checks.
 | Make it clean offers fixes for checks 2 and 3 only: a revoke for each approval row still live, and a send of 0 to the satchel's own address for each open nonce a revoke on that chain doesn't take. An `approve` row that both the ERC-20 and the ERC-721 read find live, or one it couldn't read, gets both calls and no button; more than 10 open nonces on a chain get a terminal command. It won't send a revoke that would be a 33rd approval row while check 4 passes, and offers no button while check 1 fails or the satchel is listed | `fixPlan`, `readFixInputs`, `revokeCalldata`, `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` in `packages/satchel-nft/src/clean.ts`; the card is `web/src/components/fix-panel.tsx` | `clean.test.ts`. The card has no test and hasn't run on chain yet: testnet satchel #9 waits in the state it fixes ([`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json)) |
 | Quote an exit asks 1Click only for dry quotes, never for a deposit address, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for and carries no deposit address | `QuoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
 | Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #8 and mainnet #1 and #2, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
-| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
+| The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, the landing page's four cards link the transactions in `testnet-dao.json`, `testnet-make-clean.json` and `mainnet-1click-exit.json` and their own satchel's page and docs, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `TOUR`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
 
 ## What Satchel does not claim
 

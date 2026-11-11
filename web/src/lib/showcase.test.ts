@@ -1,13 +1,15 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { MAINNET, TESTNET } from "satchel-nft";
 import { formatEther, formatUnits, getAddress } from "viem";
 import { describe, expect, it } from "vitest";
+import { appPath } from "./routes";
 import {
   DEMO_SATCHELS,
   FIRST_SEND,
   ONECLICK_EXIT,
   SHOWCASE,
   SITE_HOSTS,
+  TOUR,
   parseSatchelInput,
   refNetwork,
   roomDescription,
@@ -89,8 +91,76 @@ describe("the mainnet showcase matches the evidence files", () => {
   });
 
   it("tells the story and leaves the verdict to the live report", () => {
-    const text = [...SHOWCASE.map((c) => `${c.title} ${c.subtitle} ${c.story}`), ...DEMO_SATCHELS.map((d) => d.story)].join("\n");
+    const text = [
+      ...SHOWCASE.map((c) => `${c.title} ${c.subtitle} ${c.story}`),
+      ...DEMO_SATCHELS.map((d) => d.story),
+      // The feature's name is not a verdict.
+      ...TOUR.map((c) => `${c.title} ${c.body}`.replaceAll("Make it clean", "")),
+    ].join("\n");
     expect(text).not.toMatch(/clean|provabl|pass(es|ed)?\b/i);
+  });
+});
+
+describe("the landing page's tour matches the evidence files", () => {
+  const card = (network: string, tokenId: string) => {
+    const found = TOUR.find((c) => c.network === network && c.tokenId === tokenId);
+    if (!found) throw new Error(`no card for ${network} #${tokenId}`);
+    return found;
+  };
+
+  it("has the four cards the section's heading counts", () => {
+    expect(TOUR.map((c) => `${c.network} #${c.tokenId}`)).toEqual(["testnet #4", "testnet #8", "mainnet #2", "testnet #9"]);
+  });
+
+  it("links each card to its own satchel's page or room, on its network", () => {
+    for (const c of TOUR) {
+      const net = c.network === "mainnet" ? MAINNET : TESTNET;
+      expect(parseSatchelInput(`https://satchelnft.xyz${appPath(net, c.path)}`), c.title).toEqual({ tokenId: c.tokenId, network: c.network });
+      const [page, anchor] = c.docs.split("#");
+      expect(page).toMatch(/^\/docs\//);
+      const file = new URL(`../../content/docs/en${page.slice("/docs".length)}.mdx`, import.meta.url);
+      expect(existsSync(file), c.docs).toBe(true);
+      if (anchor) expect(readFileSync(file, "utf8"), c.docs).toMatch(new RegExp(`^#+ ${anchor.replaceAll("-", " ")}$`, "im"));
+    }
+  });
+
+  it("testnet #8's votes: deployments/testnet-dao.json", () => {
+    const run = evidence("testnet-dao.json");
+    const c = card("testnet", run.tokenId);
+    const votes = run.steps.filter((s: { method?: string }) => s.method === "act_proposal").map((s: { tx: string }) => s.tx);
+    const send = run.steps.find((s: { step: string }) => s.step.startsWith("satchel-nft dao finish")).sepolia.tx;
+    expect(votes).toHaveLength(2);
+    expect(c.txs.map((t) => t.href)).toEqual([
+      `https://testnet.nearblocks.io/txns/${votes[0]}`,
+      `https://sepolia.etherscan.io/tx/${send}`,
+      `https://testnet.nearblocks.io/txns/${votes[1]}`,
+    ]);
+    expect(run.dao).toMatch(/\.sputnikv2\.testnet$/);
+    expect(c.body).toContain("buyer.satchel-nft.testnet");
+    expect(run.steps.some((s: { step: string }) => /buyer\.satchel-nft\.testnet with nft_transfer/.test(s.step))).toBe(true);
+  });
+
+  it("mainnet #2's swap uses the showcase's numbers", () => {
+    const c = card("mainnet", ONECLICK_EXIT.tokenId);
+    expect(c.body).toContain(`${ONECLICK_EXIT.sent} ETH`);
+    expect(c.body).toContain(`${ONECLICK_EXIT.received} USDC`);
+    expect(c.txs.map((t) => t.href)).toEqual([
+      `https://basescan.org/tx/${ONECLICK_EXIT.depositTx}`,
+      `https://arbiscan.io/tx/${ONECLICK_EXIT.payoutTx}`,
+    ]);
+  });
+
+  it("testnet #9's approval and kept sends: deployments/testnet-make-clean.json", () => {
+    const run = evidence("testnet-make-clean.json");
+    const c = card("testnet", run.satchel.tokenId);
+    expect(c.txs.map((t) => t.href)).toEqual([
+      `https://sepolia.etherscan.io/tx/${run.approved.sepoliaTx}`,
+      `https://testnet.nearblocks.io/txns/${run.kept1.nearTx}`,
+      `https://testnet.nearblocks.io/txns/${run.kept2.nearTx}`,
+    ]);
+    expect(c.body).toContain(`satchel #${run.approved.spenderSatchel}'s address`);
+    expect([run.kept1.nonce, run.kept2.nonce, run.kept1.broadcast, run.kept2.broadcast]).toEqual([1, 2, false, false]);
+    expect(c.body).toContain("the revoke at nonce 1 and a send of 0 at nonce 2");
   });
 });
 
