@@ -38,5 +38,40 @@
     "value": "10000000000000000",
     "signingHash": "0xa857f9a98b56f9966db485c0d6e624a869a4649ca526b2cc692c0f9b296e3353",
     "broadcast": false
+  },
+  "cleaned": {
+    "date": "2026-11-12",
+    "note": "The owner pressed the Make it clean card's two buttons on satchelnft.xyz/satchel/9 and signed each in their wallet; the app broadcast both. Written in by hand from the chain: each nearTx's sign_evm event, each Sepolia receipt, and the report once Sepolia finalized. Nonces 1 and 2 are spent, so kept1 and kept2 can never be broadcast.",
+    "revoke": {
+      "nearTx": "45a6UnfrDgRVR2vw9ST8sCHFi1TPdCLgKySYqcuwjtXW",
+      "nearTxBlock": "277346150",
+      "recordVersion": 4,
+      "nonce": 1,
+      "call": "approve(0x65c60dbfc8b3c949ae7eb104ef47a08286ab9c8e, 0)",
+      "to": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "sepoliaTx": "0xe7fdde14c08ce7f43bbc3ef940634cf4eddabc308188d76bb53a929f69661b13",
+      "block": "12118047"
+    },
+    "spend": {
+      "nearTx": "A6wA4zHPczrfHffQsCgaqf9J3sfLq5MQD3Rbbn8EyN6b",
+      "nearTxBlock": "277346474",
+      "recordVersion": 5,
+      "nonce": 2,
+      "to": "0xec0e9015578bac30fc60345a963a9e8d10d52e68",
+      "value": "0",
+      "sepoliaTx": "0xd44a2279073fe923b87503c93b6e82aa4abd43dbecc80739e274d19412184f10",
+      "block": "12118062"
+    },
+    "report": {
+      "verdict": "PROVABLY CLEAN",
+      "recordVersion": 5,
+      "checkedAt": "2026-11-12T10:03:59Z",
+      "excerpt": ["Sepolia: signed up to nonce 2, finalized nonce is 3", "Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0"],
+      "note": "Check again on the page, about 15 minutes after the spend's Sepolia block. An excerpt: the report printed the Approve line once per approval row, so twice. npx -y satchel-nft@0.2.0 verify 9 printed the same verdict at 2026-11-12T11:17:39Z."
+    },
+    "room": {
+      "finalBlock": "277348286",
+      "note": "Then the same wallet opened satchel #9's holder room; the server read satchel-nft.testnet as the owner at this final block."
+    }
   }
 }

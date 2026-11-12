@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { MAINNET, TESTNET } from "satchel-nft";
 import { formatEther, formatUnits, getAddress } from "viem";
 import { describe, expect, it } from "vitest";
+import { FROZEN } from "./frozen";
 import { appPath } from "./routes";
 import {
   BUILT_WITH,
@@ -151,17 +152,31 @@ describe("the landing page's tour matches the evidence files", () => {
     ]);
   });
 
-  it("testnet #9's approval and kept sends: deployments/testnet-make-clean.json", () => {
+  it("testnet #9's approval, kept sends and clean-up: deployments/testnet-make-clean.json", () => {
     const run = evidence("testnet-make-clean.json");
+    const { revoke, spend } = run.cleaned;
     const c = card("testnet", run.satchel.tokenId);
     expect(c.txs.map((t) => t.href)).toEqual([
       `https://sepolia.etherscan.io/tx/${run.approved.sepoliaTx}`,
-      `https://testnet.nearblocks.io/txns/${run.kept1.nearTx}`,
-      `https://testnet.nearblocks.io/txns/${run.kept2.nearTx}`,
+      `https://sepolia.etherscan.io/tx/${revoke.sepoliaTx}`,
+      `https://sepolia.etherscan.io/tx/${spend.sepoliaTx}`,
     ]);
     expect(c.body).toContain(`satchel #${run.approved.spenderSatchel}'s address`);
     expect([run.kept1.nonce, run.kept2.nonce, run.kept1.broadcast, run.kept2.broadcast]).toEqual([1, 2, false, false]);
+    // The clean-up spent the kept sends' nonces: the revoke of the approval at 1, a send of 0 to
+    // itself at 2.
+    expect([revoke.nonce, spend.nonce]).toEqual([run.kept1.nonce, run.kept2.nonce]);
+    expect(revoke.call).toBe(`approve(${run.approved.spender}, 0)`);
+    expect(getAddress(revoke.to)).toBe(getAddress(run.approved.token));
+    expect([getAddress(spend.to), spend.value]).toEqual([getAddress(run.satchel.address), "0"]);
     expect(c.body).toContain("the revoke at nonce 1 and a send of 0 at nonce 2");
+    expect(c.body).toContain(`On ${run.cleaned.date} the owner pressed both`);
+    expect([run.cleaned.report.verdict, run.cleaned.report.recordVersion]).toEqual(["PROVABLY CLEAN", spend.recordVersion]);
+    expect(c.txs.slice(1).map((t) => t.label)).toEqual([`The revoke, nonce ${revoke.nonce}`, `The send of 0, nonce ${spend.nonce}`]);
+    expect(run.cleaned.report.excerpt.some((l: string) => l.endsWith("allowance is 0"))).toBe(true);
+    expect(c.body).toContain("the allowance went to 0");
+    const story = DEMO_SATCHELS.find((d) => d.network === "testnet" && d.tokenId === run.satchel.tokenId)?.story;
+    expect(story).toContain(`on ${run.cleaned.date} its owner revoked the approval and spent both nonces`);
   });
 });
 
@@ -252,12 +267,19 @@ describe("the testnet demo stories match deployments/testnet-gallery.json", () =
 });
 
 describe("the demo satchels", () => {
-  it("offers testnet #1, #3 to #6 and mainnet #1 and #2 as quick picks, and lists #7 and #8 too", () => {
+  it("offers testnet #1, #3 to #6 and mainnet #1 and #2 as quick picks, and lists #7 to #9 too", () => {
     const ids = (network: string, pick?: boolean) =>
       DEMO_SATCHELS.filter((d) => d.network === network && (pick === undefined || d.pick === pick)).map((d) => d.tokenId);
     expect(ids("testnet", true)).toEqual(["1", "3", "4", "5", "6"]);
     expect(ids("mainnet", true)).toEqual(["1", "2"]);
-    expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8"]);
+    expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8", "9"]);
+  });
+
+  it("lists exactly the satchels the app's guard covers, but testnet #2, which is retired", () => {
+    for (const net of ["testnet", "mainnet"] as const) {
+      const listed = DEMO_SATCHELS.filter((d) => d.network === net).map((d) => d.tokenId);
+      expect([...listed, ...(net === "testnet" ? ["2"] : [])].sort()).toEqual([...FROZEN[net]].sort());
+    }
   });
 });
 

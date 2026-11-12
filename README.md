@@ -371,7 +371,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 308 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 309 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -398,8 +398,8 @@ What exists at this commit, and what does not yet.
 | Contract: a NEP-171 NFT whose tokens each control an MPC-derived key, with the signing record, the sale and the refusals | **Shipped** on NEAR testnet as `v1.satchel-nft.testnet` and on NEAR mainnet as `v1.satchel-nft.near`, both on 2026-11-09, both from commit `87148c6` and locked before their first mint. A locked contract cannot change: a fix would ship as a new account | [`contracts/satchel`](contracts/satchel) |
 | Reproducible build | **Shipped**. CI builds every pull request and every push to `main` or `dev` in the pinned image `sourcescan/cargo-near:0.22.0-rust-1.99.1` and writes the code hash to the run's summary. Both deployments run the build of commit `87148c6`, code hash `94x4MmZK…` | [`.github/workflows/contract.yml`](.github/workflows/contract.yml) |
 | Clean transfer report: four checks, each chain read at a finalized block | **Shipped**, in the browser and as `satchel-nft verify`, from the same code | [`report.ts`](packages/satchel-nft/src/report.ts), [`cli.ts`](packages/satchel-nft/src/cli.ts) |
-| Web app at [satchelnft.xyz](https://satchelnft.xyz) | **Shipped**. One deployment serves testnet, and mainnet under `/mainnet`: mint, send through the MPC network on the network's 8 EVM chains, list, delist, transfer, buy, the market, the report, and what a satchel holds and its history. On the demo satchels this README quotes (testnet #1 to #8, mainnet #1 and #2), the app's owner and buy actions are off until 2026-11-25: a guard in the app, not a protection | [`web`](web), [`frozen.ts`](web/src/lib/frozen.ts) |
-| Make it clean: under a report that isn't clean, the revokes and nonce spends that would fix checks 2 and 3, with a button for each one the app can send | **Built** on 2026-11-11, with tests. Not yet run on chain: testnet satchel #9 waits in the state it fixes ([set up on 2026-11-11](#make-it-clean-on-testnet-satchel-9)). `readFixInputs` reads each chain's latest block, and `fixPlan` builds the revoke for each live approval (`approve(spender, 0)`, `approve(0x0, id)`, `setApprovalForAll(operator, false)` or Permit2 `approve(token, spender, 0, 0)`) and a send of 0 to the satchel's own address for each open nonce a revoke doesn't spend. Anyone can read the plan and its calldata. Only the owner gets buttons, and each sends through `sendFromSatchel` like any send. It shows the approval slot each revoke takes and won't send a 33rd while check 4 passes; more than 10 open nonces on a chain get a terminal command instead. Nothing fixes check 4. The package code is in this repository, not in npm 0.2.0 | [`clean.ts`](packages/satchel-nft/src/clean.ts), [`fix-panel.tsx`](web/src/components/fix-panel.tsx) |
+| Web app at [satchelnft.xyz](https://satchelnft.xyz) | **Shipped**. One deployment serves testnet, and mainnet under `/mainnet`: mint, send through the MPC network on the network's 8 EVM chains, list, delist, transfer, buy, the market, the report, and what a satchel holds and its history. On the demo satchels this README quotes (testnet #1 to #9, mainnet #1 and #2), the app's owner and buy actions are off until 2026-11-25: a guard in the app, not a protection | [`web`](web), [`frozen.ts`](web/src/lib/frozen.ts) |
+| Make it clean: under a report that isn't clean, the revokes and nonce spends that would fix checks 2 and 3, with a button for each one the app can send | **Shipped** on 2026-11-11, with tests, and run once on testnet on 2026-11-12: on satchel #9, left with a live approval and two signed sends, its owner pressed **Revoke** and **Spend nonce**, and once Sepolia finalized, the report read `PROVABLY CLEAN` ([the run](#make-it-clean-on-testnet-satchel-9)). `readFixInputs` reads each chain's latest block, and `fixPlan` builds the revoke for each live approval (`approve(spender, 0)`, `approve(0x0, id)`, `setApprovalForAll(operator, false)` or Permit2 `approve(token, spender, 0, 0)`) and a send of 0 to the satchel's own address for each open nonce a revoke doesn't spend. Anyone can read the plan and its calldata. Only the owner gets buttons, and each sends through `sendFromSatchel` like any send. It shows the approval slot each revoke takes and won't send a 33rd while check 4 passes; more than 10 open nonces on a chain get a terminal command instead. Nothing fixes check 4. The package code is in this repository, not in npm 0.2.0 | [`clean.ts`](packages/satchel-nft/src/clean.ts), [`fix-panel.tsx`](web/src/components/fix-panel.tsx) |
 | Guards before anything is signed | **Shipped**. The app shows no address and signs nothing until the network's contract passes check 1; it refuses an account from the other network, a transaction for another contract, and a receiver that doesn't exist. The CLI runs the same guards | [`guard.ts`](packages/satchel-nft/src/guard.ts) |
 | Demo satchels and two refused calls | **Shipped** on testnet: satchels #1 and #3 to #6 (#2 is retired), every step in an evidence file (two entries written by hand from the run log, one failed retry left out, as [noted below](#on-chain-proof)) | [`tools/demo-gallery.mjs`](tools/demo-gallery.mjs), [`deployments/testnet-gallery.json`](deployments/testnet-gallery.json) |
 | End-to-end run against the real MPC network | **Shipped** on testnet: mint, sign, transfer, the previous owner refused, the new owner signing, a broadcast on Sepolia | [`tools/e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`deployments/testnet-e2e.json`](deployments/testnet-e2e.json), [`deployments/testnet-sepolia-send.json`](deployments/testnet-sepolia-send.json) |
@@ -412,7 +412,7 @@ What exists at this commit, and what does not yet.
 | A satchel's address derived without an RPC | **Shipped** on 2026-11-10. The app and the CLI compute each satchel's key from the MPC network's root key, pinned in the package, the contract and the path, as the MPC contract does, so no RPC answer changes a satchel's address. Which satchel is yours (the id a mint returns, the tokens you own) still comes from the NEAR RPC, or for a mint from the wallet. The tests derive the keys of the 9 satchels in their fixture (testnet #1 to #8, mainnet #1) and get what the MPC contract's `derived_public_key` returned, and `check-claims.mjs` compares the pinned root key with the chain. `satchel-nft` derives it since 0.2.0; 0.1.0 reads the address through the NEAR RPC | [`evm.ts`](packages/satchel-nft/src/evm.ts), [`derived-keys.json`](packages/satchel-nft/src/__fixtures__/derived-keys.json) |
 | A satchel owned by a Sputnik DAO: its council votes what it signs, and a vote hands it on | **Shipped** on testnet on 2026-11-10, with no contract change. `satchel-club.sputnikv2.testnet` owned satchel #8: a vote passed a `sign_evm` proposal, the contract built the Sepolia transaction from the proposal's arguments and recorded it, `v1.signer-prod.testnet` signed, `satchel-nft dao finish` broadcast it after checking the hash and the signer, and the report read `PROVABLY CLEAN`. A second vote gave the satchel to `buyer.satchel-nft.testnet` with `nft_transfer`. The package builds the proposals, checks open proposals for a nonce already in use, and reads the signature from the vote's receipts; `dao finish` is in the CLI since 0.2.0. Not run on mainnet, and no DAO sale yet | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`deployments/testnet-dao.json`](deployments/testnet-dao.json), [`check-dao.mjs`](scripts/check-dao.mjs), [the walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) |
 | Holder room: a page only a satchel's current holder can open, with a holder card and a handover kit | **Shipped** on 2026-11-10. The holder's wallet signs a NEP-413 message; the app's one server route, `/api/room`, checks the signature, that the key is a full-access key of the account and that the account owns the satchel, at one final NEAR block, on every request, and stores nothing. The kit says what to do before selling, from the satchel's report. Run on 2026-11-10 with messages signed by near-cli-rs, first against a local build, then against satchelnft.xyz: `satchel-nft.testnet` opened satchel #4's room (200, block 277055444 on satchelnft.xyz), and `buyer.satchel-nft.testnet` got the 403 that names the owner ([below](#holder-room)). In a browser, Meteor's Chrome extension opened mainnet satchel #1's room for `satchel-nft.near` (200, block 223915441) | [`holder.ts`](packages/satchel-nft/src/holder.ts), [`nep413.ts`](packages/satchel-nft/src/nep413.ts), [`kit.ts`](packages/satchel-nft/src/kit.ts), [`route.ts`](web/src/app/api/room/route.ts) |
-| Demo kit: the video script, the X post and the submission text | **Written** on 2026-11-10 and updated on 2026-11-11, and checked against the hackathon's limits by `node scripts/check-demo-kit.mjs`. Its 1:18 scene is Make it clean on testnet satchel #9, its 1:30 scene opens the holder room with a wallet, and its 1:42 scene is a dry 1Click quote on mainnet satchel #2. The video isn't recorded yet | [`docs/DEMO.md`](docs/DEMO.md), [`docs/submission`](docs/submission) |
+| Demo kit: the video script, the X post and the submission text | **Written** on 2026-11-10 and updated on 2026-11-11 and 2026-11-12, and checked against the hackathon's limits by `node scripts/check-demo-kit.mjs`. Its 1:18 scene is Make it clean on testnet satchel #9, its 1:30 scene opens the holder room with a wallet, and its 1:42 scene is a dry 1Click quote on mainnet satchel #2. The video was recorded on 2026-11-12 from satchelnft.xyz, the owner's wallet and a terminal; its Make it clean scene is the run on satchel #9. The cut runs 2:06 against the script's 2:00, within the 2:20 X plays without Premium. Not posted yet | [`docs/DEMO.md`](docs/DEMO.md), [`docs/submission`](docs/submission) |
 | Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
 
 **Known limitations** (the main ones are in [Limits](#limits-stated-plainly), and every residual risk
@@ -1135,10 +1135,12 @@ Sepolia ETH ([`0x0e78ee7e…`](https://sepolia.etherscan.io/tx/0x0e78ee7e7eb1aca
 
 On 2026-11-11, [`tools/make-clean-demo.mjs`](tools/make-clean-demo.mjs) left satchel #9 in the state the
 **Make it clean** card fixes, on Sepolia: one live approval, broadcast, and two sends signed and never
-broadcast. Each was a `sign_evm` by `satchel-nft.testnet`, and the record is
-[`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json), with the mint and the
-funding written in by hand. The report reads `NOT PROVABLE` on checks 2 and 3. The clean-up from the
-app hasn't run yet.
+broadcast. Each was a `sign_evm` by `satchel-nft.testnet`. The report read `NOT PROVABLE` on checks
+2 and 3. On 2026-11-12 the owner ran the card's two fixes from
+[satchel #9's page](https://satchelnft.xyz/satchel/9), in the demo video's take, and the report read
+`PROVABLY CLEAN`. The record is
+[`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json), with the mint, the
+funding and the clean-up written in by hand.
 
 | Step | What happened | Transaction |
 | --- | --- | --- |
@@ -1146,12 +1148,18 @@ app hasn't run yet.
 | Funding | 0.05 Sepolia ETH, block 12110189 | [`0xa6f14a1f…`](https://sepolia.etherscan.io/tx/0xa6f14a1f81853a479e85be4643417547a5c35cf019ccec6dd0e2a7fed8471b89) |
 | `approve` on Sepolia USDC (`0x1c7D…7238`) for satchel #7's address, `0x65C6…9C8E`, without limit | Broadcast at nonce 0, block 12110199; the record itemizes it | [`moJuat6G…`](https://testnet.nearblocks.io/txns/moJuat6GN1SqEUe2p1UhBBNvRzfZq3aCymMeXoUqDND), Sepolia [`0xdeef1d5c…`](https://sepolia.etherscan.io/tx/0xdeef1d5c70b00db68cf1fa2fc568535bd12686b4c690d6218f82f5dba88cab42) |
 | 0.01 ETH to `0x…dEaD` at nonce 1, then the same at nonce 2 | Signed, never broadcast. The record went to version 3, its highest Sepolia nonce 2 | [`CLpsgUta…`](https://testnet.nearblocks.io/txns/CLpsgUtaBSN5s4rvZgXHDpUJf9MQeE4QzQZVPrC22D2Y), [`E33gHExE…`](https://testnet.nearblocks.io/txns/E33gHExEGo1xkUr49UrMR2uLj5UUH95tCWHhxUnKQDHJ) |
+| 2026-11-12, **Revoke** on the card, signed in the owner's wallet: `approve(0x65C6…9C8E, 0)` on the same USDC, at nonce 1 | Record version 4 (its NEAR transaction is in block 277346150); broadcast by the app, status 1, Sepolia block 12118047 | [`45a6Unfr…`](https://testnet.nearblocks.io/txns/45a6UnfrDgRVR2vw9ST8sCHFi1TPdCLgKySYqcuwjtXW), Sepolia [`0xe7fdde14…`](https://sepolia.etherscan.io/tx/0xe7fdde14c08ce7f43bbc3ef940634cf4eddabc308188d76bb53a929f69661b13) |
+| **Spend nonce** on the row "Spend nonce 2": a send of 0 to the satchel's own address | Record version 5 (block 277346474); broadcast by the app, status 1, Sepolia block 12118062 | [`A6wA4zHP…`](https://testnet.nearblocks.io/txns/A6wA4zHPczrfHffQsCgaqf9J3sfLq5MQD3Rbbn8EyN6b), Sepolia [`0xd44a2279…`](https://sepolia.etherscan.io/tx/0xd44a2279073fe923b87503c93b6e82aa4abd43dbecc80739e274d19412184f10) |
+| **Check again** in the report, about 15 minutes after that block, once Sepolia finalized it | `PROVABLY CLEAN` at record version 5: "Sepolia: signed up to nonce 2, finalized nonce is 3", and the USDC allowance is 0 | |
 
-On [satchel #9's page](https://satchelnft.xyz/satchel/9), the card plans two sends: the revoke,
-`approve(0x65C6…9C8E, 0)` at nonce 1, which takes approval slot 2 of 32, then a send of 0 to the
-satchel's own address at nonce 2. Anyone can read the plan; only the owner's wallet gets the buttons.
-The two signed sends are public in their NEAR receipts, so while the address holds enough ETH anyone
-could broadcast them instead. That spends the same nonces, and sends 0.02 ETH to `0x…dEaD`.
+The card planned those two sends, in that order: the revoke at nonce 1, which took approval slot 2 of
+32, then the send of 0 at nonce 2. Anyone could read the plan; only the owner's wallet got the
+buttons. Until then the two signed sends were public in their NEAR receipts, so while the address
+held enough ETH anyone could have broadcast them instead, spending the same nonces and sending
+0.02 ETH to `0x…dEaD`. Nonces 1 and 2 are spent now, so neither can be broadcast.
+`npx -y satchel-nft@0.2.0 verify 9` prints the same verdict. Then the same wallet opened satchel #9's
+[holder room](#holder-room): the server read `satchel-nft.testnet` as the owner at final NEAR block
+277348286.
 
 ## Contract interface
 
@@ -1518,7 +1526,7 @@ all of this with the near CLI's key, checking each step
 | --- | --- |
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 231 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
-| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 99 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
+| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 100 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package) and [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
@@ -1533,7 +1541,7 @@ all of this with the near CLI's key, checking each step
 | **Checking the claims** | [AGENTS.md](AGENTS.md), for AI agents and humans: every claim with the command that checks it, and where each rule lives in the code |
 | **Security** | [Threat model](docs/THREAT_MODEL.md) (42 attacks, what stops each, what is left) · [Security policy](SECURITY.md) (private reporting, scope) |
 | **Demo and submission** | [Demo kit](docs/DEMO.md): the 2:00 video script, the recording checklist, the X post, the "What did you build?" text, the form's values and tracks, and what to leave unchanged until judging ends |
-| **Evidence** | [Testnet deployment](deployments/testnet.json) · [Mainnet deployment](deployments/mainnet.json) · [End-to-end run](deployments/testnet-e2e.json) · [Sepolia send](deployments/testnet-sepolia-send.json) · [Demo satchels](deployments/testnet-gallery.json) · [CLI run](deployments/testnet-cli.json) · [DAO run](deployments/testnet-dao.json) · [Make it clean setup](deployments/testnet-make-clean.json) · [Mainnet first send](deployments/mainnet-first-send.json) · [Mainnet 1Click swap](deployments/mainnet-1click-exit.json) |
+| **Evidence** | [Testnet deployment](deployments/testnet.json) · [Mainnet deployment](deployments/mainnet.json) · [End-to-end run](deployments/testnet-e2e.json) · [Sepolia send](deployments/testnet-sepolia-send.json) · [Demo satchels](deployments/testnet-gallery.json) · [CLI run](deployments/testnet-cli.json) · [DAO run](deployments/testnet-dao.json) · [Make it clean run](deployments/testnet-make-clean.json) · [Mainnet first send](deployments/mainnet-first-send.json) · [Mainnet 1Click swap](deployments/mainnet-1click-exit.json) |
 | **This repository** | [Changelog](CHANGELOG.md) · [Pull request CI runs](https://github.com/duongnq2798/satchel/actions/workflows/ci.yml) · [Contract CI runs](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml) · [Web CI runs](https://github.com/duongnq2798/satchel/actions/workflows/web.yml) · [Package CI runs](https://github.com/duongnq2798/satchel/actions/workflows/package.yml) · [Package README](packages/satchel-nft/README.md) · [License](LICENSE) |
 
 ## Development
@@ -1550,7 +1558,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 231 package tests, 308 app tests
+npm run typecheck && npm test              # both workspaces: 231 package tests, 309 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1582,9 +1590,9 @@ The tests, as of 2026-11-12: 64 Rust unit tests in
 `near-cli.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `tx-index.test.ts` 7, `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and
 `limit.test.ts` 2;
-and 308 app tests: 209 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
+and 309 app tests: 209 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
 40 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
-2 in `frozen.test.ts`, 28 in `showcase.test.ts`,
+2 in `frozen.test.ts`, 29 in `showcase.test.ts`,
 which checks the mainnet showcase and the landing page's four cards against `deployments/`, and 14 in `docs.test.ts`,
 which compile every docs page, check its links and anchors, and check that no page names two tables alike. Some rules have no
 unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
@@ -1683,15 +1691,17 @@ What the tests pin down:
   quote's amounts and fee, and a swap's status, are 1Click's word
   ([A swap through NEAR Intents](#a-swap-through-near-intents-that-keeps-the-proof)).
 - **The demo satchels' guard is in the app only.** Until 2026-11-25 the app shows no owner or buy
-  actions on testnet satchels #1 to #8 and mainnet #1 and #2, whose state this README quotes. The
+  actions on testnet satchels #1 to #9 and mainnet #1 and #2, whose state this README quotes. The
   `satchel-nft` CLI, the near CLI and any other client can still sign for, list, buy or transfer them,
   and the contract has no such rule.
-- **Make it clean has not run on chain yet.** Testnet satchel #9 waits in the state it fixes; its
-  owner hasn't pressed the buttons. It reads each chain's latest block through one RPC.
-  While check 4 passes, it won't send a revoke that would be a 33rd approval row. It offers Spend
-  nonce buttons for up to 10 open nonces on a chain; with more, it gives a terminal command instead.
-  It has no button for an `approve` row that both the ERC-20 and the ERC-721 read find live: it
-  shows both calls instead. Nothing fixes check 4.
+- **Make it clean has run on chain once.** On testnet satchel #9 on 2026-11-12: one ERC-20 revoke
+  and one nonce spend, on Sepolia. Everything else `fixPlan` does has only tests (`clean.test.ts`):
+  the other revokes (`approve(0x0, id)`, `setApprovalForAll`, Permit2), plans across several chains,
+  and the limits below. The card itself (`fix-panel.tsx`) has no test. It reads each chain's latest
+  block through one RPC. While check 4 passes, it won't send a revoke that would be a 33rd approval
+  row. It offers Spend nonce buttons for up to 10 open nonces on a chain; with more, it gives a
+  terminal command instead. It has no button for an `approve` row that both the ERC-20 and the
+  ERC-721 read find live: it shows both calls instead. Nothing fixes check 4.
 - **Not audited** by anyone outside the project. Internal reviews only: two of the contract (one
   adversarial) found two ways to slip an approval past the first version of the record, then two
   smaller gaps in the fix, all fixed and tested; the web app and the mainnet path had two each, one of
