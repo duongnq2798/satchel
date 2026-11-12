@@ -1,15 +1,17 @@
 // Checks the README's on-chain claims about a deployment against NEAR RPC: the contract's lock, code
 // and signer, the transactions that deployed and locked it, the MPC root key the package derives
 // addresses from; on testnet, the calls it refused; on mainnet, satchel #1 and its first send on
-// Base, and satchel #2's ETH on Base swapped through 1Click into USDC at its address on Arbitrum One.
+// Base, satchel #2's ETH on Base swapped through 1Click into USDC at its address on Arbitrum One,
+// and, once deployments/mainnet-sale.json holds it, a satchel sold to a second account and its
+// seller's sign_evm refused after the sale.
 // Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
 // BASE_RPC and ARBITRUM_RPC replace the Base and Arbitrum One nodes the mainnet run reads; with
 // BASE_RPC unset, a Base read the default node fails goes to Base's own public node. The last claim
-// also reads 1Click's public status for satchel #2's deposit. Each read that fails is tried once
+// about satchel #2 also reads 1Click's public status for its deposit. Each read that fails is tried once
 // more, 2 s later, before its claim fails.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const flag = process.argv.indexOf("--network");
 const NETWORK = flag === -1 ? "testnet" : process.argv[flag + 1];
@@ -36,6 +38,11 @@ const FIRST =
 // Mainnet only: satchel #2 and its exit through NEAR Intents' 1Click (deployments/mainnet-1click-exit.json).
 const EXIT =
   NETWORK === "mainnet" ? JSON.parse(readFileSync(new URL("../deployments/mainnet-1click-exit.json", import.meta.url), "utf8")) : null;
+// Mainnet only, once it has run: a satchel's sale and the refused call after it
+// (deployments/mainnet-sale.json, written by tools/mainnet-sale-record.mjs). Until the file exists,
+// the mainnet run checks what it checked before.
+const SALE_FILE = new URL("../deployments/mainnet-sale.json", import.meta.url);
+const SALE = NETWORK === "mainnet" && existsSync(SALE_FILE) ? JSON.parse(readFileSync(SALE_FILE, "utf8")) : null;
 const BASE_RPC = process.env.BASE_RPC ?? "https://base-rpc.publicnode.com";
 /** Base's own public node, which also serves old state: read only if BASE_RPC is unset and the default node fails. */
 const BASE_FALLBACK = "https://mainnet.base.org";
@@ -590,7 +597,192 @@ const MAINNET_EXIT = [
   },
 ];
 
-const CLAIMS = [...DEPLOYMENT, ...(NETWORK === "testnet" ? TESTNET : [MAINNET_LOCK, ...MAINNET_FIRST, ...MAINNET_EXIT])];
+const BASE_CHAIN = "8453";
+const DEAD = "0x000000000000000000000000000000000000dead";
+const OWNER_CHECK = "Satchel: only the token's owner can do this";
+const MINT_DEPOSIT = "100000000000000000000000";
+const nearAmount = (yocto) => `${Number(BigInt(yocto) / 10n ** 18n) / 1e6} NEAR`;
+const succeeded = (status) => "SuccessValue" in status || "SuccessReceiptId" in status;
+
+/**
+ * A transaction `sender` signed: its one call to the contract, checked against `method` and
+ * `expected`, the attached deposit, the receipt the contract ran it in, and that receipt's block and time.
+ */
+async function ranCall(hash, sender, method, expected) {
+  const t = await tx(hash, sender);
+  if (t.transaction.signer_id !== sender) throw new Error(`${hash.slice(0, 8)}… signed by ${t.transaction.signer_id}`);
+  const call = callOf(t);
+  expectArgs(call, method, expected);
+  // The first receipt the contract ran is the call itself; a refund or a payment comes after it.
+  const ran = t.receipts_outcome.find((o) => o.outcome.executor_id === CONTRACT);
+  if (!ran) throw new Error(`no receipt of ${CONTRACT} in ${hash}`);
+  const { header } = await rpc(ARCHIVAL, "block", { block_id: ran.block_hash });
+  return { t, args: call.args, deposit: t.transaction.actions[0].FunctionCall.deposit, ran, height: header.height, ns: BigInt(header.timestamp) };
+}
+
+/** The sale's one send before it, in the shape `signedFirst` and `ranOnBase` read. */
+const saleSend = (s) => {
+  if (s.send.chainId !== BASE_CHAIN) throw new Error(`mainnet-sale.json's send is on chain ${s.send.chainId}, which this script doesn't read`);
+  return {
+    tokenId: s.tokenId,
+    path: s.path,
+    signer: s.seller,
+    address: s.address.toLowerCase(),
+    nearTx: s.send.nearTx,
+    chainId: s.send.chainId,
+    nonce: s.send.nonce,
+    baseTx: s.send.evmTx,
+    block: s.send.block,
+    valueWei: s.send.valueWei,
+    feeWei: s.send.feeWei,
+  };
+};
+
+/**
+ * A satchel minted by the seller, optionally sent from once, listed, bought by a second account
+ * naming the listing's record version, and then the seller's `sign_evm` refused. Every claim reads
+ * the chain, at the blocks the transactions ran in where it reads state, so a later signature or
+ * sale by the buyer doesn't change any of them.
+ */
+function saleClaims(s) {
+  const id = s.tokenId;
+  const v = s.recordVersion;
+  return [
+    {
+      claim: `Satchel #${id} was minted by ${s.seller} after the lock, for 0.1 NEAR`,
+      check: async () => {
+        if (s.contract !== CONTRACT || s.network !== NETWORK || s.path !== `satchel/${id}`) throw new Error("mainnet-sale.json names another deployment");
+        const [lock, mint] = await Promise.all([tx(deployment.lock_tx, CONTRACT), ranCall(s.mint.tx, s.seller, "mint", {})]);
+        if (mint.deposit !== MINT_DEPOSIT || !succeeded(mint.t.status)) throw new Error(`attached ${mint.deposit}, status ${JSON.stringify(mint.t.status)}`);
+        const token = JSON.parse(Buffer.from(mint.t.status.SuccessValue ?? "", "base64").toString() || "null");
+        if (token?.token_id !== id || token.owner_id !== s.seller) throw new Error(`the mint returned token ${token?.token_id} to ${token?.owner_id}`);
+        const locked = await height(lock);
+        if (locked >= mint.height) throw new Error(`deleted at block ${locked}, minted at ${mint.height}`);
+        return `${s.mint.tx.slice(0, 8)}… minted #${id} to ${s.seller} at block ${mint.height}, after the DeleteKey at ${locked}`;
+      },
+    },
+    ...(s.send
+      ? [
+          {
+            claim: `Before the sale, its one signature was a plain send on Base at nonce ${s.send.nonce}, recorded by the contract before ${deployment.mpc_contract} signed it`,
+            check: async () => {
+              const { entry, seen } = await signedFirst(saleSend(s));
+              if (entry.class !== "value_transfer") throw new Error(`the contract classed it ${entry.class}`);
+              return seen;
+            },
+          },
+          {
+            claim: "Base ran exactly that send, in a block that is now finalized",
+            check: () => ranOnBase(saleSend(s)),
+          },
+        ]
+      : []),
+    {
+      claim: `${s.seller} listed it for ${nearAmount(s.price)} at record version ${v}`,
+      check: async () => {
+        const list = await ranCall(s.list.tx, s.seller, "list", { token_id: id, price: s.price });
+        if (list.deposit !== "1" || !succeeded(list.t.status)) throw new Error(`attached ${list.deposit}, status ${JSON.stringify(list.t.status)}`);
+        const listed = events(list.ran).find((e) => e.standard === "satchel" && e.event === "list")?.data?.[0];
+        if (listed?.token_id !== id || listed.price !== s.price || listed.record_version !== v) throw new Error(`the contract logged ${JSON.stringify(listed)}`);
+        // Version 0: nothing was ever signed; version 1: the one send above, and nothing after it.
+        if (v !== (s.send ? "1" : "0")) throw new Error(`record version ${v} with ${s.send ? "one send" : "no send"} on record`);
+        return `${s.list.tx.slice(0, 8)}… list: ${listed.price} yoctoNEAR, record version ${v}, block ${list.height}`;
+      },
+    },
+    {
+      claim: `${s.buyer} bought it naming record version ${v}, it moved to them in that receipt, and ${s.seller} was paid ${nearAmount(s.price)}`,
+      check: async () => {
+        const [list, buy] = await Promise.all([
+          ranCall(s.list.tx, s.seller, "list", { token_id: id }),
+          ranCall(s.buy.tx, s.buyer, "buy", { token_id: id, record_version: v, price: s.price }),
+        ]);
+        if (buy.deposit !== s.price || !succeeded(buy.t.status)) throw new Error(`attached ${buy.deposit}, status ${JSON.stringify(buy.t.status)}`);
+        if (buy.height <= list.height) throw new Error(`bought at block ${buy.height}, listed at ${list.height}`);
+        const logged = events(buy.ran);
+        const moved = logged.find((e) => e.standard === "nep171" && e.event === "nft_transfer")?.data?.[0];
+        const sale = logged.find((e) => e.standard === "satchel" && e.event === "sale")?.data?.[0];
+        if (moved?.old_owner_id !== s.seller || moved.new_owner_id !== s.buyer || !moved.token_ids?.includes(id)) throw new Error(`transfer ${JSON.stringify(moved)}`);
+        if (sale?.seller !== s.seller || sale.buyer !== s.buyer || sale.price !== s.price || sale.record_version !== v) throw new Error(`sale ${JSON.stringify(sale)}`);
+        // The seller's payment is a transfer receipt the contract's receipt created; it must have run.
+        const paid = buy.t.receipts.find(
+          (r) => r.predecessor_id === CONTRACT && r.receiver_id === s.seller && r.receipt.Action?.actions?.[0]?.Transfer?.deposit === s.price,
+        );
+        const ran = paid && buy.t.receipts_outcome.find((o) => o.id === paid.receipt_id);
+        if (!ran || !succeeded(ran.outcome.status)) throw new Error(`no transfer of ${s.price} yoctoNEAR to ${s.seller} ran`);
+        return `${s.buy.tx.slice(0, 8)}… buy at block ${buy.height}: nft_transfer ${s.seller} → ${s.buyer}, sale at record version ${v}; receipt ${paid.receipt_id.slice(0, 8)}… paid ${s.seller} ${nearAmount(s.price)}`;
+      },
+    },
+    {
+      claim: `After the sale, ${s.seller}'s sign_evm for #${id} was refused by the owner check, and changed nothing`,
+      check: async () => {
+        const [buy, refused] = await Promise.all([
+          ranCall(s.buy.tx, s.buyer, "buy", { token_id: id }),
+          ranCall(s.refused.tx, s.seller, "sign_evm", { token_id: id }),
+        ]);
+        const seen = panic(refused.t);
+        if (refused.deposit !== "1" || !seen?.endsWith(OWNER_CHECK)) throw new Error(`attached ${refused.deposit}, status ${JSON.stringify(refused.t.status)}`);
+        // What it asked to sign moves nothing, even if it had been signed: 0 to 0x…dEaD, no data.
+        const asked = refused.args.tx;
+        if (asked?.to?.toLowerCase() !== DEAD || BigInt(asked.value) !== 0n || (asked.data ?? "0x") !== "0x") throw new Error(`it asked for ${JSON.stringify(asked)}`);
+        if (events(refused.ran).length > 0 || refused.t.receipts.some((r) => r.predecessor_id === CONTRACT && r.receiver_id === deployment.mpc_contract)) {
+          throw new Error("the contract logged an event or called the MPC contract");
+        }
+        if (refused.height <= buy.height) throw new Error(`refused at block ${refused.height}, bought at ${buy.height}`);
+        // Before its receipt ran (the block that included it) and after: the buyer's, unlisted, record version v.
+        const [before, owner, listing, record] = await Promise.all([
+          view("signing_record", { token_id: id }, refused.t.transaction_outcome.block_hash),
+          view("nft_token", { token_id: id }, refused.ran.block_hash),
+          view("listing", { token_id: id }, refused.ran.block_hash),
+          view("signing_record", { token_id: id }, refused.ran.block_hash),
+        ]);
+        if (owner?.owner_id !== s.buyer || listing !== null || before.version !== v || record.version !== v) {
+          throw new Error(`at its block: owner ${owner?.owner_id}, listing ${JSON.stringify(listing)}, record version ${before.version} then ${record.version}`);
+        }
+        const tgas = BigInt(refused.t.transaction.actions[0].FunctionCall.gas) / 10n ** 12n;
+        return `${s.refused.tx.slice(0, 8)}… sign_evm (${tgas} Tgas, 1 yoctoNEAR) by ${s.seller}: "${OWNER_CHECK}", block ${refused.height}; ${s.buyer} owned #${id}, unlisted, record version ${v} before and after`;
+      },
+    },
+    {
+      // The report's four checks, from the chain: check 1 is the deployment claims above; checks 2 to 4
+      // read the record as it was when the buyer got the satchel. The two saved reports are checked for
+      // what they read and, against the chain, when they were saved; not for which program wrote them.
+      claim: `Satchel #${id} reached ${s.buyer} provably clean: the buyer's report read so before the buy, every nonce it signed is spent in a finalized block, no approval, nothing unexplained`,
+      check: async () => {
+        const [list, buy] = await Promise.all([
+          ranCall(s.list.tx, s.seller, "list", { token_id: id }),
+          ranCall(s.buy.tx, s.buyer, "buy", { token_id: id }),
+        ]);
+        const record = await view("signing_record", { token_id: id }, buy.ran.block_hash);
+        const unexplained = record.approvals.length + record.approvals_not_itemized + record.unclassified_calls + record.opaque_signatures;
+        if (record.version !== v || unexplained !== 0) throw new Error(`record at the sale: ${JSON.stringify(record)}`);
+        const spent = [];
+        for (const c of record.evm) {
+          if (c.chain_id !== BASE_CHAIN) throw new Error(`signed on chain ${c.chain_id}, which this script doesn't read`);
+          const finalized = BigInt(await fromBase("eth_getTransactionCount", [s.address, "finalized"]));
+          if (finalized <= BigInt(c.max_nonce)) throw new Error(`Base: signed up to nonce ${c.max_nonce}, finalized nonce is ${finalized}`);
+          spent.push(`Base: signed up to nonce ${c.max_nonce}, finalized nonce is ${finalized}`);
+        }
+        // The buyer's report: on the listing the buy names, saved after the listing ran and before the
+        // block that included the buy.
+        const saved = s.reportBeforeBuy;
+        const l = saved?.listing;
+        if (saved?.result !== "PROVABLY CLEAN" || saved.owner !== s.seller || saved.recordVersion !== v || l?.seller !== s.seller || l.price !== s.price || l.record_version !== v) {
+          throw new Error(`the report saved before the buy reads ${saved?.result} for ${saved?.owner}, listing ${JSON.stringify(l)}`);
+        }
+        const { header: sent } = await rpc(ARCHIVAL, "block", { block_id: buy.t.transaction_outcome.block_hash });
+        const checked = BigInt(Date.parse(saved.checkedAt)) * 1_000_000n;
+        if (checked <= list.ns || checked >= BigInt(sent.timestamp)) throw new Error(`the report before the buy was saved at ${saved.checkedAt}, not between the listing and the buy`);
+        if (s.verified?.result !== "PROVABLY CLEAN" || s.verified.owner !== s.buyer) throw new Error(`the saved report reads ${s.verified?.result} for ${s.verified?.owner}`);
+        return `record version ${v} at the sale's block: ${spent.join(", ") || "nothing ever signed"}; 0 approvals, 0 unclassified calls, 0 raw signatures. The reports saved at ${saved.checkedAt}, before the buy, and at ${s.verified.checkedAt} read PROVABLY CLEAN`;
+      },
+    },
+  ];
+}
+
+const CLAIMS = [
+  ...DEPLOYMENT,
+  ...(NETWORK === "testnet" ? TESTNET : [MAINNET_LOCK, ...MAINNET_FIRST, ...MAINNET_EXIT, ...(SALE ? saleClaims(SALE) : [])]),
+];
 
 let failed = 0;
 for (const { claim, check } of CLAIMS) {
