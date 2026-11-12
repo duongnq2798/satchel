@@ -7,7 +7,8 @@ Every screen and line below is what satchelnft.xyz and `satchel-nft` showed on 2
 seen on mainnet satchel #1, opened with Meteor's Chrome extension; testnet rooms were opened with
 near-cli-rs and curl. The 1:18 and 1:42 scenes are newer: on 2026-11-11 their pages were seen first
 in a local build, then on satchelnft.xyz once the promote to `main` deployed them. The clean-up in
-the 1:18 scene hasn't run yet: it happens once, in the take.
+the 1:18 scene ran once, in the take, on 2026-11-12
+([the run](../README.md#make-it-clean-on-testnet-satchel-9)).
 
 `node scripts/check-demo-kit.mjs` checks the numbers this kit depends on: the form text's length, the
 X post's length, tags and question, the script's timing and the pages it opens. CI runs it on every
@@ -48,9 +49,11 @@ pull request.
   `npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"` once before recording: the first run downloads
   the package (142 s and 230 s in two runs here), later ones take 6 to 11 s. The CLI doesn't print its
   exit code, so the `echo` shows it. In the edit, cut the wait.
-- **A wallet for the 1:18 and 1:30 scenes, in a window of its own.** Satchel #9's buttons show only
-  for its owner, `satchel-nft.testnet`, and the room opens only for the account that owns the
-  satchel right now, so record both with that wallet; #9's own room works for 1:30.
+- **A wallet for the 1:18 and 1:30 scenes, in a window of its own.** The 1:18 take ran on #9 on
+  2026-11-12, and #9 now reads clean, so it shows no Make it clean card: a new take needs a new
+  satchel, set up by `tools/make-clean-demo.mjs`, in place of #9 below. Satchel #9's buttons
+  showed only for its owner, `satchel-nft.testnet`, and the room opens only for the account that
+  owns the satchel right now, so record both with that wallet; #9's own room works for 1:30.
   - **Use a second fresh Chrome profile** for the room, and never connect a wallet in the window
     with the other three tabs. A connected wallet stays connected in every satchelnft.xyz tab of its
     profile on its network (testnet pages and `/mainnet` pages keep separate connections), and on a
@@ -91,7 +94,7 @@ cell against its time.
 | 0:22–0:46 | "Try to cheat the buyer." | Click **Keep a signed withdrawal**. Point at "A signed transaction may still be pending" | A 10,000 ETH send, signed and kept: caught | Try to cheat a buyer. This seller kept a signed 10,000 ETH send. Before anything is signed, the contract records it: the highest nonce it signed on each chain, every approval, and a count of anything else. The buyer's browser compares that record with Sepolia and flags it: not provable. |
 | 0:46–1:02 | Same section | Click **Leave an approval behind**, then **Play fair** | Approval left live: caught. Nothing kept: provably clean | An approval left for the seller's other address is caught too. Satchel #1 has spent every nonce it signed, approved nothing and signed nothing raw, so it reads provably clean. |
 | 1:02–1:18 | Same section | Click **Change it after the buyer checked**. Point at the refused `buy` | Changed after the check: the buy is refused | Listing freezes signing, and the purchase names the record version the buyer checked. This seller changed it after the check, so the contract refused the buy and refunded. |
-| 1:18–1:30 | satchelnft.xyz/satchel/9, in the wallet's window, connected as `satchel-nft.testnet` | Point at "Not provable". Under **Make it clean**, click **Revoke** and approve in the wallet, then **Spend nonce** and approve. Cut the wait until Sepolia finalizes (about 13 minutes), click **Check again** in the report and point at "Provably clean" | Not clean? Its owner fixes it from the page | When a report isn't clean, the owner fixes it from the page: revoke the approval, spend the open nonce, and once Sepolia finalizes, it reads provably clean. |
+| 1:18–1:30 | satchelnft.xyz/satchel/9, in the wallet's window, connected as `satchel-nft.testnet` (this take ran on 2026-11-12; a new one needs a new satchel set up the same way) | Point at "Not provable". Under **Make it clean**, click **Revoke** and approve in the wallet, then **Spend nonce** and approve. Cut the wait until Sepolia finalizes (about 13 minutes), click **Check again** in the report and point at "Provably clean" | Not clean? Its owner fixes it from the page | When a report isn't clean, the owner fixes it from the page: revoke the approval, spend the open nonce, and once Sepolia finalizes, it reads provably clean. |
 | 1:30–1:42 | The holder room of a satchel your wallet owns, `/satchel/<id>/room` (see "Before you record") | Scroll to **Open the room**, click it and approve the message in the wallet; cut the wait. Scroll to "Checked at" in the card "You hold satchel #…", point at it, then scroll to "Handover kit" | Only the current holder gets in, checked at a final NEAR block | Only the current holder opens this room: the wallet signs a message, the server checks the owner at a final NEAR block. Sell it, and the buyer gets in. |
 | 1:42–1:52 | satchelnft.xyz/mainnet/satchel/2 | Point at Arbitrum One, 5.28054 USDC, then "Provably clean". Click **Quote an exit**, then **Get a quote**; cut the wait and point at "Out" | Live on mainnet: swapped through NEAR Intents, still provably clean | Live on mainnet: this satchel swapped its ETH through NEAR Intents and still reads provably clean. Anyone can get a dry quote, no wallet. |
 | 1:52–2:00 | A terminal: `npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
@@ -109,9 +112,12 @@ What each scene shows, so the edit can't drift from the chain:
   ([the run](../README.md#make-it-clean-on-testnet-satchel-9)): an unlimited USDC approval for
   satchel #7's address, live, and two sends signed at nonces 1 and 2 and never broadcast. Before the
   take, its report says "Sepolia: signed up to nonce 2, finalized nonce is 1", and the card plans
-  "Revoke 0x65C6…9C8E's allowance on 0x1c7D…7238" at nonce 1, then "Spend nonce 2". Each row
-  shows "Sent" once its transaction is mined. The take is the clean-up itself, so it happens once,
-  with no rehearsal.
+  "Revoke 0x65C6…9C8E's allowance on 0x1c7D…7238" at nonce 1, then "Spend nonce 2". Each row shows
+  "Sent" once its transaction is mined. The take is the clean-up itself, so it happens once, with no
+  rehearsal. It ran on 2026-11-12: **Revoke** at nonce 1, then **Spend nonce** on the row "Spend
+  nonce 2", each approved in the wallet, and about 15 minutes later, once Sepolia had finalized the
+  send at nonce 2, **Check again** read "Provably clean" at record version 5. A new take of this
+  scene needs a new satchel set up the same way: #9 has nothing left to fix.
 - **1:30.** Your own satchel's holder room. The card "You hold satchel #…" lists your account, the
   satchel, the network, "Checked at" with the final NEAR block the server read the key and the owner
   at, and the key. For a satchel that has signed nothing, "Handover kit" says "The satchel reads
@@ -206,11 +212,11 @@ Until 2026-11-25:
   and #2. A new signature changes the report lines quoted in the README; one with satchel #5 at
   nonce 0 would end the "signed and kept" example. Mainnet #2 holds the USDC of its swap through
   1Click on Arbitrum One: leave it there.
-- Testnet satchel #9 signs only in the 1:18 take: the revoke and the nonce spend its card plans,
-  once. After that it reads provably clean; leave it as it is, and update the README's section on
-  it and its landing card (`TOUR` in `web/src/lib/showcase.ts`) in the same pull request as anything
-  else this list names.
-- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #8 or mainnet #1 and
+- After its setup, testnet satchel #9 signed only in the 1:18 take, on 2026-11-12: the revoke and
+  the nonce spend its card planned, once. The README's section on it quotes its report at record
+  version 5, and its landing card (`TOUR` in `web/src/lib/showcase.ts`) tells the clean-up: don't
+  sign anything with it either. The app's guard covers it from the pull request that recorded the run.
+- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #9 or mainnet #1 and
   #2. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's
   example says #2's address belongs to the same seller; the README shows #7's history, and #9's
   approval in the 1:18 scene names #7's address; #4 is for sale for 1 NEAR at record version 0 and
@@ -220,7 +226,7 @@ Until 2026-11-25:
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
 If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
-#5, #6 and #7, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` and `2`, and the README's quick-start
+#5, #6, #7 and #9, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` and `2`, and the README's quick-start
 `satchel` view for #1. Then update the README's quoted outputs, AGENTS.md's table,
 `web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx`, the landing cards (`TOUR` in
 `web/src/lib/showcase.ts`) and this kit's scene notes in the same pull request.

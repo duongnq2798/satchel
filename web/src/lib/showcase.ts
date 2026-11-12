@@ -124,14 +124,19 @@ const DAO_RUN = {
   transferVote: "6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg",
 } as const;
 
-/** The state testnet satchel #9 was left in for Make it clean (deployments/testnet-make-clean.json). */
+/** Testnet satchel #9: the state it was left in for Make it clean, then the clean-up (deployments/testnet-make-clean.json). */
 const MAKE_CLEAN = {
   tokenId: "9",
-  /** When the state was set up, and the card last checked against the live page. */
+  /** When the state was set up. */
   date: "2026-11-11",
   approveTx: "0xdeef1d5c70b00db68cf1fa2fc568535bd12686b4c690d6218f82f5dba88cab42",
   spenderSatchel: "7",
-  kept: ["CLpsgUtaBSN5s4rvZgXHDpUJf9MQeE4QzQZVPrC22D2Y", "E33gHExEGo1xkUr49UrMR2uLj5UUH95tCWHhxUnKQDHJ"],
+  /** The card's two sends from the owner's wallet, on Sepolia: the revoke at nonce 1, the send of 0 at nonce 2. */
+  cleaned: {
+    date: "2026-11-12",
+    revokeTx: "0xe7fdde14c08ce7f43bbc3ef940634cf4eddabc308188d76bb53a929f69661b13",
+    spendTx: "0xd44a2279073fe923b87503c93b6e82aa4abd43dbecc80739e274d19412184f10",
+  },
 } as const;
 
 export interface TourCard {
@@ -199,14 +204,14 @@ export const TOUR: readonly TourCard[] = [
     tokenId: MAKE_CLEAN.tokenId,
     tech: "Chain Signatures",
     title: "Fix it before you sell",
-    body: `On ${MAKE_CLEAN.date} its owner's script left satchel #${MAKE_CLEAN.tokenId} with a live USDC approval for satchel #${MAKE_CLEAN.spenderSatchel}'s address and two sends signed but never broadcast. For that state, Make it clean, under its report, plans two sends, the revoke at nonce 1 and a send of 0 at nonce 2, with their calldata and a button for each for the owner. They hadn't run on ${MAKE_CLEAN.date}; the page shows what is left now.`,
+    body: `On ${MAKE_CLEAN.date} its owner's script left satchel #${MAKE_CLEAN.tokenId} with a live USDC approval for satchel #${MAKE_CLEAN.spenderSatchel}'s address and two sends signed but never broadcast. Make it clean planned the revoke at nonce 1 and a send of 0 at nonce 2, a button each for the owner. On ${MAKE_CLEAN.cleaned.date} the owner pressed both: the allowance went to 0, and neither kept send can be broadcast now.`,
     path: `/satchel/${MAKE_CLEAN.tokenId}`,
     cta: `Open satchel #${MAKE_CLEAN.tokenId}`,
     docs: "/docs/concepts/clean-transfer-report#make-it-clean",
     txs: [
       { label: "The approve on Sepolia", href: evmTxUrl(SEPOLIA, MAKE_CLEAN.approveTx) },
-      { label: "Kept send, nonce 1", href: nearTxUrl(TESTNET, MAKE_CLEAN.kept[0]) },
-      { label: "Kept send, nonce 2", href: nearTxUrl(TESTNET, MAKE_CLEAN.kept[1]) },
+      { label: "The revoke, nonce 1", href: evmTxUrl(SEPOLIA, MAKE_CLEAN.cleaned.revokeTx) },
+      { label: "The send of 0, nonce 2", href: evmTxUrl(SEPOLIA, MAKE_CLEAN.cleaned.spendTx) },
     ],
   },
 ];
@@ -251,6 +256,12 @@ export const DEMO_SATCHELS: readonly DemoSatchel[] = [
   { network: "testnet", tokenId: "6", story: "Listed, delisted, signed a raw payload and listed again; a buy naming the old record version was refused", pick: true },
   { network: "testnet", tokenId: "7", story: "Sent once on Sepolia, then listed, sold and handed back, each step with the satchel-nft CLI", pick: false },
   { network: "testnet", tokenId: "8", story: "Minted to a Sputnik DAO, whose vote had it sign a Sepolia send; a second vote gave it to buyer.satchel-nft.testnet", pick: false },
+  {
+    network: "testnet",
+    tokenId: MAKE_CLEAN.tokenId,
+    story: `Left with a live USDC approval and two Sepolia sends signed but never broadcast; on ${MAKE_CLEAN.cleaned.date} its owner revoked the approval and spent both nonces from its page`,
+    pick: false,
+  },
   { network: "mainnet", tokenId: FIRST_SEND.tokenId, story: `Sent ${FIRST_SEND.sent} ETH on Base from this app`, pick: true },
   {
     network: "mainnet",

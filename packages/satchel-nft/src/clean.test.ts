@@ -177,7 +177,8 @@ describe("fixPlan", () => {
   });
 
   it("revokes a live ERC-20 allowance with approve(spender, 0), which takes the next slot and the open nonce", () => {
-    // Testnet #9's plan: a live USDC approval on Fuji, and nonce 1 signed but never sent.
+    // Like testnet #9's plan (on Sepolia), cut down to one open nonce: a live USDC approval, and
+    // nonce 1 signed but never sent.
     const p = plan({
       record: { evm: [evm(FUJI, 1)] },
       nonces: [open(FUJI, 1, 1)],
