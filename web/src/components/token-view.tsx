@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CHAINS, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, sendChains, tokenAddress } from "satchel-nft";
+import { CHAINS, type ChainContents, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, sendChains, tokenAddress } from "satchel-nft";
 import { isFrozen } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
 import { Contents } from "./contents";
@@ -11,6 +11,7 @@ import { FixPanel } from "./fix-panel";
 import { History } from "./history";
 import { useNetwork } from "./network";
 import { QuotePanel } from "./quote-panel";
+import { Received } from "./received";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale, checkedListing } from "./sale-panel";
 import { SendPanel } from "./send-panel";
@@ -93,10 +94,14 @@ export function TokenView({ tokenId }: { tokenId: string }) {
     `${net.id}:${tokenId}:${refresh}`,
   );
   const report = useAsync(() => buildReport(net, tokenId), `${net.id}:${tokenId}:${refresh}`);
+  // The balances "What's inside" shows, for the Received card: they and the record choose its chains.
+  const [held, setHeld] = useState<Readonly<Record<number, ChainContents | null>>>({});
   // The last transaction a panel finished. Kept here, since a sale or delist unmounts its panel.
   const [lastTx, setLastTx] = useState<string | null>(null);
   const reloadAll = (hash?: string) => {
     setLastTx(hash ?? null);
+    // Cleared with the refresh, so the Received card waits for the new balances instead of
+    // starting a scan from the old ones that it would drop once "What's inside" reads again.
     setRefresh((n) => n + 1);
   };
   // The sections render only once the satchel loads, after the browser and the router looked for the
@@ -204,7 +209,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
             </p>
             <h2 className="mt-5 font-display text-xl font-semibold">What&apos;s inside</h2>
             <div className="mt-3">
-              <Contents address={address} refresh={refresh} />
+              <Contents address={address} refresh={refresh} onRead={setHeld} />
             </div>
           </>
         ) : deployment.error ? (
@@ -261,6 +266,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       </Card>
 
       <History tokenId={view.token_id} record={record} refresh={refresh} />
+      {deployment.data && <Received address={address} record={record} contents={held} refresh={refresh} />}
 
       <Card>
         <h2 className="font-display text-xl font-semibold">Signing record</h2>
