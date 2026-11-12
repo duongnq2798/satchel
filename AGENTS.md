@@ -11,8 +11,11 @@ Node 22 or later; the contract tests also need Rust.
 - Each token controls one secp256k1 key held by NEAR's MPC network (Chain Signatures). The key is
   derived from the contract's account and the path `satchel/<token_id>`, so a token is one address
   on 16 EVM chains.
-- Only the token's owner can have the contract sign with that key, so transferring the NFT moves
-  control of the address on every chain.
+- Only the token's owner can have the contract sign with that key, so after a transfer only the new
+  owner can have anything new signed for the address, on every chain. A transaction, an approval
+  or a raw signature made before the transfer can still move what the address holds. The report
+  checks that every signed nonce is spent and every approval revoked, and any raw signature makes
+  the satchel not provable.
 - The contract builds every EVM transaction it signs and keeps a public signing record per token.
 - A buyer runs four checks on that record (the "clean transfer report") before paying, and `buy`
   names the record version the buyer checked. The report and the transactions are one package,
@@ -147,7 +150,22 @@ You should see `5 of 5 claims hold`. It checks that:
   `buyer.satchel-nft.testnet`,
   the contract logged it from the DAO, and right after it the record was still at version 1.
 
-`SEPOLIA_RPC` replaces the Sepolia node.
+`SEPOLIA_RPC` replaces the Sepolia node. With it unset, a Sepolia read that
+`https://ethereum-sepolia-rpc.publicnode.com` fails, or answers with null, goes to
+`https://1rpc.io/sepolia`, then `https://sepolia.gateway.tenderly.co`, and a last line then names
+the nodes that answered; on 2026-11-12 the default node returned the transaction but a null receipt
+for it. `NEAR_ARCHIVAL_RPC` replaces the archival NEAR node; with it unset, a read that
+`https://archival-rpc.testnet.fastnear.com` still doesn't answer goes to
+`https://archival-rpc.testnet.near.org`. Once FastNEAR's node has failed a read that NEAR's
+answered, later archival reads go to NEAR's node first, and a last line names the archival nodes
+that answered. In a copy of the script whose default archival node was a closed local port, a run
+took 35 s and printed `5 of 5 claims hold`; two runs of the script itself took 8 s and 6 s. A read
+a node answers with HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 3 more times, 1,
+2 and 4 s apart, or longer if the node's Retry-After asks, up to 8 s; any other read
+that fails, one that timed out after 30 s included, is tried once more, 2 s later. A claim that
+fails only because a NEAR or Sepolia node didn't answer says it is not a change to any satchel, and
+which variable to set. One that fails because every Sepolia node asked answered without the
+transaction says so instead.
 
 GitHub runs the three commands every day until judging ends, in
 [`watch.yml`](.github/workflows/watch.yml): `check-claims.mjs` on both networks, `check-dao.mjs`,
@@ -157,6 +175,16 @@ install and no secrets. A check that fails runs once more a minute later before 
 repository's Actions tab.
 
 ### 2. The clean transfer report for each demo satchel
+
+Run step 1's `node scripts/check-claims.mjs` before this step: it needs no install and ends in
+seconds. This step installs or downloads the package before it runs, which takes longer than a
+2-minute tool timeout: the root `npm ci` below installs the package and the web app, and the
+package alone (`npm ci -w satchel-nft`) took 2 min 54 s here; `npx -y satchel-nft@0.2.0 verify 1`
+in an empty folder took 142 s and 230 s in two runs. An agent should
+start the install or the `npx` run in the background, with its output going to a file, and read the
+file once it ends. To redo one verdict with no install at all, the README's
+[step 3](README.md#how-to-evaluate-satchel-in-5-minutes) reads satchel #5's record and its Sepolia
+nonce with two RPC calls.
 
 From the repository root:
 
@@ -169,8 +197,8 @@ npx satchel-nft verify 1
 Outside a clone, `npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from
 commit `2dd4209` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside the
 repository that pinned command runs this checkout's build instead, because the checkout's package
-is also 0.2.0. The release's first run downloads the package: 142 s and 230 s in two runs here,
-more than a 2-minute command timeout. Later runs take 6 to 11 s.
+is also 0.2.0. On its initial run the release downloads the package (timed above); later runs take
+6 to 11 s.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
 that runs on it. Inside the repository, `npx satchel-nft` runs this checkout's build, never a
@@ -327,6 +355,8 @@ of these checks.
   `satchel-nft verify` can read from your own nodes, but it does not compare nodes or check storage
   proofs.
 - **The MPC network is trusted.** If enough MPC nodes colluded, they could sign with any derived key.
+  The MPC contract can also be upgraded by a vote of its participants, which could change how keys
+  are derived or who may ask for a signature.
 - **A swap through 1Click trusts 1Click.** Mainnet satchel #2's swap kept it provably clean because
   its deposit was a plain transfer, but the USDC, or a refund, reaches the satchel only if 1Click's
   system sends it, and the report doesn't count an output or a refund still in flight. A swap

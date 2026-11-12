@@ -3,13 +3,36 @@
 // Sepolia transaction that ran, and the vote that gave it away. It reads the transactions in
 // deployments/testnet-dao.json. Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-dao.mjs
-// NEAR_RPC, NEAR_ARCHIVAL_RPC and SEPOLIA_RPC replace the default nodes.
+// NEAR_RPC, NEAR_ARCHIVAL_RPC and SEPOLIA_RPC replace the default nodes. A read a node answers with
+// HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 3 more times, 1, 2 and 4 s apart, or
+// longer if the node's Retry-After asks, up to 8 s; any other read that fails, a timeout included,
+// is tried once more, 2 s later. With NEAR_ARCHIVAL_RPC unset, an archival read FastNEAR doesn't
+// answer goes to NEAR's own archival node, and once NEAR's node has answered one, later archival
+// reads go to it first and to FastNEAR's last. With SEPOLIA_RPC unset, a Sepolia read the default
+// node fails, or answers with null, goes to 1rpc.io's public node, then to Tenderly's. A claim that
+// fails only because a node didn't answer says it is not a change to any satchel, and what to do.
+// One that fails because every Sepolia node asked answered without the transaction says that
+// instead. One that an archival node answered with an error, after another didn't answer, names
+// both. A hash an archival node doesn't know fails its claim with that node's error, not as a node
+// not answering.
 import { readFileSync } from "node:fs";
 
 const RUN = JSON.parse(readFileSync(new URL("../deployments/testnet-dao.json", import.meta.url), "utf8"));
 const RPC = process.env.NEAR_RPC ?? "https://rpc.testnet.fastnear.com";
 const ARCHIVAL = process.env.NEAR_ARCHIVAL_RPC ?? "https://archival-rpc.testnet.fastnear.com";
+/**
+ * Read only if NEAR_ARCHIVAL_RPC is unset and the default node doesn't answer, and first once one of
+ * these has answered a read. On 2026-11-12 FastNEAR's archival node answered HTTP 429 to every retry
+ * when this ran right after check-claims.mjs, which reads from it too; this node returned the same
+ * transactions, in about 4 s each.
+ */
+const ARCHIVAL_FALLBACKS = ["https://archival-rpc.testnet.near.org"];
 const SEPOLIA_RPC = process.env.SEPOLIA_RPC ?? "https://ethereum-sepolia-rpc.publicnode.com";
+/**
+ * Read only if SEPOLIA_RPC is unset and the default node fails. On 2026-11-12 the default node
+ * returned the DAO's Sepolia transaction but a null receipt for it; these two returned both.
+ */
+const SEPOLIA_FALLBACKS = ["https://1rpc.io/sepolia", "https://sepolia.gateway.tenderly.co"];
 const CONTRACT = RUN.contract;
 const MPC = RUN.mpc;
 const DAO = RUN.dao;
@@ -32,20 +55,172 @@ const SEND = step("satchel-nft dao finish").sepolia;
 const TRANSFER_PROPOSAL = step("Proposal 1");
 const TRANSFER_VOTE = step("Vote approving proposal 1");
 
-async function rpc(url, method, params) {
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A node that didn't answer. `busy` (HTTP 408, 429 or 5xx, or a failed connection) marks one worth
+ * asking again soon; a timeout, any other HTTP error but a 400 with a JSON-RPC error, or a reply that
+ * isn't JSON is not.
+ */
+class NoAnswer extends Error {
+  constructor(message, { busy = false, retryAfter = null } = {}) {
+    super(message);
+    this.busy = busy;
+    this.retryAfter = retryAfter;
+  }
+}
+
+async function rpcOnce(url, method, params) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "satchel", method, params }),
     signal: AbortSignal.timeout(30_000),
+  }).catch((err) => {
+    // A request that timed out after 30 s gets one more try, like any other failure, not three.
+    throw new NoAnswer(`${method}: ${err.message} from ${url}`, { busy: err.name !== "TimeoutError" });
   });
-  if (!res.ok) throw new Error(`${method}: HTTP ${res.status} from ${url}`);
-  const body = await res.json();
-  if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error.cause ?? body.error)}`);
+  if (res.status === 408 || res.status === 429 || res.status >= 500) {
+    // Retry-After in seconds; a date, or no header, leaves the backoff as it is.
+    const header = res.headers.get("retry-after");
+    const seconds = header === null || header.trim() === "" ? Number.NaN : Number(header);
+    throw new NoAnswer(`${method}: HTTP ${res.status} from ${url}`, {
+      busy: true,
+      retryAfter: Number.isFinite(seconds) && seconds >= 0 ? seconds : null,
+    });
+  }
+  if (!res.ok) {
+    // nearcore answers 400, with a JSON error, to a request it can't parse: the request is wrong, not
+    // the node. Any other error page, a 403 or a 404, is a node not answering.
+    const error = res.status === 400 ? (await res.json().catch(() => null))?.error : undefined;
+    if (error) throw new Error(`${method}: HTTP 400, ${JSON.stringify(error.cause ?? error)} from ${url}`);
+    throw new NoAnswer(`${method}: HTTP ${res.status} from ${url}`);
+  }
+  const body = await res.json().catch((err) => {
+    // A body that stalls past the timeout, or a connection cut off partway, is not "not JSON".
+    throw err.name === "SyntaxError"
+      ? new NoAnswer(`${method}: a reply that is not JSON from ${url}`)
+      : new NoAnswer(`${method}: ${err.message} from ${url}`, { busy: err.name !== "TimeoutError" });
+  });
+  if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error.cause ?? body.error)} from ${url}`);
   return body.result;
 }
 
-/** Calls a view method of `account` now, or at `blockId` on the archival node. */
+/**
+ * Sends a read, and again while the node is busy: up to 4 sends, 1, 2 and 4 s apart, or longer if its
+ * Retry-After asks, up to 8 s. Any other failure is tried once more, 2 s later.
+ */
+async function rpc(url, method, params) {
+  for (let sent = 1; ; sent += 1) {
+    try {
+      return await rpcOnce(url, method, params);
+    } catch (err) {
+      const busy = err instanceof NoAnswer && err.busy;
+      if (sent >= (busy ? 4 : 2)) throw err;
+      const backoff = 1_000 * 2 ** (sent - 1);
+      // A Retry-After can only make the wait longer: FastNEAR's archival node sends `retry-after: 0`
+      // with its 429s, and asking again at once only meets another 429.
+      await wait(busy ? Math.min(Math.max(backoff, (err.retryAfter ?? 0) * 1_000), 8_000) : 2_000);
+    }
+  }
+}
+
+/**
+ * A NEAR read from `url`, which the variable `name` sets. A node that still doesn't answer fails the
+ * claim with a line that says so.
+ */
+async function near(url, name, method, params) {
+  try {
+    return await rpc(url, method, params);
+  } catch (err) {
+    if (!(err instanceof NoAnswer)) throw err;
+    throw new Error(`${err.message}. That is a NEAR node not answering, not a change to any satchel: wait a minute and run it again, or set ${name} to another node`);
+  }
+}
+
+/**
+ * The archival nodes that answered reads, and the Sepolia nodes that answered a read the default node
+ * failed, which the last lines name.
+ */
+const answeredBy = { archival: new Set(), sepolia: new Set() };
+
+/**
+ * The archival nodes in the order a read asks them: NEAR_ARCHIVAL_RPC alone or, with it unset,
+ * FastNEAR's and then NEAR's own. Once a fallback answers a read, with a result or an error, later
+ * reads ask it first and FastNEAR's last.
+ */
+let archivalNodes = process.env.NEAR_ARCHIVAL_RPC ? [ARCHIVAL] : [ARCHIVAL, ...ARCHIVAL_FALLBACKS];
+
+function answered(url) {
+  if (url !== ARCHIVAL && archivalNodes[0] !== url) {
+    archivalNodes = [url, ...ARCHIVAL_FALLBACKS.filter((u) => u !== url), ARCHIVAL];
+  }
+}
+
+/**
+ * An archival read from the first of `archivalNodes` that answers. Only a node that doesn't answer is
+ * passed over. An error the first node asked answers with fails the claim. One a later node answers
+ * with fails it too, and names the nodes before it that didn't answer: no other node checked it.
+ */
+async function archival(method, params) {
+  const urls = archivalNodes;
+  const errors = [];
+  for (const [i, url] of urls.entries()) {
+    try {
+      const result = await rpc(url, method, params);
+      answered(url);
+      answeredBy.archival.add(url);
+      return result;
+    } catch (err) {
+      if (!(err instanceof NoAnswer)) {
+        answered(url);
+        if (i === 0) throw err;
+        throw new Error(`${[...errors, err.message].join("; ")}. ${urls.slice(0, i).join(" and ")} did not answer, and ${url} answered with that error: run it again, or set NEAR_ARCHIVAL_RPC to an archival node you trust`);
+      }
+      errors.push(err.message);
+    }
+  }
+  const nodes = urls.length === 1 ? "That is a NEAR node" : `Those are ${urls.length} NEAR nodes`;
+  throw new Error(`${errors.join("; ")}. ${nodes} not answering, not a change to any satchel: wait a minute and run it again, or set NEAR_ARCHIVAL_RPC to another archival node`);
+}
+/**
+ * A Sepolia read from SEPOLIA_RPC or, with it unset, from the default node and then each fallback.
+ * A null result, or none, counts as a failed read: every read here asks for something that exists.
+ * Only a read no node answered is blamed on the nodes.
+ */
+async function sepolia(method, params) {
+  const urls = process.env.SEPOLIA_RPC ? [SEPOLIA_RPC] : [SEPOLIA_RPC, ...SEPOLIA_FALLBACKS];
+  const errors = [];
+  let unanswered = 0;
+  for (const url of urls) {
+    try {
+      let result = await rpc(url, method, params);
+      if (result == null) {
+        await wait(2_000);
+        result = await rpc(url, method, params);
+      }
+      if (result == null) throw new Error(`${method}: ${result === null ? "null" : "no result"} from ${url}`);
+      if (url !== SEPOLIA_RPC) answeredBy.sepolia.add(url);
+      return result;
+    } catch (err) {
+      if (err instanceof NoAnswer) unanswered += 1;
+      errors.push(err.message);
+    }
+  }
+  const failures = errors.join("; ");
+  if (unanswered === urls.length) {
+    const nodes = urls.length === 1 ? "That is a Sepolia node" : `Those are ${urls.length} Sepolia nodes`;
+    throw new Error(`${failures}. ${nodes} failing, not a change to any satchel: set SEPOLIA_RPC to another Sepolia node and run it again`);
+  }
+  if (unanswered === 0) {
+    // Every node answered, so this is no outage: Sepolia, or every node asked, doesn't have it.
+    const [nodes, them] = urls.length === 1 ? ["The Sepolia node answered", "that node"] : [`All ${urls.length} Sepolia nodes answered`, "every one of them"];
+    throw new Error(`${failures}. ${nodes} without it: Sepolia may not have it, or ${them} may be missing it. If you trust another Sepolia node, set SEPOLIA_RPC to it and run it again`);
+  }
+  throw new Error(`${failures}. Some Sepolia nodes did not answer, and the rest answered without it: run it again, or set SEPOLIA_RPC to another node`);
+}
+
+/** Calls a view method of `account` now, or at `blockId` on an archival node. */
 async function view(account, method, args = {}, blockId) {
   const params = {
     account_id: account,
@@ -55,13 +230,21 @@ async function view(account, method, args = {}, blockId) {
   };
   const { result } =
     blockId === undefined
-      ? await rpc(RPC, "query", { finality: "final", ...params })
-      : await rpc(ARCHIVAL, "query", { block_id: blockId, ...params });
+      ? await near(RPC, "NEAR_RPC", "query", { finality: "final", ...params })
+      : await archival("query", { block_id: blockId, ...params });
   return JSON.parse(Buffer.from(result).toString());
 }
 
-const tx = (hash, sender) =>
-  rpc(ARCHIVAL, "EXPERIMENTAL_tx_status", { tx_hash: hash, sender_account_id: sender, wait_until: "FINAL" });
+/**
+ * A transaction as an archival node has it now. With wait_until "FINAL", nearcore holds a request for
+ * a transaction it doesn't know about 30 s and answers HTTP 408, so a wrong hash would be blamed on
+ * the nodes; with "NONE" it answers UNKNOWN_TRANSACTION at once. One that isn't final fails the claim.
+ */
+async function tx(hash, sender) {
+  const t = await archival("EXPERIMENTAL_tx_status", { tx_hash: hash, sender_account_id: sender, wait_until: "NONE" });
+  if (t.final_execution_status !== "FINAL") throw new Error(`${hash.slice(0, 8)}… is ${t.final_execution_status}, not final`);
+  return t;
+}
 const json = (base64) => JSON.parse(Buffer.from(base64, "base64").toString() || "null");
 
 /** The transaction's one function call, to `receiver`, signed by `signer`. */
@@ -191,13 +374,13 @@ const CLAIMS = [
   {
     claim: `Sepolia ran exactly that signed transaction, from satchel #${TOKEN}'s address, in a block that is now finalized`,
     check: async () => {
+      // `sepolia` never returns null or nothing: a read no node answers with a result fails the claim.
       const [t, sent, receipt, final] = await Promise.all([
         tx(SIGN_VOTE.tx, COUNCIL),
-        rpc(SEPOLIA_RPC, "eth_getTransactionByHash", [SEND.tx]),
-        rpc(SEPOLIA_RPC, "eth_getTransactionReceipt", [SEND.tx]),
-        rpc(SEPOLIA_RPC, "eth_getBlockByNumber", ["finalized", false]),
+        sepolia("eth_getTransactionByHash", [SEND.tx]),
+        sepolia("eth_getTransactionReceipt", [SEND.tx]),
+        sepolia("eth_getBlockByNumber", ["finalized", false]),
       ]);
-      if (!sent || !receipt) throw new Error(`${SEPOLIA_RPC} has no transaction ${SEND.tx}`);
       const signed = callsIn(t, DAO, CONTRACT)[0]?.args.tx;
       if (!signed) throw new Error("the vote made no sign_evm call");
       const fields = {
@@ -270,4 +453,8 @@ for (const { claim, check } of CLAIMS) {
   }
 }
 console.log(`\n${CLAIMS.length - failed} of ${CLAIMS.length} claims hold (${RPC}, archival ${ARCHIVAL}, ${SEPOLIA_RPC})`);
+if (archivalNodes[0] !== ARCHIVAL && answeredBy.archival.size) {
+  console.log(`Archival reads came from ${[...answeredBy.archival].join(" and ")}: once ${ARCHIVAL} didn't answer one, later ones went to ${archivalNodes[0]} first`);
+}
+if (answeredBy.sepolia.size) console.log(`Sepolia reads that ${SEPOLIA_RPC} failed came from ${[...answeredBy.sepolia].join(" and ")}`);
 process.exitCode = failed ? 1 : 0;
