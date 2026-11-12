@@ -22,14 +22,15 @@ export function NetworkBanner() {
   // The docs belong to neither network; each page says which one it is about.
   const docs = usePathname()?.startsWith("/docs");
   if (docs) return null;
+  // A named region, so the notice sits in a landmark like the rest of the page.
   return net.id === "mainnet" ? (
-    <div className="bg-leather px-4 py-1.5 text-center text-xs text-paper">
+    <section aria-label="Network" className="bg-leather px-4 py-1.5 text-center text-xs text-paper">
       NEAR mainnet. Satchels here hold real funds. Not audited: keep in one only what you can afford to lose.
-    </div>
+    </section>
   ) : (
-    <div className="bg-ink px-4 py-1.5 text-center text-xs text-paper/80">
+    <section aria-label="Network" className="bg-ink px-4 py-1.5 text-center text-xs text-paper/80">
       NEAR testnet. Satchels here sign with the testnet MPC network: never send real funds to their addresses.
-    </div>
+    </section>
   );
 }
 

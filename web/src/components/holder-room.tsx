@@ -117,7 +117,7 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
           </Link>
         </p>
         <h1 className="font-display text-4xl font-semibold tracking-tight">Holder room</h1>
-        <p className="mt-2 max-w-2xl text-ink-2">
+        <p className="mt-2 text-ink-2">
           Only the account that owns satchel #{tokenId} right now can open this room. Sell or transfer the satchel and it
           opens for the new holder, not for you: the right to open it moves with the NFT.
         </p>
@@ -125,7 +125,7 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
 
       <Card>
         <h2 className="font-display text-xl font-semibold">How it checks</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-2">
+        <ul className="mt-2 max-w-[36em] list-disc space-y-1 pl-5 text-sm text-ink-2">
           <li>Your wallet signs a message (NEP-413) for {ROOM_RECIPIENT}. It is not a transaction and costs nothing.</li>
           <li>
             The server checks the signature, that the key is a full-access key of your account, and that your account owns
@@ -274,13 +274,17 @@ function Kit({ room }: { room: RoomResponse }) {
         the app can send.
       </p>
       {isFrozen(net, holder.tokenId) && (
-        <p className="mt-3 rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-2">
-          {FROZEN_NOTE} On this satchel&apos;s page, Make it clean shows the plan without its buttons, so the steps below that
-          name a button don&apos;t apply here until then. This is a guard in the app only: the CLI commands below still sign.
-        </p>
+        <div className="mt-3 rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-2">
+          <p>
+            {FROZEN_NOTE} On this satchel&apos;s page, Make it clean shows the plan without its buttons, so the steps below that
+            name a button don&apos;t apply here until then. This is a guard in the app only: the CLI commands below still sign.
+          </p>
+        </div>
       )}
       {room.reportError && (
-        <p className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">{room.reportError}. Open the report on the satchel&apos;s page instead.</p>
+        <div className="mt-3 rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
+          <p>{room.reportError}. Open the report on the satchel&apos;s page instead.</p>
+        </div>
       )}
       {kit && (
         <ol className="mt-4 space-y-5">
@@ -310,7 +314,7 @@ function KitItem({ step }: { step: KitStep }) {
         <p className="font-medium">{step.title}</p>
       </div>
       {step.found.length > 0 && (
-        <ul className="mt-1 space-y-0.5 text-sm text-muted">
+        <ul className="mt-1 max-w-[36em] space-y-0.5 text-sm text-muted">
           {step.found.map((line, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: two approval rows can read the same
             <li key={i} className="[overflow-wrap:anywhere]">
@@ -320,7 +324,7 @@ function KitItem({ step }: { step: KitStep }) {
         </ul>
       )}
       <p className="mt-2 text-sm text-ink-2">{step.means}</p>
-      <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+      <ol className="mt-2 max-w-[36em] list-decimal space-y-1 pl-5 text-sm">
         {step.todo.map((line) => (
           <li key={line} className="[overflow-wrap:anywhere]">
             {line}

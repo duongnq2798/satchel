@@ -65,10 +65,12 @@ export interface Collected {
   ids: string[];
   /** Every link target on the page, as written. */
   links: string[];
+  /** Every table's accessible name, in page order. */
+  tables: string[];
 }
 
 export function emptyCollected(): Collected {
-  return { toc: [], sections: [], ids: [], links: [] };
+  return { toc: [], sections: [], ids: [], links: [], tables: [] };
 }
 
 /** Ids on headings, the table of contents, the search sections and the links, in one pass. */
@@ -98,6 +100,29 @@ export function remarkCollect(out: Collected) {
     walk(tree, (node) => {
       if ((node.type === "link" || node.type === "definition") && node.url) out.links.push(node.url);
     });
+  };
+}
+
+/**
+ * A table is a scrollable region, and a screen reader lists regions by name: each table is named
+ * for the heading above it (its header row when none), numbered when one name would repeat.
+ */
+export function remarkTableNames(out: Collected) {
+  return () => (tree: MdNode) => {
+    let heading = "";
+    const tables: { node: MdNode; base: string }[] = [];
+    walk(tree, (node) => {
+      if (node.type === "heading" && node.depth !== 1) heading = textOf(node).trim();
+      if (node.type !== "table") return;
+      const header = (node.children?.[0]?.children ?? []).map((cell) => textOf(cell).trim()).filter(Boolean).join(", ");
+      tables.push({ node, base: heading || header });
+    });
+    for (const { node, base } of tables) {
+      const same = tables.filter((t) => t.base === base);
+      const name = same.length > 1 ? `${base} (${same.findIndex((t) => t.node === node) + 1} of ${same.length})` : base;
+      node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataName: name } };
+      out.tables.push(name);
+    }
   };
 }
 

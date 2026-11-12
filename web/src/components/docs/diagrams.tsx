@@ -8,14 +8,14 @@ import type { ReactNode } from "react";
 function Box({ title, sub, children, tone = "card" }: { title: string; sub?: ReactNode; children?: ReactNode; tone?: "card" | "ink" | "gold" }) {
   const toneClass = {
     card: "border-line bg-card",
-    ink: "border-ink bg-ink text-paper [&_.sub]:text-paper/70 [&_li]:text-paper/85",
-    gold: "border-gold/50 bg-gold-soft/70",
+    ink: "border-ink bg-ink text-paper [&_.sub]:text-paper/75 [&_li]:text-paper/85",
+    gold: "border-gold/50 bg-gold-soft/70 [&_.sub]:text-ink-2",
   }[tone];
   return (
     <div className={`rounded-xl border p-3.5 ${toneClass}`}>
       <p className="font-medium leading-snug">{title}</p>
       {sub && <p className="sub mt-0.5 font-mono text-xs text-muted">{sub}</p>}
-      {children && <div className="mt-2 text-sm leading-relaxed">{children}</div>}
+      {children && <div className="mt-2 max-w-[34em] text-sm leading-relaxed">{children}</div>}
     </div>
   );
 }
@@ -41,7 +41,7 @@ function DiagramFrame({ caption, children }: { caption: string; children: ReactN
   return (
     <figure className="@container not-prose my-8 rounded-2xl border border-line bg-paper-2/60 p-4 sm:p-5">
       {children}
-      <figcaption className="mt-4 text-center text-sm text-muted">{caption}</figcaption>
+      <figcaption className="mx-auto mt-4 max-w-[34em] text-center text-sm text-muted">{caption}</figcaption>
     </figure>
   );
 }
@@ -109,7 +109,7 @@ export function SaleDiagram() {
               <span className="inline-flex size-6 items-center justify-center rounded-full bg-ink font-mono text-xs text-paper">{i + 1}</span>
               <span className="font-medium">{s.step}</span>
             </span>
-            <span className="mt-1.5 block font-mono text-xs text-gold-deep">{s.call}</span>
+            <span className="mt-1.5 block font-mono text-xs text-gold-ink">{s.call}</span>
             <span className="mt-1 block text-sm leading-relaxed text-ink-2">{s.text}</span>
           </li>
         ))}
@@ -132,7 +132,7 @@ export function ChecksDiagram() {
         <ol className="grid gap-2 @md:grid-cols-2">
           {CHECKS.map((c) => (
             <li key={c.n} className="rounded-xl border border-line bg-card p-3">
-              <span className="font-mono text-xs text-gold-deep">Check {c.n}</span>
+              <span className="font-mono text-xs text-gold-ink">Check {c.n}</span>
               <span className="mt-0.5 block font-medium leading-snug">{c.title}</span>
               <span className="mt-1 block text-xs leading-relaxed text-muted">{c.reads}</span>
             </li>

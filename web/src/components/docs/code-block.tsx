@@ -39,7 +39,7 @@ export async function CodeBlock({ code, lang, title }: { code: string; lang: str
   return (
     <figure className="docs-code not-prose">
       <figcaption className="flex items-center justify-between gap-3 border-b border-line px-4 py-1.5">
-        <span className="font-mono text-xs text-muted">{label}</span>
+        <span className="min-w-0 font-mono text-xs text-muted [overflow-wrap:anywhere]">{label}</span>
         <CopyCode code={code} />
       </figcaption>
       {known ? (
@@ -50,7 +50,8 @@ export async function CodeBlock({ code, lang, title }: { code: string; lang: str
         />
       ) : (
         <div className="docs-code-body">
-          <pre>
+          {/* Focusable like Shiki's own pre, so a keyboard can scroll a long line into view. */}
+          <pre tabIndex={0}>
             <code>{code.split("\n").map((line, i) => <OutputLine key={i} line={line} />)}</code>
           </pre>
         </div>

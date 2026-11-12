@@ -115,7 +115,7 @@ export default function Verify() {
 
       <ol className="space-y-4">
         {CHECKS.map((c, i) => (
-          <li key={c.title} className="flex gap-3">
+          <li key={c.title} className="flex max-w-[40em] gap-3">
             <span className="font-display text-2xl text-gold-deep">{i + 1}</span>
             <div>
               <p className="font-medium">{c.title}</p>

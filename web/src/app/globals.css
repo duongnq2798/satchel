@@ -1,23 +1,33 @@
 @import "tailwindcss";
 
+/*
+ * Text colors meet WCAG 2.2 AAA (1.4.6): 7:1 for text, 4.5:1 for large text, on paper, paper-2 and
+ * card and on the soft tint each one sits on, in both themes. src/app/contrast.test.ts checks every
+ * token pair the pages use, so a change here that breaks one fails the tests. Hard-coded colors are
+ * outside it: #f0997b on the refusal lines (8.35:1 on ink) and on the command-line report's [FAIL]
+ * lines (8.88:1 on its bg-black/40 box).
+ */
 @theme {
   --color-paper: #f5f0e6;
   --color-paper-2: #ece4d4;
   --color-card: #fbf8f2;
   --color-ink: #17140f;
-  --color-ink-2: #4a4339;
-  --color-muted: #6e6558;
+  --color-ink-2: #3b352d;
+  --color-muted: #4f483f;
   --color-line: #ddd3c1;
-  --color-gold: #c8962e;
-  /* Gold for large text on paper: 3.5:1, where gold itself is 2.35:1. */
-  --color-gold-deep: #a47619;
+  /* A fill under ink text (7.3:1), and text on the ink panels. Not for text on paper: 2.2:1. */
+  --color-gold: #ce9b2f;
+  /* Gold for large text only (24px, or 18.66px bold, and up): at least 4.5:1. */
+  --color-gold-deep: #845f14;
+  /* Gold for text of any size: at least 7:1. */
+  --color-gold-ink: #5f450f;
   --color-gold-soft: #f3e3bc;
-  --color-leather: #6b3f24;
-  --color-ok: #2f6b3a;
+  --color-leather: #663c22;
+  --color-ok: #24532d;
   --color-ok-soft: #dcebd8;
-  --color-warn: #8a5a00;
+  --color-warn: #654200;
   --color-warn-soft: #f6e7c1;
-  --color-bad: #9b2c24;
+  --color-bad: #82251e;
   --color-bad-soft: #f4d9d5;
   /* The focus ring: 5.96:1 on paper, 5.35:1 on paper-2, 6.38:1 on card, 5.33:1 on gold-soft. */
   --color-focus: #7a5410;
@@ -27,6 +37,10 @@
   --font-display: var(--font-fraunces), Georgia, serif;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* Small text gets the line height of body text, 1.5 (WCAG 1.4.8), instead of 1.43 and 1.33. */
+  --text-xs--line-height: 1.5;
+  --text-sm--line-height: 1.5;
 }
 
 html {
@@ -56,17 +70,18 @@ html[data-theme="dark"] {
   --color-card: #1b1814;
   --color-ink: #efe8db;
   --color-ink-2: #c8bfae;
-  --color-muted: #9a907f;
+  --color-muted: #ada597;
   --color-line: #37312a;
   --color-gold: #d6a640;
   --color-gold-deep: #e2b75a;
+  --color-gold-ink: #e4bb62;
   --color-gold-soft: #3a2f1c;
-  --color-leather: #c08a5f;
-  --color-ok: #86c290;
+  --color-leather: #ca9d79;
+  --color-ok: #88c392;
   --color-ok-soft: #1b2e1f;
-  --color-warn: #e6b65c;
+  --color-warn: #e8ba62;
   --color-warn-soft: #352a13;
-  --color-bad: #ee8f84;
+  --color-bad: #f0998f;
   --color-bad-soft: #3a1d19;
   /* 9.85:1 on paper, 9.39:1 on card; the field border 4.78:1 on paper, 4.55:1 on card. */
   --color-focus: #e2b75a;
@@ -91,7 +106,7 @@ body {
 /*
  * In the base layer, so an element that shows focus its own way (the docs' search box) can say so.
  * Two rings: the dark outline shows on paper and card, and the light one inside it on the ink and
- * leather panels, where card is 17.3:1 and 8.4:1 (WCAG 1.4.11 asks for 3:1). Form fields sit on
+ * leather panels, where card is 17.3:1 and 8.9:1 (WCAG 1.4.11 asks for 3:1). Form fields sit on
  * paper or card, where the outline alone is enough, so they get no light ring, and outline-none alone
  * turns a field's focus ring off.
  */
@@ -103,6 +118,22 @@ body {
   }
   :is(input, textarea, select):focus-visible {
     box-shadow: none;
+  }
+  /* Placeholders in muted (7.93:1 on paper), not preflight's ink at 50% (3.37:1). */
+  ::placeholder {
+    color: var(--color-muted);
+  }
+  /*
+   * A paragraph's lines hold about 75 characters, at any font size (WCAG 1.4.8 asks for 80 at most).
+   * Rows laid out with flex or grid, and a p that is itself text-center, keep their own width; a
+   * paragraph inside a centered block keeps the measure and is centered with it. A tinted or ruled
+   * box is a div around its p, so the box keeps its width. A max-w-* or mx-* class wins.
+   */
+  main p:not(.flex, .inline-flex, .grid, .text-center) {
+    max-width: 36em;
+  }
+  main .text-center p {
+    margin-inline: auto;
   }
 }
 
@@ -189,14 +220,25 @@ html {
 /* Docs styles sit in the components layer, so a utility class on an element still wins. */
 @layer components {
 /*
- * Docs pages. Measure about 70 characters, line height 1.75 for body text, headings in the display
- * face. Markdown elements are styled here so a page's source stays plain Markdown.
+ * Docs pages. Line height 1.75 for body text, headings in the display face. Markdown elements are
+ * styled here so a page's source stays plain Markdown.
  */
 .docs-prose {
   font-size: 1.0625rem;
   line-height: 1.75;
   color: var(--color-ink-2);
 }
+/*
+ * A line of text holds about 70 characters (WCAG 1.4.8 asks for 80 at most). Code, tables and
+ * diagrams keep the column's full width: a list item, quote or dd that holds one is not capped,
+ * and its paragraphs are. A table cell holds its text in a capped div (mdx.tsx). The measure is the
+ * text's: a step's rail and a quote's rule are padding on top of it.
+ */
+.docs-prose :is(p, li, blockquote, dd):not(.not-prose *, td *, th *, :has(figure, .docs-table, [role="note"], .not-prose)) {
+  max-width: 34em;
+  box-sizing: content-box;
+}
+/* 1.1em between paragraphs: from one line's top to the next paragraph's, 2.85 times the font size. */
 .docs-prose > * + * {
   margin-top: 1.1em;
 }
@@ -245,7 +287,9 @@ html {
   color: var(--color-ink);
   font-weight: 600;
 }
+/* A long URL as link text breaks rather than widening a 320px page (WCAG 1.4.10). */
 .docs-prose a:not(.not-prose a, .docs-anchor) {
+  overflow-wrap: break-word;
   color: var(--color-ink);
   text-decoration: underline;
   text-decoration-color: var(--color-gold);
@@ -298,8 +342,12 @@ html {
   border: 1px solid var(--color-line);
 }
 
-/* Tables scroll sideways on a phone instead of squeezing their columns. */
+/*
+ * Tables scroll sideways on a phone instead of squeezing their columns. Relative, so a link's
+ * screen-reader text, absolutely placed, stays inside the scroll box instead of widening the page.
+ */
 .docs-table {
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--color-line);
   border-radius: 0.75rem;
@@ -354,38 +402,43 @@ html {
 .docs-code-body code {
   font-family: inherit;
 }
+/* Every token color is at least 7:1 on card, paper and paper-2, in both themes (WCAG 1.4.6). */
 :root {
   --shiki-foreground: #2b261f;
   --shiki-background: transparent;
-  --shiki-token-constant: #7a4a12;
-  --shiki-token-string: #3f6b2f;
-  --shiki-token-comment: #8a8072;
-  --shiki-token-keyword: #8b3a2b;
+  --shiki-token-constant: #694010;
+  --shiki-token-string: #305224;
+  --shiki-token-comment: #4f4941;
+  --shiki-token-keyword: #7b3326;
   --shiki-token-parameter: #2b261f;
-  --shiki-token-function: #6b3f24;
-  --shiki-token-string-expression: #3f6b2f;
-  --shiki-token-punctuation: #6e6558;
-  --shiki-token-link: #a47619;
-  --shiki-ansi-green: #2f6b3a;
-  --shiki-ansi-red: #9b2c24;
+  --shiki-token-function: #663c22;
+  --shiki-token-string-expression: #305224;
+  --shiki-token-punctuation: #504940;
+  --shiki-token-link: #61450f;
+  --shiki-ansi-green: #24532d;
+  --shiki-ansi-red: #882720;
 }
 html[data-theme="dark"] {
   --shiki-foreground: #e8e0d1;
   --shiki-token-constant: #e8b86a;
   --shiki-token-string: #a6cf8c;
-  --shiki-token-comment: #8f8676;
+  --shiki-token-comment: #aca599;
   --shiki-token-keyword: #f09a83;
   --shiki-token-parameter: #e8e0d1;
   --shiki-token-function: #e2b75a;
   --shiki-token-string-expression: #a6cf8c;
-  --shiki-token-punctuation: #a99f8d;
+  --shiki-token-punctuation: #aea594;
   --shiki-token-link: #e2b75a;
+  --shiki-ansi-green: #88c392;
+  --shiki-ansi-red: #f0998f;
 }
 
 /* Callouts: a short title line, then Markdown. */
+/* The body's 34em measure plus px-4 padding and the 1px borders, so the text fills the box. */
 .docs-callout {
   font-size: 0.97rem;
   line-height: 1.65;
+  max-width: calc(34em + 2rem + 2px);
 }
 .docs-callout-title {
   display: flex;
@@ -401,7 +454,7 @@ html[data-theme="dark"] {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   background: var(--color-ink);
   color: var(--color-paper);

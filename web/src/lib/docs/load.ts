@@ -5,7 +5,7 @@ import type { MDXContent } from "mdx/types";
 import { cache } from "react";
 import * as runtime from "react/jsx-runtime";
 import remarkGfm from "remark-gfm";
-import { type Collected, emptyCollected, remarkCodeMeta, remarkCollect, remarkRepoLinks } from "./markdown";
+import { type Collected, emptyCollected, remarkCodeMeta, remarkCollect, remarkRepoLinks, remarkTableNames } from "./markdown";
 import { DEFAULT_LOCALE, type Locale, type PlacedPage, findPage } from "./nav";
 
 /** Server only: reads a page's source from disk at build time. The app's working directory is web/. */
@@ -39,7 +39,7 @@ export const loadDoc = cache(async (slug: string, locale: Locale = DEFAULT_LOCAL
   const { default: Content } = await evaluate(source, {
     ...runtime,
     format: page.repoFile ? "md" : "mdx",
-    remarkPlugins: [remarkGfm, ...(page.repoFile ? [remarkRepoLinks(page.repoFile)] : []), remarkCollect(collected), remarkCodeMeta],
+    remarkPlugins: [remarkGfm, ...(page.repoFile ? [remarkRepoLinks(page.repoFile)] : []), remarkCollect(collected), remarkTableNames(collected), remarkCodeMeta],
   });
   return { page, Content, ...collected };
 });

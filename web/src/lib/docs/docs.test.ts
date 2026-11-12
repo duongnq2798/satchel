@@ -2,7 +2,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadDoc, sourceFile } from "./load";
-import { resolveRepoLink, slugger, textOf } from "./markdown";
+import { type MdNode, emptyCollected, remarkTableNames, resolveRepoLink, slugger, textOf } from "./markdown";
 import { DOCS, PAGES, findPage, neighbours } from "./nav";
 import { highlight, search, stem, terms } from "./search";
 
@@ -55,6 +55,13 @@ describe("every page", async () => {
     }
   });
 
+  it("names each table on a page apart, so a screen reader's list of regions tells them apart", () => {
+    for (const doc of docs) {
+      expect(doc!.tables.every(Boolean), doc!.page.slug).toBe(true);
+      expect(new Set(doc!.tables).size, `${doc!.page.slug}: ${doc!.tables.join(" | ")}`).toBe(doc!.tables.length);
+    }
+  });
+
   it("links only to pages and headings that exist", () => {
     const broken: string[] = [];
     for (const doc of docs) {
@@ -95,6 +102,29 @@ describe("headings and links", () => {
       ],
     };
     expect(textOf(node)).toBe("Run verify then wait.");
+  });
+
+  it("names a table for the heading above it, its header row when none, and numbers repeats", () => {
+    const text = (value: string) => ({ type: "text", value });
+    const table = (...head: string[]): MdNode => ({
+      type: "table",
+      children: [{ type: "tableRow", children: head.map((h) => ({ type: "tableCell", children: [text(h)] })) }],
+    });
+    const tree: MdNode = {
+      type: "root",
+      children: [
+        table("What", "Testnet"),
+        { type: "heading", depth: 2, children: [text("Errors")] },
+        table("Error", "Cause"),
+        table("Message", "Cause"),
+        { type: "heading", depth: 3, children: [{ type: "inlineCode", value: "buy" }] },
+        table("Error", "Cause"),
+      ],
+    };
+    const out = emptyCollected();
+    remarkTableNames(out)()(tree);
+    expect(out.tables).toEqual(["What, Testnet", "Errors (1 of 2)", "Errors (2 of 2)", "buy"]);
+    expect(tree.children![2].data?.hProperties?.dataName).toBe("Errors (1 of 2)");
   });
 
   it("sends a repository file's links to its docs page or to GitHub", () => {

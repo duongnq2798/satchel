@@ -23,7 +23,7 @@ function Heading({ tokenId }: { tokenId: string }) {
   return (
     <>
       <h1 className="font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere]">Satchel #{tokenId}</h1>
-      <p className="mt-2 max-w-2xl text-ink-2">
+      <p className="mt-2 text-ink-2">
         A satchel is an NFT on NEAR that controls one address on {CHAINS.length} EVM chains, and this page checks, in
         your browser, what its previous owners could have kept back.
       </p>
@@ -152,7 +152,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Heading tokenId={view.token_id} />
-          <p className="mt-2 text-sm text-ink-2">
+          <p className="mt-4 text-sm text-ink-2">
             {isOwner ? "Owned by you" : <>Owned by <ExternalLink href={nearAccountUrl(net, view.owner_id)}>{view.owner_id}</ExternalLink></>} · path{" "}
             <Mono>{view.path}</Mono> · record version {record.version}
           </p>
@@ -163,7 +163,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
             <a
               href="#report"
               aria-label={`${VERDICT[report.data.verdict].label}: read the report`}
-              className="inline-flex rounded-full transition hover:opacity-80"
+              className="inline-flex rounded-full transition hover:ring-1 hover:ring-current"
             >
               <Badge tone={VERDICT[report.data.verdict].tone}>{VERDICT[report.data.verdict].label}</Badge>
             </a>

@@ -201,7 +201,7 @@ function MainnetQuote({ address }: { address: Address }) {
         <h2 className="font-display text-xl font-semibold">Quote an exit</h2>
         <Badge tone="gold">Dry quote: nothing is sent</Badge>
       </div>
-      <p className="mt-1 max-w-2xl text-sm text-muted">
+      <p className="mt-1 text-sm text-muted">
         What this satchel&apos;s coins would swap for through NEAR Intents&apos; 1Click, asked from your browser, no wallet
         needed. The quote is dry: 1Click gives no deposit address, and this panel signs nothing.
       </p>
