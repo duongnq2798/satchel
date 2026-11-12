@@ -1,0 +1,1167 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "mpc": "v1.signer-prod.testnet",
+  "dao": "satchel-bounty.sputnikv2.testnet",
+  "daoFactory": "sputnikv2.testnet",
+  "council": [
+    "satchel-nft.testnet",
+    "buyer.satchel-nft.testnet",
+    "satchel-council-1112.testnet"
+  ],
+  "contributor": "satchel-builder-1112.testnet",
+  "contributorAddress": {
+    "account": "satchel-builder-1112.testnet",
+    "path": "ethereum-1",
+    "mpc": "v1.signer-prod.testnet",
+    "publicKey": "secp256k1:2KZL5upDLaCXuv2Up48izS11KBXFBJUHqLhz63HjzRD3gamWU3NzexU516X8ZFTStkiEhChntd9qR2JUAZwBTatz",
+    "address": "0x705be1e37589c13a461f67461Fd407739d02d1da"
+  },
+  "note": "The near CLI signed every NEAR transaction from the legacy keychain, and tools/dao-bounty-run.mjs checked each one against what it asked for before sending it and read it back from the chain after. The near CLI's faucet service created the third council member and the contributor before the run (under accounts). The OWNER funded the satchel's Sepolia address from another wallet, before the mint; satchel-nft dao finish, built from this repository, broadcast the send. The builder controls every account in this run, the council, the contributor and its trusted vote: it shows Sputnik DAO's flows working, not a community using them.",
+  "accounts": [
+    {
+      "step": "Testnet NEAR from the near CLI faucet service, to the third council member",
+      "tx": "4VniWSczqueiUNgMJt2DpALUBT6qveFToaErExuiQoJh",
+      "signer": "testnet",
+      "receiver": "satchel-council-1112.testnet",
+      "actions": [
+        "CreateAccount",
+        "Transfer 10 NEAR",
+        "AddKey"
+      ],
+      "block": "277384021",
+      "at": "2026-11-12T15:53:00Z",
+      "status": "success"
+    },
+    {
+      "step": "Testnet NEAR from the near CLI faucet service, to the contributor",
+      "tx": "GRV8RRQm6MmRYi47YYpkPuckm9CVawK3d4Cw8kBBgQt3",
+      "signer": "testnet",
+      "receiver": "satchel-builder-1112.testnet",
+      "actions": [
+        "CreateAccount",
+        "Transfer 10 NEAR",
+        "AddKey"
+      ],
+      "block": "277384028",
+      "at": "2026-11-12T15:53:05Z",
+      "status": "success"
+    }
+  ],
+  "steps": [
+    {
+      "key": "create",
+      "step": "Create the DAO satchel-bounty.sputnikv2.testnet: council satchel-nft.testnet, buyer.satchel-nft.testnet and satchel-council-1112.testnet, whose one vote passes a bounty_done proposal and two of three anything else; the contributor satchel-builder-1112.testnet may file a bounty_done proposal and nothing else; the role \"trusted\", empty, whose members may file a bounty_done proposal and pass one with their own vote, and nothing else; quorum 1 in every vote policy; bounty bond 0.1 NEAR, proposal bond 0, proposals open for one day",
+      "tx": "GLvLcBKKiNwWA2yfJPgT47iEG7AFphahtYHGV1mGLxnM",
+      "signer": "satchel-nft.testnet",
+      "receiver": "sputnikv2.testnet",
+      "method": "create",
+      "args": {
+        "name": "satchel-bounty",
+        "args": "eyJjb25maWciOnsibmFtZSI6InNhdGNoZWwtYm91bnR5IiwicHVycG9zZSI6IkEgU3B1dG5payBEQU8gYm91bnR5IGJvYXJkIHdob3NlIHRyZWFzdXJ5IG93bnMgYSBzYXRjaGVsOiBvbmUgd2FsbGV0IG9uIDE2IEVWTSBjaGFpbnMgKHNhdGNoZWxuZnQueHl6KSIsIm1ldGFkYXRhIjoiIn0sInBvbGljeSI6eyJyb2xlcyI6W3sibmFtZSI6ImNvdW5jaWwiLCJraW5kIjp7Ikdyb3VwIjpbInNhdGNoZWwtbmZ0LnRlc3RuZXQiLCJidXllci5zYXRjaGVsLW5mdC50ZXN0bmV0Iiwic2F0Y2hlbC1jb3VuY2lsLTExMTIudGVzdG5ldCJdfSwicGVybWlzc2lvbnMiOlsiKjpBZGRQcm9wb3NhbCIsIio6Vm90ZUFwcHJvdmUiLCIqOlZvdGVSZWplY3QiLCIqOlZvdGVSZW1vdmUiLCIqOkZpbmFsaXplIl0sInZvdGVfcG9saWN5Ijp7ImJvdW50eV9kb25lIjp7IndlaWdodF9raW5kIjoiUm9sZVdlaWdodCIsInF1b3J1bSI6IjEiLCJ0aHJlc2hvbGQiOiIxIn19fSx7Im5hbWUiOiJjb250cmlidXRvcnMiLCJraW5kIjp7Ikdyb3VwIjpbInNhdGNoZWwtYnVpbGRlci0xMTEyLnRlc3RuZXQiXX0sInBlcm1pc3Npb25zIjpbImJvdW50eV9kb25lOkFkZFByb3Bvc2FsIl0sInZvdGVfcG9saWN5Ijp7fX0seyJuYW1lIjoidHJ1c3RlZCIsImtpbmQiOnsiR3JvdXAiOltdfSwicGVybWlzc2lvbnMiOlsiYm91bnR5X2RvbmU6QWRkUHJvcG9zYWwiLCJib3VudHlfZG9uZTpWb3RlQXBwcm92ZSJdLCJ2b3RlX3BvbGljeSI6eyJib3VudHlfZG9uZSI6eyJ3ZWlnaHRfa2luZCI6IlJvbGVXZWlnaHQiLCJxdW9ydW0iOiIxIiwidGhyZXNob2xkIjoiMSJ9fX1dLCJkZWZhdWx0X3ZvdGVfcG9saWN5Ijp7IndlaWdodF9raW5kIjoiUm9sZVdlaWdodCIsInF1b3J1bSI6IjEiLCJ0aHJlc2hvbGQiOlsxLDJdfSwicHJvcG9zYWxfYm9uZCI6IjAiLCJwcm9wb3NhbF9wZXJpb2QiOiI4NjQwMDAwMDAwMDAwMCIsImJvdW50eV9ib25kIjoiMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiYm91bnR5X2ZvcmdpdmVuZXNzX3BlcmlvZCI6Ijg2NDAwMDAwMDAwMDAwIn19"
+      },
+      "decodedArgs": {
+        "config": {
+          "name": "satchel-bounty",
+          "purpose": "A Sputnik DAO bounty board whose treasury owns a satchel: one wallet on 16 EVM chains (satchelnft.xyz)",
+          "metadata": ""
+        },
+        "policy": {
+          "roles": [
+            {
+              "name": "council",
+              "kind": {
+                "Group": [
+                  "satchel-nft.testnet",
+                  "buyer.satchel-nft.testnet",
+                  "satchel-council-1112.testnet"
+                ]
+              },
+              "permissions": [
+                "*:AddProposal",
+                "*:VoteApprove",
+                "*:VoteReject",
+                "*:VoteRemove",
+                "*:Finalize"
+              ],
+              "vote_policy": {
+                "bounty_done": {
+                  "weight_kind": "RoleWeight",
+                  "quorum": "1",
+                  "threshold": "1"
+                }
+              }
+            },
+            {
+              "name": "contributors",
+              "kind": {
+                "Group": [
+                  "satchel-builder-1112.testnet"
+                ]
+              },
+              "permissions": [
+                "bounty_done:AddProposal"
+              ],
+              "vote_policy": {}
+            },
+            {
+              "name": "trusted",
+              "kind": {
+                "Group": []
+              },
+              "permissions": [
+                "bounty_done:AddProposal",
+                "bounty_done:VoteApprove"
+              ],
+              "vote_policy": {
+                "bounty_done": {
+                  "weight_kind": "RoleWeight",
+                  "quorum": "1",
+                  "threshold": "1"
+                }
+              }
+            }
+          ],
+          "default_vote_policy": {
+            "weight_kind": "RoleWeight",
+            "quorum": "1",
+            "threshold": [
+              1,
+              2
+            ]
+          },
+          "proposal_bond": "0",
+          "proposal_period": "86400000000000",
+          "bounty_bond": "100000000000000000000000",
+          "bounty_forgiveness_period": "86400000000000"
+        }
+      },
+      "deposit": "6000000000000000000000000",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:23:59.510Z",
+      "block": "277399536",
+      "at": "2026-11-12T18:24:00Z",
+      "status": "success",
+      "storageUsage": 540699,
+      "balance": "6000000000000000000000000"
+    },
+    {
+      "key": "treasury",
+      "step": "A member funds the treasury: satchel-council-1112.testnet sends 2 NEAR to satchel-bounty.sputnikv2.testnet",
+      "tx": "7LnyGaJ3tFKQhpT7duhwWDhsk7QNgXsutf7uosDxBmPS",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "action": "Transfer",
+      "deposit": "2000000000000000000000000",
+      "sentAt": "2026-11-12T18:24:08.543Z",
+      "block": "277399551",
+      "at": "2026-11-12T18:24:09Z",
+      "status": "success",
+      "availableAfter": "2593010000000000000000000"
+    },
+    {
+      "key": "mint",
+      "step": "Mint satchel #N straight to the DAO",
+      "tx": "HvCyzUmzWGtLE1M3FfggBbVVrvadQekHN8qtB3S9ELtL",
+      "signer": "satchel-nft.testnet",
+      "receiver": "v1.satchel-nft.testnet",
+      "method": "mint",
+      "args": {
+        "receiver_id": "satchel-bounty.sputnikv2.testnet"
+      },
+      "deposit": "100000000000000000000000",
+      "gas": "50000000000000",
+      "sentAt": "2026-11-12T18:24:15.006Z",
+      "block": "277399561",
+      "at": "2026-11-12T18:24:15Z",
+      "status": "success",
+      "tokenId": "10",
+      "address": "0xcbd17720A542e151c8E5884659B5a8e5B3973500"
+    },
+    {
+      "key": "addBounty",
+      "step": "Proposal: post bounty 0, 0.5 NEAR, done once, within a day of a claim",
+      "tx": "3mnB1quKoX7uLaMRHiJfLZd77cnEFwacg2jAes6kCfru",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Post a bounty of 0.5 NEAR: satchel #10's clean-transfer report",
+          "kind": {
+            "AddBounty": {
+              "bounty": {
+                "description": "Testnet demo bounty: read satchel #10's clean-transfer report and post its verdict",
+                "token": "",
+                "amount": "500000000000000000000000",
+                "times": 1,
+                "max_deadline": "86400000000000"
+              }
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:24:22.082Z",
+      "block": "277399573",
+      "at": "2026-11-12T18:24:22Z",
+      "status": "success",
+      "proposalId": 0
+    },
+    {
+      "key": "addBountyVote1",
+      "step": "Vote 1 of 2 approving the AddBounty proposal, by satchel-nft.testnet",
+      "tx": "AwvtweHqqJZ9MbG77DHpAy72b3AEpTtX6Xu6kvogWmcE",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 0,
+        "action": "VoteApprove",
+        "proposal": {
+          "AddBounty": {
+            "bounty": {
+              "description": "Testnet demo bounty: read satchel #10's clean-transfer report and post its verdict",
+              "token": "",
+              "amount": "500000000000000000000000",
+              "times": 1,
+              "max_deadline": "86400000000000"
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:24:28.348Z",
+      "block": "277399583",
+      "at": "2026-11-12T18:24:29Z",
+      "status": "success",
+      "proposalId": 0,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "satchel-nft.testnet": "Approve"
+      }
+    },
+    {
+      "key": "addBountyVote2",
+      "step": "Vote 2 of 2 approving the AddBounty proposal, by buyer.satchel-nft.testnet: the DAO posts bounty 0",
+      "tx": "8Jw1TPYSzPees2TCKyT8J8ctNSVb59o22NS85ZadTpz2",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 0,
+        "action": "VoteApprove",
+        "proposal": {
+          "AddBounty": {
+            "bounty": {
+              "description": "Testnet demo bounty: read satchel #10's clean-transfer report and post its verdict",
+              "token": "",
+              "amount": "500000000000000000000000",
+              "times": 1,
+              "max_deadline": "86400000000000"
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:24:34.624Z",
+      "block": "277399594",
+      "at": "2026-11-12T18:24:35Z",
+      "status": "success",
+      "proposalId": 0,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-nft.testnet": "Approve",
+        "buyer.satchel-nft.testnet": "Approve"
+      },
+      "bountyId": 0
+    },
+    {
+      "key": "claim",
+      "step": "satchel-builder-1112.testnet claims bounty 0, staking the 0.1 NEAR bond",
+      "tx": "F2UDSHhu6ACRovyzDSfihDeNRbXv4qffBDUfr3QArgzA",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "bounty_claim",
+      "args": {
+        "id": 0,
+        "deadline": "86400000000000"
+      },
+      "deposit": "100000000000000000000000",
+      "gas": "50000000000000",
+      "sentAt": "2026-11-12T18:24:41.534Z",
+      "block": "277399606",
+      "at": "2026-11-12T18:24:42Z",
+      "status": "success",
+      "bountyId": 0,
+      "claim": {
+        "bounty_id": 0,
+        "start_time": "1794507882671217981",
+        "deadline": "86400000000000",
+        "completed": false
+      }
+    },
+    {
+      "key": "done",
+      "step": "satchel-builder-1112.testnet reports bounty 0 done: bounty_done files a BountyDone proposal",
+      "tx": "6wckWWqXD9PJWKYymgwSvAk6g2ATU1FmxxCPig1YDmps",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "bounty_done",
+      "args": {
+        "id": 0,
+        "description": "Bounty 0 done: satchel #10's clean-transfer report reads clean (satchel-nft buildReport, 2026-11-12T18:24Z)"
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:24:48.366Z",
+      "block": "277399618",
+      "at": "2026-11-12T18:24:49Z",
+      "status": "success",
+      "proposalId": 1,
+      "bountyId": 0,
+      "kind": {
+        "BountyDone": {
+          "bounty_id": 0,
+          "receiver_id": "satchel-builder-1112.testnet"
+        }
+      }
+    },
+    {
+      "key": "doneVote",
+      "step": "Mid-size: one council vote approves the BountyDone proposal, by satchel-council-1112.testnet: the DAO pays satchel-builder-1112.testnet 0.5 NEAR and returns the bond",
+      "tx": "8pcUfT1Mt9b7NSrfULJYpw8kyES9ePyei7mPjRveKnt2",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 1,
+        "action": "VoteApprove",
+        "proposal": {
+          "BountyDone": {
+            "bounty_id": 0,
+            "receiver_id": "satchel-builder-1112.testnet"
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:24:55.554Z",
+      "block": "277399630",
+      "at": "2026-11-12T18:24:56Z",
+      "status": "success",
+      "proposalId": 1,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve"
+      },
+      "bountyId": 0,
+      "approvedBy": "satchel-council-1112.testnet",
+      "approvedIn": [
+        "council"
+      ],
+      "payout": {
+        "receipt": "3dBNhMrb8mPwicqEvEALqSbG1mqn868hdX5rTPS2Suz9",
+        "amount": "500000000000000000000000"
+      },
+      "bondReturn": {
+        "receipt": "8R2MPx6bWzMSXLui4iudSTHWuGgD3DhgfqHwfiy5t1cL",
+        "amount": "100000000000000000000000"
+      }
+    },
+    {
+      "key": "trustProposal",
+      "step": "Proposal: earned trust. satchel-council-1112.testnet proposes adding satchel-builder-1112.testnet to \"trusted\", citing bounty 0 and the BountyDone proposal that paid it",
+      "tx": "CW8sGb67S9axJ9XAsjJaKpEioUYw9ZFs3VepKrw7dzkV",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Earned trust: satchel-builder-1112.testnet finished bounty 0, paid by BountyDone proposal 1. Add satchel-builder-1112.testnet to \"trusted\", whose own vote passes a bounty_done",
+          "kind": {
+            "AddMemberToRole": {
+              "member_id": "satchel-builder-1112.testnet",
+              "role": "trusted"
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:25:05.368Z",
+      "block": "277399646",
+      "at": "2026-11-12T18:25:06Z",
+      "status": "success",
+      "proposalId": 2
+    },
+    {
+      "key": "trustVote1",
+      "step": "Vote 1 of 2 approving the trust proposal, by satchel-council-1112.testnet",
+      "tx": "43x3pH4G9Gyt4NH12Fk9SZQvbjiApCX1XQguxpTuXDee",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 2,
+        "action": "VoteApprove",
+        "proposal": {
+          "AddMemberToRole": {
+            "member_id": "satchel-builder-1112.testnet",
+            "role": "trusted"
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:25:12.450Z",
+      "block": "277399658",
+      "at": "2026-11-12T18:25:13Z",
+      "status": "success",
+      "proposalId": 2,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve"
+      }
+    },
+    {
+      "key": "trustVote2",
+      "step": "Vote 2 of 2 approving the trust proposal, by satchel-nft.testnet: satchel-builder-1112.testnet joins \"trusted\"",
+      "tx": "4cHJ4szgUj4qQdxPahHjL8E39wvnbcAGk8ajcPtsT7xC",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 2,
+        "action": "VoteApprove",
+        "proposal": {
+          "AddMemberToRole": {
+            "member_id": "satchel-builder-1112.testnet",
+            "role": "trusted"
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:25:19.038Z",
+      "block": "277399670",
+      "at": "2026-11-12T18:25:19Z",
+      "status": "success",
+      "proposalId": 2,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve",
+        "satchel-nft.testnet": "Approve"
+      },
+      "trustedAfter": [
+        "satchel-builder-1112.testnet"
+      ]
+    },
+    {
+      "key": "addBounty2",
+      "step": "Proposal: post bounty 1, 0.2 NEAR, done once, within a day of a claim: small enough for a trusted contributor's own vote",
+      "tx": "31Mg1bVtpwqB8uZSwbGUrm9ZpJby21zCP2Mnd3CEn666",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Post a bounty of 0.2 NEAR, for a trusted contributor's own vote: read the DAO's policy back",
+          "kind": {
+            "AddBounty": {
+              "bounty": {
+                "description": "Testnet demo bounty: read the DAO's policy back and post who can pass a bounty_done with one vote",
+                "token": "",
+                "amount": "200000000000000000000000",
+                "times": 1,
+                "max_deadline": "86400000000000"
+              }
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:25:26.556Z",
+      "block": "277399684",
+      "at": "2026-11-12T18:25:27Z",
+      "status": "success",
+      "proposalId": 3
+    },
+    {
+      "key": "addBounty2Vote1",
+      "step": "Vote 1 of 2 approving the second AddBounty proposal, by buyer.satchel-nft.testnet",
+      "tx": "Djm5YDug69cGyjWN8gGBixsubiqtabGn1sHVL8eqMUWW",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 3,
+        "action": "VoteApprove",
+        "proposal": {
+          "AddBounty": {
+            "bounty": {
+              "description": "Testnet demo bounty: read the DAO's policy back and post who can pass a bounty_done with one vote",
+              "token": "",
+              "amount": "200000000000000000000000",
+              "times": 1,
+              "max_deadline": "86400000000000"
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:25:33.364Z",
+      "block": "277399695",
+      "at": "2026-11-12T18:25:34Z",
+      "status": "success",
+      "proposalId": 3,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "buyer.satchel-nft.testnet": "Approve"
+      }
+    },
+    {
+      "key": "addBounty2Vote2",
+      "step": "Vote 2 of 2 approving the second AddBounty proposal, by satchel-council-1112.testnet: the DAO posts bounty 1",
+      "tx": "8Ud14SFXTugXmaVajGonY9Tks3sWWTLAEWdGQc3o91SH",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 3,
+        "action": "VoteApprove",
+        "proposal": {
+          "AddBounty": {
+            "bounty": {
+              "description": "Testnet demo bounty: read the DAO's policy back and post who can pass a bounty_done with one vote",
+              "token": "",
+              "amount": "200000000000000000000000",
+              "times": 1,
+              "max_deadline": "86400000000000"
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:25:40.416Z",
+      "block": "277399706",
+      "at": "2026-11-12T18:25:41Z",
+      "status": "success",
+      "proposalId": 3,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve",
+        "buyer.satchel-nft.testnet": "Approve"
+      },
+      "bountyId": 1
+    },
+    {
+      "key": "claim2",
+      "step": "satchel-builder-1112.testnet claims bounty 1, staking the 0.1 NEAR bond",
+      "tx": "HL6vABtN4qYMrqNxEEYcm3h6dwBrjFZyBNQrHpnRbj9e",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "bounty_claim",
+      "args": {
+        "id": 1,
+        "deadline": "86400000000000"
+      },
+      "deposit": "100000000000000000000000",
+      "gas": "50000000000000",
+      "sentAt": "2026-11-12T18:25:47.917Z",
+      "block": "277399719",
+      "at": "2026-11-12T18:25:48Z",
+      "status": "success",
+      "bountyId": 1,
+      "claim": {
+        "bounty_id": 1,
+        "start_time": "1794507949644779194",
+        "deadline": "86400000000000",
+        "completed": false
+      }
+    },
+    {
+      "key": "done2",
+      "step": "satchel-builder-1112.testnet reports bounty 1 done: bounty_done files a BountyDone proposal",
+      "tx": "9fH3YWdgBfK8FGBuX39wWM4HVF3e8Y1cRdgWiVPdkUkw",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "bounty_done",
+      "args": {
+        "id": 1,
+        "description": "Bounty 1 done: get_policy lets one vote pass a bounty_done in council (buyer.satchel-nft.testnet, satchel-council-1112.testnet, satchel-nft.testnet) and trusted (satchel-builder-1112.testnet); a transfer, a call or a new bounty needs 2 of the council's 3 (read 2026-11-12T18:25Z)"
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:25:54.810Z",
+      "block": "277399729",
+      "at": "2026-11-12T18:25:55Z",
+      "status": "success",
+      "proposalId": 4,
+      "bountyId": 1,
+      "kind": {
+        "BountyDone": {
+          "bounty_id": 1,
+          "receiver_id": "satchel-builder-1112.testnet"
+        }
+      }
+    },
+    {
+      "key": "done2Vote",
+      "step": "Small: satchel-builder-1112.testnet approves its own BountyDone proposal with its \"trusted\" vote, and no council member votes: the DAO pays satchel-builder-1112.testnet 0.2 NEAR and returns the bond",
+      "tx": "7WQzsmu4rm2FT1KGAwMmwRj1bupAvqWUad8Wo7LyiC8D",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 4,
+        "action": "VoteApprove",
+        "proposal": {
+          "BountyDone": {
+            "bounty_id": 1,
+            "receiver_id": "satchel-builder-1112.testnet"
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:26:01.654Z",
+      "block": "277399741",
+      "at": "2026-11-12T18:26:02Z",
+      "status": "success",
+      "proposalId": 4,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-builder-1112.testnet": "Approve"
+      },
+      "bountyId": 1,
+      "approvedBy": "satchel-builder-1112.testnet",
+      "approvedIn": [
+        "trusted"
+      ],
+      "payout": {
+        "receipt": "CJT4jtzdYHfGVGaysV2BNrA6AvQ4SPkH4QRBag4DRwcN",
+        "amount": "200000000000000000000000"
+      },
+      "bondReturn": {
+        "receipt": "DB6nK9HiPRMZCjPtb517ntfWAkxyyEJdG4rSBMMLzVA4",
+        "amount": "100000000000000000000000"
+      }
+    },
+    {
+      "key": "fundSepolia",
+      "step": "The OWNER funded satchel #10's address 0xcbd17720A542e151c8E5884659B5a8e5B3973500 with 0.05 Sepolia ETH before the run (0x5d826ed0…): the run reads that transaction back",
+      "sepolia": {
+        "tx": "0x5d826ed0e8ff59f9250f0c3f901177d7e1e00c06fe7f8a3df02b95286a76063f",
+        "block": "12119924",
+        "from": "0x194876fa774ec8a1a0d9cdc4802308453996345a",
+        "to": "0xcbd17720a542e151c8e5884659b5a8e5b3973500",
+        "nonce": "138",
+        "valueWei": "50000000000000000",
+        "status": "success",
+        "address": "0xcbd17720A542e151c8E5884659B5a8e5B3973500",
+        "balanceWei": "50000000000000000",
+        "readAt": "2026-11-12T18:26:09.783Z"
+      }
+    },
+    {
+      "key": "sendProposal",
+      "step": "Proposal: the DAO has satchel #10 sign 1000000000000000 wei on Sepolia at nonce 0 to satchel-builder-1112.testnet's own Chain Signatures address 0x705be1e37589c13a461f67461Fd407739d02d1da (path ethereum-1)",
+      "tx": "BmB35Xj7ncTZAa6PX2ZXxiisQpZbtB3Qo9b2nY5givEC",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Satchel #10 signs nonce 0 on Sepolia: 1000000000000000 wei to 0x705be1e37589c13a461f67461Fd407739d02d1da",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "v1.satchel-nft.testnet",
+              "actions": [
+                {
+                  "method_name": "sign_evm",
+                  "args": "eyJ0b2tlbl9pZCI6IjEwIiwidHgiOnsiY2hhaW5faWQiOiIxMTE1NTExMSIsIm5vbmNlIjoiMCIsIm1heF9wcmlvcml0eV9mZWVfcGVyX2dhcyI6IjEwMDAwMDAwMDAiLCJtYXhfZmVlX3Blcl9nYXMiOiI1MDAwMDAwMDAwIiwiZ2FzX2xpbWl0IjoiMjQ4ODY5IiwidG8iOiIweDcwNWJlMWUzNzU4OWMxM2E0NjFmNjc0NjFGZDQwNzczOWQwMmQxZGEiLCJ2YWx1ZSI6IjEwMDAwMDAwMDAwMDAwMDAiLCJkYXRhIjoiMHgifX0=",
+                  "deposit": "1",
+                  "gas": "150000000000000"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "decodedArgs": {
+        "token_id": "10",
+        "tx": {
+          "chain_id": "11155111",
+          "nonce": "0",
+          "max_priority_fee_per_gas": "1000000000",
+          "max_fee_per_gas": "5000000000",
+          "gas_limit": "248869",
+          "to": "0x705be1e37589c13a461f67461Fd407739d02d1da",
+          "value": "1000000000000000",
+          "data": "0x"
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:26:14.404Z",
+      "block": "277399762",
+      "at": "2026-11-12T18:26:15Z",
+      "status": "success",
+      "proposalId": 5,
+      "contractTx": {
+        "chain_id": "11155111",
+        "nonce": "0",
+        "max_priority_fee_per_gas": "1000000000",
+        "max_fee_per_gas": "5000000000",
+        "gas_limit": "248869",
+        "to": "0x705be1e37589c13a461f67461Fd407739d02d1da",
+        "value": "1000000000000000",
+        "data": "0x"
+      }
+    },
+    {
+      "key": "sendVote1",
+      "step": "Vote 1 of 2 approving the send, by satchel-nft.testnet",
+      "tx": "CtX4EMULaav9yM1JKjCuzEMCAaZWS1rUEDrxpafuqjoW",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 5,
+        "action": "VoteApprove",
+        "proposal": {
+          "FunctionCall": {
+            "receiver_id": "v1.satchel-nft.testnet",
+            "actions": [
+              {
+                "method_name": "sign_evm",
+                "args": "eyJ0b2tlbl9pZCI6IjEwIiwidHgiOnsiY2hhaW5faWQiOiIxMTE1NTExMSIsIm5vbmNlIjoiMCIsIm1heF9wcmlvcml0eV9mZWVfcGVyX2dhcyI6IjEwMDAwMDAwMDAiLCJtYXhfZmVlX3Blcl9nYXMiOiI1MDAwMDAwMDAwIiwiZ2FzX2xpbWl0IjoiMjQ4ODY5IiwidG8iOiIweDcwNWJlMWUzNzU4OWMxM2E0NjFmNjc0NjFGZDQwNzczOWQwMmQxZGEiLCJ2YWx1ZSI6IjEwMDAwMDAwMDAwMDAwMDAiLCJkYXRhIjoiMHgifX0=",
+                "deposit": "1",
+                "gas": "150000000000000"
+              }
+            ]
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "300000000000000",
+      "sentAt": "2026-11-12T18:26:21.093Z",
+      "block": "277399773",
+      "at": "2026-11-12T18:26:21Z",
+      "status": "success",
+      "proposalId": 5,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "satchel-nft.testnet": "Approve"
+      }
+    },
+    {
+      "key": "sendVote2",
+      "step": "Vote 2 of 2 approving the send, by satchel-council-1112.testnet: the DAO calls sign_evm and v1.signer-prod.testnet signs",
+      "tx": "42iP8RNdpa9kCPR4t81WqMr9Zh6SVV3uANZeAA6cTAPf",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 5,
+        "action": "VoteApprove",
+        "proposal": {
+          "FunctionCall": {
+            "receiver_id": "v1.satchel-nft.testnet",
+            "actions": [
+              {
+                "method_name": "sign_evm",
+                "args": "eyJ0b2tlbl9pZCI6IjEwIiwidHgiOnsiY2hhaW5faWQiOiIxMTE1NTExMSIsIm5vbmNlIjoiMCIsIm1heF9wcmlvcml0eV9mZWVfcGVyX2dhcyI6IjEwMDAwMDAwMDAiLCJtYXhfZmVlX3Blcl9nYXMiOiI1MDAwMDAwMDAwIiwiZ2FzX2xpbWl0IjoiMjQ4ODY5IiwidG8iOiIweDcwNWJlMWUzNzU4OWMxM2E0NjFmNjc0NjFGZDQwNzczOWQwMmQxZGEiLCJ2YWx1ZSI6IjEwMDAwMDAwMDAwMDAwMDAiLCJkYXRhIjoiMHgifX0=",
+                "deposit": "1",
+                "gas": "150000000000000"
+              }
+            ]
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "300000000000000",
+      "sentAt": "2026-11-12T18:26:27.821Z",
+      "block": "277399784",
+      "at": "2026-11-12T18:26:28Z",
+      "status": "success",
+      "proposalId": 5,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve",
+        "satchel-nft.testnet": "Approve"
+      },
+      "signingHash": "0xa569aac8a91b38670a1303e460a6982ea1f247a16beb3c28be71e3c2bda83b34",
+      "recovered": "0xcbd17720A542e151c8E5884659B5a8e5B3973500",
+      "signingRecordAfter": {
+        "evm": [
+          {
+            "chain_id": "11155111",
+            "max_nonce": "0",
+            "signatures": 1
+          }
+        ],
+        "opaque_signatures": 0,
+        "version": "1"
+      }
+    },
+    {
+      "key": "finish",
+      "step": "satchel-nft dao finish 42iP8RNdpa9kCPR4t81WqMr9Zh6SVV3uANZeAA6cTAPf --yes",
+      "sepolia": {
+        "tx": "0xe561af1f9b2f5268eceb5c2e3a77e270a27ca20a712d9858fa525a8b690be4f5",
+        "block": "12120615",
+        "from": "0xcbd17720a542e151c8e5884659b5a8e5b3973500",
+        "to": "0x705be1e37589c13a461f67461fd407739d02d1da",
+        "nonce": "0",
+        "valueWei": "1000000000000000",
+        "status": "success"
+      },
+      "alreadyMined": false
+    },
+    {
+      "key": "rejectProposal",
+      "step": "Proposal: satchel-council-1112.testnet asks the DAO to pay satchel-builder-1112.testnet 1 NEAR more, by Transfer",
+      "tx": "58FYz9hQPP5BGe3451raeDcfeso3QaNuRN4Uc8Lai6KF",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Bounty 0 was paid: satchel #10's report was read and posted. Pay satchel-builder-1112.testnet 1 NEAR more for it",
+          "kind": {
+            "Transfer": {
+              "token_id": "",
+              "receiver_id": "satchel-builder-1112.testnet",
+              "amount": "1000000000000000000000000",
+              "msg": null
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:26:59.288Z",
+      "block": "277399836",
+      "at": "2026-11-12T18:27:00Z",
+      "status": "success",
+      "proposalId": 6
+    },
+    {
+      "key": "rejectApprove",
+      "step": "satchel-council-1112.testnet votes to approve the transfer",
+      "tx": "Ht3vpje2dk7tQwxw8UnK15mkV4rf5t7eAgVMTvixvShK",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 6,
+        "action": "VoteApprove",
+        "proposal": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "satchel-builder-1112.testnet",
+            "amount": "1000000000000000000000000",
+            "msg": null
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:27:05.894Z",
+      "block": "277399847",
+      "at": "2026-11-12T18:27:06Z",
+      "status": "success",
+      "proposalId": 6,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve"
+      }
+    },
+    {
+      "key": "reject1",
+      "step": "satchel-nft.testnet votes to reject the transfer",
+      "tx": "4qTdJaicRsWcQddMwTui2Zhr8hSywLcaLwxLxKPePdy9",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 6,
+        "action": "VoteReject",
+        "proposal": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "satchel-builder-1112.testnet",
+            "amount": "1000000000000000000000000",
+            "msg": null
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:27:12.388Z",
+      "block": "277399857",
+      "at": "2026-11-12T18:27:13Z",
+      "status": "success",
+      "proposalId": 6,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "satchel-council-1112.testnet": "Approve",
+        "satchel-nft.testnet": "Reject"
+      }
+    },
+    {
+      "key": "reject2",
+      "step": "buyer.satchel-nft.testnet votes to reject the transfer: 2 of 3 turn it down",
+      "tx": "EhZ2F6yshwvWxCUGeyBZsTjvt58VJYycgMa5TrE6q6o2",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 6,
+        "action": "VoteReject",
+        "proposal": {
+          "Transfer": {
+            "token_id": "",
+            "receiver_id": "satchel-builder-1112.testnet",
+            "amount": "1000000000000000000000000",
+            "msg": null
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "150000000000000",
+      "sentAt": "2026-11-12T18:27:18.486Z",
+      "block": "277399867",
+      "at": "2026-11-12T18:27:18Z",
+      "status": "success",
+      "proposalId": 6,
+      "proposalStatus": "Rejected",
+      "votes": {
+        "satchel-nft.testnet": "Reject",
+        "satchel-council-1112.testnet": "Approve",
+        "buyer.satchel-nft.testnet": "Reject"
+      }
+    },
+    {
+      "key": "giveProposal",
+      "step": "Proposal: pay satchel-builder-1112.testnet with a whole wallet. satchel-nft.testnet proposes the DAO give satchel #10 to satchel-builder-1112.testnet with nft_transfer (1 yoctoNEAR), as the first DAO run's proposal 1 did",
+      "tx": "21C9WY5whSizqzwfCxWEzSY9FK1hPH4Y5dGfb4L5KQuY",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "add_proposal",
+      "args": {
+        "proposal": {
+          "description": "Pay satchel-builder-1112.testnet with satchel #10, the whole wallet: nft_transfer, after its clean-transfer report read PROVABLY CLEAN",
+          "kind": {
+            "FunctionCall": {
+              "receiver_id": "v1.satchel-nft.testnet",
+              "actions": [
+                {
+                  "method_name": "nft_transfer",
+                  "args": "eyJ0b2tlbl9pZCI6IjEwIiwicmVjZWl2ZXJfaWQiOiJzYXRjaGVsLWJ1aWxkZXItMTExMi50ZXN0bmV0In0=",
+                  "deposit": "1",
+                  "gas": "30000000000000"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "sentAt": "2026-11-12T18:41:53.997Z",
+      "block": "277401373",
+      "at": "2026-11-12T18:41:55Z",
+      "status": "success",
+      "proposalId": 7,
+      "reportBefore": {
+        "owner": "satchel-bounty.sputnikv2.testnet",
+        "verdict": "clean",
+        "recordVersion": "1",
+        "checks": [
+          {
+            "id": "contract",
+            "status": "pass",
+            "title": "The contract can't sign behind the record",
+            "lines": [
+              "No access keys, so no one can redeploy it or sign as it",
+              "Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6",
+              "Signs only through v1.signer-prod.testnet"
+            ]
+          },
+          {
+            "id": "pending",
+            "status": "pass",
+            "title": "No signed transaction is still pending",
+            "lines": [
+              "Sepolia: signed up to nonce 0, finalized nonce is 1"
+            ]
+          },
+          {
+            "id": "approvals",
+            "status": "pass",
+            "title": "No approval left behind",
+            "lines": [
+              "No approval was ever signed for this token"
+            ]
+          },
+          {
+            "id": "counters",
+            "status": "pass",
+            "title": "Nothing the record can't explain",
+            "lines": [
+              "0 raw signatures, 0 unclassified calls, 0 approvals over the cap"
+            ]
+          }
+        ],
+        "checkedAt": "2026-11-12T18:41:51.812Z"
+      },
+      "recordBefore": {
+        "evm": [
+          {
+            "chain_id": "11155111",
+            "max_nonce": "0",
+            "signatures": 1
+          }
+        ],
+        "approvals": [],
+        "approvals_not_itemized": 0,
+        "unclassified_calls": 0,
+        "opaque_signatures": 0,
+        "last_opaque_at": "0",
+        "version": "1"
+      }
+    },
+    {
+      "key": "giveVote1",
+      "step": "Vote 1 of 2 approving the gift, by satchel-nft.testnet",
+      "tx": "61q2dTxKPG1XrtRLXeBKtNHnVMF9JjHLoNDw1qxhUHGw",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 7,
+        "action": "VoteApprove",
+        "proposal": {
+          "FunctionCall": {
+            "receiver_id": "v1.satchel-nft.testnet",
+            "actions": [
+              {
+                "method_name": "nft_transfer",
+                "args": "eyJ0b2tlbl9pZCI6IjEwIiwicmVjZWl2ZXJfaWQiOiJzYXRjaGVsLWJ1aWxkZXItMTExMi50ZXN0bmV0In0=",
+                "deposit": "1",
+                "gas": "30000000000000"
+              }
+            ]
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "300000000000000",
+      "sentAt": "2026-11-12T18:42:01.112Z",
+      "block": "277401385",
+      "at": "2026-11-12T18:42:02Z",
+      "status": "success",
+      "proposalId": 7,
+      "proposalStatus": "InProgress",
+      "votes": {
+        "satchel-nft.testnet": "Approve"
+      }
+    },
+    {
+      "key": "giveVote2",
+      "step": "Vote 2 of 2 approving the gift, by buyer.satchel-nft.testnet: the DAO calls nft_transfer and satchel-builder-1112.testnet owns satchel #10",
+      "tx": "6xnkNRb87KdEVcqPysh7RWEKekpz8eWbpR16gQ8WztWy",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-bounty.sputnikv2.testnet",
+      "method": "act_proposal",
+      "args": {
+        "id": 7,
+        "action": "VoteApprove",
+        "proposal": {
+          "FunctionCall": {
+            "receiver_id": "v1.satchel-nft.testnet",
+            "actions": [
+              {
+                "method_name": "nft_transfer",
+                "args": "eyJ0b2tlbl9pZCI6IjEwIiwicmVjZWl2ZXJfaWQiOiJzYXRjaGVsLWJ1aWxkZXItMTExMi50ZXN0bmV0In0=",
+                "deposit": "1",
+                "gas": "30000000000000"
+              }
+            ]
+          }
+        }
+      },
+      "deposit": "0",
+      "gas": "300000000000000",
+      "sentAt": "2026-11-12T18:42:08.142Z",
+      "block": "277401396",
+      "at": "2026-11-12T18:42:08Z",
+      "status": "success",
+      "proposalId": 7,
+      "proposalStatus": "Approved",
+      "votes": {
+        "satchel-nft.testnet": "Approve",
+        "buyer.satchel-nft.testnet": "Approve"
+      },
+      "ownerAfter": "satchel-builder-1112.testnet",
+      "nftTransfer": {
+        "receipt": "8dZPfny8aF7itgHiHD9PpPMDVQAMMiQpgMVK9eeUpJch"
+      },
+      "reportAfter": {
+        "owner": "satchel-builder-1112.testnet",
+        "verdict": "clean",
+        "recordVersion": "1",
+        "checks": [
+          {
+            "id": "contract",
+            "status": "pass",
+            "title": "The contract can't sign behind the record",
+            "lines": [
+              "No access keys, so no one can redeploy it or sign as it",
+              "Code hash 94x4MmZKXGetffqJJVePLTdFkJvsmeXRLmi74Mdp2Lph is the reproducible build of commit 87148c6",
+              "Signs only through v1.signer-prod.testnet"
+            ]
+          },
+          {
+            "id": "pending",
+            "status": "pass",
+            "title": "No signed transaction is still pending",
+            "lines": [
+              "Sepolia: signed up to nonce 0, finalized nonce is 1"
+            ]
+          },
+          {
+            "id": "approvals",
+            "status": "pass",
+            "title": "No approval left behind",
+            "lines": [
+              "No approval was ever signed for this token"
+            ]
+          },
+          {
+            "id": "counters",
+            "status": "pass",
+            "title": "Nothing the record can't explain",
+            "lines": [
+              "0 raw signatures, 0 unclassified calls, 0 approvals over the cap"
+            ]
+          }
+        ],
+        "checkedAt": "2026-11-12T18:42:15.929Z"
+      }
+    }
+  ],
+  "nearCli": "near-cli-rs 0.30.1, legacy keychain (~/.near-credentials)",
+  "daoVersion": "2.3.1, as the DAO's version() view returns it. The factory's get_contracts_metadata lists the DAO's code hash AA4nA45vauiac3jdVwJTzSdUP3oj2r1fDaPAb2mHdgcH as version [3,31], commit 7764926",
+  "tokenId": "10",
+  "address": "0xcbd17720A542e151c8E5884659B5a8e5B3973500"
+}

@@ -35,6 +35,7 @@ import {
   nsToMs,
   openBounties,
   roleSummaries,
+  satchelGifts,
   satchelSignings,
   tokenAmount,
   tokensIn,
@@ -334,10 +335,11 @@ export function DaoBoard({ daoId }: { daoId: string }) {
             </ul>
           )}
           {proposalList && <SigningList net={net} proposals={proposalList} policy={dao.data.policy} activity={activity} />}
+          {proposalList && <GiftList net={net} proposals={proposalList} policy={dao.data.policy} activity={activity} />}
           <p className="mt-3 text-xs text-muted">
             Read from nft_tokens_for_owner on {net.contract}
-            {satchels.data?.length === 100 ? ", which answers 100 at most" : ""}, and the DAO&apos;s sign_evm proposals from its
-            proposals.
+            {satchels.data?.length === 100 ? ", which answers 100 at most" : ""}, and the DAO&apos;s sign_evm and nft_transfer
+            proposals from its proposals.
           </p>
         </Card>
       </Contained>
@@ -742,8 +744,10 @@ function RecordList({
   /** The DAO filed more proposals than the page read, so the records leave out the oldest. */
   partial: boolean;
 }) {
-  const records = contributorRecords(proposals, bounties, policy, activity, metas, Date.now());
-  if (records.length === 0) return <p className="mt-3 text-sm text-muted">No contributor has a record yet: no bounty paid, role given or transfer made.</p>;
+  const net = useNetwork();
+  const records = contributorRecords(net, proposals, bounties, policy, activity, metas, Date.now());
+  if (records.length === 0)
+    return <p className="mt-3 text-sm text-muted">No contributor has a record yet: no bounty paid, role given, transfer made or satchel given.</p>;
   return (
     <ol className="mt-3 space-y-5">
       {records.map((r) => (
@@ -759,6 +763,20 @@ function RecordList({
           {r.totals.length > 0 && (
             <p className="mt-1 text-ink-2 [overflow-wrap:anywhere]">
               Paid {r.totals.join(" and ")} {partial ? `across the newest ${MAX_PROPOSALS} proposals` : "in all"}.
+            </p>
+          )}
+          {r.satchels.length > 0 && (
+            <p className="mt-1 text-ink-2 [overflow-wrap:anywhere]">
+              Given{" "}
+              {r.satchels.map((id, i) => (
+                <span key={id}>
+                  {i > 0 && ", "}
+                  <Link href={appPath(net, `/satchel/${id}`)} className={linkClass}>
+                    satchel #{id}
+                  </Link>
+                </span>
+              ))}
+              : the wallet, and who can have it sign.
             </p>
           )}
           <RecordSection title="Finished bounties">
@@ -809,8 +827,8 @@ function RecordList({
             ))}
           </RecordSection>
           <RecordSection title="Payouts">
-            {r.payouts.map((line) => (
-              <RecordItem key={line.proposalId} line={line} />
+            {r.payouts.map((line, i) => (
+              <RecordItem key={`${line.proposalId}:${i}`} line={line} />
             ))}
           </RecordSection>
         </li>
@@ -882,6 +900,48 @@ function SigningList({
       <p className="mt-2 text-xs text-muted">
         A passed vote has the contract sign; someone still has to broadcast the signed transaction. The satchel&apos;s report checks
         whether each signed nonce is spent.
+      </p>
+    </>
+  );
+}
+
+function GiftList({
+  net,
+  proposals,
+  policy,
+  activity,
+}: {
+  net: Network;
+  proposals: DaoProposal[];
+  policy: DaoPolicy;
+  activity: DaoActivity | null;
+}) {
+  const gifts = satchelGifts(net, proposals, activity);
+  if (gifts.length === 0) return null;
+  const now = Date.now();
+  return (
+    <>
+      <h3 className="mt-5 font-medium">Satchels the DAO voted to give away</h3>
+      <ol className="mt-2 space-y-2 text-sm">
+        {gifts.map((g) => (
+          <li key={`${g.proposal.id}:${g.tokenId}`} className="min-w-0 [overflow-wrap:anywhere]">
+            <StatusBadge proposal={g.proposal} lapsed={lapsed(g.proposal, policy, now)} /> Proposal #{g.proposal.id}:{" "}
+            <Link href={appPath(net, `/satchel/${g.tokenId}`)} className={linkClass}>
+              satchel #{g.tokenId}
+            </Link>{" "}
+            to <ExternalLinkAccount account={g.receiver} />
+            {g.tx && (
+              <>
+                {" "}
+                · <TxLink hash={g.tx}>vote tx</TxLink>
+              </>
+            )}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-xs text-muted">
+        A passed vote calls nft_transfer: the receiver owns the satchel, and the DAO can no longer have it sign. What the address
+        holds goes with it.
       </p>
     </>
   );
