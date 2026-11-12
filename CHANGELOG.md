@@ -6,11 +6,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
-- `scripts/a11y-audit.mjs` audits every app page and every docs page, the docs in both themes:
-  axe-core 4.13 (WCAG A, AA, AAA and axe's best practices), then line height, characters per line,
-  paragraph spacing, text past its table cell, text under 12px and heading levels, and clipped text
-  or a page that scrolls sideways under WCAG 1.4.12's text spacing, at 200% text size and at 640 and
-  320 px. `--summary` turns its results into one Markdown list. It needs `playwright-core` and
+- `scripts/a11y-audit.mjs` audits each app route on sample satchels (testnet #4, #5 and #9, mainnet
+  #2, two holder rooms and the 404 page), light only and with no wallet connected, and every docs
+  page in both themes; it doesn't open the owner panels, the wallet dialog or the docs search. It
+  runs axe-core 4.13's stable rules (WCAG A, AA, AAA and best practices, not the experimental ones),
+  then line height, characters per line and paragraph spacing, text past its table cell, text under
+  12px and heading levels, and clipped text or a page that scrolls sideways under WCAG 1.4.12's text
+  spacing, at 200% text size and at 640 and 320 px. A shard argument splits the runs across
+  processes. `--summary` turns its results into one Markdown list. It needs `playwright-core` and
   `axe-core`, which the repository doesn't install; its header says how. The README's "Reading:
   contrast, type and zoom" quotes its runs of 2026-11-12.
 
@@ -708,9 +711,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `position: relative` and docs links break (`overflow-wrap: break-word`). The hero card's hand-over
   row cut both account names short at 320 px; it wraps them instead.
 - Hovering the verdict badge on a satchel's page faded it to 80% opacity, 3.3 to 4.6:1; it draws a
-  ring instead. In the docs search, the "Try again" hover was under 7:1 in both themes, and the
-  selected result's section line and its matched words were under 7:1 on the dark theme; they no
-  longer are.
+  ring instead. In the docs search, the "Try again" hover was under 7:1 in both themes, the selected
+  result's section line was too (4.51:1 light, 4.16:1 dark), and its matched words were under 7:1 on
+  the dark theme (6.66:1); they no longer are. At 320 px the docs search button cut "Search the docs"
+  short; below 640 px it says "Search". A code block's title, such as the 1Click URL, now wraps
+  instead of running out of its box.
 - On the docs' dark theme, Satchel's mark in the header and footer was a near-black lock on a
   near-black background. The mark is now drawn inline in the theme's ink and gold (`SatchelMark` in
   `site-header.tsx`), so it is light on the dark theme and unchanged on the light pages.

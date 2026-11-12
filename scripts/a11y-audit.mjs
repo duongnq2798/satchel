@@ -1,17 +1,20 @@
-// Audits the site's pages for WCAG 2.2: axe-core (A, AA, AAA and axe's best practices) on every app
-// page and every docs page, the docs in both themes, then what axe doesn't measure. That is 1.4.8's
-// line height, paragraph spacing and characters per line, text past its table cell, text under
-// 12px, heading levels, and clipped text or a page that scrolls sideways under 1.4.12's text
-// spacing, at the browser's text size at 200% (1.4.4), and at 640 and 320 px wide (1.4.10). It only
-// reads the pages. Written for the 2026-11-12 typography change; the README quotes its results.
+// Audits the site's pages for WCAG 2.2: axe-core's stable rules (A, AA, AAA and best practices; not
+// its experimental ones) on each app route, light only and with no wallet connected, and on every
+// docs page in both themes, then what axe doesn't measure. That is 1.4.8's line height, paragraph
+// spacing and characters per line (in paragraphs, list items and table cells over 80 characters),
+// text past its table cell, text under 12px, heading levels, and clipped text or a page that scrolls
+// sideways under 1.4.12's text spacing, at the browser's text size at 200% (1.4.4), and at 640 and
+// 320 px wide (1.4.10). It only reads the pages. Written for the 2026-11-12 typography change; the
+// README quotes its results.
 //
 // Node 22 or later, Edge or Chrome, and two packages the repository doesn't install:
 //   npm install --prefix .a11y --no-save playwright-core@1.63.0 axe-core@4.13.0
 // Usage:
 //   node scripts/a11y-audit.mjs <site> <out.json> [path filter] [shard k/n]
 //   node scripts/a11y-audit.mjs --summary <out.md> <out.json>...
-// A shard "k/n" runs every n-th route from the k-th, so several processes can split the 93 runs.
-// A11Y_DEPS names another folder for the packages, A11Y_BROWSER a Playwright channel ("chrome").
+// A shard "k/n", k from 0 to n-1, runs every n-th route from the k-th, so n processes started with
+// 0/n to (n-1)/n split the 93 runs. A11Y_DEPS names another folder for the packages, A11Y_BROWSER a
+// Playwright channel ("chrome").
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -28,6 +31,10 @@ const SITE = (process.argv[2] ?? "https://satchelnft.xyz").replace(/\/$/, "");
 const OUT = process.argv[3] ?? "a11y-audit.json";
 const FILTER = process.argv[4] ?? "";
 const [K, N] = (process.argv[5] ?? "0/1").split("/").map(Number);
+if (!(Number.isInteger(K) && Number.isInteger(N) && K >= 0 && K < N)) {
+  console.error("usage: node scripts/a11y-audit.mjs <site> <out.json> [path filter] [shard k/n, k from 0 to n-1]");
+  process.exit(2);
+}
 
 const APP = [
   "/", "/market", "/satchels", "/verify", "/satchel/4", "/satchel/5", "/satchel/9", "/satchel/4/room",
@@ -39,6 +46,10 @@ const DOCS = [...new Set(index.map((x) => x.href.split("#")[0]))];
 const ROUTES = [...APP.map((p) => ({ path: p, theme: "light" })), ...DOCS.flatMap((p) => [{ path: p, theme: "light" }, { path: p, theme: "dark" }])]
   .filter((r) => r.path.includes(FILTER))
   .filter((_, i) => i % N === K);
+if (ROUTES.length === 0) {
+  console.error(`No route matches "${FILTER}" in shard ${K}/${N}.`);
+  process.exit(2);
+}
 
 const browser = await chromium.launch({ channel: process.env.A11Y_BROWSER ?? (process.platform === "win32" ? "msedge" : "chrome"), headless: true });
 
@@ -136,7 +147,8 @@ const PRESENTATION = () => {
     const width = el.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const next = el.nextElementSibling;
     const gap = next ? next.getBoundingClientRect().top - el.getBoundingClientRect().bottom : null;
-    const paragraphs = gap !== null && el.tagName === "P" && next.tagName === "P";
+    // Two paragraphs side by side in a grid or flex row are not one after the other.
+    const paragraphs = gap !== null && gap >= -1 && el.tagName === "P" && next.tagName === "P";
     return {
       tag: el.tagName.toLowerCase(),
       cls: String(el.className).slice(0, 70),
@@ -145,7 +157,8 @@ const PRESENTATION = () => {
       lineHeight: +(lh / fs).toFixed(2),
       cpl: Math.round(width / avg),
       align: cs.textAlign,
-      // From one line's top to the next paragraph's first line top, in font sizes: 2.5 is 1.5 lines of 1.5 plus a line.
+      // From one line's top to the next paragraph's first line top, in font sizes. 1.4.8 asks for
+      // spacing of 1.5 times the line spacing, 2.25 at a line height of 1.5; this asks for 2.5.
       pitch: paragraphs ? +((gap + lh) / fs).toFixed(2) : null,
     };
   });
@@ -212,7 +225,8 @@ for (const r of ROUTES) {
       const cdp = await ctx.newCDPSession(page);
       await cdp.send("Page.enable");
       await cdp.send("Page.setFontSizes", { fontSizes: { standard: 32, fixed: 26 } });
-      await load(page, r.path);
+      const status = await load(page, r.path);
+      if (status !== row.status) throw new Error(`200% text: loaded ${status}, first load ${row.status}`);
       row.rootFont = await page.evaluate(() => getComputedStyle(document.documentElement).fontSize);
       await page.waitForTimeout(500);
       row.textZoom200 = { clipped: await page.evaluate(CLIPPED), scroll: await page.evaluate(SCROLLX) };
@@ -220,17 +234,22 @@ for (const r of ROUTES) {
     }
     for (const width of [640, 320]) {
       const { ctx, page } = await newPage(r.theme, width, 800);
-      await load(page, r.path);
+      const status = await load(page, r.path);
+      if (status !== row.status) throw new Error(`${width} px: loaded ${status}, first load ${row.status}`);
       row[`reflow${width}`] = { clipped: await page.evaluate(CLIPPED), scroll: await page.evaluate(SCROLLX) };
       await ctx.close();
     }
   };
+  let timer;
   try {
-    await Promise.race([run(), new Promise((_, no) => setTimeout(() => no(new Error("route timeout 240s")), 240_000))]);
+    await Promise.race([run(), new Promise((_, no) => (timer = setTimeout(() => no(new Error("route timeout 240s")), 240_000)))]);
   } catch (e) {
     row.error = String(e?.message || e).slice(0, 300);
+  } finally {
+    clearTimeout(timer);
   }
-  results.push(row);
+  // A copy, so a run that timed out and goes on in the background can't change what was saved.
+  results.push(structuredClone(row));
   const v = row.axe?.violations?.map((x) => `${x.id}:${x.nodes.length}`).join(" ") || "";
   console.log(`${r.theme.padEnd(5)} ${r.path.padEnd(42)} ${row.status ?? ""} ${row.error ? `ERROR ${row.error.slice(0, 80)}` : v}`);
   writeFileSync(OUT, JSON.stringify(results, null, 1));
@@ -248,20 +267,25 @@ function summary(outFile, files) {
   for (const r of rows.filter((r) => r.error)) log(`- ERROR ${page(r)}: ${r.error}`);
   for (const r of rows.filter((r) => r.status && r.status !== 200 && r.path !== "/no-such-page")) log(`- status ${r.status} ${page(r)}`);
 
+  // The tab panels of "/" are scanned again after each click; they are counted apart from the runs.
   const all = rows.flatMap((r) => [
     ...(r.axe?.violations || []).map((v) => ({ ...v, page: page(r) })),
-    ...(r.tabs || []).flatMap((t) => t.violations.map((v) => ({ ...v, page: `${page(r)} [tab ${t.tab}]` }))),
+    ...(r.tabs || []).flatMap((t) => t.violations.map((v) => ({ ...v, page: page(r), tab: t.tab }))),
   ]);
   const byRule = {};
   for (const v of all) {
-    byRule[v.id] ??= { tags: v.tags, help: v.help, nodes: 0, pages: new Set(), samples: [] };
-    byRule[v.id].nodes += v.nodes.length;
-    byRule[v.id].pages.add(v.page);
-    if (byRule[v.id].samples.length < 4) byRule[v.id].samples.push(`${v.page} :: ${v.nodes[0].target} :: ${v.nodes[0].html.slice(0, 100)}`);
+    byRule[v.id] ??= { tags: v.tags, help: v.help, nodes: 0, tabNodes: 0, pages: new Set(), samples: [] };
+    if (v.tab) byRule[v.id].tabNodes += v.nodes.length;
+    else {
+      byRule[v.id].nodes += v.nodes.length;
+      byRule[v.id].pages.add(v.page);
+    }
+    if (byRule[v.id].samples.length < 4) byRule[v.id].samples.push(`${v.page}${v.tab ? ` [tab ${v.tab}]` : ""} :: ${v.nodes[0].target} :: ${v.nodes[0].html.slice(0, 100)}`);
   }
   log("\n## axe rules violated");
   for (const [id, x] of Object.entries(byRule).sort((a, b) => b[1].nodes - a[1].nodes)) {
-    log(`- **${id}** (${x.tags.join(",")}): ${x.nodes} elements on ${x.pages.size} runs. ${x.help}`);
+    const tabs = x.tabNodes ? `, and ${x.tabNodes} in the tab panels of /, some of them the same elements` : "";
+    log(`- **${id}** (${x.tags.join(",")}): ${x.nodes} elements on ${x.pages.size} runs${tabs}. ${x.help}`);
     for (const s of x.samples) log(`  - ${s}`);
   }
   const inc = {};
@@ -279,15 +303,17 @@ function summary(outFile, files) {
 
   const uniq = (label, pick, key) => {
     const m = {};
+    const runs = new Set();
     for (const r of rows) {
       for (const it of pick(r) || []) {
         const k = key(it);
         m[k] ??= { count: 0, pages: new Set() };
         m[k].count++;
         m[k].pages.add(page(r));
+        runs.add(page(r));
       }
     }
-    log(`\n## ${label}: ${Object.keys(m).length} distinct`);
+    log(`\n## ${label}: ${runs.size} runs, ${Object.keys(m).length} distinct`);
     for (const [k, x] of Object.entries(m).sort((a, b) => b[1].count - a[1].count).slice(0, 30)) log(`- x${x.count} ${k} (e.g. ${[...x.pages].slice(0, 2).join(", ")})`);
   };
   uniq("Line height under 1.5 (1.4.8)", (r) => r.presentation?.lowLineHeight, (i) => `${i.tag}.${i.cls} ${i.fontSize}px lh ${i.lineHeight}`);
@@ -301,8 +327,9 @@ function summary(outFile, files) {
   for (const r of rows.filter((r) => r.presentation && r.presentation.h1s !== 1)) log(`- ${page(r)}: ${r.presentation.h1s}`);
   for (const k of ["textSpacing", "textZoom200", "reflow640", "reflow320"]) {
     uniq(`${k}: clipped text`, (r) => r[k]?.clipped, (i) => `${i.tag}.${i.cls} "${i.text}" ${i.sw}x${i.sh} in ${i.cw}x${i.ch}`);
-    log(`\n## ${k}: pages that scroll sideways`);
-    for (const r of rows.filter((r) => r[k]?.scroll && r[k].scroll.scrollWidth > r[k].scroll.width + 1)) {
+    const wide = rows.filter((r) => r[k]?.scroll && r[k].scroll.scrollWidth > r[k].scroll.width + 1);
+    log(`\n## ${k}: ${wide.length} runs that scroll sideways`);
+    for (const r of wide) {
       log(`- ${page(r)}: ${r[k].scroll.scrollWidth} > ${r[k].scroll.width}; ${r[k].scroll.wide.slice(0, 3).map((w) => `${w.tag}.${w.cls.slice(0, 40)} right ${w.right} "${w.text}"`).join(" | ")}`);
     }
   }

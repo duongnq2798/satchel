@@ -371,7 +371,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 303 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 308 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -1265,33 +1265,39 @@ frame of their own. The [sitemap](web/src/app/sitemap.ts) and
 and 4.5:1 for large text, on the light pages and the docs' dark theme.
 [`contrast.test.ts`](web/src/app/contrast.test.ts) computes every token pair the pages use,
 translucent text over its panel included, and every code color on every surface, so a color change
-that breaks one fails `npm test`. Small text defaults to a line height of 1.5 (the docs sidebar and
-contents links keep 1.375, the diagrams' arrow labels 1.25), nothing is smaller than 12px, a
-paragraph or a table cell holds about 70 to 75 characters a line (WCAG 1.4.8 asks for 80 at most),
-and headings don't skip a level.
+that breaks one fails `npm test`. Small text defaults to a line height of 1.5; short lines keep a
+tighter one (the docs sidebar and contents links and the diagrams' box titles 1.375, the diagrams'
+arrow labels 1.25), and so do headings and other large text. Nothing is smaller than 12px, a
+paragraph, list item or table cell holds about 70 to 75 characters a line (WCAG 1.4.8 asks for 80 at
+most), and headings don't skip a level.
 
-On 2026-11-12 [`a11y-audit.mjs`](scripts/a11y-audit.mjs) ran axe-core 4.13 in Edge over 93 page and
-theme runs, every app page and every docs page in both themes. It then measured line length and line
-height, looked for text running past its table cell and for text under 12px, applied WCAG 1.4.12's
-text spacing, set the browser's text size to 200% (1.4.4), and laid each page out at 640 and 320 px
-wide (1.4.10). On the live site before this change it found 2,827 elements under 7:1 on all 93 runs,
-107 of them also under AA's 4.5:1; 134 landmarks named alike; 98 scrollable blocks a keyboard could
-not reach; 15 pieces of content outside a landmark; 12 empty table headers; lines over 80 characters
-on all 93 runs, text under 12px on 81 and line heights under 1.5 on 22; pages that scrolled sideways
-on 8 runs at 640 px, 16 at 320 px, 6 under the text spacing and 8 at 200% text size; and text cut
-short on 79 runs at 320 px. On the build of this change it found none of these: no axe violation of
-the WCAG A, AA and AAA rules or of axe's best practices, no paragraph, list item or table cell with
-a line over 80 characters or a line height under 1.5, no text past its table cell or under 12px, no
-skipped heading level, and no clipped text or sideways page under the text spacing, at 200% text
-size, or at 640 or 320 px. axe could not compute the contrast of some text, beside the docs steps'
-number markers or under a box that overlaps it; those colors are token pairs the test covers. Code
-blocks and wide tables scroll sideways inside their own box at 320 px; the page does not.
+On 2026-11-12 [`a11y-audit.mjs`](scripts/a11y-audit.mjs) ran axe-core 4.13's stable rules (not its
+experimental ones) in Edge over 93 runs: each app route on sample satchels (testnet #4, #5 and #9,
+mainnet #2, two holder rooms and the 404 page), light only and with no wallet connected, and every
+docs page in both themes. It didn't open the owner panels, the wallet dialog or the docs search. It
+then measured line length, line height and paragraph spacing in paragraphs, list items and table
+cells over 80 characters, looked for text running past its table cell and for text under 12px,
+applied WCAG 1.4.12's text spacing, set the browser's text size to 200% (1.4.4), and laid each page
+out at 640 and 320 px wide (1.4.10). On the live site before this change it found 2,934 elements
+under 7:1 on all 93 runs, 107 of them also under AA's 4.5:1; 134 landmarks named alike; 98
+scrollable blocks a keyboard could not reach; 15 pieces of content outside a landmark; 12 empty
+table headers; lines over 80 characters on all 93 runs, text under 12px on 81 and line heights under
+1.5 on 22; pages that scrolled sideways on 8 runs at 640 px, 16 at 320 px, 6 under the text spacing
+and 8 at 200% text size; and text cut short on 79 runs at 320 px. On the build of this change it
+found none of these: no violation of axe's stable WCAG A, AA and AAA rules or of its best practices,
+none of those paragraphs, list items or table cells with a line over 80 characters or a line height
+under 1.5, no text past its table cell or under 12px, no skipped heading level, and no clipped text
+or sideways page under the text spacing, at 200% text size, or at 640 or 320 px. axe could not
+compute the contrast of some text, beside the docs steps' number markers or under a box that
+overlaps it; those colors are token pairs the test covers. Code blocks and wide tables scroll
+sideways inside their own box at 320 px; the page does not.
 
-This is not a claim of full AAA conformance. Target size (2.5.5), reading level (3.1.5),
-pronunciation (3.1.6) and the other criteria outside text and type were not assessed. Colors written
-into a component instead of a token are outside the test: #f0997b on the refusal lines of "Try to
-cheat the buyer." and on the [FAIL] and NOT PROVABLE lines of the landing page's command-line
-report, 8.35:1 at the lowest, on ink.
+This is not a claim of full AAA conformance. Target size (2.5.5), reading level (3.1.5) and
+pronunciation (3.1.6) were not assessed, and the other criteria outside text and type only by axe's
+automated rules. Colors written into a component instead of a token are outside the test: #f0997b on
+the refusal lines of "Try to cheat the buyer." (8.35:1 on ink) and on the [FAIL] and NOT PROVABLE
+lines of the landing page's command-line report (8.88:1 on its `bg-black/40` box, where the other
+lines, paper-2, are 15.46:1).
 
 To run it yourself:
 
@@ -1513,7 +1519,7 @@ all of this with the near CLI's key, checking each step
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 231 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 99 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
-| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
+| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package) and [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
 | [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
@@ -1544,7 +1550,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 231 package tests, 303 app tests
+npm run typecheck && npm test              # both workspaces: 231 package tests, 308 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1576,7 +1582,7 @@ The tests, as of 2026-11-12: 64 Rust unit tests in
 `near-cli.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `tx-index.test.ts` 7, `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and
 `limit.test.ts` 2;
-and 303 app tests: 204 in `contrast.test.ts`, which computes the contrast of the text colors in `globals.css`,
+and 308 app tests: 209 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
 40 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
 2 in `frozen.test.ts`, 28 in `showcase.test.ts`,
 which checks the mainnet showcase and the landing page's four cards against `deployments/`, and 14 in `docs.test.ts`,
