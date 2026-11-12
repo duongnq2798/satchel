@@ -1,0 +1,586 @@
+{
+  "network": "testnet",
+  "contract": "v1.satchel-nft.testnet",
+  "mpc": "v1.signer-prod.testnet",
+  "estate": "satchel-estate-1112.testnet",
+  "owner": "buyer.satchel-nft.testnet",
+  "guardians": [
+    "satchel-nft.testnet",
+    "satchel-council-1112.testnet"
+  ],
+  "threshold": 2,
+  "heir": "satchel-builder-1112.testnet",
+  "checkInIntervalMinutes": 3,
+  "waitingPeriodMinutes": 5,
+  "note": "The near CLI signed every transaction from the legacy keychain, and tools/estate-run.mjs checked each one against what it asked for before sending it and read it back from the chain after. The near CLI's faucet service created the estate's account before the run (not recorded here). Every wait is real block time. The builder controls every account in this run: it shows the estate's rules working on testnet, not a family using them. contracts/estate is a demo contract, not audited.",
+  "steps": [
+    {
+      "key": "deploy",
+      "step": "Deploy contracts/estate to satchel-estate-1112.testnet and call new in the same transaction: owner buyer.satchel-nft.testnet, guardians satchel-nft.testnet and satchel-council-1112.testnet (2 must approve), heir satchel-builder-1112.testnet, a 3-minute interval, a 5-minute waiting period, satchel #11 on v1.satchel-nft.testnet",
+      "tx": "CLAzs3YjYcj3TTrEyUd2fTuY5Rghf9qWbTkEZ5km5uSV",
+      "signer": "satchel-estate-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "actions": [
+        "DeployContract",
+        "FunctionCall"
+      ],
+      "method": "new",
+      "args": {
+        "satchel_contract": "v1.satchel-nft.testnet",
+        "token_id": "11",
+        "owner": "buyer.satchel-nft.testnet",
+        "guardians": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "threshold": 2,
+        "heir": "satchel-builder-1112.testnet",
+        "check_in_interval_minutes": 3,
+        "waiting_period_minutes": 5
+      },
+      "decodedArgs": {
+        "satchel_contract": "v1.satchel-nft.testnet",
+        "token_id": "11",
+        "owner": "buyer.satchel-nft.testnet",
+        "guardians": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "threshold": 2,
+        "heir": "satchel-builder-1112.testnet",
+        "check_in_interval_minutes": 3,
+        "waiting_period_minutes": 5
+      },
+      "deposit": "0",
+      "gas": "100000000000000",
+      "block": "277401656",
+      "at": "2026-11-12T18:44:39Z",
+      "status": "success",
+      "ran": {
+        "block": "277401656",
+        "at": "2026-11-12T18:44:39Z",
+        "ns": "1794509079026176991"
+      },
+      "view": {
+        "phase": "alive",
+        "now": "1794509080334944805",
+        "last_check_in": "1794509079026176991",
+        "overdue_at": "1794509259026176991",
+        "approvals": [],
+        "release_started_at": null,
+        "release_at": null,
+        "released_at": null,
+        "transfer_in_flight": false
+      },
+      "code": {
+        "codeHash": "77XyXHYKc3JzeRYKAMhNAXU3FxEQ7yJeLyFfzSBomy6Z",
+        "wasmBytes": 144349
+      }
+    },
+    {
+      "key": "lock",
+      "step": "Lock satchel-estate-1112.testnet: delete its only key, ed25519:Dxxm4XXHoeSsgzkyJn1tdos7zSZTrZByavCmaaZ2Go2E, so nobody can change the code or the rules",
+      "tx": "C8A8Q6CkFeMXeWJuJ8ujZ9ShME1nZCATq3Ti4mqLpRj1",
+      "signer": "satchel-estate-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "actions": [
+        "DeleteKey"
+      ],
+      "deposit": "0",
+      "block": "277401667",
+      "at": "2026-11-12T18:44:45Z",
+      "status": "success",
+      "publicKey": "ed25519:Dxxm4XXHoeSsgzkyJn1tdos7zSZTrZByavCmaaZ2Go2E",
+      "accessKeysAfter": 0
+    },
+    {
+      "key": "mint",
+      "step": "The owner mints satchel #11 straight to the estate",
+      "tx": "45EMyoKWntRHMdsAsi7vMfkAWS8dPSouVxLNT3VvRvWD",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "v1.satchel-nft.testnet",
+      "method": "mint",
+      "args": {
+        "receiver_id": "satchel-estate-1112.testnet"
+      },
+      "deposit": "100000000000000000000000",
+      "gas": "50000000000000",
+      "block": "277401678",
+      "at": "2026-11-12T18:44:52Z",
+      "status": "success",
+      "tokenId": "11",
+      "address": "0x80E486DF7901D36e5Bf35394Df98Ad6004062c61"
+    },
+    {
+      "key": "checkIn",
+      "step": "The owner checks in: the 3-minute interval restarts",
+      "tx": "G5tZH5Gn3xFmYnzdDcUiA5KrvwsY2hU9jeuAQQveiAxu",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "check_in",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277401853",
+      "at": "2026-11-12T18:46:26Z",
+      "status": "success",
+      "ran": {
+        "block": "277401854",
+        "at": "2026-11-12T18:46:27Z",
+        "ns": "1794509187099812450"
+      },
+      "view": {
+        "phase": "alive",
+        "now": "1794509188264483336",
+        "last_check_in": "1794509187099812450",
+        "overdue_at": "1794509367099812450",
+        "approvals": [],
+        "release_started_at": null,
+        "release_at": null,
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "earlyApprove",
+      "step": "Guardian satchel-nft.testnet tries to approve before the owner is overdue: the estate refuses",
+      "tx": "EwsbNRc6tLaYcc5eT1MmCAbgL8EkEQAyFfRLu4UBE4ec",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "approve_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277401863",
+      "at": "2026-11-12T18:46:32Z",
+      "status": "failure",
+      "error": "Estate: the owner is not overdue yet",
+      "ran": {
+        "block": "277401864",
+        "at": "2026-11-12T18:46:33Z",
+        "ns": "1794509193341318439"
+      },
+      "view": {
+        "phase": "alive",
+        "now": "1794509193835726506",
+        "last_check_in": "1794509187099812450",
+        "overdue_at": "1794509367099812450",
+        "approvals": [],
+        "release_started_at": null,
+        "release_at": null,
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "waitOverdue",
+      "step": "Wait until the owner is overdue: block time past the last check-in + the 3-minute interval",
+      "waitedFor": "overdue_at",
+      "target": "1794509367099812450",
+      "until": "2026-11-12T18:49:42Z",
+      "block": "277402187",
+      "at": "2026-11-12T18:49:42Z"
+    },
+    {
+      "key": "approve1",
+      "step": "Approval 1 of 2 (first round), by guardian satchel-nft.testnet",
+      "tx": "9wnnkvb6oww4fz7wWEFETbEWi6UQXczeFZg9HGVjM8be",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "approve_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277402194",
+      "at": "2026-11-12T18:49:50Z",
+      "status": "success",
+      "ran": {
+        "block": "277402196",
+        "at": "2026-11-12T18:49:51Z",
+        "ns": "1794509391825563537"
+      },
+      "view": {
+        "phase": "overdue",
+        "now": "1794509393431883282",
+        "last_check_in": "1794509187099812450",
+        "overdue_at": "1794509367099812450",
+        "approvals": [
+          "satchel-nft.testnet"
+        ],
+        "release_started_at": null,
+        "release_at": null,
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "approve2",
+      "step": "Approval 2 of 2 (first round), by guardian satchel-council-1112.testnet: the waiting period starts",
+      "tx": "JTqAFGSWb6FHNpJUbwWAFyGEuy2AytALtNEBRuz1k71",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "approve_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277402206",
+      "at": "2026-11-12T18:49:57Z",
+      "status": "success",
+      "ran": {
+        "block": "277402207",
+        "at": "2026-11-12T18:49:58Z",
+        "ns": "1794509398214362981"
+      },
+      "view": {
+        "phase": "releasing",
+        "now": "1794509399489505257",
+        "last_check_in": "1794509187099812450",
+        "overdue_at": "1794509367099812450",
+        "approvals": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "release_started_at": "1794509398214362981",
+        "release_at": "1794509698214362981",
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "cancel",
+      "step": "The owner checks in while the release waits: the check-in cancels it",
+      "tx": "9GoVpncqW9FFRV1pfNnnr7Jcp1zrSGWeKFBhyNreagSw",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "check_in",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277402217",
+      "at": "2026-11-12T18:50:04Z",
+      "status": "success",
+      "ran": {
+        "block": "277402218",
+        "at": "2026-11-12T18:50:04Z",
+        "ns": "1794509404885244300"
+      },
+      "view": {
+        "phase": "alive",
+        "now": "1794509406102959169",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [],
+        "release_started_at": null,
+        "release_at": null,
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "waitOverdue2",
+      "step": "Wait until the owner is overdue again: block time past that check-in + the 3-minute interval",
+      "waitedFor": "overdue_at",
+      "target": "1794509584885244300",
+      "until": "2026-11-12T18:53:19Z",
+      "block": "277402552",
+      "at": "2026-11-12T18:53:21Z"
+    },
+    {
+      "key": "reapprove1",
+      "step": "Approval 1 of 2 (second round), by guardian satchel-nft.testnet",
+      "tx": "4A9oSBGSyFyjA3voLgHGAAkmzGY3Y4AFx7T9fMjHW6J7",
+      "signer": "satchel-nft.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "approve_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277402559",
+      "at": "2026-11-12T18:53:25Z",
+      "status": "success",
+      "ran": {
+        "block": "277402560",
+        "at": "2026-11-12T18:53:25Z",
+        "ns": "1794509605676308256"
+      },
+      "view": {
+        "phase": "overdue",
+        "now": "1794509606748571722",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [
+          "satchel-nft.testnet"
+        ],
+        "release_started_at": null,
+        "release_at": null,
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "reapprove2",
+      "step": "Approval 2 of 2 (second round), by guardian satchel-council-1112.testnet: the waiting period starts",
+      "tx": "8Pk428s52T6nMJS63iJSzXhCYgaNg1RRLqKGh8aeyp1d",
+      "signer": "satchel-council-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "approve_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277402571",
+      "at": "2026-11-12T18:53:31Z",
+      "status": "success",
+      "ran": {
+        "block": "277402572",
+        "at": "2026-11-12T18:53:32Z",
+        "ns": "1794509612200350296"
+      },
+      "view": {
+        "phase": "releasing",
+        "now": "1794509613320258187",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "release_started_at": "1794509612200350296",
+        "release_at": "1794509912200350296",
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "earlyFinalize",
+      "step": "The heir tries to finalize during the 5-minute waiting period: the estate refuses",
+      "tx": "4cmkXh1TNisZ4X1qwr7vcjLkNo3f8yeusq8RZU4rafBy",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "finalize_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "100000000000000",
+      "block": "277402582",
+      "at": "2026-11-12T18:53:38Z",
+      "status": "failure",
+      "error": "Estate: the waiting period has not passed yet",
+      "ran": {
+        "block": "277402583",
+        "at": "2026-11-12T18:53:38Z",
+        "ns": "1794509618670904067"
+      },
+      "view": {
+        "phase": "releasing",
+        "now": "1794509619198805404",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "release_started_at": "1794509612200350296",
+        "release_at": "1794509912200350296",
+        "released_at": null,
+        "transfer_in_flight": false
+      },
+      "satchelOwner": "satchel-estate-1112.testnet"
+    },
+    {
+      "key": "forgedRelease",
+      "step": "The heir calls the estate's callback on_release directly, as if a transfer had succeeded: the estate refuses",
+      "tx": "9qqQ9dS4CeqrDH4CNSrhABN7HFLN2cij5s3nQNWeApCq",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "on_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "30000000000000",
+      "block": "277402593",
+      "at": "2026-11-12T18:53:44Z",
+      "status": "failure",
+      "error": "Method on_release is private",
+      "ran": {
+        "block": "277402594",
+        "at": "2026-11-12T18:53:44Z",
+        "ns": "1794509624957261553"
+      },
+      "view": {
+        "phase": "releasing",
+        "now": "1794509626074918052",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "release_started_at": "1794509612200350296",
+        "release_at": "1794509912200350296",
+        "released_at": null,
+        "transfer_in_flight": false
+      }
+    },
+    {
+      "key": "waitRelease",
+      "step": "Wait out the 5-minute waiting period: block time past release_at",
+      "waitedFor": "release_at",
+      "target": "1794509912200350296",
+      "until": "2026-11-12T18:58:47Z",
+      "block": "277403128",
+      "at": "2026-11-12T18:58:48Z"
+    },
+    {
+      "key": "finalize",
+      "step": "The heir finalizes: the estate calls nft_transfer on v1.satchel-nft.testnet and satchel #11 moves to the heir",
+      "tx": "2YUgoWmD9G7yxxkdbvbXDGRQLVrLqX6dx8DSQ7yzvxLP",
+      "signer": "satchel-builder-1112.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "finalize_release",
+      "args": {},
+      "deposit": "0",
+      "gas": "100000000000000",
+      "block": "277403136",
+      "at": "2026-11-12T18:58:53Z",
+      "status": "success",
+      "ran": {
+        "block": "277403137",
+        "at": "2026-11-12T18:58:54Z",
+        "ns": "1794509934307275611"
+      },
+      "view": {
+        "phase": "released",
+        "now": "1794509936690079875",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "release_started_at": "1794509612200350296",
+        "release_at": null,
+        "released_at": "1794509935576743107",
+        "transfer_in_flight": false
+      },
+      "transferReceipt": "FXfjP4qBo2HWGfLmPws68UYBCP64pZ4G7XvfCmT12fp2",
+      "satchelOwner": "satchel-builder-1112.testnet"
+    },
+    {
+      "key": "lateSign",
+      "step": "The old owner asks the estate to have satchel #11 sign a Sepolia transaction: the estate refuses",
+      "tx": "AaYLwvh9tEoQnjXNuzx3nprRf1HwPaTsoPhKX8tu68W",
+      "signer": "buyer.satchel-nft.testnet",
+      "receiver": "satchel-estate-1112.testnet",
+      "method": "sign_evm",
+      "args": {
+        "tx": {
+          "chain_id": "11155111",
+          "nonce": "0",
+          "max_priority_fee_per_gas": "1000000000",
+          "max_fee_per_gas": "5000000000",
+          "gas_limit": "21000",
+          "to": "0x000000000000000000000000000000000000dEaD",
+          "value": "0",
+          "data": "0x"
+        }
+      },
+      "deposit": "1",
+      "gas": "300000000000000",
+      "block": "277403150",
+      "at": "2026-11-12T18:59:02Z",
+      "status": "failure",
+      "error": "Estate: the satchel was released to the heir",
+      "ran": {
+        "block": "277403151",
+        "at": "2026-11-12T18:59:02Z",
+        "ns": "1794509942815137137"
+      },
+      "view": {
+        "phase": "released",
+        "now": "1794509943998815281",
+        "last_check_in": "1794509404885244300",
+        "overdue_at": "1794509584885244300",
+        "approvals": [
+          "satchel-nft.testnet",
+          "satchel-council-1112.testnet"
+        ],
+        "release_started_at": "1794509612200350296",
+        "release_at": null,
+        "released_at": "1794509935576743107",
+        "transfer_in_flight": false
+      },
+      "signingRecordVersion": "0"
+    },
+    {
+      "key": "heirReport",
+      "step": "The heir reads satchel #11's clean-transfer report: PROVABLY CLEAN, it never signed",
+      "tokenId": "11",
+      "owner": "satchel-builder-1112.testnet",
+      "address": "0x80E486DF7901D36e5Bf35394Df98Ad6004062c61",
+      "recordVersion": "0",
+      "verdict": "clean",
+      "checks": [
+        {
+          "id": "contract",
+          "status": "pass",
+          "title": "The contract can't sign behind the record"
+        },
+        {
+          "id": "pending",
+          "status": "pass",
+          "title": "No signed transaction is still pending"
+        },
+        {
+          "id": "approvals",
+          "status": "pass",
+          "title": "No approval left behind"
+        },
+        {
+          "id": "counters",
+          "status": "pass",
+          "title": "Nothing the record can't explain"
+        }
+      ],
+      "checkedAt": "2026-11-12T18:59:07.156Z"
+    }
+  ],
+  "nearCli": "near-cli-rs 0.30.1, legacy keychain (~/.near-credentials)",
+  "tokenId": "11",
+  "code": {
+    "codeHash": "77XyXHYKc3JzeRYKAMhNAXU3FxEQ7yJeLyFfzSBomy6Z",
+    "wasmBytes": 144349,
+    "build": {
+      "kind": "reproducible",
+      "ciRun": "https://github.com/duongnq2798/satchel/actions/runs/43280252276",
+      "artifact": "estate-reproducible-wasm",
+      "image": "sourcescan/cargo-near:0.22.0-rust-1.99.1@sha256:c9655eaf7436b90c87ea8b25739f91063032c5c30ba24cfeafe72c142943b5bb",
+      "sourceCodeSnapshot": "git+https://github.com/duongnq2798/satchel?rev=df3e8053392416998da1d2d044c8d302b4a4fea4"
+    },
+    "contractSourceMetadata": {
+      "version": "0.1.0",
+      "link": "https://github.com/duongnq2798/satchel/tree/df3e8053392416998da1d2d044c8d302b4a4fea4",
+      "standards": [
+        {
+          "standard": "nep297",
+          "version": "1.0.0"
+        },
+        {
+          "standard": "nep330",
+          "version": "1.3.0"
+        }
+      ],
+      "build_info": {
+        "build_environment": "sourcescan/cargo-near:0.22.0-rust-1.99.1@sha256:c9655eaf7436b90c87ea8b25739f91063032c5c30ba24cfeafe72c142943b5bb",
+        "build_command": [
+          "cargo",
+          "near",
+          "build",
+          "non-reproducible-wasm",
+          "--locked"
+        ],
+        "contract_path": "contracts/estate",
+        "source_code_snapshot": "git+https://github.com/duongnq2798/satchel?rev=df3e8053392416998da1d2d044c8d302b4a4fea4",
+        "output_wasm_path": "/home/near/code/contracts/estate/target/near/estate.wasm"
+      }
+    }
+  },
+  "address": "0x80E486DF7901D36e5Bf35394Df98Ad6004062c61"
+}
