@@ -3,11 +3,12 @@
 // NOT PROVABLE on check 2 (a signed nonce isn't spent) and check 3 (an approval is live). The owner
 // cleans it up in the app, and `--check` prints what Sepolia and the record say.
 //
-// The satchel must be new: the demo satchels #1 to #8 are quoted in the README and stay untouched
-// until 2026-11-25. Each step is saved to --out before the next one starts, and a rerun skips every
-// step the file already holds, so a run that stops can be run again.
+// The satchel must be new: the demo satchels #1 to #9 are quoted in the README and stay untouched
+// until 2026-11-25 (#9 is the one this script set up on 2026-11-11, cleaned up in the app on
+// 2026-11-12; only `--check` runs on it). Each step is saved to --out before the next one starts,
+// and a rerun skips every step the file already holds, so a run that stops can be run again.
 //
-//   NEAR_CLI=~/.cargo/bin/near.exe node make-clean-demo.mjs --token 9 --out ../deployments/testnet-make-clean.json
+//   NEAR_CLI=~/.cargo/bin/near.exe node make-clean-demo.mjs --token <new id> --out <file>
 //   node make-clean-demo.mjs --token 9 --out ../deployments/testnet-make-clean.json --check
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { encodeFunctionData, keccak256, maxUint256, parseAbi, parseEther } from "viem";
@@ -22,12 +23,12 @@ const ERC20 = parseAbi([
 // The seller's other satchel, owned by the same account: the approval a seller would leave behind.
 const SPENDER_SATCHEL = "7";
 const WITHDRAWAL = parseEther("0.01");
-const FROZEN = new Set(["1", "2", "3", "4", "5", "6", "7", "8"]);
+const FROZEN = new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 
 const tokenId = arg("--token");
 const out = arg("--out");
 if (!tokenId || !out) throw new Error("usage: node make-clean-demo.mjs --token <id> --out <file> [--check]");
-if (FROZEN.has(tokenId)) throw new Error(`satchel #${tokenId} is a demo satchel the README quotes: mint a new one`);
+if (FROZEN.has(tokenId) && !process.argv.includes("--check")) throw new Error(`satchel #${tokenId} is a demo satchel the README quotes: mint a new one`);
 const run = existsSync(out) ? JSON.parse(readFileSync(out, "utf8")) : {};
 const json = (v) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? String(x) : x), 2);
 

@@ -68,7 +68,8 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   - testnet #4's holder room;
   - satchel #8, which a DAO owned;
   - mainnet #2's swap through 1Click;
-  - Make it clean on testnet #9, dated 2026-11-11, before its owner runs the clean-up.
+  - Make it clean on testnet #9: the state set up on 2026-11-11 and its owner's clean-up on
+    2026-11-12, with the approve, the revoke and the send of 0 on Sepolia.
 
   Each card says what happened and links the satchel's page and a docs page; the verdict is left to the live
   report. The cards are `TOUR` in `showcase.ts`. Its tests check each card's transactions against
@@ -94,9 +95,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   gets both calls and no button; a listed satchel, or one whose check 1 fails, gets no buttons, and
   neither does a chain whose pending nonce read lags the report or the chain's latest block; check 4
   has no fix. On a chain with open nonces, it warns that funding the address lets anyone broadcast
-  what was signed at them first. Not yet run on chain: `tools/make-clean-demo.mjs` left testnet
-  satchel #9 in the state it fixes (`deployments/testnet-make-clean.json`), and its owner hasn't
-  pressed the buttons yet. In the package, unreleased and not in npm
+  what was signed at them first. Run once on chain, on 2026-11-12: `tools/make-clean-demo.mjs` left
+  testnet satchel #9 in the state it fixes, its owner pressed both buttons, and the report read
+  `PROVABLY CLEAN` (the entry on the run below). In the package, unreleased and not in npm
   0.2.0: `fixPlan`, `readFixInputs` and `revokeCalldata` in `clean.ts`, with tests that run each
   call it builds through a model of the contract's classifier for those calls (`contractClass` in
   `clean.test.ts`), and `Liveness.standard`, which says whether the ERC-20 or the ERC-721 read found
@@ -104,13 +105,31 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `satchel-nft@0.2.0` in its commands, and no longer says there is no revoke button. The threat
   model adds row 21i.
 
-- The demo satchels' guard: on testnet #1 to #8 and mainnet #1 and #2, whose state the README
-  quotes, the app shows a note in place of send, list, delist, transfer, buy and the Make it clean
-  buttons until 2026-11-25, with a link to mint your own (`web/src/lib/frozen.ts`). The holder room
-  stays open, and its kit says the card's buttons are off on them. It is a guard in the app, not a
-  protection: the CLI and the near CLI can still sign for them. The buy, sell, send and transfer
-  guides, the try-to-cheat tutorial and the README now point readers to a satchel they mint instead
-  of those ids, and the threat model adds row 21h.
+- Make it clean's first run on chain, on testnet satchel #9 on 2026-11-12, in the demo video's take.
+  From the card on satchelnft.xyz/satchel/9, the owner's wallet signed **Revoke**,
+  `approve(0x65C6…9C8E, 0)` on Sepolia USDC at nonce 1 (record version 4, Sepolia block 12118047),
+  then **Spend nonce** on the row "Spend nonce 2", a send of 0 to the satchel's own address (record
+  version 5, block 12118062); the app broadcast both. Once Sepolia finalized, about 15 minutes
+  later, **Check again** read `PROVABLY CLEAN`: "signed up to nonce 2, finalized nonce is 3", the
+  allowance 0. The two sends the setup signed and kept can't be broadcast now.
+  `deployments/testnet-make-clean.json` adds the run under `cleaned`, written in by hand from each
+  `sign_evm` event, each Sepolia receipt and the report, and the holder room the same wallet opened
+  next (owner read at final NEAR block 277348286). The README's section on #9, its status table,
+  limits and evidence links, AGENTS.md, the demo kit and the landing page's #9 card say it ran; the
+  card links the approve, the revoke and the send of 0 on Sepolia, and `showcase.test.ts` ties them
+  to the file. #9 joins the demo satchels: the app's guard (`frozen.ts`), the list the sitemap and
+  `llms.txt` read (`DEMO_SATCHELS`; not a quick pick on the verify page), the guides, the threat
+  model's row 21h and the demo kit's list of satchels to leave alone until 2026-11-25.
+  `make-clean-demo.mjs` refuses #1 to #9 except with `--check`, which only reads: a new setup needs
+  a new satchel.
+
+- The demo satchels' guard: on testnet #1 to #9 (#9 added after its run on 2026-11-12) and mainnet
+  #1 and #2, whose state the README quotes, the app shows a note in place of send, list, delist,
+  transfer, buy and the Make it clean buttons until 2026-11-25, with a link to mint your own
+  (`web/src/lib/frozen.ts`). The holder room stays open, and its kit says the card's buttons are off
+  on them. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for
+  them. The buy, sell, send and transfer guides, the try-to-cheat tutorial and the README now point
+  readers to a satchel they mint instead of those ids, and the threat model adds row 21h.
 
 - Send and sale panels: a send that was mined but reverted reads as a warning, and screen readers
   hear which send step is running, then the error or the result. One send runs at a time per
@@ -564,9 +583,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
     the README.
 - The landing page's Chain Signatures line names both MPC contracts, and its FAQ no longer says that every
   example on the page is on testnet.
-- The demo kit no longer says that its 1:18 and 1:42 scenes run only in a local build. It says that the
-  clean-up in the 1:18 scene hasn't run. Its rules were read again from the live HACKATHON.md on
-  2026-11-11, and they still match.
+- The demo kit no longer says that its 1:18 and 1:42 scenes run only in a local build. It says that
+  the clean-up in the 1:18 scene happens once, in the take, which ran on 2026-11-12. Its rules were
+  read again from the live HACKATHON.md on 2026-11-11, and they still match.
 - The app has 91 tests.
 - The README, AGENTS.md and the docs: 222 package tests in 17 files and 81 app tests, the threat
   model's 40 attacks, the web app's pages (Make it clean, Quote an exit), and the DeFi track's rows
