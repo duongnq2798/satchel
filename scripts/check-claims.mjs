@@ -7,10 +7,13 @@
 // Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
+// With NEAR_ARCHIVAL_RPC unset, an archival read FastNEAR's node doesn't answer goes to NEAR's own,
+// and once that answers, later reads ask it first; the last line then says so.
 // BASE_RPC and ARBITRUM_RPC replace the Base and Arbitrum One nodes the mainnet run reads; with
 // BASE_RPC unset, a Base read the default node fails goes to Base's own public node. The last claim
-// about satchel #2 also reads 1Click's public status for its deposit. Each read that fails is tried once
-// more, 2 s later, before its claim fails.
+// about satchel #2 also reads 1Click's public status for its deposit. A node read that fails because
+// the node is busy (HTTP 408, 429 or 5xx, or a failed connection) is sent up to 4 times with backoff;
+// any other failed read is tried once more, 2 s later, before its claim fails.
 import { existsSync, readFileSync } from "node:fs";
 
 const flag = process.argv.indexOf("--network");
@@ -22,6 +25,8 @@ if (NETWORK !== "testnet" && NETWORK !== "mainnet") {
 const deployment = JSON.parse(readFileSync(new URL(`../deployments/${NETWORK}.json`, import.meta.url), "utf8"));
 const RPC = process.env.NEAR_RPC ?? `https://rpc.${NETWORK}.fastnear.com`;
 const ARCHIVAL = process.env.NEAR_ARCHIVAL_RPC ?? `https://archival-rpc.${NETWORK}.fastnear.com`;
+/** Read only if NEAR_ARCHIVAL_RPC is unset and the default node doesn't answer, as in check-dao.mjs. */
+const ARCHIVAL_FALLBACKS = [`https://archival-rpc.${NETWORK}.near.org`];
 const CONTRACT = deployment.contract;
 // Testnet only: the accounts behind the demo satchels and the refused calls.
 const OWNER = "satchel-nft.testnet";
@@ -58,6 +63,21 @@ async function twice(read) {
   }
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A node that didn't answer. `busy` (HTTP 408, 429 or 5xx, or a failed connection) marks one worth
+ * asking again soon; a timeout, any other HTTP error but a 400 with a JSON-RPC error, or a reply that
+ * isn't JSON is not.
+ */
+class NoAnswer extends Error {
+  constructor(message, { busy = false, retryAfter = null } = {}) {
+    super(message);
+    this.busy = busy;
+    this.retryAfter = retryAfter;
+  }
+}
+
 async function rpcOnce(url, method, params) {
   const res = await fetch(url, {
     method: "POST",
@@ -65,15 +85,96 @@ async function rpcOnce(url, method, params) {
     body: JSON.stringify({ jsonrpc: "2.0", id: "satchel", method, params }),
     signal: AbortSignal.timeout(30_000),
   }).catch((err) => {
-    throw new Error(`${method}: ${err.message} from ${url}`);
+    // A request that timed out after 30 s gets one more try, like any other failure, not three.
+    throw new NoAnswer(`${method}: ${err.message} from ${url}`, { busy: err.name !== "TimeoutError" });
   });
-  if (!res.ok) throw new Error(`${method}: HTTP ${res.status} from ${url}`);
-  const body = await res.json();
+  if (res.status === 408 || res.status === 429 || res.status >= 500) {
+    // Retry-After in seconds; a date, or no header, leaves the backoff as it is.
+    const header = res.headers.get("retry-after");
+    const seconds = header === null || header.trim() === "" ? Number.NaN : Number(header);
+    throw new NoAnswer(`${method}: HTTP ${res.status} from ${url}`, {
+      busy: true,
+      retryAfter: Number.isFinite(seconds) && seconds >= 0 ? seconds : null,
+    });
+  }
+  if (!res.ok) {
+    // nearcore answers 400, with a JSON error, to a request it can't parse: the request is wrong, not
+    // the node. Any other error page, a 403 or a 404, is a node not answering.
+    const error = res.status === 400 ? (await res.json().catch(() => null))?.error : undefined;
+    if (error) throw new Error(`${method}: HTTP 400, ${JSON.stringify(error.cause ?? error)} from ${url}`);
+    throw new NoAnswer(`${method}: HTTP ${res.status} from ${url}`);
+  }
+  const body = await res.json().catch((err) => {
+    // A body that stalls past the timeout, or a connection cut off partway, is not "not JSON".
+    throw err.name === "SyntaxError"
+      ? new NoAnswer(`${method}: a reply that is not JSON from ${url}`)
+      : new NoAnswer(`${method}: ${err.message} from ${url}`, { busy: err.name !== "TimeoutError" });
+  });
   if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error.cause ?? body.error)} from ${url}`);
   return body.result;
 }
 
-const rpc = (url, method, params) => twice(() => rpcOnce(url, method, params));
+/**
+ * Sends a read, and again while the node is busy: up to 4 sends, 1, 2 and 4 s apart, or longer if its
+ * Retry-After asks, up to 8 s. Any other failure is tried once more, 2 s later.
+ */
+async function rpc(url, method, params) {
+  for (let sent = 1; ; sent += 1) {
+    try {
+      return await rpcOnce(url, method, params);
+    } catch (err) {
+      const busy = err instanceof NoAnswer && err.busy;
+      if (sent >= (busy ? 4 : 2)) throw err;
+      const backoff = 1_000 * 2 ** (sent - 1);
+      // A Retry-After can only make the wait longer: FastNEAR's archival node sends `retry-after: 0`
+      // with its 429s, and asking again at once only meets another 429.
+      await wait(busy ? Math.min(Math.max(backoff, (err.retryAfter ?? 0) * 1_000), 8_000) : 2_000);
+    }
+  }
+}
+
+/** The archival nodes that answered reads, which the last line names when a fallback did. */
+const answeredBy = new Set();
+
+/**
+ * The archival nodes in the order a read asks them: NEAR_ARCHIVAL_RPC alone or, with it unset,
+ * FastNEAR's and then NEAR's own. Once a fallback answers a read, with a result or an error, later
+ * reads ask it first and FastNEAR's last.
+ */
+let archivalNodes = process.env.NEAR_ARCHIVAL_RPC ? [ARCHIVAL] : [ARCHIVAL, ...ARCHIVAL_FALLBACKS];
+
+function answered(url) {
+  if (url !== ARCHIVAL && archivalNodes[0] !== url) {
+    archivalNodes = [url, ...ARCHIVAL_FALLBACKS.filter((u) => u !== url), ARCHIVAL];
+  }
+}
+
+/**
+ * An archival read from the first of `archivalNodes` that answers. Only a node that doesn't answer is
+ * passed over. An error the first node asked answers with fails the claim. One a later node answers
+ * with fails it too, and names the nodes before it that didn't answer: no other node checked it.
+ */
+async function archival(method, params) {
+  const urls = archivalNodes;
+  const errors = [];
+  for (const [i, url] of urls.entries()) {
+    try {
+      const result = await rpc(url, method, params);
+      answered(url);
+      answeredBy.add(url);
+      return result;
+    } catch (err) {
+      if (!(err instanceof NoAnswer)) {
+        answered(url);
+        if (i === 0) throw err;
+        throw new Error(`${[...errors, err.message].join("; ")}. ${urls.slice(0, i).join(" and ")} did not answer, and ${url} answered with that error: run it again, or set NEAR_ARCHIVAL_RPC to an archival node you trust`);
+      }
+      errors.push(err.message);
+    }
+  }
+  const nodes = urls.length === 1 ? "That is a NEAR node" : `Those are ${urls.length} NEAR nodes`;
+  throw new Error(`${errors.join("; ")}. ${nodes} not answering, not a change to any satchel: wait a minute and run it again, or set NEAR_ARCHIVAL_RPC to another archival node`);
+}
 
 /** Whether a Base read came from BASE_FALLBACK, which the last line then says. */
 let fellBack = false;
@@ -119,15 +220,15 @@ async function view(method, args = {}, blockId) {
   const { result } =
     blockId === undefined
       ? await query(params)
-      : await rpc(ARCHIVAL, "query", { block_id: blockId, account_id: CONTRACT, ...params });
+      : await archival("query", { block_id: blockId, account_id: CONTRACT, ...params });
   return JSON.parse(Buffer.from(result).toString());
 }
 
 const tx = (hash, sender) =>
-  rpc(ARCHIVAL, "EXPERIMENTAL_tx_status", { tx_hash: hash, sender_account_id: sender, wait_until: "FINAL" });
+  archival("EXPERIMENTAL_tx_status", { tx_hash: hash, sender_account_id: sender, wait_until: "FINAL" });
 
 /** The height of the block that included a transaction. */
-const height = async (t) => (await rpc(ARCHIVAL, "block", { block_id: t.transaction_outcome.block_hash })).header.height;
+const height = async (t) => (await archival("block", { block_id: t.transaction_outcome.block_hash })).header.height;
 const actionNames = (t) => t.transaction.actions.map((a) => (typeof a === "string" ? a : Object.keys(a)[0]));
 const panic = (t) => t.status.Failure?.ActionError?.kind?.FunctionCallError?.ExecutionError ?? null;
 /** The transaction's one function call, with its args decoded, or an error if it is anything else. */
@@ -498,7 +599,7 @@ const MAINNET_EXIT = [
       // Balances and nonces at past blocks: both default nodes serve them, a pruned one doesn't.
       const past = (method, block) => fromBase(method, [s.address, hex(block)], `an archive node of Base mainnet (this reads its state at block ${block})`);
       const [block, funding, receipt, fundBlock, held, sent, heldAfter] = await Promise.all([
-        rpc(ARCHIVAL, "block", { block_id: ran.block_hash }),
+        archival("block", { block_id: ran.block_hash }),
         fromBase("eth_getTransactionByHash", [EXIT.funded.tx]),
         fromBase("eth_getTransactionReceipt", [EXIT.funded.tx]),
         fromBase("eth_getBlockByNumber", [hex(EXIT.funded.block), false]),
@@ -616,7 +717,7 @@ async function ranCall(hash, sender, method, expected) {
   // The first receipt the contract ran is the call itself; a refund or a payment comes after it.
   const ran = t.receipts_outcome.find((o) => o.outcome.executor_id === CONTRACT);
   if (!ran) throw new Error(`no receipt of ${CONTRACT} in ${hash}`);
-  const { header } = await rpc(ARCHIVAL, "block", { block_id: ran.block_hash });
+  const { header } = await archival("block", { block_id: ran.block_hash });
   return { t, args: call.args, deposit: t.transaction.actions[0].FunctionCall.deposit, ran, height: header.height, ns: BigInt(header.timestamp) };
 }
 
@@ -769,7 +870,7 @@ function saleClaims(s) {
         if (saved?.result !== "PROVABLY CLEAN" || saved.owner !== s.seller || saved.recordVersion !== v || l?.seller !== s.seller || l.price !== s.price || l.record_version !== v) {
           throw new Error(`the report saved before the buy reads ${saved?.result} for ${saved?.owner}, listing ${JSON.stringify(l)}`);
         }
-        const { header: sent } = await rpc(ARCHIVAL, "block", { block_id: buy.t.transaction_outcome.block_hash });
+        const { header: sent } = await archival("block", { block_id: buy.t.transaction_outcome.block_hash });
         const checked = BigInt(Date.parse(saved.checkedAt)) * 1_000_000n;
         if (checked <= list.ns || checked >= BigInt(sent.timestamp)) throw new Error(`the report before the buy was saved at ${saved.checkedAt}, not between the listing and the buy`);
         if (s.verified?.result !== "PROVABLY CLEAN" || s.verified.owner !== s.buyer) throw new Error(`the saved report reads ${s.verified?.result} for ${s.verified?.owner}`);
@@ -794,5 +895,8 @@ for (const { claim, check } of CLAIMS) {
   }
 }
 console.log(`\n${CLAIMS.length - failed} of ${CLAIMS.length} claims hold (${RPC}, archival ${ARCHIVAL})`);
+if (archivalNodes[0] !== ARCHIVAL && answeredBy.size) {
+  console.log(`Archival reads came from ${[...answeredBy].join(" and ")}: once ${ARCHIVAL} didn't answer one, later ones went to ${archivalNodes[0]} first`);
+}
 if (fellBack) console.log(`Base reads that ${BASE_RPC} failed came from ${BASE_FALLBACK}`);
 process.exitCode = failed ? 1 : 0;
