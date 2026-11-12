@@ -1,7 +1,29 @@
 Sold wallets can still be drained by the seller.
 
-Satchel: a NEAR NFT that is a wallet on 8 EVM chains (Chain Signatures), with proof nothing stayed behind. What would you sell?
+The seller signs a withdrawal, sells you the wallet, then broadcasts it. Or leaves an approval to an address of their own and pulls your tokens after the sale. Nothing on chain shows the first; the second takes a scan of every chain's logs to find.
 
-Built at NEAR HACKATHON @NEARProtocol #NEARHackathon
-satchelnft.xyz
-github.com/duongnq2798/satchel
+Satchel (satchelnft.xyz) makes the wallet a NEAR NFT that proves nothing stayed behind. Built at NEAR HACKATHON.
+
+How it works
+• Each satchel is a NEP-171 token on NEAR. NEAR's MPC network derives its key (Chain Signatures), so one NFT is one address on 8 EVM chains and a testnet of each. No one holds the key.
+• Only the NFT's owner can have the contract sign, and the contract builds every EVM transaction it signs. Before each signature it writes a public record: the highest nonce signed on each chain and every approval granted.
+• Before paying, the buyer's report compares that record with each chain at a finalized block. Every signed nonce spent, every approval revoked, nothing signed blind: PROVABLY CLEAN.
+• Listing freezes signing, and buy names the record version the buyer checked. One NEAR transaction moves the NFT, and the right to sign on every chain with it, or refunds the buyer.
+
+In the video
+• A seller keeps a signed 10,000 ETH send: caught. An approval left behind: caught. A change after the buyer checked: the contract refuses the buy and refunds.
+• Satchel #9 had a live approval and two signed sends. Its owner revokes and spends the nonces from its page, and once Sepolia finalizes, it reads PROVABLY CLEAN.
+• Only the current holder opens a satchel's holder room, checked at a final NEAR block.
+• Mainnet satchel #2 swapped its ETH on Base for USDC on Arbitrum One through NEAR Intents' 1Click, into its own address, and still reads clean.
+• The same check in any terminal: npx -y satchel-nft@0.2.0 verify 5
+
+What NEAR makes possible: Chain Signatures give an NFT a key on every EVM chain that no person holds, so one NEAR transfer is the whole handover.
+
+Live on NEAR testnet and mainnet. The contract is locked (no access keys) and is a reproducible build. Not audited.
+
+Try it with no wallet: satchelnft.xyz
+Check every claim: github.com/duongnq2798/satchel
+
+What would you sell as a satchel?
+
+@NEARProtocol #NEARHackathon

@@ -6,6 +6,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The README opens with "Satchel in 60 seconds": three satchels to open with no wallet (testnet #5
+  reads not provable, testnet #9 after Make it clean, mainnet #2 after its 1Click swap), the claim
+  checker, and "How Satchel compares", a table of Satchel, Handover, Incorpr, NFT Chain Keys,
+  ERC-6551's reference account and Lit's PKPs: what the NFT controls, a transaction signed before
+  the sale, approvals left behind, what happens while it is listed, and what a buyer can check. Each
+  other project's row was read from its code or text, at a pinned commit, on 2026-11-12, by an AI
+  agent, and a second agent checked each cell against the same sources. A paragraph under it credits
+  Handover, whose repository was created on 2026-11-03, before Satchel's, says what the two share,
+  and names where Satchel differs. "Why it is different" now says what it is measured against. The
+  README's link row adds the demo video.
+
 - `scripts/a11y-audit.mjs` audits each app route on sample satchels (testnet #4, #5 and #9, mainnet
   #2, two holder rooms and the 404 page), light only and with no wallet connected, and every docs
   page in both themes; it doesn't open the owner panels, the wallet dialog or the docs search. It
@@ -488,6 +499,39 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   NFT, refused calls), and a `send` mode that broadcasts a signed Sepolia transaction.
 
 ### Changed
+
+- The demo post is up: posted on X on 2026-11-12 at 14:16 UTC from @satchelnfthq, with the 2:06
+  video ([the post](https://x.com/satchelnfthq/status/2120883522059837618)). The account has
+  Premium, so the post is long: `docs/submission/x-post.txt` is now its text, and
+  `check-demo-kit.mjs` checks it against X Premium's 25,000 characters instead of 280, with the same
+  tag, link and question checks. The README's status table and `docs/DEMO.md` link the post, and
+  `docs/DEMO.md`'s form table gives its URL as the demo post link. It replaces a post from 13:16
+  UTC, now deleted, whose third paragraph said nothing on chain shows either trick; an approval left
+  behind is on chain, in each chain's logs, so the post now says only the held send leaves nothing.
+- "What did you build?" says the point is the check, not the NFT wallet, and adds Make it clean and
+  testnet #9. It says what Make it clean fixes, an open nonce or a live approval, and that an
+  approval left behind is in each chain's logs; a few phrases are shorter to fit (1,973
+  characters).
+- The Open Innovation section, in the README and in `docs/DEMO.md`'s track table, leads with what
+  Satchel brings to it: a check that nothing the last holder signed can still be used, after a sale
+  or after a DAO's vote handed testnet satchel #8 on, with credit to Handover for logging what its
+  wallet signs. It says what Make it clean fixes (an open nonce, a live approval) and what nothing
+  fixes (a raw signature, an unclassified call, an approval past the 32nd).
+- "Others have tied keys to NFTs", after each source was read again on 2026-11-12. NFT Chain Keys
+  controls every path under its token id, also signs for accounts the holder approved, keeps no
+  record, and is testnet only, with a full access key; the link is pinned to a commit. Lit's
+  NFT-based networks, Datil and Naga, are sunset, and the auth methods an owner permitted stayed
+  with a PKP after a transfer, with links to the code. ERC-6551: Tokenbound's account can act on
+  other chains, and the standard leaves fraud in a sale out of scope; both are linked at pinned
+  commits, and "Why it is different" now says it is the standard's reference account that checks the
+  NFT's owner each time. Handover signs ERC-20, ERC-721 and ERC-1155 transfers it encodes, not only
+  ETH sends, keeps each signed transaction in full, runs on testnets only, and is linked at a pinned
+  commit. Incorpr builds no transaction for its chains, counts a shareholder's raw signature on its
+  current addresses, refuses a pledge or a sale as well as a listing after one, binds the purchase
+  to the listing the buyer read, and its registry's key can reassign a vault's shareholder (its
+  README says the key is kept on purpose for now; its deploy notes say to delete it once the policy
+  is final). The landing page's comparison says NFT Chain Keys sign for chains that take secp256k1
+  ECDSA signatures.
 
 - Text colors meet WCAG 2.2 AAA contrast (1.4.6), 7:1 for text and 4.5:1 for large text, on the
   light pages and the docs' dark theme. New values in `globals.css`: ink-2 `#3b352d`, muted

@@ -18,7 +18,7 @@
 <a href="#how-to-evaluate-satchel-in-5-minutes"><img src="docs/assets/readme/evaluate-in-5-minutes.png" alt="Evaluate in 5 minutes: no wallet, no key, no account" height="48"></a>
 <a href="AGENTS.md#check-the-claims"><img src="docs/assets/readme/check-every-claim.png" alt="Check every claim: 33 claims read from the chains, with Node 22" height="48"></a>
 
-**[Live app](https://satchelnft.xyz)** · **[Evaluate in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)** · **[What is shipped](#status)** · **[On-chain proof](#on-chain-proof)** · **[Built on NEAR](#built-on-near)** · **[Threat model](docs/THREAT_MODEL.md)** · **[For AI agents](AGENTS.md)** · **[Security](SECURITY.md)** · **[Changelog](CHANGELOG.md)**
+**[Live app](https://satchelnft.xyz)** · **[Demo video, 2:06](https://x.com/satchelnfthq/status/2120883522059837618)** · **[Evaluate in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)** · **[What is shipped](#status)** · **[On-chain proof](#on-chain-proof)** · **[Built on NEAR](#built-on-near)** · **[Threat model](docs/THREAT_MODEL.md)** · **[For AI agents](AGENTS.md)** · **[Security](SECURITY.md)** · **[Changelog](CHANGELOG.md)**
 
 <sub>Built for the NEAR Hackathon 2026 · Rust contract on NEAR (near-sdk 5.29.1) · NEAR Chain Signatures · NEP-171, 177, 181, 297, 330 and 413 · Next.js 16 and viem, one stateless server route · a library and CLI, `satchel-nft`</sub>
 
@@ -52,7 +52,54 @@ and with it the right to sign for the address on every one of those chains.
 > sent from it once, in the app, and [satchel #2](#satchel-2-a-swap-through-1click) swapped 0.00258
 > ETH on Base for USDC on Arbitrum One through NEAR Intents' 1Click.
 
+## Satchel in 60 seconds
+
+**The point is the check, not the wallet behind an NFT.** NFTs that control a key or an account
+exist on NEAR and elsewhere, and Handover, another entry, also logs what its wallet signs
+([how they compare](#how-satchel-compares)). Satchel's contract writes down what the wallet's key
+signs, approvals included, and a report compares that record with each chain at a finalized block,
+so a signed send the seller kept back or an approval they left live shows up before the buyer pays.
+When it does, the owner can fix it from the satchel's page.
+
+Open these three. Reading needs no wallet, and each page reads the chains live:
+
+| Open | It reads | What happened |
+| --- | --- | --- |
+| [Testnet satchel #5](https://satchelnft.xyz/satchel/5) | **Not provable**: "A signed transaction may still be pending" | Its owner had a 10,000 ETH send on Sepolia signed and never broadcast it. On an ordinary wallet nothing on chain would show that; Satchel's record names the nonce |
+| [Testnet satchel #9](https://satchelnft.xyz/satchel/9) | **Provably clean**, at record version 5 | It was left with a live USDC approval and two signed sends. On 2026-11-12 its owner pressed **Revoke** and **Spend nonce** on its page, and once Sepolia finalized, the report read clean ([the run](#make-it-clean-on-testnet-satchel-9)) |
+| [Mainnet satchel #2](https://satchelnft.xyz/mainnet/satchel/2) | **Provably clean**, holding 5.280549 USDC on Arbitrum One | Real funds: its ETH on Base was swapped through NEAR Intents' 1Click into its own address. **Quote an exit** on its page asks 1Click for a dry quote, with no wallet |
+
+To check rather than trust: `node scripts/check-claims.mjs` needs no install and reads 13 claims
+back from NEAR testnet in seconds. [Evaluate in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)
+covers the rest.
+
+### How Satchel compares
+
+Each row is read from the project's own code or text, at the commit linked, on 2026-11-12.
+
+| | What the NFT controls | A transaction the seller signed before the sale | Approvals the seller left | While it is listed | What a buyer can check before paying |
+| --- | --- | --- | --- | --- | --- |
+| **Satchel**: NEAR testnet and mainnet | One address on 8 EVM mainnets and their testnets, through Chain Signatures | Still valid until a transaction at its nonce is final. The record keeps the highest nonce signed on each chain, and the report compares it with each chain | Itemized in the record, up to 32, and read live; Make it clean revokes them from the satchel's page | Signing is frozen; `buy` names the record version the buyer checked | The four-check report, in the browser or with `satchel-nft verify` |
+| **[Handover](https://github.com/AlphaTechini/handover/blob/e9368936dbc3d295cc1a35fdcf1e6fcd6f9cb0ee/README.md)**, another entry: NEAR testnet and Sepolia | One address, on Sepolia | Still valid. Each signed transaction is logged in full, so anyone can read or broadcast a pending one | None can exist: it signs only ETH sends and token transfers it encodes itself | Signing and transfers are frozen; `buy` names the nonce the buyer checked | Its clean check, in the web app or its CLI |
+| **[Incorpr](https://github.com/mrnetwork0001/Incorpr/blob/f4579627c51001513c88b130da733efcafb7004b/README.md)**, another entry: NEAR mainnet | A keyless NEAR vault that earns USDC, and its own Bitcoin, Solana and EVM addresses | Each signature a shareholder asks for is a raw hash; on the current addresses it is counted before the MPC call, and a listing, pledge or sale is refused until the company moves to new addresses | Not itemized: an approval is one more counted hash, which forces the move | Claims, signing and transfers are refused; the purchase names the listing the buyer read | Public views of the vault and its signature count, which must be 0 for a listing or a sale, and an advisory check of its addresses on each chain (`/api/verify-l1`) that the contract doesn't wait for |
+| **[NFT Chain Keys](https://github.com/near/multichain-gas-station-contract/tree/2d43bf0129a81bfe0ca66814cdf696545fe03b9d/nft_key)**, NEAR, 2024: testnet, marked early software | Every Chain Signatures path under its token id | Still valid: it signs any 32-byte hash for the holder or an account they approved, and keeps no record | Not tracked | No sale in the contract: no listing and no freeze | Nothing it signed is kept to check |
+| **[ERC-6551](https://github.com/ethereum/ERCs/blob/3033abc21892360e91bc5eb76ab75aaf70000567/ERCS/erc-6551.md)**, its [reference account](https://github.com/erc6551/reference/blob/da16a63fb53db6375175a9dca22f1e19e652a193/src/examples/simple/ERC6551Account.sol): many EVM chains | A smart-contract account per NFT, acting on the NFT's chain | An unused signature fails after the transfer: the account checks the NFT's current owner when it is used | Not tracked: they stay in the token contracts, and only a scan of that chain's logs finds them | The standard doesn't stop the seller: its security section suggests safeguards for marketplaces and leaves fraud prevention out of scope | The standard's `state()` view changes each time the account acts: it shows that something changed, not what; no report |
+| **[Lit PKPs](https://github.com/LIT-Protocol/lit-peer/blob/cd8674fa77f125a4d38d001a944ea60481390309/README.md)**, as ERC-721 NFTs: networks since sunset | A threshold key that could sign for many chains | Still valid: it signed any bytes and kept no public record. Auth methods the owner permitted stayed with the token until the buyer removed them | Not tracked | No freeze; the owner could sign until the NFT moved | Who else may sign, from the permission views; not what was signed |
+
+Handover's repository was created on 2026-11-03 and Satchel's on 2026-11-09, and the two share a
+core: each contract builds what it signs, logs it with its nonce, freezes signing while the wallet
+is listed and binds the purchase to what the buyer checked. Handover's log keeps each signed
+transaction in full, and since it can't sign an approval, it has nothing to revoke. Where Satchel
+differs from Handover: approvals are itemized and can be revoked, raw signatures and unclassified
+calls are counted rather than refused, Make it clean revokes approvals and spends open nonces from
+the satchel's page, and it signs on 8 mainnets. Incorpr goes further than Satchel in other ways:
+Bitcoin and Solana, a vault that earns, loans. More on each, with sources, in "Others have tied
+keys to NFTs", under [the NFT track's brief](#the-nft-tracks-brief-point-by-point).
+
 ## Why it is different
+
+Different, first, from handing over a seed phrase. Other NFTs that hold a key share some of these
+points, and Handover shares the first two ([how Satchel compares](#how-satchel-compares)).
 
 - **The key cannot leave with the seller.** Handing over a seed phrase hands over a copy, and the
   seller keeps theirs. A satchel's key is in no one's hands: the MPC network signs with it only when
@@ -67,9 +114,9 @@ and with it the right to sign for the address on every one of those chains.
   A seller can make a satchel unprovable, but cannot make it look clean.
 - **One transfer, every chain.** The NFT moves on NEAR in one transaction, and with it the right to
   sign for its address on all 16 chains. A token-bound account (ERC-6551) is controlled from the
-  NFT's chain. It checks the NFT's current owner each time it acts, so a signature made before a sale
-  doesn't work after it, but approvals it granted stay in the token contracts after the sale, and
-  only a scan of each chain's logs finds them.
+  NFT's chain. The standard's reference account checks the NFT's current owner each time it acts, so
+  a signature made before a sale doesn't work after it, but approvals it granted stay in the token
+  contracts after the sale, and only a scan of that chain's logs finds them.
 - **The proof doesn't depend on us.** The contract has no access keys and no admin, and its code is
   the reproducible build. The report runs in your browser or terminal against public RPC nodes, or
   your own. Each claim about the deployments has a command that checks it:
@@ -78,6 +125,7 @@ and with it the right to sign for the address on every one of those chains.
 
 ## Contents
 
+- [Satchel in 60 seconds](#satchel-in-60-seconds), and [how Satchel compares](#how-satchel-compares)
 - [Why it is different](#why-it-is-different)
 - [How to evaluate Satchel in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)
 - [Status](#status)
@@ -412,7 +460,7 @@ What exists at this commit, and what does not yet.
 | A satchel's address derived without an RPC | **Shipped** on 2026-11-10. The app and the CLI compute each satchel's key from the MPC network's root key, pinned in the package, the contract and the path, as the MPC contract does, so no RPC answer changes a satchel's address. Which satchel is yours (the id a mint returns, the tokens you own) still comes from the NEAR RPC, or for a mint from the wallet. The tests derive the keys of the 9 satchels in their fixture (testnet #1 to #8, mainnet #1) and get what the MPC contract's `derived_public_key` returned, and `check-claims.mjs` compares the pinned root key with the chain. `satchel-nft` derives it since 0.2.0; 0.1.0 reads the address through the NEAR RPC | [`evm.ts`](packages/satchel-nft/src/evm.ts), [`derived-keys.json`](packages/satchel-nft/src/__fixtures__/derived-keys.json) |
 | A satchel owned by a Sputnik DAO: its council votes what it signs, and a vote hands it on | **Shipped** on testnet on 2026-11-10, with no contract change. `satchel-club.sputnikv2.testnet` owned satchel #8: a vote passed a `sign_evm` proposal, the contract built the Sepolia transaction from the proposal's arguments and recorded it, `v1.signer-prod.testnet` signed, `satchel-nft dao finish` broadcast it after checking the hash and the signer, and the report read `PROVABLY CLEAN`. A second vote gave the satchel to `buyer.satchel-nft.testnet` with `nft_transfer`. The package builds the proposals, checks open proposals for a nonce already in use, and reads the signature from the vote's receipts; `dao finish` is in the CLI since 0.2.0. Not run on mainnet, and no DAO sale yet | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`deployments/testnet-dao.json`](deployments/testnet-dao.json), [`check-dao.mjs`](scripts/check-dao.mjs), [the walkthrough](https://satchelnft.xyz/docs/tutorials/dao-owned-satchel) |
 | Holder room: a page only a satchel's current holder can open, with a holder card and a handover kit | **Shipped** on 2026-11-10. The holder's wallet signs a NEP-413 message; the app's one server route, `/api/room`, checks the signature, that the key is a full-access key of the account and that the account owns the satchel, at one final NEAR block, on every request, and stores nothing. The kit says what to do before selling, from the satchel's report. Run on 2026-11-10 with messages signed by near-cli-rs, first against a local build, then against satchelnft.xyz: `satchel-nft.testnet` opened satchel #4's room (200, block 277055444 on satchelnft.xyz), and `buyer.satchel-nft.testnet` got the 403 that names the owner ([below](#holder-room)). In a browser, Meteor's Chrome extension opened mainnet satchel #1's room for `satchel-nft.near` (200, block 223915441) | [`holder.ts`](packages/satchel-nft/src/holder.ts), [`nep413.ts`](packages/satchel-nft/src/nep413.ts), [`kit.ts`](packages/satchel-nft/src/kit.ts), [`route.ts`](web/src/app/api/room/route.ts) |
-| Demo kit: the video script, the X post and the submission text | **Written** on 2026-11-10 and updated on 2026-11-11 and 2026-11-12, and checked against the hackathon's limits by `node scripts/check-demo-kit.mjs`. Its 1:18 scene is Make it clean on testnet satchel #9, its 1:30 scene opens the holder room with a wallet, and its 1:42 scene is a dry 1Click quote on mainnet satchel #2. The video was recorded on 2026-11-12 from satchelnft.xyz, the owner's wallet and a terminal; its Make it clean scene is the run on satchel #9. The cut runs 2:06 against the script's 2:00, within the 2:20 X plays without Premium. Not posted yet | [`docs/DEMO.md`](docs/DEMO.md), [`docs/submission`](docs/submission) |
+| Demo kit: the video script, the X post and the submission text | **Written** on 2026-11-10 and updated on 2026-11-11 and 2026-11-12, and checked against the hackathon's limits by `node scripts/check-demo-kit.mjs`. Its 1:18 scene is Make it clean on testnet satchel #9, its 1:30 scene opens the holder room with a wallet, and its 1:42 scene is a dry 1Click quote on mainnet satchel #2. The video was recorded on 2026-11-12 from satchelnft.xyz, the owner's wallet and a terminal; its Make it clean scene is the run on satchel #9. The cut runs 2:06 against the script's 2:00, within the 2:20 X plays without Premium. Posted on X on 2026-11-12 ([the post](https://x.com/satchelnfthq/status/2120883522059837618)) | [`docs/DEMO.md`](docs/DEMO.md), [`docs/submission`](docs/submission) |
 | Third-party audit | **Not done** | [`SECURITY.md`](SECURITY.md) |
 
 **Known limitations** (the main ones are in [Limits](#limits-stated-plainly), and every residual risk
@@ -464,29 +512,56 @@ MPC-derived address because the money people want to hand over mostly sits on EV
 satchel is the same address on eight of them, with a key no one holds. The cost: what a satchel
 controls is on those chains; NEAR assets stay in NEAR accounts.
 
-**Others have tied keys to NFTs.** NEAR's own [NFT Chain Keys](https://github.com/near/multichain-gas-station-contract/tree/master/nft_key)
-(2024) is an NEP-171 token that owns a Chain Signatures path and signs any payload for its holder.
-Lit Protocol's PKPs were key pairs minted as ERC-721 NFTs, whose owner controlled the key
-([Lit's docs, archived on 2025-01-13](http://web.archive.org/web/20250113122321/https://developer.litprotocol.com/user-wallets/pkps/minting/overview));
-as of 2026-11-12, Lit's docs describe a newer network, Chipotle, where a PKP is an entry in an
-account's on-chain registry ([its authentication model](https://developer.litprotocol.com/architecture/authModel)).
-ERC-6551 gives each NFT a smart-contract account, which can be deployed at the same address on many
-chains; the standard's reference account acts only on the NFT's own chain
-([EIP-6551](https://eips.ethereum.org/EIPS/eip-6551)). Handover, another entry in this hackathon,
-sells a Chain Signatures wallet as a NEAR NFT on Ethereum Sepolia. Its contract also builds what it
-signs, logs each signature with its nonce, freezes signing while the wallet is listed and binds the
-purchase to the nonce the buyer checked, and it signs only plain transfers, never an approval.
-Satchel's record differs from Handover's in what it covers: approvals are itemized rather than
-refused (so revoking an itemized approval, while the list has room for the revocation, makes a
-satchel clean again), raw signatures and calls it can't classify are counted rather than forbidden,
-and it signs on 8 mainnets and their testnets.
+**Others have tied keys to NFTs.** NEAR's own [NFT Chain Keys](https://github.com/near/multichain-gas-station-contract/tree/2d43bf0129a81bfe0ca66814cdf696545fe03b9d/nft_key)
+(2024) is an NEP-171 token that controls every Chain Signatures path under its token id. It signs
+any 32-byte hash for its holder, or for an account the holder approved (a transfer revokes those
+approvals), and keeps no record of what it signed. Its repository marks it as early software and
+lists a testnet deployment only, whose account still has a full access key. Lit Protocol's PKPs
+were key pairs minted as ERC-721 NFTs
+([Lit's docs, archived on 2025-01-13](http://web.archive.org/web/20250113122321/https://developer.litprotocol.com/user-wallets/pkps/minting/overview)):
+the owner, and any auth method it permitted, within that method's scopes, could sign, and the
+permissions stayed with the token when it changed hands, since its transfer hook clears none of them
+([scopes](https://github.com/LIT-Protocol/lit-peer/blob/cd8674fa77f125a4d38d001a944ea60481390309/rust/lit-node/lit-node/src/pkp/auth/mod.rs#L438-L457),
+[transfer hook](https://github.com/LIT-Protocol/lit-peer/blob/cd8674fa77f125a4d38d001a944ea60481390309/blockchain/contracts/contracts/lit-node/PKPNFT/PKPNFTFacet.sol#L196-L212)).
+Lit has since sunset those networks, Datil and Naga
+([its node repository](https://github.com/LIT-Protocol/lit-peer/blob/cd8674fa77f125a4d38d001a944ea60481390309/README.md));
+in Lit Protocol v3, Chipotle, a PKP is an entry in an account's on-chain registry
+([its authentication model](https://developer.litprotocol.com/architecture/authModel)). ERC-6551
+gives each NFT a smart-contract account, which can be deployed at the same address on many chains.
+The standard's reference account acts only on the NFT's own chain;
+[Tokenbound's widely deployed account](https://github.com/tokenbound/contracts/blob/2bd70ff3fb5f1c0e562425b4d5312f619d9f2720/src/AccountV3.sol)
+(v0.3.1) can also act on others, through executors its guardian Safe trusts. The standard's security
+section suggests safeguards to marketplaces, such as binding an order to the account's state, and
+leaves preventing fraud in a sale out of scope
+([EIP-6551 at `3033abc`](https://github.com/ethereum/ERCs/blob/3033abc21892360e91bc5eb76ab75aaf70000567/ERCS/erc-6551.md)).
+
+Handover, another entry in this hackathon
+([its README at `e936893`](https://github.com/AlphaTechini/handover/blob/e9368936dbc3d295cc1a35fdcf1e6fcd6f9cb0ee/README.md)),
+sells a Chain Signatures wallet as a NEAR NFT, on NEAR testnet and Ethereum Sepolia, with no mainnet
+deployment. Its contract also builds what it signs, logs each signed transaction with its nonce,
+freezes signing while the wallet is listed and binds the purchase to the nonce the buyer checked.
+It signs only ETH sends and token transfers it encodes itself (ERC-20 `transfer`, ERC-721 and
+ERC-1155 `safeTransferFrom`), never an approval or any other call. Its log keeps each signed
+transaction in full, so anyone can read or broadcast a pending one, where Satchel's record keeps the
+highest nonce signed on each chain; and since it never signs an approval, it has nothing to revoke
+and no cap. Satchel's record differs from Handover's in what it covers: approvals are itemized
+rather than refused (so revoking an itemized approval, while the list has room for the revocation,
+makes a satchel clean again), raw signatures and calls it can't classify are counted rather than
+forbidden, and it signs on 8 mainnets and their testnets.
 
 Incorpr, another entry, sells an AI-service company as a NEAR NFT. Its vault has no access keys,
-and has its own Bitcoin, Solana and EVM addresses through Chain Signatures. Like Satchel, it counts
-each raw signature before the MPC call; after one, it refuses a listing until the owner moves the
-company to new addresses. Its refused calls are recorded on mainnet; Satchel's are on testnet. Its
-registry, which the vaults trust for ownership, keeps a full access key on the deployer's machine
-([its README at `f457962`](https://github.com/mrnetwork0001/Incorpr/blob/f4579627c51001513c88b130da733efcafb7004b/README.md)).
+and has its own Bitcoin, Solana and EVM addresses through Chain Signatures. It builds no
+transaction for those chains, so every signature a shareholder asks for is a raw hash; one on the
+company's current addresses is counted before the MPC call, and after one, it refuses a listing, a
+pledge or a sale until the company moves to new addresses (an owner's own transfer moves them).
+Like Satchel, it binds the purchase to what the buyer read.
+Its refused calls are recorded on mainnet, among them a listing refused while a signed Bitcoin
+transaction was held; Satchel's are on testnet. Its registry, which the vaults trust for ownership,
+still has a full access key, which can reassign a vault's shareholder; its README says the key is
+on the deployer's machine and kept on purpose so registry fixes stay possible, and its deploy notes
+say to delete it once the policy is final
+([its README at `f457962`](https://github.com/mrnetwork0001/Incorpr/blob/f4579627c51001513c88b130da733efcafb7004b/README.md),
+[`DEPLOY.md`](https://github.com/mrnetwork0001/Incorpr/blob/f4579627c51001513c88b130da733efcafb7004b/docs/DEPLOY.md#6-notes-and-limits)).
 
 **Why not swap a Safe's owners?** That hands over a wallet too, but one chain at a time, and what the
 seller set up stays after the swap: modules, which
@@ -542,6 +617,18 @@ run called the Sputnik DAO contract with the near CLI). "Experimental" and "buil
 technology.
 
 ### Open Innovation (`open`)
+
+**What Satchel brings to this track: a check that nothing the last holder signed can still be
+used.** A wallet behind an NFT is not new ([how Satchel compares](#how-satchel-compares)), and
+Handover, another entry, also logs what its wallet signs. What Satchel adds is a check for a wallet
+that has been used for sends, token transfers and approvals: approvals are itemized and can be
+revoked, anything the contract can't read is counted rather than refused (Incorpr counts its raw
+signatures too), and when a signed nonce is open or an approval is live, Make it clean fixes it from
+the satchel's page. Nothing fixes a raw signature, a call the contract can't classify or an approval
+past the 32nd: each leaves a satchel not provable for every later owner
+([the case against Satchel](#the-case-against-satchel)). The handover need not be a sale: a Sputnik
+DAO's vote passed testnet satchel #8 on, and the same report reads `PROVABLY CLEAN` for its new
+owner ([the run](#a-satchel-owned-by-a-sputnik-dao-on-testnet)).
 
 The prompt: an inheritance account. One NEAR account controls the owner's Bitcoin and Ethereum
 addresses through Chain Signatures; if the owner stops checking in, guardians can release the assets
