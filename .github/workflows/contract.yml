@@ -88,3 +88,85 @@ jobs:
             contracts/satchel/target/near/satchel.code-hash.txt
           if-no-files-found: error
           retention-days: 90
+
+  # The estate demo contract (contracts/estate): the same checks and the same reproducible build as
+  # the satchel jobs above, in its own folder. It is a separate crate and does not change the Satchel
+  # contract.
+  estate-check:
+    name: "Estate: format, lint, unit tests, wasm build"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/estate
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain from rust-toolchain.toml
+        run: rustup show
+      - run: cargo fmt --check
+      - run: cargo clippy --tests -- -D warnings
+      - run: cargo test
+      # The same cargo-near 0.22.0 release binary as the satchel jobs, checked against the same sha256.
+      - name: Install cargo-near 0.22.0
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf --retry 10 --retry-all-errors --retry-delay 15 \
+            -o "$RUNNER_TEMP/cargo-near.tar.gz" \
+            https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-x86_64-unknown-linux-gnu.tar.gz
+          echo "9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a  $RUNNER_TEMP/cargo-near.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/cargo-near"
+          tar xzf "$RUNNER_TEMP/cargo-near.tar.gz" --no-same-owner --strip-components 1 -C "$RUNNER_TEMP/cargo-near"
+          install -m 755 "$RUNNER_TEMP/cargo-near/cargo-near" "$HOME/.cargo/bin/cargo-near"
+          command -v cargo-near
+      - name: Build the wasm
+        run: cargo near build non-reproducible-wasm --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: estate-wasm
+          path: contracts/estate/target/near/estate.wasm
+
+  estate-reproducible:
+    name: "Estate: reproducible build and code hash"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: contracts/estate
+    steps:
+      # As for the satchel: build the branch commit, which stays on GitHub, not the pull request's
+      # temporary merge commit, since cargo-near records the commit it builds (NEP-330).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      # The same cargo-near 0.22.0 release binary as the satchel jobs, checked against the same sha256.
+      - name: Install cargo-near 0.22.0
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf --retry 10 --retry-all-errors --retry-delay 15 \
+            -o "$RUNNER_TEMP/cargo-near.tar.gz" \
+            https://github.com/near/cargo-near/releases/download/cargo-near-v0.22.0/cargo-near-x86_64-unknown-linux-gnu.tar.gz
+          echo "9429064e30a427e96523f539cb255f3688d2345e5000d7d4e4873a8247247d1a  $RUNNER_TEMP/cargo-near.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/cargo-near"
+          tar xzf "$RUNNER_TEMP/cargo-near.tar.gz" --no-same-owner --strip-components 1 -C "$RUNNER_TEMP/cargo-near"
+          install -m 755 "$RUNNER_TEMP/cargo-near/cargo-near" "$HOME/.cargo/bin/cargo-near"
+          command -v cargo-near
+      - name: Build in the pinned Docker image
+        run: cargo near build reproducible-wasm
+      - name: Code hash
+        working-directory: .
+        env:
+          BUILT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          hash="$(node scripts/code-hash.mjs contracts/estate/target/near/estate.wasm)"
+          echo "$hash" > contracts/estate/target/near/estate.code-hash.txt
+          {
+            echo "### Estate reproducible build"
+            echo "- commit: \`$BUILT_COMMIT\`"
+            echo "- code hash: \`$hash\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: estate-reproducible-wasm
+          path: |
+            contracts/estate/target/near/estate.wasm
+            contracts/estate/target/near/estate.code-hash.txt
+          if-no-files-found: error
+          retention-days: 90
