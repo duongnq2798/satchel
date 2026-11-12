@@ -1,0 +1,112 @@
+{
+  "version": "2.3.1",
+  "get_config": {
+    "name": "satchel-club",
+    "purpose": "A Sputnik DAO that owns a satchel: one wallet on 16 EVM chains (satchelnft.xyz)",
+    "metadata": ""
+  },
+  "get_policy": {
+    "roles": [
+      {
+        "name": "council",
+        "kind": {
+          "Group": [
+            "satchel-nft.testnet"
+          ]
+        },
+        "permissions": [
+          "*:VoteReject",
+          "*:VoteRemove",
+          "*:VoteApprove",
+          "*:AddProposal",
+          "*:Finalize"
+        ],
+        "vote_policy": {}
+      }
+    ],
+    "default_vote_policy": {
+      "weight_kind": "RoleWeight",
+      "quorum": "0",
+      "threshold": [
+        1,
+        2
+      ]
+    },
+    "proposal_bond": "0",
+    "proposal_period": "3600000000000",
+    "bounty_bond": "0",
+    "bounty_forgiveness_period": "3600000000000"
+  },
+  "get_last_proposal_id": 2,
+  "get_proposals": [
+    {
+      "id": 0,
+      "proposer": "satchel-nft.testnet",
+      "description": "Satchel #8 signs nonce 0 on Sepolia: 100000000000000 wei to 0x000000000000000000000000000000000000dEaD",
+      "kind": {
+        "FunctionCall": {
+          "receiver_id": "v1.satchel-nft.testnet",
+          "actions": [
+            {
+              "method_name": "sign_evm",
+              "args": "eyJ0b2tlbl9pZCI6IjgiLCJ0eCI6eyJjaGFpbl9pZCI6IjExMTU1MTExIiwibm9uY2UiOiIwIiwibWF4X3ByaW9yaXR5X2ZlZV9wZXJfZ2FzIjoiMTAwMDAwMDAwMCIsIm1heF9mZWVfcGVyX2dhcyI6IjUwMDAwMDAwMDAiLCJnYXNfbGltaXQiOiIyMTAwMCIsInRvIjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDBkRWFEIiwidmFsdWUiOiIxMDAwMDAwMDAwMDAwMDAiLCJkYXRhIjoiMHgifX0=",
+              "deposit": "1",
+              "gas": "150000000000000"
+            }
+          ]
+        }
+      },
+      "status": "Approved",
+      "vote_counts": {
+        "council": [
+          1,
+          0,
+          0
+        ]
+      },
+      "votes": {
+        "satchel-nft.testnet": "Approve"
+      },
+      "submission_time": "1794291147365226940"
+    },
+    {
+      "id": 1,
+      "proposer": "satchel-nft.testnet",
+      "description": "Give satchel #8 to buyer.satchel-nft.testnet",
+      "kind": {
+        "FunctionCall": {
+          "receiver_id": "v1.satchel-nft.testnet",
+          "actions": [
+            {
+              "method_name": "nft_transfer",
+              "args": "eyJ0b2tlbl9pZCI6IjgiLCJyZWNlaXZlcl9pZCI6ImJ1eWVyLnNhdGNoZWwtbmZ0LnRlc3RuZXQifQ==",
+              "deposit": "1",
+              "gas": "30000000000000"
+            }
+          ]
+        }
+      },
+      "status": "Approved",
+      "vote_counts": {
+        "council": [
+          1,
+          0,
+          0
+        ]
+      },
+      "votes": {
+        "satchel-nft.testnet": "Approve"
+      },
+      "submission_time": "1794291463815512671"
+    }
+  ],
+  "get_last_bounty_id": 0,
+  "get_bounties": [],
+  "get_bounty_claims": {
+    "satchel-nft.testnet": []
+  },
+  "get_bounty_number_of_claims": {
+    "0": 0
+  },
+  "nft_tokens_for_owner": []
+}

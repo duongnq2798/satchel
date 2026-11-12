@@ -59,14 +59,75 @@ export interface DaoProposal {
   status: DaoProposalStatus;
   /** Nanoseconds, as a decimal string. */
   submission_time: string;
+  /** Each voter's vote: "Approve", "Reject" or "Remove". */
   votes?: Record<string, string>;
+  /** Per role, the weight of its approve, reject and remove votes. The DAO doesn't keep which role each voter voted in. */
+  vote_counts?: Record<string, number[]>;
+}
+
+/** How a role's votes pass a proposal (sputnikdao2 `VotePolicy`). */
+export interface DaoVotePolicy {
+  weight_kind: "RoleWeight" | "TokenWeight";
+  /** The fewest votes (RoleWeight) or tokens (TokenWeight) that can pass it, as a decimal string. */
+  quorum: string;
+  /** A weight, as a decimal string, or a ratio of the role's size or of the delegated tokens. */
+  threshold: string | [number, number];
+}
+
+/** A role in the policy (sputnikdao2 `RolePermission`). */
+export interface DaoRole {
+  name: string;
+  /** "Everyone", `{ Member: "<min balance>" }` or `{ Group: [accounts] }`. */
+  kind: "Everyone" | { Member: string } | { Group: string[] };
+  /** `<proposal kind label>:<action>`, either side `*`. */
+  permissions: string[];
+  /** Per proposal kind label, where it differs from the policy's default. */
+  vote_policy: Record<string, DaoVotePolicy>;
 }
 
 export interface DaoPolicy {
+  roles: DaoRole[];
+  default_vote_policy: DaoVotePolicy;
   /** yoctoNEAR `add_proposal` must attach, exactly. */
   proposal_bond: string;
   /** Nanoseconds a proposal stays open for votes. */
   proposal_period: string;
+  /** yoctoNEAR `bounty_claim` must attach, exactly. */
+  bounty_bond: string;
+  /** Nanoseconds after a claim in which giving it up returns the bond. */
+  bounty_forgiveness_period: string;
+}
+
+export interface DaoConfig {
+  name: string;
+  purpose: string;
+  /** Base64, for the DAO's own UI; the contract doesn't read it. */
+  metadata: string;
+}
+
+/** A bounty as `get_bounties` returns it. */
+export interface DaoBounty {
+  id: number;
+  description: string;
+  /** "" for NEAR, or the fungible token's contract. */
+  token: string;
+  /** In the token's smallest unit, yoctoNEAR for NEAR. */
+  amount: string;
+  /** How many more times it can be paid: each approved BountyDone takes one. */
+  times: number;
+  /** Nanoseconds: the longest deadline a claim may ask for. */
+  max_deadline: string;
+}
+
+/** One claim, as `get_bounty_claims` returns them for the account that made it. */
+export interface DaoBountyClaim {
+  bounty_id: number;
+  /** Nanoseconds since the epoch. */
+  start_time: string;
+  /** Nanoseconds after `start_time`. */
+  deadline: string;
+  /** True once the claimer called `bounty_done`: a BountyDone proposal waits for its vote. */
+  completed: boolean;
 }
 
 /**
@@ -117,11 +178,40 @@ export function sputnikDao(net: Network, daoId: string) {
   const lastProposalId = () => view<number>(net, daoId, "get_last_proposal_id");
   const proposals = (fromIndex: number, limit: number) =>
     view<DaoProposal[]>(net, daoId, "get_proposals", { from_index: fromIndex, limit });
+  const lastBountyId = () => view<number>(net, daoId, "get_last_bounty_id");
+  const bounties = (fromIndex: number, limit: number) => view<DaoBounty[]>(net, daoId, "get_bounties", { from_index: fromIndex, limit });
   return {
+    version: () => view<string>(net, daoId, "version"),
+    config: () => view<DaoConfig>(net, daoId, "get_config"),
     policy,
     proposal: (id: number) => view<DaoProposal>(net, daoId, "get_proposal", { id }),
     lastProposalId,
     proposals,
+    /**
+     * The newest `max` proposals, oldest first, and how many the DAO has filed. A removed proposal
+     * is gone from the DAO's state, so `proposals` can hold fewer than that.
+     */
+    recentProposals: async (max = 1000): Promise<{ proposals: DaoProposal[]; filed: number }> => {
+      const filed = await lastProposalId();
+      const found: DaoProposal[] = [];
+      for (let from = Math.max(0, filed - max); from < filed; from += PROPOSALS_PAGE) {
+        found.push(...(await proposals(from, Math.min(PROPOSALS_PAGE, filed - from))));
+      }
+      return { proposals: found, filed };
+    },
+    lastBountyId,
+    bounties,
+    /** Every bounty the DAO stores, by id. It drops one only when a payout finds it with no times left. */
+    allBounties: async (): Promise<DaoBounty[]> => {
+      const last = await lastBountyId();
+      const found: DaoBounty[] = [];
+      for (let from = 0; from < last; from += PROPOSALS_PAGE) found.push(...(await bounties(from, PROPOSALS_PAGE)));
+      return found;
+    },
+    /** `accountId`'s claims. The DAO keeps claims by claimer, so it has no list of every claim. */
+    bountyClaims: (accountId: string) => view<DaoBountyClaim[]>(net, daoId, "get_bounty_claims", { account_id: accountId }),
+    /** How many claims bounty `id` has now: open ones, and finished ones waiting for their vote. */
+    bountyClaimCount: (id: number) => view<number>(net, daoId, "get_bounty_number_of_claims", { id }),
     /**
      * Every proposal that can still run: in progress or failed (a failed one can be finalized and
      * run again) and inside the policy's proposal period, with 10 minutes to spare for clocks.

@@ -6,6 +6,7 @@ import { CHAINS, type ChainContents, buildReport, chainInfo, formatNear, nearAcc
 import { isFrozen } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
 import { Contents } from "./contents";
+import { DaoBoardLink } from "./dao-board";
 import { DeploymentNote, useDeployment } from "./deployment";
 import { FixPanel } from "./fix-panel";
 import { History } from "./history";
@@ -162,6 +163,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
             {isOwner ? "Owned by you" : <>Owned by <ExternalLink href={nearAccountUrl(net, view.owner_id)}>{view.owner_id}</ExternalLink></>} · path{" "}
             <Mono>{view.path}</Mono> · record version {record.version}
           </p>
+          <DaoBoardLink owner={view.owner_id} />
         </div>
         <div className="flex gap-2">
           {view.listing && <Badge tone="gold">Listed</Badge>}

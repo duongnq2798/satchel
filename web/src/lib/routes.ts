@@ -17,7 +17,7 @@ export function appPath(net: Network, path: string): string {
 
 /**
  * The page on `to` that matches `pathname`: the market, your satchels and verify have a twin on
- * each network; anything else, a satchel's page included (ids differ by network), goes home.
+ * each network; anything else, a satchel's page or a DAO's board included (ids differ by network), goes home.
  */
 export function switchPath(pathname: string | null, to: Network): string {
   const rest = (pathname ?? "/").replace(/^\/mainnet(?=\/|$)/, "") || "/";
