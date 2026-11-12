@@ -102,6 +102,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
     setLastTx(hash ?? null);
     // Cleared with the refresh, so the Received card waits for the new balances instead of
     // starting a scan from the old ones that it would drop once "What's inside" reads again.
+    setHeld({});
     setRefresh((n) => n + 1);
   };
   // The sections render only once the satchel loads, after the browser and the router looked for the

@@ -17,10 +17,10 @@ import {
  * What came into a satchel's address: the ERC-20 Transfer events to it, for the USDC, USDT and WETH
  * contents.ts lists, read now from each chain's logs. For display: the report, the fix plan, the
  * deployment guard and the record checks read none of it, and nothing here signs or sends. A plain
- * send of a chain's coin (ETH, POL, BNB, AVAX) logs no event, so it isn't here; the balance shows
- * it. Nor is WETH the satchel wrapped from its own ETH where the WETH contract is WETH9, as on
- * Ethereum, Base and OP Mainnet: it logs a Deposit, not a Transfer, and the wrap took a signature
- * the record counts. Other tokens aren't read: anyone can send any token to any address, spam
+ * send of a chain's coin (ETH, POL, BNB or tBNB, AVAX) logs no event, so it isn't here; the balance
+ * shows it. Nor is WETH the satchel wrapped from its own ETH where the WETH contract is WETH9, as on
+ * Ethereum, Sepolia, Base and OP Mainnet: it logs a Deposit, not a Transfer, and the wrap took a
+ * signature the record counts. Other tokens aren't read: anyone can send any token to any address, spam
  * included.
  */
 
