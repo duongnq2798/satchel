@@ -155,8 +155,9 @@ so the 1:30 scene opens the new satchel's room on mainnet:
 
 ## The X post
 
-**Posted on 2026-11-12** at 13:16 UTC, with the 2:06 video attached:
-[x.com/satchelnfthq/status/2120868248023707671](https://x.com/satchelnfthq/status/2120868248023707671).
+**Posted on 2026-11-12** at 14:16 UTC, with the 2:06 video attached, in place of a post from 13:16
+UTC whose third paragraph said nothing on chain shows an approval left behind:
+[x.com/satchelnfthq/status/2120883522059837618](https://x.com/satchelnfthq/status/2120883522059837618).
 [`submission/x-post.txt`](submission/x-post.txt) is its text. It leads with the problem, says what
 the video shows and what Chain Signatures make possible, asks a question, and links the app and the
 repository. @satchelnfthq is a Premium account, so the post is long: X takes up to 25,000 characters
@@ -187,7 +188,7 @@ whole JSON payload and you have said yes. Use one way, once:
 | Tracks | NFTs That Do Something, Open Innovation, Unstoppable DeFi and Social Money, whose ids are `nfts`, `open`, `defi` and `social` (see below) |
 | NEAR wallet address | Your own mainnet account, in lowercase: a named `.near` account or a 64-character implicit one, never a `.testnet` account. A prize, if any, is sent here |
 | Repository link | https://github.com/duongnq2798/satchel |
-| Demo post link | https://x.com/satchelnfthq/status/2120868248023707671 |
+| Demo post link | https://x.com/satchelnfthq/status/2120883522059837618 |
 | What did you build? | The whole of [`submission/what-did-you-build.txt`](submission/what-did-you-build.txt) |
 | Website | **Leave it empty.** It is a spam trap: any value rejects the submission |
 | Consent | Read the notice, then tick it if you agree: "I agree that the organizers may use these details to review our submission and contact us about this hackathon." |
