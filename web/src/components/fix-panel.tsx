@@ -162,7 +162,7 @@ export function FixPanel({
           <FrozenNote />
         ) : (
           !owner && (
-            <p className="mt-3 text-sm text-ink-2 [overflow-wrap:anywhere]">
+            <p className="mt-3.5 text-sm text-ink-2 [overflow-wrap:anywhere]">
               {accountId === null
                 ? `Connect the owner's wallet, ${token.owner_id}, to send them.`
                 : `Only the owner, ${token.owner_id}, can send them.`}
@@ -176,27 +176,33 @@ export function FixPanel({
         {plan && (
           <>
             {earlier && (
-              <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
-                {sender.busy
-                  ? "A fix sent from the plan before this one is still running, and its steps are below. This plan may have read the chains before it went out, so it offers no buttons: check again once that send is done."
-                  : read.data?.pageRecord
-                    ? "The card couldn't read the satchel's record from NEAR, so this plan uses the page's, which may be older than the last send from this card. It offers no buttons until you check again."
-                    : "A send from this card finished after this plan began reading the chains, so the plan may have read them before that send went out and offer its fix again. Check again to read them after it."}
-              </p>
+              <div className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
+                <p>
+                  {sender.busy
+                    ? "A fix sent from the plan before this one is still running, and its steps are below. This plan may have read the chains before it went out, so it offers no buttons: check again once that send is done."
+                    : read.data?.pageRecord
+                      ? "The card couldn't read the satchel's record from NEAR, so this plan uses the page's, which may be older than the last send from this card. It offers no buttons until you check again."
+                      : "A send from this card finished after this plan began reading the chains, so the plan may have read them before that send went out and offer its fix again. Check again to read them after it."}
+                </p>
+              </div>
             )}
             {plan.notes.map((note) => (
-              <p key={note} className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
-                {note}
-              </p>
+              <div key={note} className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
+                <p>
+                  {note}
+                </p>
+              </div>
             ))}
             {token.listing && !about.listing && (
-              <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
-                The satchel was listed after this report was read, and a listed satchel can&apos;t sign. Its owner has to delist
-                it first, under Sell or transfer, then check again.
-              </p>
+              <div className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
+                <p>
+                  The satchel was listed after this report was read, and a listed satchel can&apos;t sign. Its owner has to delist
+                  it first, under Sell or transfer, then check again.
+                </p>
+              </div>
             )}
             {plan.unfixable.length > 0 && (
-              <ul className="mt-2 space-y-0.5 text-sm text-ink-2">
+              <ul className="mt-2 max-w-[36em] space-y-0.5 text-sm text-ink-2">
                 {plan.unfixable.map((line) => (
                   <li key={line} className="break-words">
                     {line}
@@ -263,7 +269,7 @@ function ChainSection({
         {chain.openNonces > 0n && ` · ${chain.openNonces} signed nonce(s) open`}
       </p>
       {chain.notes.map((note) => (
-        <p key={note} className="mt-1 text-sm text-ink-2 [overflow-wrap:anywhere]">
+        <p key={note} className="mt-3.5 text-sm text-ink-2 [overflow-wrap:anywhere]">
           {note}
         </p>
       ))}

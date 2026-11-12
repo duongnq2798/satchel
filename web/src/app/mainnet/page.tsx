@@ -48,7 +48,7 @@ export default function MainnetHome() {
 
       <section id="showcase" className="scroll-mt-24">
         <h2 className="font-display text-3xl font-semibold tracking-tight">Two satchels that sent real ETH</h2>
-        <p className="mt-2 max-w-2xl text-ink-2">
+        <p className="mt-2 text-ink-2">
           Both were minted by satchel-nft.near, and each send was signed in a NEAR wallet on this site. Each card says what
           happened; the satchel&apos;s page reads its report live, against NEAR and every chain its record lists.
         </p>

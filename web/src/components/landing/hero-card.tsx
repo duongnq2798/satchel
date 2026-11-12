@@ -26,14 +26,14 @@ function Stamp({ report, error }: { report: Report | null | undefined; error: un
     return (
       <div className={`stamp rounded-lg border-2 px-3 py-1.5 text-center shadow-sm ${tone}`}>
         <p className="text-xs font-semibold tracking-[0.14em] uppercase">{VERDICT[report.verdict].label}</p>
-        <p className="text-[0.65rem] opacity-80">checked {age === null || age < 2 ? "just now" : `${age}s ago`}, in your browser</p>
+        <p className="text-xs">checked {age === null || age < 2 ? "just now" : `${age}s ago`}, in your browser</p>
       </div>
     );
   }
   return (
-    <div className="rounded-lg border-2 border-paper/30 px-3 py-1.5 text-center text-paper/80">
+    <div className="rounded-lg border-2 border-paper/30 px-3 py-1.5 text-center text-paper-2">
       <p className="text-xs font-semibold tracking-[0.14em] uppercase">{error || report === null ? "Couldn't check" : "Checking…"}</p>
-      <p className="text-[0.65rem] opacity-80">the report runs in your browser</p>
+      <p className="text-xs">the report runs in your browser</p>
     </div>
   );
 }
@@ -50,17 +50,17 @@ export function HeroCard() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="font-display text-2xl font-semibold">Satchel #{HANDOVER.tokenId}</p>
-            <p className="mt-0.5 text-xs text-paper/70">NEP-171 NFT on {TESTNET.contract}</p>
+            <p className="mt-0.5 text-xs text-paper-2">NEP-171 NFT on {TESTNET.contract}</p>
           </div>
           <Stamp report={report.data} error={report.error} />
         </div>
 
-        <p className="mt-6 text-xs text-paper/70">Its address on every chain below</p>
+        <p className="mt-6 text-xs text-paper-2">Its address on every chain below</p>
         <p className="mt-1 font-mono text-sm break-all text-gold-soft sm:text-base">{address}</p>
 
         <ul className="mt-4 grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-4">
           {MAINNETS.map((chain, i) => (
-            <li key={chain.id} className="relative rounded-lg bg-paper/8 px-2.5 py-1.5 text-paper-2">
+            <li key={chain.id} className="relative rounded-lg bg-ink/20 px-2.5 py-1.5 text-paper-2">
               {chain.name}
               <span
                 aria-hidden="true"
@@ -72,12 +72,12 @@ export function HeroCard() {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs text-paper/70">and each one's testnet: {CHAINS.length} chains, one key, signed by NEAR's MPC network</p>
+        <p className="mt-2 text-xs text-paper-2">and each one's testnet: {CHAINS.length} chains, one key, signed by NEAR's MPC network</p>
 
         <div className="mt-6 border-t border-dashed border-gold/40 pt-5">
-          <div className="flex items-center justify-between gap-2 font-mono text-[0.7rem] sm:text-xs">
-            <span className="truncate text-paper/70">{HANDOVER.from}</span>
-            <span className="truncate text-gold-soft">{owner}</span>
+          <div className="flex flex-wrap items-center justify-between gap-x-2 font-mono text-xs">
+            <span className="break-all text-paper-2">{HANDOVER.from}</span>
+            <span className="ml-auto text-right break-all text-gold-soft">{owner}</span>
           </div>
           <div className="relative mt-2 h-3 overflow-hidden" aria-hidden="true">
             <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-paper/30" />
@@ -85,7 +85,7 @@ export function HeroCard() {
               <span className="block size-3 rounded-full bg-gold" />
             </span>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-paper/80">
+          <p className="mt-3 text-xs leading-relaxed text-paper-2">
             One{" "}
             <a href={HANDOVER.transferTx} target="_blank" rel="noreferrer" className="underline decoration-gold/60 underline-offset-2 hover:text-paper">
               NEAR transaction

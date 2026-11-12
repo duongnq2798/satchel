@@ -29,7 +29,7 @@ function Links({ txs }: { txs: readonly TxLink[] }) {
 function Running() {
   return (
     <div className="mt-5 space-y-2.5">
-      <p className="text-xs text-paper/60">Running the report in your browser, against NEAR and Sepolia…</p>
+      <p className="text-xs text-paper/75">Running the report in your browser, against NEAR and Sepolia…</p>
       {[0, 1, 2, 3].map((i) => (
         <div key={i} className="h-5 rounded bg-paper/10 motion-safe:animate-pulse" style={{ animationDelay: `${i * 120}ms` }} />
       ))}
@@ -49,7 +49,7 @@ function ReportLines({ report, focus }: { report: Report; focus: ReportTrick["ch
           <span className="min-w-0">
             {check.title}
             {check.id === focus && check.status !== "pass" && (
-              <span className="mt-0.5 block text-xs text-paper/60 [overflow-wrap:anywhere]">{check.lines[0]}</span>
+              <span className="mt-0.5 block text-xs text-paper/75 [overflow-wrap:anywhere]">{check.lines[0]}</span>
             )}
           </span>
         </li>
@@ -67,7 +67,7 @@ function ReportPanel({ trick }: { trick: ReportTrick }) {
         {report.data ? `Report finished: ${VERDICT[report.data.verdict].label}` : failed ? "Couldn't read the report" : "Running the report"}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-paper/70">Satchel #{trick.tokenId}, its clean transfer report</p>
+        <p className="text-sm text-paper/75">Satchel #{trick.tokenId}, its clean transfer report</p>
         <ReportBadge report={report} />
       </div>
       <h3 className="mt-4 font-display text-2xl font-semibold sm:text-3xl">{trick.title}</h3>
@@ -75,7 +75,7 @@ function ReportPanel({ trick }: { trick: ReportTrick }) {
       {report.data ? (
         <ReportLines report={report.data} focus={trick.check} />
       ) : failed ? (
-        <p className="mt-5 text-sm text-paper/70">Couldn't read the report just now. Open the satchel's page to try again.</p>
+        <p className="mt-5 text-sm text-paper/75">Couldn't read the report just now. Open the satchel's page to try again.</p>
       ) : (
         <Running />
       )}
@@ -93,18 +93,18 @@ function RefusedPanel({ trick }: { trick: RefusedTrick }) {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-paper/70">The contract, on satchel #{trick.tokenId}</p>
+        <p className="text-sm text-paper/75">The contract, on satchel #{trick.tokenId}</p>
         <Badge tone="bad">Refused on chain</Badge>
       </div>
       <h3 className="mt-4 font-display text-2xl font-semibold sm:text-3xl">{trick.title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-paper/80">{trick.body}</p>
       <div className="mt-5 overflow-hidden rounded-xl border border-paper/15 font-mono text-xs">
-        <p className="bg-paper/5 px-3 py-2 break-all text-paper/80">
-          <span className="text-paper/50">{trick.caller} → </span>
+        <p className="max-w-none bg-paper/5 px-3 py-2 break-all text-paper/80">
+          <span className="text-paper/75">{trick.caller} → </span>
           {trick.call}
         </p>
-        <p className="px-3 py-2 break-all text-[#f0997b]">
-          <span className="text-paper/50">contract → </span>
+        <p className="max-w-none px-3 py-2 break-all text-[#f0997b]">
+          <span className="text-paper/75">contract → </span>
           {trick.reason}
         </p>
       </div>
@@ -205,7 +205,7 @@ export function TrickExplorer() {
     <section id="examples" className="scroll-mt-24 rounded-[2rem] bg-paper-2 px-5 py-12 sm:px-10 sm:py-16">
       <p className="text-sm font-medium tracking-wide text-leather">Try it, live on NEAR testnet</p>
       <h2 className="mt-3 max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">Try to cheat the buyer.</h2>
-      <p className="mt-4 max-w-2xl text-ink-2">
+      <p className="mt-4 text-ink-2">
         Pick what the seller does. Each move below was made for real on testnet: a satchel left that way, or a call the
         contract refused. The reports run in your browser now, against NEAR and Sepolia.
       </p>

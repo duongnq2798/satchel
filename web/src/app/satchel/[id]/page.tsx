@@ -17,7 +17,7 @@ export default async function SatchelPage({ params }: { params: Promise<{ id: st
   return (
     <>
       <TokenView tokenId={id} />
-      <p className="mt-10 max-w-3xl text-sm text-muted">
+      <p className="mt-10 text-sm text-muted">
         {note.text} <code className="font-mono text-[0.9em] break-all text-ink-2">{note.command}</code>
       </p>
     </>

@@ -18,7 +18,7 @@ export default async function MainnetSatchelPage({ params }: { params: Promise<{
   return (
     <>
       <TokenView tokenId={id} />
-      <p className="mt-10 max-w-3xl text-sm text-muted">
+      <p className="mt-10 text-sm text-muted">
         {note.text} <code className="font-mono text-[0.9em] break-all text-ink-2">{note.command}</code>
       </p>
     </>

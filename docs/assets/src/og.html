@@ -11,8 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=block" rel="stylesheet">
 <style>
   :root {
-    --paper: #f5f0e6; --paper-2: #ece4d4; --ink: #17140f; --ink-2: #4a4339; --muted: #6e6558;
-    --gold: #c8962e; --gold-deep: #a47619; --gold-soft: #f3e3bc; --leather: #6b3f24;
+    --paper: #f5f0e6; --paper-2: #ece4d4; --ink: #17140f; --ink-2: #3b352d; --muted: #4f483f;
+    --gold: #ce9b2f; --gold-deep: #845f14; --gold-soft: #f3e3bc; --leather: #663c22;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--paper); color: var(--ink); font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -27,24 +27,24 @@
   .site { margin-top: auto; display: flex; align-items: baseline; gap: 16px; font-size: 22px; font-weight: 600; }
   .site small { font-size: 16px; font-weight: 500; color: var(--muted); }
   .card { position: relative; align-self: center; border-radius: 28px; background: var(--leather); color: var(--paper); padding: 30px 32px 26px; box-shadow: 0 18px 40px -18px rgba(23,20,15,.45); }
-  .card::after { content: ""; position: absolute; inset: 9px; border: 1.5px dashed rgba(200,150,46,.7); border-radius: 21px; pointer-events: none; }
+  .card::after { content: ""; position: absolute; inset: 9px; border: 1.5px dashed rgba(206,155,47,.7); border-radius: 21px; pointer-events: none; }
   .title { font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 600; }
-  .sub { margin-top: 4px; font-size: 15px; color: rgba(245,240,230,.75); }
+  .sub { margin-top: 4px; font-size: 15px; color: var(--paper-2); }
   .chains { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-  .chains li { border-radius: 9px; background: rgba(245,240,230,.08); color: var(--paper-2); padding: 7px 12px; font-size: 15px; }
+  .chains li { border-radius: 9px; background: rgba(23,20,15,.2); color: var(--paper-2); padding: 7px 12px; font-size: 15px; }
   .chains li.lit { background: var(--gold); color: var(--ink); }
-  .note { margin-top: 9px; font-size: 13.5px; color: rgba(245,240,230,.7); }
+  .note { margin-top: 9px; font-size: 13.5px; color: var(--paper-2); }
   .checks-title { margin-top: 18px; padding-top: 16px; border-top: 1px dashed rgba(245,240,230,.25); font-size: 15px; font-weight: 600; letter-spacing: .02em; color: var(--gold-soft); }
   ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
   ol li { display: flex; align-items: baseline; gap: 12px; font-size: 16px; }
-  ol li b { flex: none; width: 14px; font-family: Fraunces, Georgia, serif; font-size: 20px; font-weight: 600; color: var(--gold); }
+  ol li b { flex: none; width: 14px; font-family: Fraunces, Georgia, serif; font-size: 20px; font-weight: 600; color: var(--gold-soft); }
 </style>
 </head>
 <body>
   <div class="wrap">
     <div class="left">
       <div class="brand">
-        <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="10" width="24" height="18" rx="4" fill="#17140f"/><path d="M11 10V7a5 5 0 0 1 10 0v3" stroke="#17140f" stroke-width="3" fill="none"/><circle cx="16" cy="19" r="3" fill="#c8962e"/></svg>
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="10" width="24" height="18" rx="4" fill="#17140f"/><path d="M11 10V7a5 5 0 0 1 10 0v3" stroke="#17140f" stroke-width="3" fill="none"/><circle cx="16" cy="19" r="3" fill="#ce9b2f"/></svg>
         Satchel
       </div>
       <div class="eyebrow">NEAR Chain Signatures · NEP-171 NFT · testnet and mainnet</div>

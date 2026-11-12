@@ -53,14 +53,14 @@ export default function Market() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-4xl font-semibold tracking-tight">Market</h1>
-        <p className="mt-1 max-w-2xl text-ink-2">
+        <p className="mt-1 text-ink-2">
           Every listed satchel, with its clean transfer report run in your browser. A listed satchel can't sign, and a
           purchase goes through only for the record version you checked.
         </p>
       </div>
       <ErrorNote error={listings.error} />
       {allDemo && (
-        <p className="max-w-2xl text-sm text-ink-2">
+        <p className="text-sm text-ink-2">
           Every satchel listed here is a demo satchel whose state the README quotes, so this app won&apos;t buy one until{" "}
           {FROZEN_DAY}. To see a sale through,{" "}
           <Link

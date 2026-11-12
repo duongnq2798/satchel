@@ -61,8 +61,10 @@ export function DocsSearch() {
         aria-haspopup="dialog"
       >
         <SearchIcon />
-        <span className="flex-1 truncate">Search the docs</span>
-        <span className="hidden rounded border border-line px-1.5 font-mono text-[0.7rem] sm:inline">{mac ? "⌘K" : "Ctrl K"}</span>
+        <span className="min-w-0 flex-1 truncate">
+          Search<span className="max-sm:hidden"> the docs</span>
+        </span>
+        <span className="hidden rounded border border-line px-1.5 font-mono text-xs sm:inline">{mac ? "⌘K" : "Ctrl K"}</span>
       </button>
       {open && <SearchDialog onClose={close} />}
     </>
@@ -156,7 +158,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             <div className="m-2 rounded-xl bg-bad-soft px-4 py-3 text-sm text-bad">
               <p className="font-medium">Search couldn&apos;t load.</p>
               <p className="mt-1">{state.message}. The pages still work: browse them from the menu.</p>
-              <button type="button" onClick={load} className="mt-2 rounded-full border border-bad/40 px-3 py-1 text-xs font-medium hover:bg-bad/10">
+              <button type="button" onClick={load} className="mt-2 rounded-full border border-bad/40 px-3 py-1 text-xs font-medium hover:border-bad">
                 Try again
               </button>
             </div>
@@ -196,7 +198,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                     onMouseMove={() => setSelected(i)}
                     className={`w-full rounded-lg px-3 py-2.5 text-left ${i === selected ? "bg-gold-soft" : ""}`}
                   >
-                    <span className="block text-xs text-muted">
+                    <span className={`block text-xs ${i === selected ? "text-ink-2" : "text-muted"}`}>
                       {h.entry.section} › {h.entry.page}
                     </span>
                     <span className="block text-sm font-medium text-ink">
@@ -228,7 +230,7 @@ function Marked({ text, want }: { text: string; want: string[] }) {
     <>
       {highlight(text, want).map((p, i) =>
         p.match ? (
-          <mark key={i} className="rounded-sm bg-gold/25 px-0.5 text-ink">
+          <mark key={i} className="rounded-sm bg-gold/20 px-0.5 text-ink">
             {p.text}
           </mark>
         ) : (

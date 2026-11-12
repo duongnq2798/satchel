@@ -237,7 +237,7 @@ export default function Home() {
         <section>
           <Eyebrow>The problem</Eyebrow>
           <H2>Selling a wallet is easy to fake.</H2>
-          <p className="mt-4 max-w-2xl text-ink-2">
+          <p className="mt-4 text-ink-2">
             The seller signs a withdrawal, sells the wallet, then broadcasts it. Or approves their own address to spend its
             tokens and pulls them after the sale. Satchel closes those holes with a record the buyer can check.
           </p>
@@ -278,7 +278,7 @@ export default function Home() {
         <section>
           <Eyebrow>Beyond a sale</Eyebrow>
           <H2>Four more things to open.</H2>
-          <p className="mt-4 max-w-2xl text-ink-2">
+          <p className="mt-4 text-ink-2">
             Each card is one satchel on testnet or mainnet, with the transactions behind it where there are any. A card
             says what happened; the satchel&apos;s page reads it live.
           </p>
@@ -345,7 +345,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <p className="mt-4 max-w-3xl text-sm text-ink-2">
+          <p className="mt-4 text-sm text-ink-2">
             The token-bound account answers follow{" "}
             <a href={TOKENBOUND_SOURCE} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
               Tokenbound&apos;s AccountV3
@@ -363,7 +363,7 @@ export default function Home() {
         <section className="rounded-[2rem] bg-ink px-5 py-12 text-paper sm:px-10 sm:py-16">
           <Eyebrow dark>Four checks before you buy</Eyebrow>
           <H2>Don't trust the seller. Or us.</H2>
-          <p className="mt-4 max-w-2xl text-paper/70">
+          <p className="mt-4 text-paper/75">
             The report runs in your browser, or in a terminal, against NEAR and each chain the record lists. A satchel is
             provably clean only when all four checks pass.
           </p>
@@ -373,7 +373,7 @@ export default function Home() {
                 <li key={c.title}>
                   <span className="font-display text-4xl text-gold">{i + 1}</span>
                   <p className="mt-2 font-medium">{c.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-paper/70">{c.body}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-paper/75">{c.body}</p>
                 </li>
               ))}
             </ol>
@@ -386,10 +386,10 @@ export default function Home() {
                   </span>
                 ))}
               </pre>
-              <p className="mt-3 text-xs text-paper/60">
+              <p className="mt-3 text-xs text-paper/75">
                 Satchel #5's report from the command line, trimmed to one line per check. Exit code 0 only when provably clean.
               </p>
-              <Link href="/verify" className="mt-6 inline-block rounded-full bg-gold px-6 py-3 text-sm font-medium text-ink transition hover:bg-gold/80">
+              <Link href="/verify" className="mt-6 inline-block rounded-full bg-gold px-6 py-3 text-sm font-medium text-ink transition hover:bg-gold-soft">
                 Verify a satchel
               </Link>
             </div>
@@ -457,7 +457,7 @@ export default function Home() {
         <section>
           <Eyebrow>Built with</Eyebrow>
           <H2>Each name links to where it ran.</H2>
-          <p className="mt-4 max-w-2xl text-ink-2">
+          <p className="mt-4 text-ink-2">
             A transaction, the holder room, the CI run or the npm release, not a logo. A satchel has an address on{" "}
             {CHAINS.length} EVM chains; the sends so far were on Sepolia and Base, and mainnet satchel #2 received USDC on
             Arbitrum One.
@@ -560,7 +560,7 @@ export default function Home() {
                     +
                   </span>
                 </summary>
-                <p className="mt-3 max-w-3xl leading-relaxed text-ink-2">{item.a}</p>
+                <p className="mt-3 leading-relaxed text-ink-2">{item.a}</p>
               </details>
             ))}
           </div>
@@ -570,12 +570,12 @@ export default function Home() {
           <h2 className="mx-auto max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-6xl">
             Check one yourself.
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-paper/80">Pick any satchel and read its report. No wallet, no sign-in.</p>
+          <p className="mx-auto mt-4 max-w-xl text-paper-2">Pick any satchel and read its report. No wallet, no sign-in.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/verify" className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-ink transition hover:bg-gold-soft">
               Verify a satchel
             </Link>
-            <Link href="/market" className="rounded-full border border-paper/60 px-6 py-3 text-sm font-medium transition hover:bg-paper/10">
+            <Link href="/market" className="rounded-full border border-paper/60 px-6 py-3 text-sm font-medium transition hover:bg-ink/25">
               See the market
             </Link>
           </div>
