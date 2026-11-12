@@ -1,8 +1,10 @@
 # satchel-nft
 
-[Satchel](https://satchelnft.xyz) is an NFT on NEAR that is a wallet: whoever owns satchel #N
-controls one address on 16 EVM chains, through NEAR Chain Signatures. Selling the NFT sells the
-wallet. Before you buy one, you want to know that the seller can't still move what's inside. This
+[Satchel](https://satchelnft.xyz) is an NFT on NEAR that is a wallet: only whoever owns satchel #N
+can have its address signed for, on 16 EVM chains, through NEAR Chain Signatures. Selling the NFT
+sells the wallet. But a transaction, an approval or a raw signature (a permit, say) made before the
+sale still works on its chain, so before you buy one, you want to know that the seller can't still
+move what's inside. This
 package answers that question with the clean transfer report, and signs Satchel's transactions. The
 web app at [satchelnft.xyz](https://satchelnft.xyz) runs on this same code.
 
