@@ -724,6 +724,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The clean transfer report printed an approval line twice once Make it clean had revoked it:
+  `approve(spender, 0)` is itemized as a row of its own, and both rows read the same allowance
+  (testnet satchel #9: "Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0", twice).
+  `approvalsCheck` now prints one line for rows that name the same chain, contract, token and
+  spender and read the same, ending "(2 record rows)", and names each kind it stands for. Every row
+  still counts toward the check, and `chains` keeps one entry per row, which Make it clean's plan
+  reads. 4 new package tests, 235 in all. The web app prints the new lines from its next deploy;
+  `npx satchel-nft@0.2.0 verify` still prints both until the next npm release.
 - Docs pages scrolled sideways on 8 page and theme runs at 640 px, 16 at 320 px, 6 under WCAG
   1.4.12's text spacing and 8 at 200% text size: a link's screen-reader text, absolutely placed,
   escaped its table's scroll box, and long URLs used as link text did not break. `.docs-table` is
