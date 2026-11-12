@@ -8,12 +8,25 @@ import { useNetwork } from "./network";
 /**
  * What one address holds on each chain the app sends on for this network: the native coin, and
  * USDC, USDT and WETH where they hold something. Display only; the report reads none of it.
+ * `onRead` gets the balances as they arrive: they and the record choose the Received card's chains.
  */
-export function Contents({ address, refresh }: { address: Address; refresh: number }) {
+export function Contents({
+  address,
+  refresh,
+  onRead,
+}: {
+  address: Address;
+  refresh: number;
+  onRead?: (found: Readonly<Record<number, ChainContents | null>>) => void;
+}) {
   const net = useNetwork();
   const chains = useMemo(() => sendChains(net), [net]);
   // `null` is a chain whose RPC didn't answer at all.
   const [found, setFound] = useState<Record<number, ChainContents | null>>({});
+
+  useEffect(() => {
+    onRead?.(found);
+  }, [found, onRead]);
 
   useEffect(() => {
     let live = true;
