@@ -9,7 +9,7 @@ import { NetLink } from "@/components/site-header";
 import { CHAINS, MAINNET, NETWORKS, REPO_URL, TESTNET } from "satchel-nft";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
 import { appPath } from "@/lib/routes";
-import { TOUR } from "@/lib/showcase";
+import { BUILT_WITH, TOUR } from "@/lib/showcase";
 
 const USUAL_WAY = [
   "The seller can keep a copy of the key, and nothing shows it",
@@ -167,7 +167,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the card marked Mainnet satchel #2: never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the card marked Mainnet satchel #2 and the Built with links to mainnet, Base and Arbitrum One: never send real funds to a testnet satchel's address.",
   },
 ];
 
@@ -452,6 +452,48 @@ export default function Home() {
               </Link>
             </div>
           </div>
+        </section>
+
+        <section>
+          <Eyebrow>Built with</Eyebrow>
+          <H2>Each name links to where it ran.</H2>
+          <p className="mt-4 max-w-2xl text-ink-2">
+            A transaction, the holder room, the CI run or the npm release, not a logo. A satchel has an address on{" "}
+            {CHAINS.length} EVM chains; the sends so far were on Sepolia and Base, and mainnet satchel #2 received USDC on
+            Arbitrum One.
+          </p>
+          <ul className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-4">
+            {BUILT_WITH.map((b) => {
+              const inner = (
+                <>
+                  <span className="font-display text-lg leading-snug font-semibold">{b.name}</span>
+                  <span className="font-mono text-xs text-leather">
+                    {b.label}&nbsp;{b.href.startsWith("/") ? "→" : "↗"}
+                  </span>
+                </>
+              );
+              // The list clips its corners, so the focus ring is drawn inside the cell.
+              const cell =
+                "flex h-full flex-col justify-between gap-3 px-5 py-5 transition hover:bg-paper-2 focus-visible:-outline-offset-4";
+              return (
+                <li key={b.name} className="bg-card">
+                  {b.href.startsWith("/") ? (
+                    <Link href={b.href} className={cell}>
+                      {inner}
+                    </Link>
+                  ) : (
+                    <a href={b.href} target="_blank" rel="noreferrer" className={cell}>
+                      {inner}
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-4 text-sm text-muted">
+            Names, not logos: they say what Satchel uses, not that any of these projects partners with it or endorses it.
+            npm is a registered trademark of npm, Inc.
+          </p>
         </section>
 
         <section className="grid gap-12 md:grid-cols-2">

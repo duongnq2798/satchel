@@ -371,7 +371,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 91 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 97 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -826,6 +826,12 @@ What is left (the MPC network itself, the RPCs the report reads, powers built in
 [Limits](#limits-stated-plainly) and the [threat model](docs/THREAT_MODEL.md#residual-risks-in-one-list).
 
 ## Built on NEAR
+
+On [satchelnft.xyz](https://satchelnft.xyz), the landing page's "Built with" section names eight things
+Satchel is built with, most of them from this table, and links each to where it ran: a transaction, a
+satchel's holder room, the CI run or the npm release. The site's footer shows NEAR's "Built on NEAR"
+badge, NEAR's own file, linked to near.org. The other projects are named in text, without their logos: Satchel uses them, and none of
+them is a partner or endorses it.
 
 | NEAR technology | How Satchel uses it | Where |
 | --- | --- | --- |

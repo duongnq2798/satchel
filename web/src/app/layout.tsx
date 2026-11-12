@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { NetworkProvider } from "@/components/network";
-import { NetLink, NetworkBanner, SiteHeader } from "@/components/site-header";
+import { NetLink, NetworkBanner, SatchelMark, SiteHeader } from "@/components/site-header";
 import { WalletProvider } from "@/components/wallet";
 import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "satchel-nft";
 import "./globals.css";
@@ -83,13 +83,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="mx-auto grid max-w-(--page-max) gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>
                   <NetLink href="/" follow className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-                    <img src="/icon.svg" alt="" className="size-7" />
+                    <SatchelMark />
                     Satchel
                   </NetLink>
                   <p className="mt-3 max-w-xs text-sm text-ink-2">
                     An NFT that is one wallet on 16 EVM chains, built on NEAR Chain Signatures for the NEAR Hackathon 2026.
                   </p>
                   <p className="mt-3 text-sm text-muted">NEAR testnet and mainnet. Not audited.</p>
+                  {/* NEAR's own badge files, unchanged: black on light backgrounds, white on the docs' dark theme. */}
+                  <a href="https://near.org" target="_blank" rel="noreferrer" className="mt-5 inline-block">
+                    <img src="/built-on-near.svg" alt="Built on NEAR" className="h-6 w-auto [[data-theme=dark]_&]:hidden" />
+                    <img src="/built-on-near-white.svg" alt="Built on NEAR" className="hidden h-6 w-auto [[data-theme=dark]_&]:block" />
+                  </a>
                 </div>
                 {FOOTER.map((col) => (
                   <div key={col.title}>
