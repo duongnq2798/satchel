@@ -25,7 +25,11 @@ export interface Check {
   status: Status;
   title: string;
   lines: string[];
-  /** Checks 2 and 3: the chain each chain line is about, and how that line reads. The handover kit acts on these. */
+  /**
+   * Checks 2 and 3: the chain each line of check 2 is about, and each approval row of check 3 (in the
+   * record's order, though rows that read the same share a line), and how it reads. The handover kit
+   * and the fix plan act on these.
+   */
   chains?: { chainId: number; status: Status }[];
 }
 
@@ -137,18 +141,35 @@ export interface ApprovalState {
   liveness: Liveness;
 }
 
+/**
+ * Every row counts toward the status and gets its own entry in `chains`. Rows that name the same
+ * chain, contract, token and spender and read the same share one line: a revoke is itemized as a
+ * row of its own (`approve(spender, 0)`), and it reads the same allowance as the row it revoked.
+ */
 export function approvalsCheck(states: ApprovalState[]): Check {
   const lines: string[] = [];
   const chains: { chainId: number; status: Status }[] = [];
+  const shared = new Map<string, { row: ApprovalRecord; kinds: string[]; rows: number; detail: string }>();
   let status: Status = "pass";
   if (states.length === 0) lines.push("No approval was ever signed for this token");
   for (const { row, liveness } of states) {
-    const name = chainInfo(Number(row.chain_id))?.name ?? `chain ${row.chain_id}`;
-    const label = `${name}: ${row.kind} on ${short(row.contract)} for ${short(row.spender)}`;
     if (liveness.live === true) status = "fail";
     else if (liveness.live === null && status === "pass") status = "unknown";
     chains.push({ chainId: Number(row.chain_id), status: liveness.live === true ? "fail" : liveness.live === null ? "unknown" : "pass" });
-    lines.push(`${label}: ${liveness.detail}`);
+    const pair = [row.chain_id, row.contract, row.token ?? "", row.spender].map((s) => s.toLowerCase());
+    const key = JSON.stringify([...pair, liveness.live, liveness.detail]);
+    const line = shared.get(key);
+    if (line === undefined) shared.set(key, { row, kinds: [row.kind], rows: 1, detail: liveness.detail });
+    else {
+      line.rows += 1;
+      if (!line.kinds.includes(row.kind)) line.kinds.push(row.kind);
+    }
+  }
+  for (const { row, kinds, rows, detail } of shared.values()) {
+    const name = chainInfo(Number(row.chain_id))?.name ?? `chain ${row.chain_id}`;
+    const kind = kinds.length === 1 ? kinds[0] : `${kinds.slice(0, -1).join(", ")} and ${kinds[kinds.length - 1]}`;
+    const label = `${name}: ${kind} on ${short(row.contract)} for ${short(row.spender)}`;
+    lines.push(`${label}: ${detail}${rows > 1 ? ` (${rows} record rows)` : ""}`);
   }
   const titles: Record<Status, string> = {
     pass: "No approval left behind",

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Liveness } from "./approvals.js";
 import { MAINNET, TESTNET } from "./config.js";
 import type { ApprovalRecord, SigningRecord } from "./near.js";
 import {
@@ -138,6 +139,67 @@ describe("approvals check", () => {
       { chainId: 1, status: "fail" },
       { chainId: 11155111, status: "unknown" },
     ]);
+  });
+
+  // Satchel #9: approve(spender, max), then Make it clean's approve(spender, 0), itemized as a second row.
+  const GRANT: ApprovalRecord = { ...ROW, spender: "0x65c60dbfc8b3c949ae7eb104ef47a08286ab9c8e" };
+  const REVOKE: ApprovalRecord = { ...GRANT, arg: `0x${"0".repeat(64)}` };
+  const ZERO: Liveness = { live: false, detail: "allowance is 0" };
+  const MAX: Liveness = { live: true, detail: `allowance of ${2n ** 256n - 1n} still granted` };
+
+  it("prints one line for rows of one pair that read the same, and still keeps a status per row", () => {
+    const check = approvalsCheck([
+      { row: GRANT, liveness: ZERO },
+      { row: REVOKE, liveness: ZERO },
+    ]);
+    expect(check.status).toBe("pass");
+    expect(check.lines).toEqual(["Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0 (2 record rows)"]);
+    expect(check.chains).toEqual([
+      { chainId: 11155111, status: "pass" },
+      { chainId: 11155111, status: "pass" },
+    ]);
+  });
+
+  it("fails when any row of one pair is live, whichever row it is", () => {
+    for (const [first, second] of [
+      [MAX, ZERO],
+      [ZERO, MAX],
+    ]) {
+      const check = approvalsCheck([
+        { row: GRANT, liveness: first },
+        { row: REVOKE, liveness: second },
+      ]);
+      expect(check.status).toBe("fail");
+      expect(check.lines).toContain(`Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: ${MAX.detail}`);
+      expect(check.chains?.map((c) => c.status)).toEqual([first, second].map((l) => (l.live ? "fail" : "pass")));
+    }
+  });
+
+  it("names every kind a shared line stands for", () => {
+    const check = approvalsCheck([
+      { row: { ...GRANT, kind: "IncreaseAllowance" }, liveness: ZERO },
+      { row: REVOKE, liveness: ZERO },
+    ]);
+    expect(check.lines).toEqual([
+      "Sepolia: IncreaseAllowance and Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0 (2 record rows)",
+    ]);
+  });
+
+  it("keeps a line each for other spenders, chains and tokens", () => {
+    const check = approvalsCheck([
+      { row: GRANT, liveness: ZERO },
+      { row: ROW, liveness: ZERO },
+      { row: { ...GRANT, chain_id: "84532" }, liveness: ZERO },
+      { row: { ...GRANT, contract: "0x036cbd53842c5426634e7929541ec2318f3dcf7e" }, liveness: ZERO },
+      { row: REVOKE, liveness: ZERO },
+    ]);
+    expect(check.lines).toEqual([
+      "Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0 (2 record rows)",
+      "Sepolia: Approve on 0x1c7d…7238 for 0x0000…8ba3: allowance is 0",
+      "Base Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0",
+      "Sepolia: Approve on 0x036c…cf7e for 0x65c6…9c8e: allowance is 0",
+    ]);
+    expect(check.chains).toHaveLength(5);
   });
 });
 

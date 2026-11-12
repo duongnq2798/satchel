@@ -119,6 +119,18 @@ prints its chain, kind, contract and spender, then what was found: `allowance is
        Sepolia: Approve on 0x1c7d…7238 for 0xac30…c235: allowance of 115792089237316195423570985008687907853269984665640564039457584007913129639935 still granted
 ```
 
+Rows that name the same chain, contract, token and spender and read the same share one line, which says how many
+rows it stands for. A revoke, `approve(spender, 0)`, is itemized as a row of its own and reads the same allowance as
+the row it revoked, so satchel #9 reads:
+
+```text
+[PASS] No approval left behind
+       Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0 (2 record rows)
+```
+
+Every row still counts: a live one fails the check, whichever line it shares. Rows of one pair that read differently,
+such as ERC-721 approvals of two token ids of which one is still approved, keep a line each.
+
 ## Check 4: nothing the record can't explain
 
 Three counters in the record stand for signatures whose effect no one can check. This check reads them from NEAR

@@ -85,8 +85,8 @@ interface Check {
   id: "contract" | "pending" | "approvals" | "counters";
   status: Status;
   title: string; // "No signed transaction is still pending", or its failing form
-  lines: string[]; // one line per fact, as the CLI prints them
-  chains?: { chainId: number; status: Status }[]; // checks 2 and 3, since 0.2.0: the chain behind each line
+  lines: string[]; // one line per fact, as the CLI prints them; check 3's approval rows that read the same share one
+  chains?: { chainId: number; status: Status }[]; // checks 2 and 3, since 0.2.0: check 2's chain per line, check 3's per approval row
 }
 
 interface Report {

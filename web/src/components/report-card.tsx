@@ -83,7 +83,7 @@ export function ReportCard({
                 <p className="font-medium">{check.title}</p>
                 <ul className="mt-0.5 max-w-[36em] space-y-0.5 text-sm text-ink-2">
                   {check.lines.map((line, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: two approval rows can read the same
+                    // biome-ignore lint/suspicious/noArrayIndexKey: lines are text with no id, in a fixed order
                     <li key={i} className="break-words">
                       {line}
                     </li>

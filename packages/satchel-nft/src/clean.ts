@@ -281,7 +281,7 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
   }
 
   const own = sendChains(net);
-  // Check 3 has one line per approval row, in the record's order.
+  // Check 3's chains have one entry per approval row, in the record's order (its lines may share one).
   const approvalRows = check("approvals")?.chains;
   const built: { chain: ChainFix; revokes: (Revoke & { rows: number[] })[] }[] = [];
 
