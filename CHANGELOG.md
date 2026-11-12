@@ -6,6 +6,13 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The estate ran on testnet: `satchel-estate-1112.testnet`, deployed from the CI's reproducible
+  build and locked, held satchel #11 for `buyer.satchel-nft.testnet` with a 3-minute interval and a
+  5-minute waiting period. An early approval was refused; both guardians approved and the owner
+  cancelled by checking in; they approved again, an early finalize and a forged callback were
+  refused, and the heir finalized and received the satchel, which reads `PROVABLY CLEAN` for them.
+  The old owner's `sign_evm` through the estate was then refused. `deployments/testnet-estate.json`
+  holds every transaction; `node scripts/check-estate.mjs` checks 14 claims.
 - A testnet bounty board run on a Sputnik DAO, `satchel-bounty.sputnikv2.testnet`, whose treasury
   owned satchel #10, with no contract change. Its policy, set at creation, is the tiers: one council
   vote passes a `BountyDone`, two of three pass anything else, and a `trusted` role may pass a
