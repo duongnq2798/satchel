@@ -1,6 +1,6 @@
 Sold wallets can still be drained by the seller.
 
-The seller signs a withdrawal, sells you the wallet, then broadcasts it. Or leaves an approval to an address of their own and pulls your tokens after the sale. Nothing on chain shows either before you pay.
+The seller signs a withdrawal, sells you the wallet, then broadcasts it. Or leaves an approval to an address of their own and pulls your tokens after the sale. Nothing on chain shows the first; the second takes a scan of every chain's logs to find.
 
 Satchel (satchelnft.xyz) makes the wallet a NEAR NFT that proves nothing stayed behind. Built at NEAR HACKATHON.
 

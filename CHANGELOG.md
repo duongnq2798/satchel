@@ -500,12 +500,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
-- The demo post is up: posted on X on 2026-11-12 from @satchelnfthq, with the 2:06 video
-  ([the post](https://x.com/satchelnfthq/status/2120868248023707671)). The account has Premium, so
-  the post is long: `docs/submission/x-post.txt` is now its text, and `check-demo-kit.mjs` checks it
-  against X Premium's 25,000 characters instead of 280, with the same tag, link and question checks.
-  The README's status table and `docs/DEMO.md` link the post, and `docs/DEMO.md`'s form table gives
-  its URL as the demo post link.
+- The demo post is up: posted on X on 2026-11-12 at 14:16 UTC from @satchelnfthq, with the 2:06
+  video ([the post](https://x.com/satchelnfthq/status/2120883522059837618)). The account has
+  Premium, so the post is long: `docs/submission/x-post.txt` is now its text, and
+  `check-demo-kit.mjs` checks it against X Premium's 25,000 characters instead of 280, with the same
+  tag, link and question checks. The README's status table and `docs/DEMO.md` link the post, and
+  `docs/DEMO.md`'s form table gives its URL as the demo post link. It replaces a post from 13:16
+  UTC, now deleted, whose third paragraph said nothing on chain shows either trick; an approval left
+  behind is on chain, in each chain's logs, so the post now says only the held send leaves nothing.
 - "What did you build?" says the point is the check, not the NFT wallet, and adds Make it clean and
   testnet #9. It says what Make it clean fixes, an open nonce or a live approval, and that an
   approval left behind is in each chain's logs; a few phrases are shorter to fit (1,973
