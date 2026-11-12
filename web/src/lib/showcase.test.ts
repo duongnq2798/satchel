@@ -4,6 +4,7 @@ import { formatEther, formatUnits, getAddress } from "viem";
 import { describe, expect, it } from "vitest";
 import { appPath } from "./routes";
 import {
+  BUILT_WITH,
   DEMO_SATCHELS,
   FIRST_SEND,
   ONECLICK_EXIT,
@@ -161,6 +162,60 @@ describe("the landing page's tour matches the evidence files", () => {
     expect(c.body).toContain(`satchel #${run.approved.spenderSatchel}'s address`);
     expect([run.kept1.nonce, run.kept2.nonce, run.kept1.broadcast, run.kept2.broadcast]).toEqual([1, 2, false, false]);
     expect(c.body).toContain("the revoke at nonce 1 and a send of 0 at nonce 2");
+  });
+});
+
+describe("the landing page's Built with row matches the evidence files", () => {
+  const cell = (name: string) => {
+    const found = BUILT_WITH.find((b) => b.name === name);
+    if (!found) throw new Error(`no cell for ${name}`);
+    return found;
+  };
+
+  it("has the eight cells the grid lays out in rows of four", () => {
+    expect(BUILT_WITH).toHaveLength(8);
+  });
+
+  it("Chain Signatures and the EVM chains: deployments/mainnet-first-send.json", () => {
+    const run = evidence("mainnet-first-send.json");
+    expect(run.mpc).toBe(MAINNET.mpc);
+    expect(cell("NEAR Chain Signatures").href).toBe(`https://nearblocks.io/txns/${run.nearTx}`);
+    expect(Number(run.chainId)).toBe(8453);
+    expect(cell("EVM chains").href).toBe(`https://basescan.org/tx/${run.baseTx}`);
+  });
+
+  it("1Click: the payout 1Click's status names, deployments/mainnet-1click-exit.json", () => {
+    const run = evidence("mainnet-1click-exit.json");
+    expect(run.status.status).toBe("SUCCESS");
+    const payouts = run.status.swapDetails.destinationChainTxHashes.map((tx: { hash: string }) => tx.hash);
+    expect(payouts).toHaveLength(1);
+    expect(cell("NEAR Intents 1Click").href).toBe(`https://arbiscan.io/tx/${payouts[0]}`);
+  });
+
+  it("Sputnik DAO: the vote that had satchel #8 sign, deployments/testnet-dao.json", () => {
+    const run = evidence("testnet-dao.json");
+    const [vote] = run.steps.filter((s: { method?: string }) => s.method === "act_proposal");
+    expect(vote.step).toMatch(/calls sign_evm/);
+    expect(cell("Sputnik DAO").href).toBe(`https://testnet.nearblocks.io/txns/${vote.tx}`);
+  });
+
+  it("the locked contract and its build: deployments/mainnet.json", () => {
+    const run = evidence("mainnet.json");
+    expect(run.contract).toBe(MAINNET.contract);
+    expect(run.access_keys_after_lock).toBe(0);
+    expect(cell("Locked NEP-171 contract").href).toBe(`https://nearblocks.io/txns/${run.lock_tx}`);
+    expect(cell("NEP-330 reproducible build").href).toBe(run.build.ci_run);
+  });
+
+  it("npm: the version the app's commands pin; NEP-413: the room the tour opens", () => {
+    const pinned = /satchel-nft@(\S+)/.exec(verifyCommand(TESTNET, "1"))?.[1];
+    const npm = cell("satchel-nft on npm");
+    expect(npm.href).toBe(`https://www.npmjs.com/package/satchel-nft/v/${pinned}`);
+    expect(npm.label).toBe(`version ${pinned}`);
+    const room = TOUR.find((c) => c.tech.startsWith("NEP-413"));
+    expect(room?.network).toBe("testnet");
+    expect(cell("NEP-413 and NEAR Connect").href).toBe(appPath(TESTNET, room?.path ?? ""));
+    expect(cell("NEP-413 and NEAR Connect").label).toBe(`testnet satchel #${room?.tokenId}'s room`);
   });
 });
 

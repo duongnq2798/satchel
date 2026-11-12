@@ -6,6 +6,19 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The site's footer shows NEAR's "Built on NEAR" badge, linked to near.org: NEAR's own SVG files from
+  its brand hub, unchanged, black on the light pages and white on the docs' dark theme. The landing
+  page adds "Built with" above "Built on NEAR": eight names, each linked to where Satchel used it, a
+  transaction, testnet satchel #4's holder room, the CI run or the npm release, with no logos. Chain
+  Signatures links mainnet satchel #1's `sign_evm`, NEAR Intents 1Click the USDC it paid out on
+  Arbitrum One, Sputnik DAO the testnet vote that had satchel #8 sign, the locked contract the mainnet
+  transaction that left it 0 keys, and the EVM chains satchel #1's send on Base. A line under them
+  says the names show what Satchel uses, not a partnership or an endorsement, and that npm is a
+  registered trademark of npm, Inc. The FAQ's note that the page's examples are on testnet now names
+  these links to mainnet, Base and Arbitrum One. Tests in `showcase.test.ts` tie six of the links to
+  `deployments/`, the npm link to the version the app's commands pin, and the room link to the tour's
+  NEP-413 card.
+
 - The README's step 3 ends with one verdict redone by hand: two `curl` reads, satchel #5's
   `signing_record` from `v1.satchel-nft.testnet` at a final block and its address's Sepolia nonce at
   the finalized block, with what they printed on 2026-11-12, and how check 2 (`pendingCheck` in
@@ -654,6 +667,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- On the docs' dark theme, Satchel's mark in the header and footer was a near-black lock on a
+  near-black background. The mark is now drawn inline in the theme's ink and gold (`SatchelMark` in
+  `site-header.tsx`), so it is light on the dark theme and unchanged on the light pages.
 - On the landing page, satchel #3's 78-digit allowance in "Try to cheat the buyer." ran out of its
   row. At 390 px the whole page scrolled sideways (scrollWidth 656); at 1600 px the line spilled 23 px
   past its highlighted row. In `trick-explorer.tsx` the line now wraps anywhere
