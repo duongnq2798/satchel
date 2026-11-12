@@ -756,8 +756,10 @@ export interface ContributorRecord {
   lapsed: number[];
   /** Approved AddMemberToRole and RemoveMemberFromRole proposals. */
   roles: RecordLine[];
-  /** What approved BountyDone and Transfer proposals paid them. */
+  /** What approved BountyDone and Transfer proposals paid them, and the satchels approved `nft_transfer` calls gave them. */
   payouts: RecordLine[];
+  /** The satchels approved proposals gave them, by token id. */
+  satchels: string[];
   /** The payouts summed, per token. */
   totals: string[];
 }
@@ -768,9 +770,12 @@ export interface ContributorRecord {
  * out until it passes. A BountyDone counts as finished only once approved, which in sputnikdao2 2.3.1
  * means its payout went through: a failed payout marks it Failed. A role change is checked against
  * today's policy: `add_member_to_role` and `remove_member_from_role` only log, and change nothing,
- * when the role isn't a group.
+ * when the role isn't a group. A satchel the DAO gave away counts once the proposal is approved, which
+ * for a FunctionCall means its `nft_transfer` went through: `on_proposal_callback` marks a failed one
+ * Failed.
  */
 export function contributorRecords(
+  net: Network,
   proposals: DaoProposal[],
   bounties: DaoBounty[],
   policy: DaoPolicy,
@@ -784,7 +789,7 @@ export function contributorRecords(
   const of = (account: string) => {
     let r = records.get(account);
     if (!r) {
-      r = { account, finished: [], waiting: [], lapsed: [], roles: [], payouts: [], totals: [], paid: [] };
+      r = { account, finished: [], waiting: [], lapsed: [], roles: [], payouts: [], satchels: [], totals: [], paid: [] };
       records.set(account, r);
     }
     return r;
@@ -817,6 +822,11 @@ export function contributorRecords(
       r.paid.push(debt);
     } else if (done) {
       of(done.receiver).payouts.push({ proposalId: p.id, words: `bounty #${done.bountyId}'s amount, which the DAO no longer stores`, tx: passedIn });
+    }
+    for (const gift of proposedGifts(net, p)) {
+      const r = of(gift.receiver);
+      r.payouts.push({ proposalId: p.id, words: `satchel #${gift.tokenId} itself: its address and all it holds`, tx: passedIn });
+      r.satchels.push(gift.tokenId);
     }
     for (const [name, change, asked] of [
       ["AddMemberToRole", "added to", "add them to"],
@@ -860,6 +870,44 @@ export function satchelSignings(net: Network, proposals: DaoProposal[], activity
         const passed = p.status === "Approved" && activity ? (proposalTxs(p, activity.calls).acts.at(-1)?.tx ?? null) : null;
         return { proposal: p, tokenId, words: `nonce ${tx.nonce} on ${chain?.name ?? `chain ${tx.chain_id}`}: ${what} to ${tx.to}${data}`, tx: passed };
       }),
+    )
+    .sort((a, b) => b.proposal.id - a.proposal.id);
+}
+
+/** The `nft_transfer` calls a proposal makes on `net`'s contract: which satchel it gives, and to whom. Calls whose arguments aren't JSON are left out. */
+export function proposedGifts(net: Network, p: DaoProposal): { tokenId: string; receiver: string }[] {
+  const call = kindBody(p, "FunctionCall");
+  if (call?.receiver_id !== net.contract || !Array.isArray(call.actions)) return [];
+  return (call.actions as ({ method_name?: unknown; args?: unknown } | null)[]).flatMap((action) => {
+    if (action?.method_name !== "nft_transfer" || typeof action.args !== "string") return [];
+    try {
+      const args = JSON.parse(decodeBase64(action.args)) as { token_id?: unknown; receiver_id?: unknown };
+      return typeof args.token_id === "string" && typeof args.receiver_id === "string" ? [{ tokenId: args.token_id, receiver: args.receiver_id }] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** A proposal that has the DAO give one of its satchels away. */
+export interface SatchelGift {
+  proposal: DaoProposal;
+  tokenId: string;
+  receiver: string;
+  /** For an approved one, the vote that passed it, when the index holds it. */
+  tx: string | null;
+}
+
+/** The DAO's `nft_transfer` proposals on `net`'s contract, newest first: which satchel each gives, and to whom. */
+export function satchelGifts(net: Network, proposals: DaoProposal[], activity: DaoActivity | null): SatchelGift[] {
+  return proposals
+    .flatMap((p) =>
+      proposedGifts(net, p).map(({ tokenId, receiver }) => ({
+        proposal: p,
+        tokenId,
+        receiver,
+        tx: p.status === "Approved" && activity ? (proposalTxs(p, activity.calls).acts.at(-1)?.tx ?? null) : null,
+      })),
     )
     .sort((a, b) => b.proposal.id - a.proposal.id);
 }
