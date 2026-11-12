@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A testnet bounty board run on a Sputnik DAO, `satchel-bounty.sputnikv2.testnet`, whose treasury
+  owned satchel #10, with no contract change. Its policy, set at creation, is the tiers: one council
+  vote passes a `BountyDone`, two of three pass anything else, and a `trusted` role may pass a
+  `BountyDone` with its own vote and nothing else (quorum 1 everywhere). The contributor's first
+  bounty, 0.5 NEAR, was paid on one council vote; a vote citing it added them to `trusted`; their
+  second, 0.2 NEAR, was paid on their own vote. A 2-of-3 vote had #10 pay them on Sepolia, a 1 NEAR
+  transfer was voted down, and once the send was final a vote gave them #10 itself.
+  `tools/dao-bounty-run.mjs` ran it step by step; `deployments/testnet-dao-bounty.json` holds every
+  transaction, and `node scripts/check-dao-bounty.mjs` checks 14 claims and prints the board.
 - A public bounty board for any Sputnik DAO at `/dao/<account>` (and `/mainnet/dao/<account>`), read
   live with no wallet. It shows the DAO's roles and its approval tiers in words, from its policy
   (each role's vote rule for each proposal kind); open bounties and their claims; finished bounties
