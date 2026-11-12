@@ -6,6 +6,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- `tools/mainnet-sale-record.mjs`, for a sale of mainnet satchel #3 that has not run yet. It signs
+  nothing and holds no key. `gate` says when the buyer owns the satchel at a final block and it
+  isn't listed, and refuses the demo satchels. `find-refused` finds the old owner's failed
+  `sign_evm` in FastNEAR's index, since the near CLI prints no hash for a failed call. `check` reads
+  every step back from NEAR and the EVM chain, and `record` writes `deployments/mainnet-sale.json`
+  only if each step holds and both of the buyer's saved reports (before the buy, after the refusal)
+  read `PROVABLY CLEAN`. `scripts/check-claims.mjs` gains a group of 5 claims for that file, or 7
+  with a send before the sale, active only once it exists; the mainnet count stays 15 until then.
 - A **Received** card on the satchel page. It lists the USDC, USDT and WETH sent to the satchel's
   address since the network's contract was created, read from each chain's Transfer logs, with a
   total per token and chain and a link to each transaction. Each chain shows as soon as it has been
