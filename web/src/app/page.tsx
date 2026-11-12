@@ -93,7 +93,7 @@ const COMPARISON: { question: string; answers: Answers }[] = [
     answers: [
       ["Yes, if the same key is used everywhere", "warn"],
       ["One chain per NFT, unless a bridge says who owns it", "warn"],
-      ["Yes: its keys sign for any chain that uses secp256k1", "ok"],
+      ["Yes: its keys sign for any chain that takes secp256k1 ECDSA signatures", "ok"],
       [`Yes: ${CHAINS.length} EVM chains, one NEAR transaction`, "ok"],
     ],
   },

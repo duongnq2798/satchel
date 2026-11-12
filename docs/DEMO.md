@@ -155,15 +155,22 @@ so the 1:30 scene opens the new satchel's room on mainnet:
 
 ## The X post
 
-Post [`submission/x-post.txt`](submission/x-post.txt) as it is, with the video attached. It leads
-with the problem, names Chain Signatures, asks a question, and links the app and the repository. It
-fits one post: X counts each link as 23.
+**Posted on 2026-11-12** at 13:16 UTC, with the 2:06 video attached:
+[x.com/satchelnfthq/status/2120868248023707671](https://x.com/satchelnfthq/status/2120868248023707671).
+[`submission/x-post.txt`](submission/x-post.txt) is its text. It leads with the problem, says what
+the video shows and what Chain Signatures make possible, asks a question, and links the app and the
+repository. @satchelnfthq is a Premium account, so the post is long: X takes up to 25,000 characters
+from one and shows about the first 280 before "Show more", which hold the problem. From an account
+without Premium, a post holds 280: the kit's earlier text fits, and it says NEAR HACKATHON, tags
+both, asks a question and links both (`git show 01e9b93:docs/submission/x-post.txt`). The checker
+allows 25,000 now, so check X's counter for it.
 
-If you change the text, run `node scripts/check-demo-kit.mjs`: it checks the length, that the post
-still says NEAR HACKATHON and tags @NEARProtocol and #NEARHackathon as whole tags, and that it still
-asks a question. Its count is close to X's, not exact: it counts any dotted name as a link, so a
-NEAR account longer than 23 characters, such as `buyer.satchel-nft.testnet`, counts 23 there and in
-full on X. Check the counter in X's composer before you post.
+`submission/x-post.txt` stays the posted text: change it only if the post on X changes, then run
+`node scripts/check-demo-kit.mjs`. It checks the length, that the post still says NEAR HACKATHON,
+tags @NEARProtocol and #NEARHackathon as whole tags, links satchelnft.xyz and
+github.com/duongnq2798/satchel, and asks a question. Its count is close to X's, not exact: it counts
+any dotted name as a link, so a NEAR account longer than 23 characters, such as
+`buyer.satchel-nft.testnet`, counts 23 there and in full on X. X's own counter is the one to trust.
 
 ## The submission form
 
@@ -180,7 +187,7 @@ whole JSON payload and you have said yes. Use one way, once:
 | Tracks | NFTs That Do Something, Open Innovation, Unstoppable DeFi and Social Money, whose ids are `nfts`, `open`, `defi` and `social` (see below) |
 | NEAR wallet address | Your own mainnet account, in lowercase: a named `.near` account or a 64-character implicit one, never a `.testnet` account. A prize, if any, is sent here |
 | Repository link | https://github.com/duongnq2798/satchel |
-| Demo post link | The URL of your X post |
+| Demo post link | https://x.com/satchelnfthq/status/2120868248023707671 |
 | What did you build? | The whole of [`submission/what-did-you-build.txt`](submission/what-did-you-build.txt) |
 | Website | **Leave it empty.** It is a spam trap: any value rejects the submission |
 | Consent | Read the notice, then tick it if you agree: "I agree that the organizers may use these details to review our submission and contact us about this hackathon." |
@@ -190,7 +197,7 @@ whole JSON payload and you have said yes. Use one way, once:
 | Track | Why Satchel fits |
 | --- | --- |
 | **NFTs That Do Something** (`nfts`), the main one | Its brief asks for "NFTs as accounts — assets that own money". A satchel is an NFT that owns an address on eight EVM chains and their testnets. The track's example prompt asks the README to explain "what stops the old owner from keeping access", a threat model of "every way a seller could try to keep the money", a gated page only current holders can open, and a history view per NFT (what it earned, what it paid out, who held it); Satchel has the first three (the gated page is each satchel's holder room, `/satchel/<id>/room`), and part of the fourth: its history lists owners, sales and signatures, not each payment that came in |
-| **Open Innovation** (`open`) | Its hints name chain abstraction: one NEAR transaction hands over the right to sign for an address on every chain it lives on. Its example prompt, an inheritance account, is mostly not built (no check-ins, timers or heirs); what the README does answer is its section on failure cases and its argument against the idea ([point by point](../README.md#open-innovation-open)) |
+| **Open Innovation** (`open`) | What Satchel brings: a check that nothing the last holder signed can still be used, whether the satchel was sold or a DAO's vote handed it on. A wallet behind an NFT is not new, and Handover, another entry, also logs what its wallet signs ([how they compare](../README.md#how-satchel-compares)). Its hints name chain abstraction: one NEAR transaction hands over the right to sign for an address on every chain it lives on. Its example prompt, an inheritance account, is mostly not built (no check-ins, timers or heirs); what the README does answer is its section on failure cases and its argument against the idea ([point by point](../README.md#open-innovation-open)) |
 | **Unstoppable DeFi** (`defi`) | Its hints name NEAR Intents and Chain Signatures. A satchel changes hands in one NEAR transaction with no custodian or escrow, and the right to sign for its address, and so for what it holds, goes with it. On mainnet, satchel #2 swapped its ETH on Base for USDC at its own address on Arbitrum One through NEAR Intents' 1Click: the deposit was a plain transfer sent from the app, so it still reads provably clean. The proof is narrower than that sounds: the USDC arrived only because 1Click's system sent it, the report doesn't count what is in flight, and a satchel that has itself made a call the contract can't classify, such as a swap through a DEX router or an LP deposit, reads "not provable" for every later owner, as the README says. The example prompt, a cross-chain DCA vault, is partly met: a script asked for the quote and followed the swap, with no schedule and one route, and the app's **Quote an exit** is the prompt's dry-run mode: a real 1Click quote with `dry: true`, no wallet and no funds ([point by point](../README.md#unstoppable-defi-defi)). With Social Money, one of the two loosest fits |
 | **Social Money** (`social`) | Its hints name Sputnik DAO and named accounts. On testnet a Sputnik DAO owned satchel #8 with no contract change: one council vote had it sign a Sepolia send, which `satchel-nft dao finish` broadcast, and a second vote handed it to another account. `node scripts/check-dao.mjs` checks the run against NEAR testnet and Sepolia ([the run](../README.md#a-satchel-owned-by-a-sputnik-dao-on-testnet)). The example prompt, a bounty board with earned trust, is not built: no bounties, reputation, payout tiers or board ([point by point](../README.md#social-money-social)). With Unstoppable DeFi, one of the two loosest fits |
 
