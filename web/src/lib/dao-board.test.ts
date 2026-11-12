@@ -17,7 +17,9 @@ import {
   isDaoPolicy,
   openBounties,
   proposalTxs,
+  proposedGifts,
   roleSummaries,
+  satchelGifts,
   satchelSignings,
   tokenAmount,
   tokensIn,
@@ -285,14 +287,29 @@ describe("the DAO's transactions, from FastNEAR's index", () => {
     expect(second.acts.map((a) => a.tx)).toEqual(["6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg"]);
   });
 
-  it("shows satchel-club's vote that had satchel #8 sign, and nothing for its bounties", () => {
+  it("shows satchel-club's vote that had satchel #8 sign, the one that gave it away, and nothing for its bounties", () => {
     const activity = daoActivity(CLUB, CLUB_TXS);
     expect(satchelSignings(TESTNET, CLUB_PROPOSALS, activity).map((s) => [s.proposal.id, s.tokenId, s.words, s.tx])).toEqual([
       [0, "8", "nonce 0 on Sepolia: 0.0001 ETH to 0x000000000000000000000000000000000000dEaD", "2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M"],
     ]);
     const bounties = club.get_bounties as DaoBounty[];
     expect(finishedBounties(CLUB_PROPOSALS, bounties, CLUB_POLICY, activity, new Map(), NOW)).toEqual([]);
-    expect(contributorRecords(CLUB_PROPOSALS, bounties, CLUB_POLICY, activity, new Map(), NOW)).toEqual([]);
+    expect(satchelGifts(TESTNET, CLUB_PROPOSALS, activity).map((g) => [g.proposal.id, g.tokenId, g.receiver, g.tx])).toEqual([
+      [1, "8", "buyer.satchel-nft.testnet", "6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg"],
+    ]);
+    // The only record is the account the DAO gave satchel #8 to: no bounty, role or NEAR.
+    expect(contributorRecords(TESTNET, CLUB_PROPOSALS, bounties, CLUB_POLICY, activity, new Map(), NOW)).toEqual([
+      {
+        account: "buyer.satchel-nft.testnet",
+        finished: [],
+        waiting: [],
+        lapsed: [],
+        roles: [],
+        payouts: [{ proposalId: 1, words: "satchel #8 itself: its address and all it holds", tx: "6GSVLR17camU72fkcVyt58Ryo9SpscNE3RhdDo5rHABg" }],
+        satchels: ["8"],
+        totals: [],
+      },
+    ]);
     expect(openBounties(bounties, new Map(), new Map(), CLUB_PROPOSALS, activity, new Map(), NOW)).toEqual([]);
     expect(claimCandidates(CLUB_POLICY, CLUB_PROPOSALS, activity)).toEqual(["satchel-nft.testnet"]);
   });
@@ -396,7 +413,7 @@ describe("the board of a DAO with bounties", () => {
   });
 
   it("builds each contributor's record from approved proposals, each point with its proposal", () => {
-    const records = contributorRecords(PROPOSALS, BOUNTIES, BOARD_POLICY, activity, metas, NOW);
+    const records = contributorRecords(TESTNET, PROPOSALS, BOUNTIES, BOARD_POLICY, activity, metas, NOW);
     expect(records.map((r) => r.account)).toEqual(["builder.testnet", "helper.testnet"]);
     const [builder, helper] = records;
     expect(builder).toEqual({
@@ -406,6 +423,7 @@ describe("the board of a DAO with bounties", () => {
       lapsed: [],
       roles: [{ proposalId: 2, words: "added to trusted", tx: "VoteMember2b" }],
       payouts: [{ proposalId: 3, words: "1 NEAR, bounty #0", tx: "VoteBuilder3" }],
+      satchels: [],
       totals: ["1 NEAR"],
     });
     expect(helper).toEqual({
@@ -415,14 +433,15 @@ describe("the board of a DAO with bounties", () => {
       lapsed: [],
       roles: [],
       payouts: [{ proposalId: 6, words: "0.2 NEAR, a transfer", tx: "VoteTransfer6" }],
+      satchels: [],
       totals: ["0.2 NEAR"],
     });
     // A bounty the DAO no longer stores still counts as finished, with no amount to add up.
-    const gone = contributorRecords(PROPOSALS, BOUNTIES.slice(1), BOARD_POLICY, null, metas, NOW)[0];
+    const gone = contributorRecords(TESTNET, PROPOSALS, BOUNTIES.slice(1), BOARD_POLICY, null, metas, NOW)[0];
     expect(gone.finished[0].words).toBe("bounty #0, which the DAO no longer stores");
     expect(gone.totals).toEqual([]);
     // Past its voting period, the builder's open report can no longer pass: it moves from waiting to lapsed.
-    const later = contributorRecords(PROPOSALS, BOUNTIES, BOARD_POLICY, null, metas, NOW + 8 * DAY)[0];
+    const later = contributorRecords(TESTNET, PROPOSALS, BOUNTIES, BOARD_POLICY, null, metas, NOW + 8 * DAY)[0];
     expect([later.waiting, later.lapsed]).toEqual([[], [5]]);
   });
 
@@ -437,12 +456,12 @@ describe("the board of a DAO with bounties", () => {
     expect(f).toMatchObject({ contributor: "builder.testnet", ownReport: false, lapsed: false });
     expect(f.proposal.proposer).toBe("stranger.testnet");
     // It stays out of the builder's waiting list, open or lapsed.
-    const builder = contributorRecords(all, BOUNTIES, BOARD_POLICY, activity, metas, NOW).find((r) => r.account === "builder.testnet");
+    const builder = contributorRecords(TESTNET, all, BOUNTIES, BOARD_POLICY, activity, metas, NOW).find((r) => r.account === "builder.testnet");
     expect([builder?.waiting, builder?.lapsed]).toEqual([[5], []]);
-    const later = contributorRecords(all, BOUNTIES, BOARD_POLICY, null, metas, NOW + 8 * DAY).find((r) => r.account === "builder.testnet");
+    const later = contributorRecords(TESTNET, all, BOUNTIES, BOARD_POLICY, null, metas, NOW + 8 * DAY).find((r) => r.account === "builder.testnet");
     expect([later?.waiting, later?.lapsed]).toEqual([[], [5]]);
     // Once the DAO approves one, it paid the account it names, and the record says who filed it.
-    const passed = contributorRecords([...PROPOSALS, { ...forged, status: "Approved" }], BOUNTIES, BOARD_POLICY, null, metas, NOW);
+    const passed = contributorRecords(TESTNET, [...PROPOSALS, { ...forged, status: "Approved" }], BOUNTIES, BOARD_POLICY, null, metas, NOW);
     expect(passed.find((r) => r.account === "builder.testnet")?.finished.at(-1)).toEqual({
       proposalId: 8,
       bountyId: 2,
@@ -452,10 +471,34 @@ describe("the board of a DAO with bounties", () => {
     expect(passed.find((r) => r.account === "stranger.testnet")).toBeUndefined();
   });
 
+  it("reads a satchel gift only from nft_transfer on this network's contract, and records it once approved", () => {
+    const call = (receiver_id: string, method_name: string, args: string) => ({
+      FunctionCall: { receiver_id, actions: [{ method_name, args, deposit: "1", gas: "30000000000000" }] },
+    });
+    const give = encodeArgs({ token_id: "10", receiver_id: "builder.testnet" });
+    const gift = proposal(8, "council-1.testnet", call(TESTNET.contract, "nft_transfer", give), "InProgress", NOW - 3_600_000);
+    expect(proposedGifts(TESTNET, gift)).toEqual([{ tokenId: "10", receiver: "builder.testnet" }]);
+    // Another contract's nft_transfer, nft_transfer_call, and arguments that aren't JSON give no satchel.
+    expect(proposedGifts(TESTNET, proposal(9, "council-1.testnet", call("other.testnet", "nft_transfer", give), "Approved", NOW))).toEqual([]);
+    expect(proposedGifts(TESTNET, proposal(9, "council-1.testnet", call(TESTNET.contract, "nft_transfer_call", give), "Approved", NOW))).toEqual([]);
+    expect(proposedGifts(TESTNET, proposal(9, "council-1.testnet", call(TESTNET.contract, "nft_transfer", "bm90IGpzb24="), "Approved", NOW))).toEqual([]);
+    // Listed while open, but in no record until it passes.
+    expect(satchelGifts(TESTNET, [...PROPOSALS, gift], null).map((g) => [g.proposal.id, g.tokenId, g.tx])).toEqual([[8, "10", null]]);
+    const open = contributorRecords(TESTNET, [...PROPOSALS, gift], BOUNTIES, BOARD_POLICY, null, metas, NOW).find((r) => r.account === "builder.testnet");
+    expect(open?.satchels).toEqual([]);
+    const passed = contributorRecords(TESTNET, [...PROPOSALS, { ...gift, status: "Approved" }], BOUNTIES, BOARD_POLICY, null, metas, NOW).find(
+      (r) => r.account === "builder.testnet",
+    );
+    expect(passed?.satchels).toEqual(["10"]);
+    expect(passed?.payouts.at(-1)).toEqual({ proposalId: 8, words: "satchel #10 itself: its address and all it holds", tx: null });
+    // A satchel is no amount: the totals stay what the NEAR payouts add up to.
+    expect(passed?.totals).toEqual(["1 NEAR"]);
+  });
+
   it("doesn't record a role change for a role today's policy has no group by", () => {
     const misnamed = proposal(8, "council-1.testnet", { AddMemberToRole: { member_id: "helper.testnet", role: "Council" } }, "Approved", NOW - DAY);
     const removed = proposal(9, "council-1.testnet", { RemoveMemberFromRole: { member_id: "helper.testnet", role: "all" } }, "Approved", NOW - DAY);
-    const helper = contributorRecords([...PROPOSALS, misnamed, removed], BOUNTIES, BOARD_POLICY, null, metas, NOW).find(
+    const helper = contributorRecords(TESTNET, [...PROPOSALS, misnamed, removed], BOUNTIES, BOARD_POLICY, null, metas, NOW).find(
       (r) => r.account === "helper.testnet",
     );
     expect(helper?.roles.map((r) => r.words)).toEqual([
