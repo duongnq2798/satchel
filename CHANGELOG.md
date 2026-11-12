@@ -6,6 +6,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- "Use cases you can run" in the README: nine uses that ran on chain (selling a wallet, catching a
+  seller, cleaning before a sale, a swap into its own address, a DAO treasury, bounties with earned
+  trust, an heir, what came in, a holder's room), each with a page to open and a command that checks
+  it. `node scripts/check-use-cases.mjs` runs every check in one go, shares one `check-claims.mjs`
+  run per network, runs a check once more a minute later when its only failures were nodes not
+  answering, and says which cases hold, haven't run yet or were skipped; `--list` runs nothing.
+  The docs' use cases page gains an estate with check-ins and a waiting period, and a section on
+  paying contributors from a DAO's treasury.
 - The estate ran on testnet: `satchel-estate-1112.testnet`, deployed from the CI's reproducible
   build and locked, held satchel #11 for `buyer.satchel-nft.testnet` with a 3-minute interval and a
   5-minute waiting period. An early approval was refused; both guardians approved and the owner
@@ -545,6 +553,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
+  or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
+  `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,
+  `https://archival-rpc.<network>.near.org`. Run right after other checks, FastNEAR's archival node
+  answered HTTP 429 to both of the old script's tries.
 - The README describes Satchel on its own terms and compares it with no other entry in this
   hackathon: the table and the paragraphs that compared it with other entries are gone, and so are
   their mentions in "Satchel in 60 seconds", "Why it is different", the Open Innovation section and

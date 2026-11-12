@@ -98,10 +98,37 @@ points ([others have tied keys to NFTs](#the-nft-tracks-brief-point-by-point)).
   `node scripts/check-claims.mjs` needs no install and checks 13 of them on testnet in seconds
   ([step 2](#how-to-evaluate-satchel-in-5-minutes)).
 
+## Use cases you can run
+
+Each use below ran on chain. Each has a page to open with no wallet and a command that checks it
+against the chains. [`node scripts/check-use-cases.mjs`](scripts/check-use-cases.mjs) runs every
+check, one case after another, and prints each case's result; `--list` prints the cases and their
+pages without running anything. Cases 2, 3 and 8 read the built package (`npm ci` and `npm run build
+-w satchel-nft`); without it they are skipped, not failed.
+
+| # | Use | What ran | Open | Check |
+| --- | --- | --- | --- | --- |
+| 1 | Sell a wallet with what it holds; once the NFT moves, the seller can't sign for it | Testnet #1 changed hands and its old owner's next signature was refused; #4 was refused a signature while listed | [Satchel #1](https://satchelnft.xyz/satchel/1) | `node scripts/check-claims.mjs` |
+| 2 | Catch a seller who kept a signed send or a live approval, before you pay | Testnet #5 had a 10,000 ETH send signed and kept back; #3 left an approval live; #6's buy was refused after its record changed | [Satchel #5](https://satchelnft.xyz/satchel/5) | `satchel-nft verify 5` and `verify 3`, `check-claims.mjs` |
+| 3 | Clean a wallet before selling it: revoke what it approved and void the sends it signed but never sent | Testnet #9 revoked a live approval and spent two signed nonces from its page | [Satchel #9](https://satchelnft.xyz/satchel/9) | `satchel-nft verify 9` |
+| 4 | Swap what a wallet holds into a token on another chain, paid to the wallet's own address | Mainnet #2 swapped its ETH on Base for 5.280549 USDC on Arbitrum One through NEAR Intents' 1Click | [Mainnet #2](https://satchelnft.xyz/mainnet/satchel/2) | `node scripts/check-claims.mjs --network mainnet` |
+| 5 | A shared treasury: a DAO owns the wallet, which signs what its members vote for | A Sputnik DAO owned testnet #8; one vote had it sign a Sepolia send, another handed it on | [Satchel #8](https://satchelnft.xyz/satchel/8) | `node scripts/check-dao.mjs` |
+| 6 | Pay bounties from a DAO's treasury, with trust earned by finished work, and pay with a whole wallet | A Sputnik DAO paid a contributor's first bounty on one council vote, made them trusted, paid their second on their own vote, then had testnet #10 pay them on Sepolia and gave them #10 | [The DAO's board](https://satchelnft.xyz/dao/satchel-bounty.sputnikv2.testnet) | `node scripts/check-dao-bounty.mjs` |
+| 7 | Hand a wallet to a named heir when its owner stops checking in | An estate contract held testnet #11; after missed check-ins, two guardians' approvals and a waiting period the owner could cancel (and once did), it went to the heir | [Satchel #11](https://satchelnft.xyz/satchel/11) | `node scripts/check-estate.mjs` |
+| 8 | See the USDC, USDT and WETH that came into a wallet, with totals per token and chain | Mainnet #2's Received card lists the 5.280549 USDC 1Click paid it, read from Arbitrum One's logs | [Mainnet #2](https://satchelnft.xyz/mainnet/satchel/2) | `node scripts/check-scan-start.mjs` |
+| 9 | A members' room that opens for whoever holds the NFT now | Testnet #4's and mainnet #1's rooms opened with their holders' signatures; anyone else gets a 401 or a 403 | [Satchel #4's room](https://satchelnft.xyz/satchel/4/room) | `node scripts/check-use-cases.mjs --case 9` |
+
+The Satchel contract is the same in all nine. In cases 5 and 6 a Sputnik DAO owns the satchel, and
+in case 7 a small estate contract does: whoever owns the NFT is who can have it sign. Cases 4 and 8
+ran on mainnet, case 9 on both networks and the rest on testnet. The builder held every account, so
+these show each use working, not people using it. Mainnet satchel #3's sale to a second account is
+prepared and hasn't run.
+
 ## Contents
 
 - [Satchel in 60 seconds](#satchel-in-60-seconds)
 - [Why it is different](#why-it-is-different)
+- [Use cases you can run](#use-cases-you-can-run)
 - [How to evaluate Satchel in 5 minutes](#how-to-evaluate-satchel-in-5-minutes)
 - [Status](#status)
 - [What Satchel does](#what-satchel-does)
@@ -223,15 +250,16 @@ the record changed).
    listed and a `buy` naming an old record version, and what satchel #6's record held when that `buy`
    was refused. It ends with `13 of 13 claims hold`. Each run exits 0 only when
    every claim holds; [AGENTS.md](AGENTS.md#1-the-deployment-and-its-history-one-command) says what
-   each line reads. A read that fails is tried once more. With `BASE_RPC` unset, a Base read the
-   default node fails goes to Base's own node, `https://mainnet.base.org`. A claim that fails only
-   because a node or 1Click didn't answer says it is not a change to any satchel, and what to do.
-   `check-dao.mjs` keeps asking a busy node: a NEAR or Sepolia read a node answers with HTTP 408, 429
-   or 5xx, or whose connection fails, is sent up to 3 more times, 1, 2 and 4 s apart, or longer if
-   the node's Retry-After asks, up to 8 s. With `NEAR_ARCHIVAL_RPC` unset, an archival read FastNEAR's
-   node still doesn't answer goes to NEAR's own, `https://archival-rpc.testnet.near.org`, and once
-   FastNEAR's has failed a read that NEAR's answered, later archival reads go to NEAR's node first;
-   on 2026-11-12 FastNEAR's answered HTTP 429 to every retry when the script ran right after
+   each line reads. `check-claims.mjs`, `check-dao.mjs`, `check-dao-bounty.mjs` and
+   `check-estate.mjs` keep asking a busy node: a read a node answers with HTTP 408, 429 or 5xx, or
+   whose connection fails, is sent up to 3 more times, 1, 2 and 4 s apart, or longer if the node's
+   Retry-After asks, up to 8 s; any other failed read is tried once more. With `BASE_RPC` unset, a
+   Base read the default node fails goes to Base's own node, `https://mainnet.base.org`. A claim
+   that fails only because a node or 1Click didn't answer says it is not a change to any satchel,
+   and what to do. With `NEAR_ARCHIVAL_RPC` unset, an archival read FastNEAR's node still doesn't
+   answer goes to NEAR's own, `https://archival-rpc.<network>.near.org`, and once FastNEAR's has
+   failed a read that NEAR's answered, later archival reads go to NEAR's node first; on 2026-11-12
+   FastNEAR's answered HTTP 429 to every retry when `check-dao.mjs` ran right after
    `check-claims.mjs`. With `SEPOLIA_RPC` unset, a Sepolia read the default node
    fails, or answers with null, goes to `https://1rpc.io/sepolia`, then
    `https://sepolia.gateway.tenderly.co`; on 2026-11-12 the default node returned the DAO's Sepolia
@@ -1634,7 +1662,7 @@ all of this with the near CLI's key, checking each step
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 235 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 100 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
-| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs), [`check-dao-bounty.mjs`](scripts/check-dao-bounty.mjs), [`check-estate.mjs`](scripts/check-estate.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain, and [`check-scan-start.mjs`](scripts/check-scan-start.mjs) the Received card's start blocks; both read the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
+| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs), [`check-dao-bounty.mjs`](scripts/check-dao-bounty.mjs), [`check-estate.mjs`](scripts/check-estate.mjs), [`check-use-cases.mjs`](scripts/check-use-cases.mjs) (each use case's checks in one run) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain, and [`check-scan-start.mjs`](scripts/check-scan-start.mjs) the Received card's start blocks; both read the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package), [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes), [`dao-bounty-run.mjs`](tools/dao-bounty-run.mjs) and [`estate-run.mjs`](tools/estate-run.mjs) (the testnet bounty and estate runs, step by step, resumable) and [`mainnet-sale-record.mjs`](tools/mainnet-sale-record.mjs) (reads a mainnet sale back from NEAR and its EVM chain, checks each step and records it; it signs nothing) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
 | [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |

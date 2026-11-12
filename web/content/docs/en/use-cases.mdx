@@ -114,14 +114,45 @@ whose address must outlast the person who holds it; someone planning who control
   Where the payee can be changed, whoever controls the paying contract can still redirect it, and the
   record can't see that.
 - **Offboarding.** See [Hand control of an address to someone else](#hand-control-of-an-address-to-someone-else).
-- **Inheritance through a DAO.** Have a Sputnik DAO, with the heirs on its council, own the satchel; a
-  vote hands it on. Satchel has no check-ins, timers or waiting period: the DAO's policy is the whole
-  plan, and a council that can no longer pass a vote leaves the satchel stuck. Heirs with enough votes
-  can hand it to themselves at any time; nothing waits for the owner to be gone. A Sputnik DAO owned
-  testnet satchel #8, and a vote handed it on.
+- **An estate with check-ins and a waiting period.** Have an estate contract own the satchel: it
+  names one heir, guardians and a threshold, a check-in interval and a waiting period, all fixed
+  when it is created. If the owner stops checking in, the guardians can start a release; the owner
+  cancels it by checking in until the waiting period ends, and after that anyone can finalize, which
+  hands the satchel to the heir with `nft_transfer`. Until then the owner keeps using the address
+  through the estate. The estate in the repository is a testnet demo, not audited, and signs EVM
+  transactions only. On testnet, `satchel-estate-1112.testnet` handed satchel #11 to its heir this
+  way, with timers in minutes, and `node scripts/check-estate.mjs` checks the run.
+- **Inheritance through a DAO.** Have a Sputnik DAO, with the heirs on its council, own the satchel;
+  a vote hands it on. Here the DAO's policy is the whole plan: nothing waits for the owner to be
+  gone, heirs with enough votes can hand it to themselves at any time, and a council that can no
+  longer pass a vote leaves the satchel stuck. A Sputnik DAO owned testnet satchel #8, and a vote
+  handed it on.
 
 **Read next:** [A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel),
 [Transfer a satchel](/docs/guides/transfer), [When something fails](/docs/security#when-something-fails).
+
+## Pay contributors from a DAO's treasury
+
+**Who:** a community whose treasury is a Sputnik DAO and that pays contributors for bounties.
+
+**How:** the DAO's own policy sets who approves what, by role and proposal kind: for example, one
+council vote passes a finished bounty, two of three pass anything else, and a `trusted` role whose
+members pass their own finished bounties and nothing else. A contributor claims a bounty with
+`bounty_claim` and reports it with `bounty_done`; once the `BountyDone` proposal passes, the DAO
+pays. A council vote can add a contributor to `trusted`, citing the bounties they finished. A
+satchel the DAO owns can pay on any EVM chain it signs for, by a vote that has it sign, and the DAO
+can pay with the satchel itself: a vote that gives it away hands over the wallet and everything in
+it. Before that vote, the satchel's report should read <Verdict v="clean" />, so the contributor
+gets nothing the DAO could still spend.
+
+Sputnik's vote policy has no amount: a trusted member's vote would pass any bounty's `BountyDone`,
+so keep the bounties the council posts small. The board at `/dao/<account>` shows any Sputnik DAO's
+tiers, bounties, claims, each contributor's record and the satchels it voted to give away, read
+live. On testnet, `satchel-bounty.sputnikv2.testnet` ran all of this with satchel #10, and `node
+scripts/check-dao-bounty.mjs` checks the run.
+
+**Read next:** [The DAO's board](/dao/satchel-bounty.sputnikv2.testnet),
+[A satchel owned by a Sputnik DAO](/docs/tutorials/dao-owned-satchel).
 
 ## When Satchel is the wrong tool
 
