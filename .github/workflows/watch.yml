@@ -39,9 +39,11 @@ jobs:
         with:
           # The oldest Node the scripts run on.
           node-version: 22
-      # Each check runs even when the one before it failed. A script retries each read once itself; a
-      # public node can be out for longer, so a failed check runs once more a minute later, and only a
-      # claim that fails both runs fails the watch.
+      # Each check runs even when the one before it failed. check-claims retries each read once and
+      # moves a failed Base read to Base's own node; check-dao sends a read a busy node refused up
+      # to 3 more times and moves an unanswered archival NEAR read, or a failed Sepolia read, to
+      # another public node. A public node can be out for longer, so a failed check runs once more
+      # a minute later, and only a claim that fails both runs fails the watch.
       - name: Testnet claims
         if: ${{ !cancelled() && steps.node.outcome == 'success' }}
         run: node scripts/check-claims.mjs || { sleep 60; node scripts/check-claims.mjs; }

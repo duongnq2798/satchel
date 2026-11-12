@@ -10,7 +10,7 @@ export function GET() {
   const lines = [
     "# Satchel",
     "",
-    "> An NFT on NEAR that is one wallet on 16 EVM chains, through NEAR Chain Signatures. The contract keeps a public record of what each token's key signs, so a buyer can check on chain that nothing stayed behind before paying. Not audited.",
+    "> An NFT on NEAR that is one wallet on 16 EVM chains, through NEAR Chain Signatures. The contract keeps a public record of what each token's key signs, so before paying, a buyer can check on chain what the seller could have kept back. The report proves what the key signed, not powers inside a token's own contract. Not audited.",
     "",
     "The repository's AGENTS.md (https://github.com/duongnq2798/satchel/blob/main/AGENTS.md) has a command that checks each claim, and maps each rule to its code and tests.",
     "",

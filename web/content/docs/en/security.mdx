@@ -68,7 +68,7 @@ public, so what it protects is the gate. `/api/room` stores nothing between requ
 - **NEAR's MPC network** (`v1.signer` on mainnet, `v1.signer-prod.testnet` on testnet). It signs for a key derived
   from the calling account and a path, only when that account asks. If enough MPC nodes colluded, they could sign
   with any derived key, and Satchel can't detect that. The MPC contract can also be upgraded by a vote of its
-  participants.
+  participants, which could change how keys are derived or who may ask for a signature.
 - **Each EVM chain's finality.** Once a block is finalized, an address's nonce at that block can't go back.
 - **The pinned build image** behind the reproducible build, `sourcescan/cargo-near:0.22.0-rust-1.99.1`.
 - **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.

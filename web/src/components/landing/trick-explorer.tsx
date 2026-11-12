@@ -46,9 +46,11 @@ function ReportLines({ report, focus }: { report: Report; focus: ReportTrick["ch
           className={`flex gap-2.5 rounded-lg px-2 py-1.5 text-sm ${check.id === focus ? "bg-paper/10 text-paper" : "text-paper/75"}`}
         >
           <StatusIcon status={check.status} />
-          <span>
+          <span className="min-w-0">
             {check.title}
-            {check.id === focus && check.status !== "pass" && <span className="mt-0.5 block text-xs text-paper/60">{check.lines[0]}</span>}
+            {check.id === focus && check.status !== "pass" && (
+              <span className="mt-0.5 block text-xs text-paper/60 [overflow-wrap:anywhere]">{check.lines[0]}</span>
+            )}
           </span>
         </li>
       ))}

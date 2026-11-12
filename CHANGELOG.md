@@ -6,6 +6,27 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The README's step 3 ends with one verdict redone by hand: two `curl` reads, satchel #5's
+  `signing_record` from `v1.satchel-nft.testnet` at a final block and its address's Sepolia nonce at
+  the finalized block, with what they printed on 2026-11-12, and how check 2 (`pendingCheck` in
+  `report.ts`) turns them into "A signed transaction may still be pending". `node -e` decodes the
+  contract's answer. A PowerShell form uses `Invoke-RestMethod`, because Windows PowerShell 5.1 strips
+  the quotes in a body passed to `curl.exe` and the nodes answer `Parse error`.
+
+- The README's comparison with other work: the sentence on Lit's PKPs is dated, with Lit's docs
+  archived on 2025-01-13 and its current authentication model as of 2026-11-12; a sentence on
+  another hackathon entry's NFT-owned vault, linked to its README at a pinned commit; and "Why not
+  swap a Safe's owners?", which links Safe's docs on modules and threat model row 3. The ERC-6551
+  bullet in "Why it is different" now says that such an account checks the NFT's current owner each
+  time it acts, so a signature made before a sale stops working, but the approvals it granted stay;
+  the comparison's ERC-6551 sentence, which said such an account is on one chain, links EIP-6551:
+  it can be deployed at the same address on many chains, and the reference account acts only on the
+  NFT's own chain.
+
+- The threat model adds row 10a, a sale paid outside `buy`, which nothing freezes or pins, and row
+  10b, the window in which an `nft_transfer_call` receiver owns the satchel before
+  `nft_resolve_transfer` runs: 42 attacks in all. The README's limits add row 10a.
+
 - A daily watch of the demo until judging ends: `.github/workflows/watch.yml` runs
   `node scripts/check-claims.mjs` on testnet and mainnet and `node scripts/check-dao.mjs`, each once
   more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22 with
@@ -425,6 +446,48 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- Lines that said owning the NFT gives full control of its address now say what is true: the NFT's
+  owner is the only one who can have anything new signed for the address, and a transaction, an
+  approval or a raw signature signed before the sale can still move its assets, which is what the
+  report checks. This covers `satchels-and-addresses.mdx`, `transfer.mdx`, `buy.mdx`, `sell.mdx`,
+  `sale-on-testnet.mdx`, the docs FAQ, the sale diagram's last step (on How it works, Listings and
+  sales and the testnet sale tutorial), the "Mint your first satchel" card on `/satchels`, the nav
+  text that `llms.txt` copies and the site's meta description. The docs home (`index.mdx`) and the
+  summary line of `llms.txt` no longer say a buyer can check that nothing was kept back: a buyer can
+  check what the seller could have kept back, and the report proves what the key signed, not powers
+  inside a token's own contract. A satchel's page heads its address "One address on 16 EVM chains,
+  signed for only when this NFT's owner asks", where it said "controlled by whoever owns this NFT";
+  `mint-and-fund.mdx` quotes the new heading.
+- The landing page's "Ways to hand over a wallet." is fairer. It adds a column for NEAR's NFT Chain
+  Keys and a row, "Can a signature from before the sale still be used after it?": no for a
+  token-bound account, which checks the current owner when it runs; yes for a satchel, until the
+  nonce is spent, which check 2 reads. Satchel's answer to emptying it between your check and your
+  purchase now starts "No, once the report is clean". On seeing the approvals the seller left, "Only
+  by scanning every token contract" is gone: the token-bound account's and NFT Chain Keys' answer is
+  "Only by reading each chain's Approval logs", and the seed phrase's is "Only the ones made so far:
+  the seller keeps the key and can approve more after you look". A note under the table links the
+  token-bound account and NFT Chain Keys code the answers come from, at the commits read. On a phone
+  each answer's label comes from the list of columns instead of three fixed labels, and the table
+  turns into columns at `lg` instead of `md`.
+- The landing page's limits add a fifth: NEAR's MPC network is trusted. Enough colluding nodes could
+  sign with any satchel's key, and an upgrade its participants vote for could change how keys are
+  derived or who may ask for a signature. The FAQ answer "Who holds a satchel's key?", on the landing
+  page and in the docs, no longer says no one can change that rule. It says the contract's code can't
+  change but the MPC network is trusted, in the same words, and that a satchel's address is a plain
+  EOA, not a smart account: `sign_evm` can't sign an EIP-7702 authorization, and `sign_raw` can, which
+  the record counts. "What Satchel trusts" in `security.mdx` says what an upgrade could change too.
+- The landing page's FAQ adds "Who sells a wallet? Why not just send the assets?", with the README's
+  narrow-demand answer and a link to the use cases, and "What if I pay the seller some other way?":
+  only `buy` ties your payment to the record you checked. The docs FAQ says both, and `transfer.mdx`
+  says the second.
+- A satchel's report card has a scope line under its intro: the report proves what the satchel's key
+  signed, not powers inside a token's own contract, and it trusts NEAR's MPC network. It links to
+  "What a clean report doesn't say".
+- The "What's inside" card on a satchel's page names NFTs (ERC-721, ERC-1155) among the tokens it
+  doesn't read.
+- `use-cases.mdx` no longer says anyone with testnet NEAR can buy satchel #4 or #6. Both are demo
+  satchels the app won't buy until 2026-11-25; to see a sale through, mint a satchel, list it and buy
+  it from a second testnet wallet.
 - 1Click in the app: a history line for a swap 1Click calls `SUCCESS` links the payout's
   transaction on the destination chain's explorer, the first EVM hash in its status's
   `swapDetails.destinationChainTxHashes` (satchel #2's line links `0x417322bd…` on Arbiscan); a line
@@ -561,6 +624,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   README's headline says the 16 chains are 8 mainnets and a testnet of each, and the evaluation
   section says which of its steps fit in five minutes. The "What did you build?" text opens with the
   site and what a satchel is.
+- The README, `AGENTS.md`, the package README, the demo kit and the "What did you build?" text said
+  that a transfer moves the address, or control of it. It moves the right to have anything new
+  signed for it: a transaction, an approval or a raw signature made before the sale still works. The
+  report checks that each signed nonce is spent and each approval revoked, and calls a satchel with
+  any raw signature not provable. The README's banner image keeps the old line, "Hand over the NFT
+  and the address goes with it.", and so does its alt text, until the image is re-rendered from
+  `docs/assets/src/banner.html` with `docs/assets/src/render.mjs`. The README's "Why it is
+  different" now comes right after its introduction, and its evaluation section says that steps 1 to
+  3 need no install, but for step 3's optional wasm check, and that step 4's `npx` run is optional.
+  `AGENTS.md` has agents run `check-claims.mjs` before the report, and start the package's install
+  or `npx` run in the background, since either outlasts a 2-minute timeout.
 - The buy panel also checks that the listing's price and seller, as the page read them, match the
   ones the report checked, not only the record version. Before, a relist at a new price kept the
   record version, so the panel offered the report's price while the page held another; the
@@ -580,6 +654,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- On the landing page, satchel #3's 78-digit allowance in "Try to cheat the buyer." ran out of its
+  row. At 390 px the whole page scrolled sideways (scrollWidth 656); at 1600 px the line spilled 23 px
+  past its highlighted row. In `trick-explorer.tsx` the line now wraps anywhere
+  (`[overflow-wrap:anywhere]`), and its flex item can shrink (`min-w-0`).
+- Nine of the landing page's 13 sections faded in with a scroll-driven animation (`.reveal` in
+  `globals.css`) and stayed at opacity 0 in anything that showed the page without scrolling it: a
+  full-page screenshot, a print. The animation and its class are gone; the sections show at once.
+- On a 390 px phone the header's nav could wrap onto a second line once its font loaded, which moved
+  the page down. Its links are 12 px apart below `sm` (`site-header.tsx`), 16 px from `sm` up.
+- Selected text disappeared on the dark panels: the code blocks on the landing and `/mainnet` pages,
+  the landing page's satchel card, its "Don't trust the seller. Or us." and "Check one yourself."
+  sections, "Try to cheat the buyer.", the testnet and mainnet banners, and the contract box in the
+  docs' architecture diagram. `::selection` in `globals.css` set only a gold-soft background, and
+  their paper text on it was 1.0 to 1.1:1. Selected text now turns ink: 14.5:1, and 10.8:1 in the docs' dark theme.
 - A satchel's history, on its page and from `satchel-nft history`, failed whenever FastNEAR's
   transaction index rate-limited one read. On 2026-11-11 `tx.main.fastnear.com` answered 429 to about
   half the requests, at one every 5 s, and mainnet satchel #2's page showed `Failed to fetch` until
@@ -670,6 +758,27 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   pay for never leaves a signature open.
 - The market shows "Couldn't check" for a listed satchel the contract no longer knows, instead of
   "Checking…" forever.
+- `node scripts/check-dao.mjs` printed `4 of 5 claims hold`, or `3 of 5` when the archival NEAR node
+  answered HTTP 429: on 2026-11-12 its default Sepolia node,
+  `https://ethereum-sepolia-rpc.publicnode.com`, returned the DAO's Sepolia transaction but a null
+  receipt for it. With `SEPOLIA_RPC` unset, a Sepolia read that node fails, or answers with null,
+  now goes to `https://1rpc.io/sepolia`, then `https://sepolia.gateway.tenderly.co`, and a line
+  after the count names the nodes that answered. A read a NEAR or Sepolia node answers with HTTP
+  408, 429 or 5xx, or whose connection fails, is sent up to 3 more times, 1, 2 and 4 s apart, or
+  longer if the node's Retry-After asks, up to 8 s (FastNEAR's archival node sends `retry-after: 0`
+  with its 429s); any other read that fails is tried once more, 2 s later. With `NEAR_ARCHIVAL_RPC`
+  unset, an archival read FastNEAR's node still doesn't answer goes to
+  `https://archival-rpc.testnet.near.org`; once FastNEAR's has failed a read that NEAR's answered,
+  later archival reads go to NEAR's node first, and a line names it too. A claim that fails only
+  because a node didn't answer, an error page such as a 403 included, says it is not a change to any
+  satchel, and which variable to set; one that fails because every Sepolia node asked answered
+  without the transaction says that instead. A NEAR transaction is now read with `wait_until`
+  `NONE`, so a wrong hash fails at once with the node's `UNKNOWN_TRANSACTION` error; with `FINAL`,
+  the node held the request about 30 s and answered 408, which read as a node not answering. Still 5
+  claims. On 2026-11-12, run right after
+  `check-claims.mjs`, which reads the same archival node, FastNEAR's still answered HTTP 429 after
+  every retry in 2 of 5 runs (`4 of 5`, `1 of 5`). With the archival fallback, 4 runs of 4 started
+  the same way printed `5 of 5 claims hold`, one of them through NEAR's node.
 
 ### Security
 

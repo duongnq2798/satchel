@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Report } from "satchel-nft";
 import { verifyCommand } from "@/lib/showcase";
 import { useNetwork } from "./network";
@@ -60,6 +61,16 @@ export function ReportCard({
       <p className="mt-1 text-sm text-muted">
         Checked in your browser against NEAR and each chain the record lists, at a finalized block. Nothing here comes
         from a server of ours; it trusts the public RPCs named below.
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        It proves what the satchel&apos;s key signed, not powers inside a token&apos;s own contract, such as an upgrade, a
+        blacklist or a clawback, and it trusts NEAR&apos;s MPC network.{" "}
+        <Link
+          href="/docs/concepts/clean-transfer-report#what-a-clean-report-doesnt-say"
+          className="font-medium text-leather underline decoration-line underline-offset-4 hover:decoration-ink"
+        >
+          What a clean report doesn&apos;t say
+        </Link>
       </p>
       <ErrorNote error={error} />
       {!report && loading && <Reading />}

@@ -110,7 +110,7 @@ export function SiteHeader() {
             <img src="/icon.svg" alt="" className="size-7" />
             Satchel
           </Link>
-          <nav className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
+          <nav className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-2 sm:gap-x-4">
             {NAV.map((n) => {
               const href = n.perNetwork ? appPath(net, n.href) : n.href;
               return (

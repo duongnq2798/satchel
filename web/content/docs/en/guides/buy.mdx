@@ -105,9 +105,12 @@ A failed `buy` changes nothing: the NFT doesn't move, NEAR refunds your deposit,
 
 ## After you buy
 
-- **You control the address on every chain.** Only the token's owner can have the contract sign, so the
-  seller's next `sign_evm` is refused with `Satchel: only the token's owner can do this`
+- **Only you can have anything new signed for the address, on every chain.** Only the token's owner can
+  have the contract sign, so the seller's next `sign_evm` is refused with `Satchel: only the token's owner can do this`
   ([`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) on testnet).
+  What was signed before, a transaction still pending, an approval still live or a raw signature (a
+  permit, say), can still move assets: that is what the report you read before buying checks. Checks 2
+  and 3 look for the first two, and any raw signature fails check 4.
 - **The record comes with it.** It only grows. Whatever the satchel's report read when you bought it is
   where your own report starts.
 - **Any excess deposit is refunded**, and the seller is paid from your deposit.

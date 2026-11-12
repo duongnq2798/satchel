@@ -100,6 +100,8 @@ transaction on testnet that shows it working.
 | 8 | Delist, sign, relist, or move the NFT to another account and back, between the buyer's check and the purchase | Every signature bumps the record version. `buy` requires the current version, the listing's version and the version the buyer names to be the same, and a transfer or relist cannot reset it | `7HQPu9qe…` refused: `the signing record changed since you checked it`, 1 NEAR refunded | |
 | 9 | Raise the price after the buyer checked | `buy` requires the price the buyer names to equal the listing's price | Unit test `buy_refuses_a_changed_price` | |
 | 10 | Let someone else's account move the NFT from under the listing | The contract does not offer NEP-178 approvals, so only the owner can transfer. Any transfer, including `nft_transfer_call`, removes the listing. A listing whose seller no longer owns the token is ignored (`active_listing`) | Unit tests `a_transfer_cancels_the_sale`, `nft_transfer_ends_the_listing_and_moves_signing_rights`, `nft_transfer_call_ends_the_sellers_listing`, `a_bounced_transfer_call_voids_the_receivers_listing`, `a_non_owner_cannot_nft_transfer_the_token` (near-contract-standards refuses it: `Approval extension is disabled`), `list_refuses_a_non_owner` | |
+| 10a | Sell outside `buy`: take the buyer's payment some other way, then hand the satchel over with `nft_transfer`, having more signed after the buyer checked | Nothing on chain. Without a listing, nothing froze signing between the buyer's check and the transfer, and `nft_transfer` names no record version, so the seller can have a transaction signed or an approval granted until the transfer runs. Everything signed is still in the record, and the report reads it | | The payment, which the contract never saw: a report read after the transfer shows what the seller kept, but can't undo the payment. Only `buy` ties a payment to the record version the buyer checked; read the report again once the satchel reaches you, and use `buy` for anything of value |
+| 10b | Receive a satchel through `nft_transfer_call`, use it before `nft_resolve_transfer`, then give it back | `nft_transfer_call` removes the sender's listing and makes the receiver the owner until `nft_resolve_transfer` runs, so in that window the receiver can sign or list like any owner. Unless the receiver's `nft_on_transfer` returns `false`, `nft_resolve_transfer` gives the token back and voids any listing the receiver made (`nft_resolve_transfer` in `lib.rs`). Whatever the receiver had signed stays in the record, which a returned satchel keeps | Unit test `a_bounced_transfer_call_voids_the_receivers_listing` | A satchel that comes back can carry what the receiver signed; its report counts it, so read the report again after a bounce. A receiver that passes the token on before the resolve keeps it from coming back: near-contract-standards' `nft_resolve_transfer` returns the token only while the receiver still owns it |
 
 ### The contract or its deployer
 
@@ -184,7 +186,8 @@ data, so these attacks are on the gate, not on a secret.
 7. The pinned Docker image behind the reproducible build (row 12).
 8. Selector-based classification, if a contract gives a standard selector a non-standard meaning.
 9. A seller's payment lost if they delete their account before it lands, and an NFT sent outside
-   the app to a name that doesn't exist (row 17a).
+   the app to a name that doesn't exist (row 17a). A sale paid outside `buy`, which nothing freezes
+   or pins (row 10a).
 10. No admin, so stuck NEAR and the chain list cannot be changed.
 11. For a CLI send with `--yes`, the fee and the nonce read from one EVM RPC (row 21f). Which
     satchel is yours, read from one NEAR RPC (row 21g). A satchel's address itself no longer comes
