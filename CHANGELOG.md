@@ -6,6 +6,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- `tools/mainnet-sale-record.mjs`, for a sale of mainnet satchel #3 that has not run yet. It signs
+  nothing and holds no key. `gate` says when the buyer owns the satchel at a final block and it
+  isn't listed, and refuses the demo satchels. `find-refused` finds the old owner's failed
+  `sign_evm` in FastNEAR's index, since the near CLI prints no hash for a failed call. `check` reads
+  every step back from NEAR and the EVM chain, and `record` writes `deployments/mainnet-sale.json`
+  only if each step holds and both of the buyer's saved reports (before the buy, after the refusal)
+  read `PROVABLY CLEAN`. `scripts/check-claims.mjs` gains a group of 5 claims for that file, or 7
+  with a send before the sale, active only once it exists; the mainnet count stays 15 until then.
 - The README opens with "Satchel in 60 seconds": three satchels to open with no wallet (testnet #5
   reads not provable, testnet #9 after Make it clean, mainnet #2 after its 1Click swap) and the
   claim checker. "Why it is different" now says what it is measured against: handing over a seed
