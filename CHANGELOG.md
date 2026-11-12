@@ -14,6 +14,13 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   only if each step holds and both of the buyer's saved reports (before the buy, after the refusal)
   read `PROVABLY CLEAN`. `scripts/check-claims.mjs` gains a group of 5 claims for that file, or 7
   with a send before the sale, active only once it exists; the mainnet count stays 15 until then.
+- A **Received** card on the satchel page. It lists the USDC, USDT and WETH sent to the satchel's
+  address since the network's contract was created, read from each chain's Transfer logs, with a
+  total per token and chain and a link to each transaction. Each chain shows as soon as it has been
+  read, a node that has lost the start of a chain's logs shows that chain as unread, and a failed
+  range shows as a gap. Display only: the report doesn't read it. Mainnet satchel #2 shows the
+  5.280549 USDC it received on Arbitrum One. `scripts/check-scan-start.mjs`, read-only, checks the
+  card's start blocks against each contract's creation and each chain's first Transfer.
 - The README opens with "Satchel in 60 seconds": three satchels to open with no wallet (testnet #5
   reads not provable, testnet #9 after Make it clean, mainnet #2 after its 1Click swap) and the
   claim checker. "Why it is different" now says what it is measured against: handing over a seed
