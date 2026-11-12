@@ -26,5 +26,7 @@ describe("routes", () => {
     expect(switchPath("/", MAINNET)).toBe("/mainnet");
     expect(switchPath("/satchel/4", MAINNET)).toBe("/mainnet");
     expect(switchPath("/mainnet/satchel/1", TESTNET)).toBe("/");
+    // A DAO's board too: account ids differ by network.
+    expect(switchPath("/dao/satchel-bounty.sputnikv2.testnet", MAINNET)).toBe("/mainnet");
   });
 });
