@@ -73,12 +73,16 @@ another wallet or marketplace, calls the contract directly, and the contract tak
 | The NFT | Owned by the receiver |
 | The address | The same `0x` address on all 16 chains: it comes from the path `satchel/<id>`, which never changes |
 | The right to sign | The receiver's alone. Your next `sign_evm` is refused: `Satchel: only the token's owner can do this` |
-| The coins and tokens at the address | Untouched, now controlled by the receiver |
+| The coins and tokens at the address | Untouched, now controlled by the receiver for anything signed from now on. A transaction, an approval or a raw signature (a permit, say) signed before the transfer can still move them. Checks 2 and 3 of the report look for the first two, and any raw signature fails check 4 |
 | The signing record | Unchanged. It belongs to the token and only grows; the receiver inherits it |
 | Any listing | Ended. Every transfer path removes the token's listing |
 
 Because the record stays with the token, a satchel you give away carries its history. If you are on the
 receiving end of a satchel, read its report at [Verify](/verify) first, as you would before buying.
+
+Only `buy` ties your payment to the record you checked. If you pay another way and receive the satchel
+by transfer, nothing froze signing in between: read the report again once it reaches you, and use `buy`
+for anything of value.
 
 ## In a terminal
 

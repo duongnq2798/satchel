@@ -25,27 +25,77 @@ const SATCHEL_WAY = [
   "You check before you pay, and the purchase names what you checked",
 ];
 
-/** Questions a buyer asks, answered for a seed phrase, an ERC-6551 token-bound account and a satchel. */
-const COMPARISON: { question: string; answers: [string, string, string]; tones: [Tone, Tone, Tone] }[] = [
+type Column = { head: string; label: string; ours?: boolean };
+
+/**
+ * The ways to hand over a wallet the table compares: its header, and the label each answer gets on a phone.
+ * Four columns: change this tuple, Answers and TABLE_GRID together.
+ */
+const COLUMNS: [Column, Column, Column, Column] = [
+  { head: "Send the seed phrase", label: "Seed phrase" },
+  { head: "Token-bound account (ERC-6551)", label: "Token-bound account" },
+  { head: "NEAR's NFT Chain Keys", label: "NFT Chain Keys" },
+  { head: "Satchel", label: "Satchel", ours: true },
+];
+
+/** Where the token-bound account and NFT Chain Keys answers come from, at the commits they were read. */
+const TOKENBOUND_SOURCE = "https://github.com/tokenbound/contracts/blob/bce75f985558fad3d06ee1b86f224f0cfb783631/src/AccountV3.sol";
+const NFT_CHAIN_KEYS_SOURCE =
+  "https://github.com/near/multichain-gas-station-contract/blob/2d43bf0129a81bfe0ca66814cdf696545fe03b9d/nft_key/src/lib.rs";
+
+type Answer = [text: string, tone: Tone];
+/** One answer per entry of COLUMNS, in its order. */
+type Answers = [Answer, Answer, Answer, Answer];
+
+/** The table's desktop grid: one track for the question, then one per entry of COLUMNS. Change it with COLUMNS. */
+const TABLE_GRID = "lg:grid-cols-[1.2fr_1fr_1fr_1fr_1.2fr]";
+
+/** Questions a buyer asks, answered in the order of COLUMNS. */
+const COMPARISON: { question: string; answers: Answers }[] = [
   {
     question: "Can the seller keep a working key?",
-    answers: ["Yes, a copy, and you can't tell", "No: the NFT's owner controls the account", "No: no one holds the key; the MPC network signs for the owner"],
-    tones: ["bad", "ok", "ok"],
+    answers: [
+      ["Yes, a copy, and you can't tell", "bad"],
+      ["No: the NFT's owner controls the account", "ok"],
+      ["No: the MPC network signs, and a transfer revokes every account approved to sign", "ok"],
+      ["No: no one holds the key; the MPC network signs for the owner", "ok"],
+    ],
+  },
+  {
+    question: "Can a signature from before the sale still be used after it?",
+    answers: [
+      ["Yes, and nothing shows what was signed", "bad"],
+      ["No: the account checks the current owner when it runs", "ok"],
+      ["Yes: it signs any 32-byte hash and keeps no record of what it signed", "bad"],
+      ["Yes, a signed transaction until its nonce is spent, which check 2 reads; any raw signature makes the satchel unprovable", "warn"],
+    ],
   },
   {
     question: "Can the seller empty it between your check and your purchase?",
-    answers: ["Yes", "Unless the marketplace checks the account's state", "No: listing freezes signing, and buy names the version you checked"],
-    tones: ["bad", "warn", "ok"],
+    answers: [
+      ["Yes", "bad"],
+      ["Unless the marketplace checks the account's state", "warn"],
+      ["Yes: nothing freezes signing while it is for sale", "bad"],
+      ["No, once the report is clean: listing freezes signing, and buy names the version you checked", "ok"],
+    ],
   },
   {
     question: "Can you see the approvals the seller left?",
-    answers: ["Only by scanning every token contract", "Only by scanning every token contract", "Yes: each one is in the record, and the report reads it on chain"],
-    tones: ["bad", "warn", "ok"],
+    answers: [
+      ["Only the ones made so far: the seller keeps the key and can approve more after you look", "bad"],
+      ["Only by reading each chain's Approval logs", "warn"],
+      ["Only by reading each chain's Approval logs", "warn"],
+      ["Yes: each one is in the record, and the report reads it on chain", "ok"],
+    ],
   },
   {
     question: "Does one sale cover many chains?",
-    answers: ["Yes, if the same key is used everywhere", "One chain per NFT, unless a bridge says who owns it", `Yes: ${CHAINS.length} EVM chains, one NEAR transaction`],
-    tones: ["warn", "warn", "ok"],
+    answers: [
+      ["Yes, if the same key is used everywhere", "warn"],
+      ["One chain per NFT, unless a bridge says who owns it", "warn"],
+      ["Yes: its keys sign for any chain that uses secp256k1", "ok"],
+      [`Yes: ${CHAINS.length} EVM chains, one NEAR transaction`, "ok"],
+    ],
   },
 ];
 
@@ -70,7 +120,28 @@ $ echo $?
 const FAQ: { q: string; a: ReactNode }[] = [
   {
     q: "Who holds a satchel's key?",
-    a: "No one. NEAR's MPC network holds it in shares and signs with it only when the Satchel contract asks, and the contract asks only for the NFT's current owner. The contract itself has no access keys, so nobody can change that rule.",
+    a: "No one. NEAR's MPC network holds it in shares and signs with it only when the Satchel contract asks, and the contract asks only for the NFT's current owner. The contract itself has no access keys, so no one can change its code. The MPC network is trusted, though: enough colluding nodes could sign with any satchel's key, and an upgrade of the MPC contract that its participants vote for could change how keys are derived or who may ask for a signature. The address is a plain EOA (externally owned account), not a smart account: it has no extra signers, session keys, recovery keys or admin. sign_evm builds only EIP-1559 transactions, so it can't sign an EIP-7702 authorization. sign_raw signs any 32 bytes, so it could. The record counts every raw signature, and even one keeps the report from reading clean.",
+  },
+  {
+    q: "Who sells a wallet? Why not just send the assets?",
+    a: (
+      <>
+        If the assets are all you want to hand over, send them. A satchel is for when the address itself has to change
+        hands: a payee that a contract fixes for good, such as a royalty receiver no one can change, whose income
+        then changes hands with it; a team&apos;s or a DAO&apos;s address, passed on when someone leaves; an estate, with a
+        DAO or a multisig as owner and a vote to hand it on. The demand is narrow. Few people sell a wallet whole, and
+        much of what makes an address worth buying, such as airdrop eligibility, a reputation score or an identity
+        check, is bound to a person and is the wrong thing to sell.{" "}
+        <Link href="/docs/use-cases" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+          Use cases
+        </Link>{" "}
+        has each one, and when Satchel is the wrong tool.
+      </>
+    ),
+  },
+  {
+    q: "What if I pay the seller some other way?",
+    a: "Only buy ties your payment to the record you checked. If you pay another way and receive the satchel by transfer, nothing froze signing in between: read the report again once it reaches you, and use buy for anything of value.",
   },
   {
     q: "Do I need an EVM wallet?",
@@ -105,6 +176,7 @@ const LIMITS = [
   "Calls the contract can't classify, such as swaps and multicalls, make a satchel unprovable for every later owner. The report says so.",
   "secp256k1 only for now: EVM chains through sign_evm, anything else through sign_raw, which counts as opaque.",
   "Not audited by anyone outside the project. Internal reviews only: two of the contract, one of them adversarial, whose fixes its tests cover, and two each of the web app and the mainnet path.",
+  "NEAR's MPC network is trusted: enough colluding nodes could sign with any satchel's key, and an upgrade its participants vote for could change how keys are derived or who may ask for a signature.",
 ];
 
 function Eyebrow({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
@@ -162,7 +234,7 @@ export default function Home() {
 
         <LiveStats />
 
-        <section className="reveal">
+        <section>
           <Eyebrow>The problem</Eyebrow>
           <H2>Selling a wallet is easy to fake.</H2>
           <p className="mt-4 max-w-2xl text-ink-2">
@@ -203,7 +275,7 @@ export default function Home() {
 
         <SaleFlow />
 
-        <section className="reveal">
+        <section>
           <Eyebrow>Beyond a sale</Eyebrow>
           <H2>Four more things to open.</H2>
           <p className="mt-4 max-w-2xl text-ink-2">
@@ -249,31 +321,46 @@ export default function Home() {
           </ul>
         </section>
 
-        <section className="reveal">
+        <section>
           <Eyebrow>Why not just…</Eyebrow>
           <H2>Ways to hand over a wallet.</H2>
           <div className="mt-10 overflow-hidden rounded-2xl border border-line bg-card">
-            <div className="hidden grid-cols-[1.3fr_1fr_1fr_1.2fr] gap-4 border-b border-line px-6 py-4 text-sm text-muted md:grid">
+            <div className={`hidden gap-4 border-b border-line px-6 py-4 text-sm text-muted lg:grid ${TABLE_GRID}`}>
               <span>A buyer asks</span>
-              <span>Send the seed phrase</span>
-              <span>Token-bound account (ERC-6551)</span>
-              <span className="font-medium text-ink">Satchel</span>
+              {COLUMNS.map((c) => (
+                <span key={c.head} className={c.ours ? "font-medium text-ink" : ""}>
+                  {c.head}
+                </span>
+              ))}
             </div>
             {COMPARISON.map((row) => (
-              <div key={row.question} className="grid gap-3 border-b border-line px-6 py-5 last:border-b-0 md:grid-cols-[1.3fr_1fr_1fr_1.2fr] md:gap-4">
+              <div key={row.question} className={`grid gap-3 border-b border-line px-6 py-5 last:border-b-0 lg:gap-4 ${TABLE_GRID}`}>
                 <p className="font-medium">{row.question}</p>
-                {row.answers.map((answer, i) => (
-                  <p key={answer + i} className={`text-sm ${TONE_TEXT[row.tones[i]]} ${i === 2 ? "font-medium" : ""}`}>
-                    <span className="text-muted md:hidden">{["Seed phrase: ", "Token-bound account: ", "Satchel: "][i]}</span>
-                    {answer}
+                {row.answers.map(([text, tone], i) => (
+                  <p key={COLUMNS[i].head} className={`text-sm ${TONE_TEXT[tone]} ${COLUMNS[i].ours ? "font-medium" : ""}`}>
+                    <span className="text-muted lg:hidden">{COLUMNS[i].label}: </span>
+                    {text}
                   </p>
                 ))}
               </div>
             ))}
           </div>
+          <p className="mt-4 max-w-3xl text-sm text-ink-2">
+            The token-bound account answers follow{" "}
+            <a href={TOKENBOUND_SOURCE} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+              Tokenbound&apos;s AccountV3
+            </a>
+            , which reads the NFT&apos;s current owner whenever it checks a signature. The NFT Chain Keys answers follow{" "}
+            <a href={NFT_CHAIN_KEYS_SOURCE} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
+              the nft_key contract
+            </a>{" "}
+            in near/multichain-gas-station-contract: <code className="font-mono text-[0.9em]">ckt_sign_hash</code> signs any
+            32-byte payload for the owner or an account approved with <code className="font-mono text-[0.9em]">ckt_approve</code>,
+            every transfer revokes those approvals, and the contract keeps no record of what it signed.
+          </p>
         </section>
 
-        <section className="reveal rounded-[2rem] bg-ink px-5 py-12 text-paper sm:px-10 sm:py-16">
+        <section className="rounded-[2rem] bg-ink px-5 py-12 text-paper sm:px-10 sm:py-16">
           <Eyebrow dark>Four checks before you buy</Eyebrow>
           <H2>Don't trust the seller. Or us.</H2>
           <p className="mt-4 max-w-2xl text-paper/70">
@@ -309,7 +396,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="reveal">
+        <section>
           <Eyebrow>Read it on chain</Eyebrow>
           <H2>Every claim here has a transaction.</H2>
           <ul className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
@@ -331,7 +418,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section id="developers" className="reveal scroll-mt-24">
+        <section id="developers" className="scroll-mt-24">
           <Eyebrow>For developers</Eyebrow>
           <H2>Check a satchel from anywhere.</H2>
           <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
@@ -367,7 +454,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="reveal grid gap-12 md:grid-cols-2">
+        <section className="grid gap-12 md:grid-cols-2">
           <div>
             <Eyebrow>Built on NEAR</Eyebrow>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight">What it stands on</h2>
@@ -419,7 +506,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="reveal">
+        <section>
           <Eyebrow>Questions</Eyebrow>
           <H2>What buyers ask.</H2>
           <div className="mt-10 divide-y divide-line border-y border-line">
@@ -437,7 +524,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="reveal rounded-[2rem] bg-leather px-6 py-14 text-center text-paper sm:py-20">
+        <section className="rounded-[2rem] bg-leather px-6 py-14 text-center text-paper sm:py-20">
           <h2 className="mx-auto max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-6xl">
             Check one yourself.
           </h2>

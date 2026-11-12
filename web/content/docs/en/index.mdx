@@ -2,7 +2,9 @@ Satchel is an NFT on NEAR that is a wallet. Each satchel controls one address on
 [NEAR Chain Signatures](https://docs.near.org/chain-abstraction/chain-signatures). Whoever owns the NFT
 is the only one who can have that address sign, so selling the NFT sells the wallet, on every chain at
 once. The contract keeps a public record of everything the address's key signs, so before you pay, you
-can check on chain that the seller kept nothing back.
+can check on chain what the seller could have kept back. The
+[report](/docs/concepts/clean-transfer-report#what-a-clean-report-doesnt-say) proves what that key signed,
+not powers inside a token's own contract.
 
 <Callout type="danger" title="Not audited">
 No third party has reviewed Satchel's code. On NEAR mainnet a satchel's address holds real funds: keep in

@@ -61,7 +61,7 @@ export const DOCS: DocSection[] = [
         slug: "concepts/satchels-and-addresses",
         title: "Satchels and their addresses",
         nav: "Satchels and addresses",
-        description: "A satchel is a NEAR NFT whose key NEAR's MPC network derives from a fixed path: one address on 16 EVM chains, controlled by whoever owns the token.",
+        description: "A satchel is a NEAR NFT whose key NEAR's MPC network derives from a fixed path: one address on 16 EVM chains. Only the token's owner can have anything new signed for that address.",
       },
       {
         slug: "concepts/signing-record",

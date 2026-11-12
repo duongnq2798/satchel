@@ -96,7 +96,7 @@ const SALE = [
   { step: "List", call: "list(N, price)", text: "Signing freezes. The listing pins the record's version v." },
   { step: "Check", call: "four checks", text: "The buyer reads the record and each chain at a finalized block." },
   { step: "Buy", call: "buy(N, v, price)", text: "Fails if v or the price changed. Otherwise the NFT moves and the seller is paid." },
-  { step: "After", call: "sign_evm by the seller", text: "Refused: only the token's owner can sign. The buyer controls every chain." },
+  { step: "After", call: "sign_evm by the seller", text: "Refused: only the owner, now the buyer, can have anything new signed, on every chain." },
 ];
 
 export function SaleDiagram() {

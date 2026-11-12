@@ -425,6 +425,48 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- Lines that said owning the NFT gives full control of its address now say what is true: the NFT's
+  owner is the only one who can have anything new signed for the address, and a transaction, an
+  approval or a raw signature signed before the sale can still move its assets, which is what the
+  report checks. This covers `satchels-and-addresses.mdx`, `transfer.mdx`, `buy.mdx`, `sell.mdx`,
+  `sale-on-testnet.mdx`, the docs FAQ, the sale diagram's last step (on How it works, Listings and
+  sales and the testnet sale tutorial), the "Mint your first satchel" card on `/satchels`, the nav
+  text that `llms.txt` copies and the site's meta description. The docs home (`index.mdx`) and the
+  summary line of `llms.txt` no longer say a buyer can check that nothing was kept back: a buyer can
+  check what the seller could have kept back, and the report proves what the key signed, not powers
+  inside a token's own contract. A satchel's page heads its address "One address on 16 EVM chains,
+  signed for only when this NFT's owner asks", where it said "controlled by whoever owns this NFT";
+  `mint-and-fund.mdx` quotes the new heading.
+- The landing page's "Ways to hand over a wallet." is fairer. It adds a column for NEAR's NFT Chain
+  Keys and a row, "Can a signature from before the sale still be used after it?": no for a
+  token-bound account, which checks the current owner when it runs; yes for a satchel, until the
+  nonce is spent, which check 2 reads. Satchel's answer to emptying it between your check and your
+  purchase now starts "No, once the report is clean". On seeing the approvals the seller left, "Only
+  by scanning every token contract" is gone: the token-bound account's and NFT Chain Keys' answer is
+  "Only by reading each chain's Approval logs", and the seed phrase's is "Only the ones made so far:
+  the seller keeps the key and can approve more after you look". A note under the table links the
+  token-bound account and NFT Chain Keys code the answers come from, at the commits read. On a phone
+  each answer's label comes from the list of columns instead of three fixed labels, and the table
+  turns into columns at `lg` instead of `md`.
+- The landing page's limits add a fifth: NEAR's MPC network is trusted. Enough colluding nodes could
+  sign with any satchel's key, and an upgrade its participants vote for could change how keys are
+  derived or who may ask for a signature. The FAQ answer "Who holds a satchel's key?", on the landing
+  page and in the docs, no longer says no one can change that rule. It says the contract's code can't
+  change but the MPC network is trusted, in the same words, and that a satchel's address is a plain
+  EOA, not a smart account: `sign_evm` can't sign an EIP-7702 authorization, and `sign_raw` can, which
+  the record counts. "What Satchel trusts" in `security.mdx` says what an upgrade could change too.
+- The landing page's FAQ adds "Who sells a wallet? Why not just send the assets?", with the README's
+  narrow-demand answer and a link to the use cases, and "What if I pay the seller some other way?":
+  only `buy` ties your payment to the record you checked. The docs FAQ says both, and `transfer.mdx`
+  says the second.
+- A satchel's report card has a scope line under its intro: the report proves what the satchel's key
+  signed, not powers inside a token's own contract, and it trusts NEAR's MPC network. It links to
+  "What a clean report doesn't say".
+- The "What's inside" card on a satchel's page names NFTs (ERC-721, ERC-1155) among the tokens it
+  doesn't read.
+- `use-cases.mdx` no longer says anyone with testnet NEAR can buy satchel #4 or #6. Both are demo
+  satchels the app won't buy until 2026-11-25; to see a sale through, mint a satchel, list it and buy
+  it from a second testnet wallet.
 - 1Click in the app: a history line for a swap 1Click calls `SUCCESS` links the payout's
   transaction on the destination chain's explorer, the first EVM hash in its status's
   `swapDetails.destinationChainTxHashes` (satchel #2's line links `0x417322bd…` on Arbiscan); a line
@@ -580,6 +622,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- On the landing page, satchel #3's 78-digit allowance in "Try to cheat the buyer." ran out of its
+  row. At 390 px the whole page scrolled sideways (scrollWidth 656); at 1600 px the line spilled 23 px
+  past its highlighted row. In `trick-explorer.tsx` the line now wraps anywhere
+  (`[overflow-wrap:anywhere]`), and its flex item can shrink (`min-w-0`).
+- Nine of the landing page's 13 sections faded in with a scroll-driven animation (`.reveal` in
+  `globals.css`) and stayed at opacity 0 in anything that showed the page without scrolling it: a
+  full-page screenshot, a print. The animation and its class are gone; the sections show at once.
+- On a 390 px phone the header's nav could wrap onto a second line once its font loaded, which moved
+  the page down. Its links are 12 px apart below `sm` (`site-header.tsx`), 16 px from `sm` up.
+- Selected text disappeared on the dark panels: the code blocks on the landing and `/mainnet` pages,
+  the landing page's satchel card, its "Don't trust the seller. Or us." and "Check one yourself."
+  sections, "Try to cheat the buyer.", the testnet and mainnet banners, and the contract box in the
+  docs' architecture diagram. `::selection` in `globals.css` set only a gold-soft background, and
+  their paper text on it was 1.0 to 1.1:1. Selected text now turns ink: 14.5:1, and 10.8:1 in the docs' dark theme.
 - A satchel's history, on its page and from `satchel-nft history`, failed whenever FastNEAR's
   transaction index rate-limited one read. On 2026-11-11 `tx.main.fastnear.com` answered 429 to about
   half the requests, at one every 5 s, and mainnet satchel #2's page showed `Failed to fetch` until
