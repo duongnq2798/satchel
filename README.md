@@ -367,7 +367,7 @@ the record changed).
    now if you skipped it):
 
    ```bash
-   npm test -w satchel-nft             # 231 tests in 18 files: 6 s here
+   npm test -w satchel-nft             # 235 tests in 18 files: 6 s here
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
@@ -1550,7 +1550,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 231 package tests, 308 app tests
+npm run typecheck && npm test              # both workspaces: 235 package tests, 308 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1577,8 +1577,8 @@ re-checks the demo every day until judging ends; `verify` doesn't wait for it.
 | Watch | Claims and site | From 2026-11-25, when judging and the demo freeze end, nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
 The tests, as of 2026-11-12: 64 Rust unit tests in
-[`tests.rs`](contracts/satchel/src/tests.rs); 231 package tests in 18 files: `clean.test.ts` 31, `evm.test.ts` 26,
-`dao.test.ts` 26, `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `history.test.ts` 14,
+[`tests.rs`](contracts/satchel/src/tests.rs); 235 package tests in 18 files: `clean.test.ts` 31, `evm.test.ts` 26,
+`dao.test.ts` 26, `report.test.ts` 26, `holder.test.ts` 15, `satchel.test.ts` 14, `history.test.ts` 14,
 `near-cli.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `tx-index.test.ts` 7, `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and
 `limit.test.ts` 2;

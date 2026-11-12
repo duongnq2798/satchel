@@ -232,7 +232,7 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  231 passed (231)` for `satchel-nft`, then
+Each runs in both workspaces. You should see `Tests  235 passed (235)` for `satchel-nft`, then
 `Tests  91 passed (91)` for the app, then no type errors.
 
 ```bash
@@ -313,7 +313,7 @@ of these checks.
 | Only 16 chain ids can be signed for | `SUPPORTED_CHAINS` in `contracts/satchel/src/evm.rs` | `sign_evm_refuses_an_unsupported_chain`, `every_supported_chain_can_be_signed_for` |
 | Check 1: the contract can't sign behind the record | `contractCheck`, `contractFacts` in `packages/satchel-nft/src/report.ts` | `packages/satchel-nft/src/report.test.ts` |
 | Check 2: no signed transaction is still pending (nonce at a finalized block) | `pendingCheck`, `finalizedAt` in `report.ts` | `report.test.ts` (`pendingCheck`; `finalizedAt` reads live chains and has no unit test) |
-| Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `packages/satchel-nft/src/approvals.ts` | `approvals.test.ts` |
+| Check 3: no approval left behind | `approvalsCheck` in `report.ts`, `approvalLiveness` in `packages/satchel-nft/src/approvals.ts` | `approvals.test.ts`, `report.test.ts` |
 | Check 4: nothing the record can't explain | `countersCheck` in `report.ts` | `report.test.ts` |
 | Every EVM RPC must report the chain id it is configured for | `verifiedClient` in `packages/satchel-nft/src/evm.ts` | none yet |
 | A satchel's address comes from the MPC network's root key pinned in the package, the contract and the path, never from an RPC answer | `deriveMpcKey`, `tokenAddress` in `packages/satchel-nft/src/evm.ts`, `mpcRootKey` in `config.ts` | `evm.test.ts`: the keys of testnet satchels #1 to #8 and mainnet #1, against `__fixtures__/derived-keys.json`; on chain, `node scripts/check-claims.mjs` |
