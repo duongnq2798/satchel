@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- A public bounty board for any Sputnik DAO at `/dao/<account>` (and `/mainnet/dao/<account>`), read
+  live with no wallet. It shows the DAO's roles and its approval tiers in words, from its policy
+  (each role's vote rule for each proposal kind); open bounties and their claims; finished bounties
+  with their `BountyDone` proposal, voters, roles and payout; each contributor's record, every line
+  traced to a proposal, with role changes; and the satchels the DAO owns. A `BountyDone` filed by
+  someone other than the contributor is marked as such, a proposal whose voting period is over reads
+  so, and amounts are exact. Each card fails on its own. A satchel owned by a Sputnik DAO links its
+  board. In the package, `sputnikDao` gains readers for the DAO's config, version, proposals,
+  bounties and claims, and the transaction index reader is shared.
 - `tools/mainnet-sale-record.mjs`, for a sale of mainnet satchel #3 that has not run yet. It signs
   nothing and holds no key. `gate` says when the buyer owns the satchel at a final block and it
   isn't listed, and refuses the demo satchels. `find-refused` finds the old owner's failed
