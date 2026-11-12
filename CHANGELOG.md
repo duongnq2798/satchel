@@ -500,6 +500,10 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The NFT track's example-prompt table in the README has two columns: each Satchel cell now ends
+  with where to look, and the first column's heading keeps to one line. In a 1280-pixel window the
+  requirement column was 92 pixels wide, a word or two per line, and the table scrolled sideways;
+  now it is 256 pixels and the table fits.
 - The demo post is up: posted on X on 2026-11-12 at 14:16 UTC from @satchelnfthq, with the 2:06
   video ([the post](https://x.com/satchelnfthq/status/2120883522059837618)). The account has
   Premium, so the post is long: `docs/submission/x-post.txt` is now its text, and
