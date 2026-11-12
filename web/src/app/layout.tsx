@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://satchelnft.xyz"),
   title: { default: "Satchel: an NFT that is one wallet on 16 EVM chains", template: "%s · Satchel" },
   description:
-    "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Sell the NFT and the wallet moves with it; a public signing record proves what the seller could have kept back.",
+    "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Only its owner can have anything new signed; a public record shows a buyer what was signed before.",
   // With icons set here, Next.js links no icon file by itself: apple-icon.png beside this file is named
   // here. favicon.ico is the one it always links.
   icons: { icon: "/icon.svg", apple: "/apple-icon.png" },

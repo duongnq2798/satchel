@@ -6,14 +6,35 @@ right now, [Troubleshooting](/docs/troubleshooting) is faster.
 ### What is a satchel?
 
 An NFT on NEAR that controls one address on 16 EVM chains. Only the NFT's owner can have the
-contract sign with that address's key, so whoever holds the NFT controls the address everywhere.
+contract sign with that address's key, so whoever holds the NFT is the only one who can have anything
+new signed for the address, on every chain. A transaction, an approval or a raw signature (a permit,
+say) signed before they held it can still move its assets. The
+[clean transfer report](/docs/concepts/clean-transfer-report) checks that every signed nonce is spent
+and every approval revoked, and any raw signature makes the satchel not provable.
 [How it works](/docs/how-it-works) walks through it.
 
 ### Who holds a satchel's key?
 
 No one. NEAR's MPC network holds it in shares and signs with it only when the Satchel contract asks,
 and the contract asks only for the token's current owner. The contract account has no access keys,
-so no one can change that rule.
+so no one can change its code. The MPC network is trusted, though: enough colluding nodes could sign
+with any satchel's key, and an upgrade of the MPC contract that its participants vote for could change
+how keys are derived or who may ask for a signature ([Threat model](/docs/security/threat-model)).
+
+The address is a plain EOA (externally owned account), not a smart account: it has no extra signers,
+session keys, recovery keys or admin. `sign_evm` builds only EIP-1559 transactions, so it can't sign
+an EIP-7702 authorization. `sign_raw` signs any 32 bytes, so it could. The record counts every raw
+signature, and even one keeps the report from reading <Verdict v="clean" />.
+
+### Who sells a wallet? Why not just send the assets?
+
+If the assets are all you want to hand over, send them. A satchel is for when the address itself has
+to change hands: a payee that a contract fixes for good, such as a royalty receiver no one can change,
+whose income then changes hands with it; a team's or a DAO's address, passed on when someone leaves;
+an estate, with a DAO or a multisig as owner and a vote to hand it on. The demand is narrow. Few
+people sell a wallet whole, and much of what makes an address worth buying, such as airdrop
+eligibility, a reputation score or an identity check, is bound to a person and is the wrong thing to
+sell. [Use cases](/docs/use-cases) has each one, and when Satchel is the wrong tool.
 
 ### Is the address the same on every chain?
 
@@ -52,10 +73,17 @@ the record can't explain. It says nothing about the assets themselves.
 
 ### Can the seller empty the satchel after I check it?
 
-Not through the satchel's key. Listing freezes signing, and `buy` names the record version you
-checked. If the seller delists and signs anything, the version goes up and your purchase fails,
-with your NEAR refunded. Testnet transaction `7HQPu9qe…` shows it.
+Not with anything new signed with the satchel's key. Listing freezes signing, and `buy` names the
+record version you checked. If the seller delists and signs anything, the version goes up and your
+purchase fails, with your NEAR refunded. Testnet transaction `7HQPu9qe…` shows it. What was signed
+before the check is another matter: a signed transaction still pending, an approval still live or a
+raw signature (a permit, say) can move assets at any time. Checks 2 and 3 of the report look for the
+first two, and any raw signature fails check 4.
 [Listings and sales](/docs/concepts/listings-and-sales) covers the rules.
+
+Only `buy` ties your payment to the record you checked. If you pay another way and receive the
+satchel by transfer, nothing froze signing in between: read the report again once it reaches you, and
+use `buy` for anything of value.
 
 ### Can the previous owner still sign after a sale?
 

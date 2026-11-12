@@ -70,7 +70,7 @@ function TokenSkeleton({ tokenId }: { tokenId: string }) {
         <Placeholder className="mt-2 h-5 w-full max-w-sm" />
       </div>
       <Card>
-        <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, controlled by whoever owns this NFT</p>
+        <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, signed for only when this NFT's owner asks</p>
         <AddressPending />
       </Card>
       <ReportCard report={undefined} loading error={null} onRecheck={() => {}} />
@@ -191,7 +191,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       )}
 
       <Card>
-        <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, controlled by whoever owns this NFT</p>
+        <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, signed for only when this NFT's owner asks</p>
         {deployment.data ? (
           <>
             <div className="mt-1 flex items-center justify-between gap-3">

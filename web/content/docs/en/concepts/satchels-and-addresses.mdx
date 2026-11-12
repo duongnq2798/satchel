@@ -102,7 +102,8 @@ The contract asks the MPC network to sign for a token only from `sign_evm` and `
 start by checking that the caller owns the token, attached exactly 1 yoctoNEAR, prepaid at least 50 TGas,
 and that the token isn't listed. So:
 
-- **whoever owns the NFT is the only one who can move what's at its address**, on every chain;
+- **whoever owns the NFT is the only one who can have anything new signed for its address**, on every
+  chain;
 - **transferring the NFT transfers the address.** The moment `nft_transfer` lands, the new owner can
   sign and the previous one can't. Testnet transaction
   [`GqFsnmFL…`](https://testnet.nearblocks.io/txns/GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU) is a

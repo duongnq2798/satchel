@@ -79,8 +79,8 @@ export default function YourSatchels() {
           <h2 className="font-display text-xl font-semibold">Mint your first satchel</h2>
           <p className="mt-1 text-sm text-muted">
             You get an address derived for it by NEAR's MPC network. Fund it on any{" "}
-            {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for sale; whoever
-            owns the NFT controls it.
+            {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for sale; only the
+            NFT's owner can have anything new signed for it.
           </p>
         </Card>
       )}
