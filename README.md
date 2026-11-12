@@ -827,6 +827,12 @@ What is left (the MPC network itself, the RPCs the report reads, powers built in
 
 ## Built on NEAR
 
+On [satchelnft.xyz](https://satchelnft.xyz), the landing page's "Built with" section names eight things
+Satchel is built with, most of them from this table, and links each to where it ran: a transaction, a
+satchel's holder room, the CI run or the npm release. The site's footer shows NEAR's "Built on NEAR"
+badge, NEAR's own file, linked to near.org. The other projects are named in text, without their logos: Satchel uses them, and none of
+them is a partner or endorses it.
+
 | NEAR technology | How Satchel uses it | Where |
 | --- | --- | --- |
 | **Chain Signatures** (MPC contract `v1.signer` on mainnet, `v1.signer-prod.testnet` on testnet) | Every satchel's key is derived with `predecessor` = the Satchel contract, `path` = `satchel/<id>` and domain 0 (secp256k1). `sign_evm` and `sign_raw` call the MPC contract's `sign` with `payload_v2: { Ecdsa: <hash> }`, attaching 1 yoctoNEAR and the rest of the transaction's gas. The app derives a satchel's key itself, as the `derived_public_key` view does, from the MPC contract's root key pinned in the package, and recovers the signer from every signature before it broadcasts | `request_signature` in [`lib.rs`](contracts/satchel/src/lib.rs), `tokenAddress` in [`evm.ts`](packages/satchel-nft/src/evm.ts), [`send.ts`](packages/satchel-nft/src/send.ts) |

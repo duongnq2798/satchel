@@ -211,6 +211,28 @@ export const TOUR: readonly TourCard[] = [
   },
 ];
 
+/** The transaction that deleted the mainnet contract's last access key (deployments/mainnet.json). */
+const MAINNET_LOCK_TX = "Dw29ZbeRNSLgyoeXGEdnDhxCMWB7L3w4vhKpYqmN9qqE";
+
+export interface BuiltWith extends TxLink {
+  name: string;
+}
+
+/**
+ * What the landing page says Satchel is built with, each linked to where it ran. Names in text, not logos:
+ * most of these marks need their owner's permission, and none of these projects is a partner.
+ */
+export const BUILT_WITH: readonly BuiltWith[] = [
+  { name: "NEAR Chain Signatures", label: "sign_evm on mainnet", href: nearTxUrl(MAINNET, FIRST_SEND.signTx) },
+  { name: "NEAR Intents 1Click", label: "USDC paid out on Arbitrum One", href: evmTxUrl(ARBITRUM_ONE, ONECLICK_EXIT.payoutTx) },
+  { name: "Sputnik DAO", label: "a testnet vote that signed", href: nearTxUrl(TESTNET, DAO_RUN.signVote) },
+  { name: "NEP-413 and NEAR Connect", label: "testnet satchel #4's room", href: "/satchel/4/room" },
+  { name: "Locked NEP-171 contract", label: "the mainnet lock: 0 keys left", href: nearTxUrl(MAINNET, MAINNET_LOCK_TX) },
+  { name: "NEP-330 reproducible build", label: "the CI run", href: MAINNET.build.ciRun },
+  { name: "satchel-nft on npm", label: "version 0.2.0", href: "https://www.npmjs.com/package/satchel-nft/v/0.2.0" },
+  { name: "EVM chains", label: "a send on Base", href: evmTxUrl(BASE, FIRST_SEND.sendTx) },
+];
+
 export interface DemoSatchel {
   network: NetworkId;
   tokenId: string;

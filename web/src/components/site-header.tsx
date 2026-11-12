@@ -99,6 +99,17 @@ function currentFor(href: string, pathname: string | null): "page" | "true" | un
   return undefined;
 }
 
+/** Satchel's mark, as public/icon.svg draws it, in the theme's ink and gold so it shows on the docs' dark theme too. */
+export function SatchelMark() {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className="size-7">
+      <rect x="4" y="10" width="24" height="18" rx="4" className="fill-ink" />
+      <path d="M11 10V7a5 5 0 0 1 10 0v3" strokeWidth="3" fill="none" className="stroke-ink" />
+      <circle cx="16" cy="19" r="3" className="fill-gold" />
+    </svg>
+  );
+}
+
 export function SiteHeader() {
   const net = useNetwork();
   const pathname = usePathname();
@@ -107,7 +118,7 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-(--page-max) flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <Link href={appPath(net, "/")} className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
-            <img src="/icon.svg" alt="" className="size-7" />
+            <SatchelMark />
             Satchel
           </Link>
           <nav className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-2 sm:gap-x-4">
