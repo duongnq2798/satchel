@@ -74,9 +74,9 @@ export default async function DocPage({ params }: Props) {
         </nav>
         <header className="mb-8 max-w-[46rem]">
           <h1 className="font-display text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">{page.title}</h1>
-          <p className="mt-3 text-lg leading-relaxed text-ink-2">{page.description}</p>
+          <p className="mt-3 max-w-[34em] text-lg leading-relaxed text-ink-2">{page.description}</p>
           {page.repoFile && (
-            <p className="mt-3 text-sm text-muted">
+            <p className="mt-4 text-sm text-muted">
               This page is <a href={`${REPO_URL}/blob/main/${page.repoFile}`} className="underline underline-offset-4 hover:text-ink">{page.repoFile}</a> from the repository, rendered as it is, so the two never differ.
             </p>
           )}
@@ -113,7 +113,7 @@ export default async function DocPage({ params }: Props) {
           </nav>
         </div>
       </article>
-      <aside className="hidden xl:block">
+      <aside aria-label="Page tools" className="hidden xl:block">
         <div className="sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto">
           <Toc entries={toc} />
           <div className="mt-6 border-t border-line pt-4 text-sm">

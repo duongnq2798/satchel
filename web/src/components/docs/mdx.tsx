@@ -52,11 +52,24 @@ function Pre({ children }: ComponentProps<"pre">) {
   return <CodeBlock code={text} lang={lang} title={code.props["data-title"]} />;
 }
 
-function Table(props: ComponentProps<"table">) {
+/** A table scrolls on its own; its name comes from the heading above it (remarkTableNames). */
+function Table({ "data-name": name, ...props }: ComponentProps<"table"> & { "data-name"?: string }) {
   return (
-    <div className="docs-table" role="region" aria-label="Table" tabIndex={0}>
+    <div className="docs-table" role="region" aria-label={name ? `Table: ${name}` : "Table"} tabIndex={0}>
       <table {...props} />
     </div>
+  );
+}
+
+/**
+ * A cell's text wraps at about 70 characters, as a paragraph's does (WCAG 1.4.8). A code span that
+ * can't wrap widens its cell instead of running over the next one, and the table scrolls.
+ */
+function Cell({ children, ...props }: ComponentProps<"td">) {
+  return (
+    <td {...props}>
+      <div className="min-w-min max-w-[34em]">{children}</div>
+    </td>
   );
 }
 
@@ -69,8 +82,9 @@ const CALLOUT = {
 
 export function Callout({ type = "note", title, children }: { type?: keyof typeof CALLOUT; title?: string; children: ReactNode }) {
   const c = CALLOUT[type];
+  // A note, not a landmark: a page can hold several callouts with the same title.
   return (
-    <aside className={`docs-callout not-prose-margins my-6 rounded-xl border px-4 py-3 ${c.className}`} aria-label={title ?? c.label}>
+    <div role="note" className={`docs-callout not-prose-margins my-6 rounded-xl border px-4 py-3 ${c.className}`} aria-label={title ?? c.label}>
       <p className="docs-callout-title">
         <span aria-hidden="true" className="docs-callout-icon" data-type={type}>
           {c.icon}
@@ -78,7 +92,7 @@ export function Callout({ type = "note", title, children }: { type?: keyof typeo
         {title ?? c.label}
       </p>
       <div className="docs-callout-body">{children}</div>
-    </aside>
+    </div>
   );
 }
 
@@ -95,7 +109,7 @@ export function Card({ href, title, eyebrow, children }: { href: string; title: 
   const external = !href.startsWith("/");
   const body = (
     <>
-      {eyebrow && <span className="text-xs font-medium tracking-wide text-gold-deep uppercase">{eyebrow}</span>}
+      {eyebrow && <span className="text-xs font-medium tracking-wide text-gold-ink uppercase">{eyebrow}</span>}
       <span className="mt-1 flex items-center justify-between gap-2 font-medium text-ink">
         {title}
         <span aria-hidden="true" className="text-muted transition group-hover:translate-x-0.5 group-hover:text-ink">
@@ -122,7 +136,7 @@ export function Figure({ src, alt, caption, width }: { src: string; alt: string;
   return (
     <figure className="my-8">
       <img src={src} alt={alt} width={width} loading="lazy" decoding="async" className="mx-auto rounded-xl border border-line shadow-sm" />
-      {caption && <figcaption className="mt-2 text-center text-sm text-muted">{caption}</figcaption>}
+      {caption && <figcaption className="mx-auto mt-2 max-w-[34em] text-center text-sm text-muted">{caption}</figcaption>}
     </figure>
   );
 }
@@ -153,6 +167,7 @@ export const mdxComponents: MDXComponents = {
   h4: heading("h4"),
   pre: Pre,
   table: Table,
+  td: Cell,
   Callout,
   Steps,
   Cards,

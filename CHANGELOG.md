@@ -6,6 +6,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- `scripts/a11y-audit.mjs` audits every app page and every docs page, the docs in both themes:
+  axe-core 4.13 (WCAG A, AA, AAA and axe's best practices), then line height, characters per line,
+  paragraph spacing, text past its table cell, text under 12px and heading levels, and clipped text
+  or a page that scrolls sideways under WCAG 1.4.12's text spacing, at 200% text size and at 640 and
+  320 px. `--summary` turns its results into one Markdown list. It needs `playwright-core` and
+  `axe-core`, which the repository doesn't install; its header says how. The README's "Reading:
+  contrast, type and zoom" quotes its runs of 2026-11-12.
+
 - The site's footer shows NEAR's "Built on NEAR" badge, linked to near.org: NEAR's own SVG files from
   its brand hub, unchanged, black on the light pages and white on the docs' dark theme. The landing
   page adds "Built with" above "Built on NEAR": eight names, each linked to where Satchel used it, a
@@ -459,6 +467,33 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- Text colors meet WCAG 2.2 AAA contrast (1.4.6), 7:1 for text and 4.5:1 for large text, on the
+  light pages and the docs' dark theme. New values in `globals.css`: ink-2 `#3b352d`, muted
+  `#4f483f`, gold `#ce9b2f`, gold-deep `#845f14` (large text only), a new gold-ink `#5f450f` for
+  gold text of any size, leather `#663c22`, ok `#24532d`, warn `#654200` and bad `#82251e`, with
+  dark values for muted, gold-ink, leather, ok, warn and bad, and code colors at 7:1 or more on
+  every surface in both themes. Translucent text on the ink panels is 75% paper or more, or paper-2;
+  the sale flow's other steps dim by color instead of opacity; placeholders are muted instead of ink
+  at 50% (3.37:1). The new `contrast.test.ts` computes every token pair the pages use, translucent
+  text over its panel included, and fails when one drops under its minimum. The banner, the share
+  card, the icons, the README's gold button (Evaluate in 5 minutes) and the four README screenshots
+  of the app are rendered again in the new colors, and the README badges use them. `screenshots.mjs`
+  waits for mainnet satchel #1's verdict anywhere on the page: the report no longer sits in the
+  section it watched, so that shot timed out.
+- Reading (WCAG 1.4.8): small text defaults to a line height of 1.5 (`--text-xs--line-height` and
+  `--text-sm--line-height`); a paragraph in the app holds about 75 characters a line and docs text
+  about 70, table cells, diagram captions and diagram boxes included (a code span that can't wrap
+  widens its cell, and the table scrolls); docs paragraphs outside lists sit 2.85 times the font
+  size apart, line top to line top. A tinted or ruled box (an error note, the report's footer) is a
+  div around its paragraph, so the box keeps its width and its text keeps the measure. The smallest
+  text is now 12px: the hero card's stamp and, on phones, its hand-over row, the Ctrl K hint, the
+  callout icons and monospace values in 12px text (the fix panel's calls, addresses and calldata)
+  were 10.4 to 11.2px.
+- Docs: each table's scrollable region is named for the heading above it (`remarkTableNames` in
+  `markdown.ts`), numbered when a name would repeat, and a test checks that no page names two tables
+  alike; six empty first-column headers have a label. Callouts are `role="note"` instead of
+  `<aside>`, the sidebar and the page tools are named landmarks, the network banner is a named
+  section, and a code block without highlighting takes keyboard focus so it can be scrolled.
 - Lines that said owning the NFT gives full control of its address now say what is true: the NFT's
   owner is the only one who can have anything new signed for the address, and a transaction, an
   approval or a raw signature signed before the sale can still move its assets, which is what the
@@ -667,6 +702,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- Docs pages scrolled sideways on 8 page and theme runs at 640 px, 16 at 320 px, 6 under WCAG
+  1.4.12's text spacing and 8 at 200% text size: a link's screen-reader text, absolutely placed,
+  escaped its table's scroll box, and long URLs used as link text did not break. `.docs-table` is
+  `position: relative` and docs links break (`overflow-wrap: break-word`). The hero card's hand-over
+  row cut both account names short at 320 px; it wraps them instead.
+- Hovering the verdict badge on a satchel's page faded it to 80% opacity, 3.3 to 4.6:1; it draws a
+  ring instead. In the docs search, the "Try again" hover was under 7:1 in both themes, and the
+  selected result's section line and its matched words were under 7:1 on the dark theme; they no
+  longer are.
 - On the docs' dark theme, Satchel's mark in the header and footer was a near-black lock on a
   near-black background. The mark is now drawn inline in the theme's ink and gold (`SatchelMark` in
   `site-header.tsx`), so it is light on the dark theme and unchanged on the light pages.

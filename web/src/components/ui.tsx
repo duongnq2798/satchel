@@ -69,7 +69,7 @@ export function StatusIcon({ status }: { status: Status }) {
 }
 
 export function Mono({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <span className={`font-mono text-[0.92em] break-all ${className}`}>{children}</span>;
+  return <span className={`font-mono text-[length:max(0.92em,0.75rem)] break-all ${className}`}>{children}</span>;
 }
 
 /** A grey block where text will be, so the page keeps its shape while it loads. */
@@ -118,9 +118,11 @@ export function ErrorNote({ error }: { error: unknown }) {
   if (error === null || error === undefined) return null;
   const message = errorMessage(error);
   return (
-    <p role="alert" className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
-      {message}
-    </p>
+    <div role="alert" className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
+      <p>
+        {message}
+      </p>
+    </div>
   );
 }
 

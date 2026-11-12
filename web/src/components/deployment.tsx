@@ -20,9 +20,11 @@ export function DeploymentNote({ deployment }: { deployment: ReturnType<typeof u
   if (deployment.error) {
     return (
       <div className="space-y-2">
-        <p className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
-          {errorMessage(deployment.error)}. The app shows no address to fund and signs nothing until it does.
-        </p>
+        <div className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
+          <p>
+            {errorMessage(deployment.error)}. The app shows no address to fund and signs nothing until it does.
+          </p>
+        </div>
         <Button onClick={deployment.reload}>Check again</Button>
       </div>
     );

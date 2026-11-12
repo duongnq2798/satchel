@@ -45,7 +45,7 @@ const shots = [
     file: "app-mainnet-satchel-1.png",
     path: "/mainnet/satchel/1",
     ready: "Provably clean",
-    readyIn: "main > div > section:nth-of-type(2)",
+    readyIn: "main",
     until: "main > div > section:nth-of-type(2)",
   },
 ];

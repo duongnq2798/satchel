@@ -161,9 +161,13 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
         </div>
         {result &&
           (result.status === "success" ? (
-            <p className="mt-3 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">Sent.</p>
+            <div className="mt-3 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
+              <p>Sent.</p>
+            </div>
           ) : (
-            <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">Included, but the transaction reverted.</p>
+            <div className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
+              <p>Included, but the transaction reverted.</p>
+            </div>
           ))}
       </div>
       {(links.nearTx || links.evmTx) && (
@@ -183,13 +187,15 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
 export function FrozenNote() {
   const net = useNetwork();
   return (
-    <p className="mt-3 rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-2">
-      {FROZEN_NOTE}{" "}
-      <Link href={appPath(net, "/satchels")} className="underline decoration-line underline-offset-4 hover:decoration-ink">
-        Mint your own satchel
-      </Link>{" "}
-      to try them.
-    </p>
+    <div className="mt-3.5 rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-2">
+      <p>
+        {FROZEN_NOTE}{" "}
+        <Link href={appPath(net, "/satchels")} className="underline decoration-line underline-offset-4 hover:decoration-ink">
+          Mint your own satchel
+        </Link>{" "}
+        to try them.
+      </p>
+    </div>
   );
 }
 

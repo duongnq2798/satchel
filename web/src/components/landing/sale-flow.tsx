@@ -113,7 +113,7 @@ export function SaleFlow() {
     <section id="how" className="scroll-mt-24">
       <p className="text-sm font-medium tracking-wide text-leather">How a sale works</p>
       <h2 className="mt-3 max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">The record follows the wallet.</h2>
-      <p className="mt-4 max-w-2xl text-ink-2">
+      <p className="mt-4 text-ink-2">
         The contract keeps one record per satchel and never forgets a signature. An example, step by step:
       </p>
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -125,11 +125,12 @@ export function SaleFlow() {
                 refs.current[i] = el;
               }}
               data-step={i}
-              className={`transition-opacity lg:min-h-[8rem] ${i === active ? "lg:opacity-100" : "lg:opacity-70"}`}
+              className="lg:min-h-[8rem]"
             >
-              <p className="font-display text-5xl text-gold-deep">{i + 1}</p>
-              <h3 className="mt-1 font-display text-2xl font-semibold">{step.title}</h3>
-              <p className="mt-2 max-w-md text-ink-2">{step.body}</p>
+              {/* The other steps dim by color, not opacity, so their text keeps 7:1. */}
+              <p className={`font-display text-5xl transition-colors ${i === active ? "text-gold-deep" : "text-gold-deep lg:text-muted"}`}>{i + 1}</p>
+              <h3 className={`mt-1 font-display text-2xl font-semibold transition-colors ${i === active ? "" : "lg:text-muted"}`}>{step.title}</h3>
+              <p className={`mt-2 max-w-md transition-colors ${i === active ? "text-ink-2" : "text-ink-2 lg:text-muted"}`}>{step.body}</p>
               <Record step={step} className="mt-4 lg:hidden" />
             </li>
           ))}

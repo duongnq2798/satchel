@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/readme-banner.png" alt="Satchel. Sell a wallet. Prove nothing stayed behind. Each satchel is a NEAR NFT that controls one EVM address, signed for by NEAR's MPC network; hand over the NFT and the address goes with it. The card shows Satchel #1 on v1.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, stamped PROVABLY CLEAN, with its four checks passing: the contract can't sign behind the record, no signed transaction is still pending, no approval left behind, nothing the record can't explain." width="100%">
+<img src="docs/assets/readme-banner.png" alt="Satchel. Sell a wallet. Prove nothing stayed behind. A satchel is a NEAR NFT that controls one address on 16 EVM chains, signed for by NEAR's MPC network; transfer the NFT and the wallet moves with it. The contract keeps a public record of everything it signed. The card shows Satchel #1 on v1.satchel-nft.testnet, address 0x96DA1468E95Ab31A698891f0150095f86b5a282B, stamped PROVABLY CLEAN, with its four checks passing: the contract can't sign behind the record, no signed transaction is still pending, no approval left behind, nothing the record can't explain." width="100%">
 
 # Satchel
 
@@ -9,10 +9,10 @@
 [![Contract CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/contract.yml?branch=main&style=flat-square&label=contract%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml)
 [![Web CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/web.yml?branch=main&style=flat-square&label=web%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/web.yml)
 [![npm: satchel-nft](https://img.shields.io/npm/v/satchel-nft?style=flat-square&label=npm%20satchel-nft)](https://www.npmjs.com/package/satchel-nft)
-[![Status: not audited](https://img.shields.io/badge/status-not%20audited-8a5a00?style=flat-square)](SECURITY.md)
+[![Status: not audited](https://img.shields.io/badge/status-not%20audited-654200?style=flat-square)](SECURITY.md)
 [![NEAR: testnet and mainnet](https://img.shields.io/badge/NEAR-testnet%20%2B%20mainnet-17140f?style=flat-square)](#on-chain-proof)
-[![Contract: locked, 0 access keys](https://img.shields.io/badge/contract-locked%2C%200%20access%20keys-2f6b3a?style=flat-square)](#on-chain-proof)
-[![License: MIT](https://img.shields.io/badge/license-MIT-6e6558?style=flat-square)](LICENSE)
+[![Contract: locked, 0 access keys](https://img.shields.io/badge/contract-locked%2C%200%20access%20keys-24532d?style=flat-square)](#on-chain-proof)
+[![License: MIT](https://img.shields.io/badge/license-MIT-4f483f?style=flat-square)](LICENSE)
 
 <a href="https://satchelnft.xyz"><img src="docs/assets/readme/try-it-live.png" alt="Try it live: satchelnft.xyz, reading needs no wallet" height="48"></a>
 <a href="#how-to-evaluate-satchel-in-5-minutes"><img src="docs/assets/readme/evaluate-in-5-minutes.png" alt="Evaluate in 5 minutes: no wallet, no key, no account" height="48"></a>
@@ -371,7 +371,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 97 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 303 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -1261,6 +1261,38 @@ and `Referrer-Policy: strict-origin-when-cross-origin` (`headers()` in
 frame of their own. The [sitemap](web/src/app/sitemap.ts) and
 [`llms.txt`](web/src/app/llms.txt/route.ts) list the demo satchels' pages.
 
+**Reading: contrast, type and zoom.** Text colors aim at WCAG 2.2 AAA contrast (1.4.6), 7:1 for text
+and 4.5:1 for large text, on the light pages and the docs' dark theme.
+[`contrast.test.ts`](web/src/app/contrast.test.ts) computes every token pair the pages use,
+translucent text over its panel included, and every code color on every surface, so a color change
+that breaks one fails `npm test`. Small text defaults to a line height of 1.5 (the docs sidebar and
+contents links keep 1.375, the diagrams' arrow labels 1.25), nothing is smaller than 12px, a
+paragraph or a table cell holds about 70 to 75 characters a line (WCAG 1.4.8 asks for 80 at most),
+and headings don't skip a level.
+
+On 2026-11-12 [`a11y-audit.mjs`](scripts/a11y-audit.mjs) ran axe-core 4.13 in Edge over 93 page and
+theme runs, every app page and every docs page in both themes. It then measured line length and line
+height, looked for text running past its table cell and for text under 12px, applied WCAG 1.4.12's
+text spacing, set the browser's text size to 200% (1.4.4), and laid each page out at 640 and 320 px
+wide (1.4.10). On the live site before this change it found 2,827 elements under 7:1 on all 93 runs,
+107 of them also under AA's 4.5:1; 134 landmarks named alike; 98 scrollable blocks a keyboard could
+not reach; 15 pieces of content outside a landmark; 12 empty table headers; lines over 80 characters
+on all 93 runs, text under 12px on 81 and line heights under 1.5 on 22; pages that scrolled sideways
+on 8 runs at 640 px, 16 at 320 px, 6 under the text spacing and 8 at 200% text size; and text cut
+short on 79 runs at 320 px. On the build of this change it found none of these: no axe violation of
+the WCAG A, AA and AAA rules or of axe's best practices, no paragraph, list item or table cell with
+a line over 80 characters or a line height under 1.5, no text past its table cell or under 12px, no
+skipped heading level, and no clipped text or sideways page under the text spacing, at 200% text
+size, or at 640 or 320 px. axe could not compute the contrast of some text, beside the docs steps'
+number markers or under a box that overlaps it; those colors are token pairs the test covers. Code
+blocks and wide tables scroll sideways inside their own box at 320 px; the page does not.
+
+This is not a claim of full AAA conformance. Target size (2.5.5), reading level (3.1.5),
+pronunciation (3.1.6) and the other criteria outside text and type were not assessed. Colors written
+into a component instead of a token are outside the test: #f0997b on the refusal lines of "Try to
+cheat the buyer." and on the [FAIL] and NOT PROVABLE lines of the landing page's command-line
+report, 8.35:1 at the lowest, on ink.
+
 To run it yourself:
 
 1. Install and start it, from the repository root. Node 22 or later. `npm run dev` builds the
@@ -1480,7 +1512,7 @@ all of this with the near CLI's key, checking each step
 | --- | --- |
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 231 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
-| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 91 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
+| [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 99 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
 | [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain; it reads the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package) and [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
@@ -1512,7 +1544,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 231 package tests, 91 app tests
+npm run typecheck && npm test              # both workspaces: 231 package tests, 303 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1538,16 +1570,17 @@ re-checks the demo every day until judging ends; `verify` doesn't wait for it.
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 | Watch | Claims and site | From 2026-11-25, when judging and the demo freeze end, nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
-The tests, as of 2026-11-11: 64 Rust unit tests in
+The tests, as of 2026-11-12: 64 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 231 package tests in 18 files: `clean.test.ts` 31, `evm.test.ts` 26,
 `dao.test.ts` 26, `report.test.ts` 22, `holder.test.ts` 15, `satchel.test.ts` 14, `history.test.ts` 14,
 `near-cli.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
 `tx-index.test.ts` 7, `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and
 `limit.test.ts` 2;
-and 91 app tests: 40 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
-2 in `frozen.test.ts`, 22 in `showcase.test.ts`,
-which checks the mainnet showcase and the landing page's four cards against `deployments/`, and 12 in `docs.test.ts`,
-which compile every docs page and check its links and anchors. Some rules have no
+and 303 app tests: 204 in `contrast.test.ts`, which computes the contrast of the text colors in `globals.css`,
+40 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
+2 in `frozen.test.ts`, 28 in `showcase.test.ts`,
+which checks the mainnet showcase and the landing page's four cards against `deployments/`, and 14 in `docs.test.ts`,
+which compile every docs page, check its links and anchors, and check that no page names two tables alike. Some rules have no
 unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, the sale panel's use of the report's version and price was
 checked by hand on testnet, and nothing tests that a finished connect or a disconnect ends the
