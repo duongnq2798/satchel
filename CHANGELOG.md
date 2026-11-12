@@ -500,6 +500,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The README's table of enforcement layers has three columns: each code cell now ends with its
+  tests. In a 1280-pixel window the long test names made the table 966 pixels wide in an 846-pixel
+  column, so it scrolled sideways; now it fits.
 - The NFT track's example-prompt table in the README has two columns: each Satchel cell now ends
   with where to look, and the first column's heading keeps to one line. In a 1280-pixel window the
   requirement column was 92 pixels wide, a word or two per line, and the table scrolled sideways;
