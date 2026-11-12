@@ -1,9 +1,9 @@
 // Checks the demo kit (docs/DEMO.md and docs/submission/) against the hackathon's limits: the
-// "What did you build?" text fits the form, the X post fits one post, tags the event and asks a
-// question, the video script runs from 0:00 to 2:00 with no gap and no scene with more words than a
-// speaker says in its time, and every page it opens, a satchelnft.xyz link or a path such as
-// `/satchel/<id>/room`, is a route the app has (it reads no network, so it doesn't check that a
-// satchel id was minted).
+// "What did you build?" text fits the form, the X post fits one Premium post (25,000), tags the
+// event and asks a question, the video script runs from 0:00 to 2:00 with no gap and no scene with
+// more words than a speaker says in its time, and every page it opens, a satchelnft.xyz link or a
+// path such as `/satchel/<id>/room`, is a route the app has (it reads no network, so it doesn't
+// check that a satchel id was minted).
 // Node 22 or later, no install. Usage: node scripts/check-demo-kit.mjs
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 
@@ -18,9 +18,11 @@ const ideaLength = Math.max(idea.length, [...idea].length);
 check(ideaLength >= 20 && ideaLength <= 2000, '"What did you build?" fits the form: 20 to 2,000 characters', `${ideaLength} characters`);
 
 // X counts a link as 23 whatever its length, and a character outside the ranges below (CJK, emoji)
-// as 2; one post holds 280. This count is close to X's (twitter-text's), not exact: anything shaped
-// like a domain counts as a link here, so a dotted name longer than 23 characters that X doesn't
-// link, such as a NEAR account, counts less here than on X. DEMO.md says to check X's own counter.
+// as 2. A post holds 280, or 25,000 from a Premium account such as @satchelnfthq, which posted this
+// text on 2026-11-12; X shows about the first 280 before "Show more". This count is close to X's
+// (twitter-text's), not exact: anything shaped like a domain counts as a link here, so a dotted
+// name longer than 23 characters that X doesn't link, such as a NEAR account, counts less here
+// than on X. DEMO.md says to check X's own counter.
 const SINGLE = [[0, 4351], [8192, 8205], [8208, 8223], [8242, 8247]];
 const LINK = /(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*[^\s.,:;!?'")\]])?/gi;
 function xLength(text) {
@@ -35,7 +37,7 @@ function xLength(text) {
 }
 const post = read("docs/submission/x-post.txt").trim();
 const { weight, links } = xLength(post);
-check(weight <= 280, "The X post fits one post: 280, a link counting 23", `${weight} of 280, links: ${links.join(", ")}`);
+check(weight <= 25000, "The X post fits one Premium post: 25,000, a link counting 23", `${weight} of 25,000, links: ${links.join(", ")}`);
 // The rules: say it was built at NEAR HACKATHON, tag @NEARProtocol and #NEARHackathon. A tag counts
 // only as a whole tag: @NEARProtocolDev, #NEARHackathon2026 or a tag glued to the next one
 // (#NEARHackathon#Web3, @NEARProtocol@NearLegion) is not the tag, for X either.
