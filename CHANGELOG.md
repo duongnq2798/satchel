@@ -14,7 +14,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   and both reports, and `node scripts/check-claims.mjs --network mainnet` checks 20 claims, up
   from 15. The README's first use case now ran on both networks. The verify page offers mainnet #3
   among its demo satchels, and until 2026-11-25 the app's guard on them covers it, as do the
-  demo guards in  and .
+  demo guards in `tools/oneclick-exit.mjs` and `tools/mainnet-sale-record.mjs gate`.
 - "Use cases you can run" in the README: nine uses that ran on chain (selling a wallet, catching a
   seller, cleaning before a sale, a swap into its own address, a DAO treasury, bounties with earned
   trust, an heir, what came in, a holder's room), each with a page to open and a command that checks
