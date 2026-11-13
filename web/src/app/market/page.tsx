@@ -8,6 +8,7 @@ import { useAsync } from "@/components/use-async";
 import { type Listing, type Report, formatNear, satchel } from "satchel-nft";
 import { FROZEN_UNTIL, isFrozen } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
+import { MINT_PATH, SALE_DEED_PATH, allDemo } from "@/lib/try-it";
 
 const FROZEN_DAY = FROZEN_UNTIL.toISOString().slice(0, 10);
 
@@ -36,7 +37,7 @@ function ListingCard({
         {isFrozen(net, tokenId) && (
           <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-2">
             <Badge tone="gold">Demo satchel</Badge>
-            This app won&apos;t buy it until {FROZEN_DAY}.
+            Buying is off in this app through judging (until {FROZEN_DAY}), so every claim about it stays checkable.
           </p>
         )}
       </Card>
@@ -48,7 +49,7 @@ export default function Market() {
   const net = useNetwork();
   const listings = useAsync(() => satchel(net).allListings(), `${net.id}:listings`);
   const check = useReportChecker();
-  const allDemo = Boolean(listings.data?.length) && listings.data?.every(([id]) => isFrozen(net, id));
+  const onlyDemo = allDemo(net, (listings.data ?? []).map(([id]) => id));
   return (
     <div className="space-y-6">
       <div>
@@ -59,15 +60,22 @@ export default function Market() {
         </p>
       </div>
       <ErrorNote error={listings.error} />
-      {allDemo && (
+      {onlyDemo && (
         <p className="text-sm text-ink-2">
-          Every satchel listed here is a demo satchel whose state the README quotes, so this app won&apos;t buy one until{" "}
-          {FROZEN_DAY}. To see a sale through,{" "}
+          Every satchel listed here is a demo satchel: buying is off in this app through judging (until {FROZEN_DAY}), so
+          every claim about them stays checkable. See a finished sale in{" "}
           <Link
-            href={appPath(net, "/satchels")}
+            href={SALE_DEED_PATH}
             className="font-medium text-leather underline decoration-line underline-offset-4 hover:decoration-ink"
           >
-            mint a satchel
+            mainnet satchel #3&apos;s deed of sale
+          </Link>{" "}
+          (a self-sale between two of the builder&apos;s accounts), or{" "}
+          <Link
+            href={MINT_PATH}
+            className="font-medium text-leather underline decoration-line underline-offset-4 hover:decoration-ink"
+          >
+            mint your own on testnet
           </Link>
           , list it from its page and buy it from a second wallet.
         </p>

@@ -187,7 +187,9 @@ export function TokenView({ tokenId }: { tokenId: string }) {
         <Card className="flex flex-wrap items-center justify-between gap-3 border-gold/60!">
           <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
             For sale: <strong className="font-display text-lg">{formatNear(listing.price)} NEAR</strong>, sold by{" "}
-            {listing.seller}. {frozen ? "Buying it from the app is off on this demo satchel until 2026-11-25." : "Read the report, then buy."}
+            {listing.seller}. {frozen
+              ? "Buying it from the app is off through judging (until 2026-11-25), so every claim about this demo satchel stays checkable."
+              : "Read the report, then buy."}
           </p>
           {!frozen && (
             <a

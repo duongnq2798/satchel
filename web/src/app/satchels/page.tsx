@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { DeploymentNote, useDeployment } from "@/components/deployment";
-import { Badge, Button, Card, ErrorNote, Mono } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, ExternalLink, Mono } from "@/components/ui";
 import { useNetwork } from "@/components/network";
 import { useAsync } from "@/components/use-async";
 import { useWallet } from "@/components/wallet";
 import { type Token, satchel, satchelTx, tokenAddress } from "satchel-nft";
 import { appPath } from "@/lib/routes";
+import { TESTNET_ACCOUNT_URL, TESTNET_FAUCET_URL } from "@/lib/try-it";
 
 export default function YourSatchels() {
   const { accountId, ready, signIn, send } = useWallet();
@@ -63,9 +64,16 @@ export default function YourSatchels() {
         <Card>
           <h2 className="font-display text-xl font-semibold">Connect a NEAR {net.id} wallet</h2>
           <p className="mt-1 text-sm text-muted">
-            {net.id === "testnet" ? "Meteor, Intear, Nightly, Ledger and NEAR CLI work on testnet. " : ""}Minting costs 0.1 NEAR, which
-            pays for the token's storage and its signing record.
+            {net.id === "testnet" ? "Meteor, Intear, Nightly, Ledger and NEAR CLI work on testnet. " : ""}Minting costs 0.1{" "}
+            {net.id === "testnet" ? "testnet " : ""}NEAR, which pays for the token's storage and its signing record.
           </p>
+          {net.id === "testnet" && (
+            <p className="mt-1 text-sm text-muted">
+              No testnet account yet? NEAR&apos;s docs show how to{" "}
+              <ExternalLink href={TESTNET_ACCOUNT_URL}>create one</ExternalLink> and where to get{" "}
+              <ExternalLink href={TESTNET_FAUCET_URL}>free testnet NEAR</ExternalLink>.
+            </p>
+          )}
           <div className="mt-4">
             <Button variant="primary" onClick={() => signIn().catch(setError)}>
               Connect wallet
@@ -82,6 +90,12 @@ export default function YourSatchels() {
             {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for sale; only the
             NFT's owner can have anything new signed for it.
           </p>
+          {net.id === "testnet" && (
+            <p className="mt-1 text-sm text-muted">
+              Minting takes 0.1 testnet NEAR. If your account has none, get some free from{" "}
+              <ExternalLink href={TESTNET_FAUCET_URL}>NEAR&apos;s faucet</ExternalLink>.
+            </p>
+          )}
         </Card>
       )}
       <ErrorNote error={tokens.error} />
