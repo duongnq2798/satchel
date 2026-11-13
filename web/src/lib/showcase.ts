@@ -2,10 +2,11 @@ import { CHAINS, MAINNET, NETWORKS, type Network, type NetworkId, TESTNET, chain
 import type { TxLink } from "./copy";
 
 /**
- * The guided path for a judge or a buyer: the mainnet satchels that sent real ETH, the demo satchels
- * with one line each, and the command that checks any of them from a terminal. The numbers come from
- * deployments/; showcase.test.ts reads those files and fails on any drift. A card tells what happened,
- * never the verdict: that is read live on the satchel's page.
+ * The guided path for a judge or a buyer: the mainnet satchels, two that sent real ETH and one sold to
+ * a second account, the demo satchels with one line each, and the command that checks any of them from
+ * a terminal. The numbers come from deployments/; showcase.test.ts reads those files and fails on any
+ * drift. A card tells what happened, never the verdict: that is read live on the satchel's page. The
+ * deed of #3's sale quotes its two reports, each with the time it was read.
  */
 
 /** The terminal command that prints satchel `tokenId`'s report on `net`, from the release on npm. */
@@ -73,17 +74,76 @@ export const ONECLICK_EXIT = {
 
 /**
  * Mainnet satchel #3's sale to a second account, and its old owner refused after it
- * (deployments/mainnet-sale.json).
+ * (deployments/mainnet-sale.json): every fact the deed of sale shows, and three it leaves out that the
+ * test checks against the record too (the first report's owner, and the blocks the payment and the
+ * refusal ran in). A self-sale, both accounts the builder's. Times are UTC as the record has them.
+ * A block is the one that included the transaction; its receipts ran in later blocks.
  */
 export const MAINNET_SALE = {
   tokenId: "3",
+  /** The MPC derivation path, and the address it gives on every EVM chain. */
+  path: "satchel/3",
+  address: "0x2bc44B0D9D05A2a1161AB6f560501Ca870A172A7",
   seller: "satchel-nft.near",
   buyer: "duongnq2798.near",
   /** NEAR, the listing's price. */
   price: "0.1",
-  buyTx: "FFYeAebswG8wHUwLXpmtd7okAxExZwtLMPgwSQUx3Kbo",
-  refusedTx: "33UTwyVyAf6CQY5a953rtdmAyF98WZKVwAnqAdY3Vk6X",
+  /** What the listing and the buy named. Nothing was ever signed for #3, so it never moved. */
+  recordVersion: "0",
+  /** `deposit`: NEAR, what the mint paid for the token's storage. */
+  mint: { at: "2026-11-13T01:19:15Z", tx: "mHornX2SqE442ikUyZoZwreSm9cSdrYAF4vneWmLVwn", block: "224293453", deposit: "0.1" },
+  list: { at: "2026-11-13T01:19:27Z", tx: "7xzmgbStV7o5WL2DrFA2qw8hqRftv5qwp1UwcGh4UCB6", block: "224293475" },
+  /** The buyer's report before paying: a read, no transaction. */
+  checked: { at: "2026-11-13T01:19:34.480Z", result: "PROVABLY CLEAN", owner: "satchel-nft.near" },
+  buy: {
+    at: "2026-11-13T01:21:35Z",
+    tx: "FFYeAebswG8wHUwLXpmtd7okAxExZwtLMPgwSQUx3Kbo",
+    block: "224293699",
+    /** The receipt that paid the seller the price. */
+    paid: { receipt: "EbK3MHAkHahfDSNF3BpEQd2hbKceVjcHKrtAHT2HjTjH", to: "satchel-nft.near", block: "224293701" },
+  },
+  /** The old owner's sign_evm after the sale, 0 wei to 0x…dEaD on Base, and the owner check's answer. */
+  refused: {
+    at: "2026-11-13T01:21:56Z",
+    tx: "33UTwyVyAf6CQY5a953rtdmAyF98WZKVwAnqAdY3Vk6X",
+    block: "224293735",
+    receiptBlock: "224293736",
+    chainId: BASE,
+    to: "0x000000000000000000000000000000000000dEaD",
+    value: "0",
+    panic: "Smart contract panicked: Satchel: only the token's owner can do this",
+  },
+  /** The report again after the refusal, for the new owner. */
+  checkedAgain: { at: "2026-11-13T01:22:31.790Z", result: "PROVABLY CLEAN", owner: "duongnq2798.near" },
 } as const;
+
+/**
+ * `node scripts/check-claims.mjs --network mainnet`, as the README counts it: its claims, and how many
+ * of them, the last ones, check satchel #3's sale. The deed's terminal quotes both.
+ */
+export const MAINNET_CLAIMS = { total: "20", sale: "five" } as const;
+
+/** Whole seconds from `from` to `to`, counted from the times as the deed shows them: cut to the second. */
+export function secondsBetween(from: string, to: string): number {
+  return Math.floor(Date.parse(to) / 1000) - Math.floor(Date.parse(from) / 1000);
+}
+
+/** A span the way the deed writes it: "21 s", "3 min 16 s"; `long` spells it out for a screen reader. */
+export function formatSpan(seconds: number, long = false): string {
+  const [m, s] = [Math.floor(seconds / 60), seconds % 60];
+  const unit = (n: number, short: string, word: string) => (long ? `${n} ${word}${n === 1 ? "" : "s"}` : `${n} ${short}`);
+  return m ? `${unit(m, "min", "minute")} ${unit(s, "s", "second")}` : unit(s, "s", "second");
+}
+
+/** "01:19:34 UTC": an ISO time's time of day, cut to the second. */
+export function utcTime(iso: string): string {
+  return `${new Date(iso).toISOString().slice(11, 19)} UTC`;
+}
+
+/** "13 November 2026": an ISO time's day, in UTC. */
+export function utcDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
 
 export interface ShowcaseCard {
   tokenId: string;
@@ -94,7 +154,10 @@ export interface ShowcaseCard {
   txs: readonly TxLink[];
 }
 
-/** The mainnet satchels that sent real ETH from this app, each with the transactions behind its story. */
+/**
+ * The mainnet satchels that sent real ETH from this app, each with the transactions behind its story.
+ * Satchel #3 sent nothing: its card, after these, is a small deed of its sale (components/landing/deed).
+ */
 export const SHOWCASE: readonly ShowcaseCard[] = [
   {
     tokenId: FIRST_SEND.tokenId,

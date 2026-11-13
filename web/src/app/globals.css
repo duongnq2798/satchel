@@ -5,7 +5,8 @@
  * card and on the soft tint each one sits on, in both themes. src/app/contrast.test.ts checks every
  * token pair the pages use, so a change here that breaks one fails the tests. Hard-coded colors are
  * outside it: #f0997b on the refusal lines (8.35:1 on ink) and on the command-line report's [FAIL]
- * lines (8.88:1 on its bg-black/40 box).
+ * lines (8.88:1 on its bg-black/40 box). The deed of sale keeps its own in its stylesheet,
+ * components/landing/deed/deed.css.
  */
 @theme {
   --color-paper: #f5f0e6;

@@ -1,0 +1,1181 @@
+/*
+ * The deed of sale: mainnet satchel #3's sale as a deed, a teaser on the landing, the full deed on its
+ * page, a card on /mainnet. DeedDefs imports this file, so only the pages that show a deed load it.
+ * Light only, like the pages it is on. Nothing is measured at run time: the guilloche band is a 9-slice
+ * border-image (public/deed-band*.svg), and the ruler's marks are percentages of the record's times.
+ * The SVG defs (ids deed-*) and the observer that presses the stamps in are DeedDefs, once per page.
+ * Without JavaScript, or under reduced motion, every stamp is drawn where it ends. Every class and
+ * variable here starts with deed-, clear of the hero card's .stamp. Outside any layer, so a centered
+ * deed line's own width wins over the base layer's 36em measure. Its italics are Fraunces' own italic,
+ * --font-deed-italic (font.ts), set on the sheet and the card, so only a page with a deed loads it.
+ *
+ * Its text colors are theme tokens (globals.css), checked by src/app/contrast.test.ts. Hard-coded
+ * colors are outside it: the medallion keeps its leather disc, #663c22 darkening to #4e2c18 at the rim,
+ * which only raises these: its "No." in #f3e3bc (7.40:1) and its foil "3", 46px and up, from #f3e3bc
+ * to #e2b75a (4.99:1 at worst, large text). The wax seal's ring text, #f3e3bc on wax no lighter than
+ * #6e3d22 (7.02:1), is texture and hidden from screen readers; so are the band, the rosette, the
+ * ruler's ticks and the stamps' borders.
+ */
+.deed-section {
+  padding-bottom: 1rem;
+}
+/*
+ * The second sheet, turned, reaches past the column on a narrow screen. Only the deed is clipped, not
+ * its section, so the focus ring of a link at the column's edge (the README link under the deed) is
+ * drawn whole.
+ */
+.deed-clip {
+  overflow-x: clip;
+}
+.deed-stack {
+  position: relative;
+  max-width: 64rem;
+  margin: 2.5rem auto 0;
+}
+/* The second sheet under the deed, turned a little. */
+.deed-stack::before {
+  content: "";
+  position: absolute;
+  inset: 12px -3px -12px 8px;
+  border-radius: 4px;
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-line);
+  rotate: 0.5deg;
+  box-shadow: 0 24px 40px -30px rgb(23 20 15 / 0.55);
+}
+.deed-sheet,
+.deed-card {
+  position: relative;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+}
+.deed-sheet {
+  box-shadow:
+    0 1px 2px rgb(23 20 15 / 0.08),
+    0 50px 80px -48px rgb(23 20 15 / 0.6);
+  padding: 50px 32px 44px;
+}
+/* The guilloche band. "round" repeats the middle tile a whole number of times on each side. */
+.deed-sheet::before,
+.deed-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 29px solid transparent;
+  border-image: url("/deed-band-sm.svg") 29 round;
+}
+.deed-card::before {
+  border-width: 27px;
+  border-image: url("/deed-band-mini.svg") 27 round;
+}
+@media (min-width: 720px) {
+  .deed-stack {
+    margin-top: 3rem;
+  }
+  .deed-sheet {
+    padding: 80px 80px 68px;
+  }
+  .deed-sheet::before {
+    border-width: 54px;
+    border-image: url("/deed-band.svg") 54 round;
+  }
+}
+/* Paper grain: a 6% multiply layer. Its darkest pixel, #f6f3ed, still holds muted, gold-ink and gold-deep (contrast.test.ts). */
+.deed-grain {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  border-radius: 4px;
+}
+.deed-in {
+  position: relative;
+  z-index: 1;
+}
+
+/* Engraved rules, the flourish under the title and the medallion's rosette (the deed-rosette symbol). */
+.deed-g-rule,
+.deed-rz-rule {
+  fill: none;
+  stroke: var(--color-gold-deep);
+  stroke-width: 1;
+}
+.deed-g-hair,
+.deed-rz-hair {
+  fill: none;
+  stroke: var(--color-gold-deep);
+  stroke-width: 0.5;
+  opacity: 0.75;
+}
+.deed-g-dot {
+  fill: var(--color-gold-deep);
+}
+.deed-rz-a {
+  fill: none;
+  stroke: var(--color-gold-deep);
+  stroke-width: 0.55;
+  opacity: 0.85;
+}
+.deed-rz-b {
+  fill: none;
+  stroke: var(--color-gold-deep);
+  stroke-width: 0.5;
+  opacity: 0.6;
+}
+
+.deed-head {
+  text-align: center;
+}
+.deed-kicker {
+  max-width: none;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-gold-ink);
+}
+.deed-kicker span {
+  display: block;
+}
+.deed-medallion {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 150px;
+  margin: 1rem auto 0.5rem;
+}
+.deed-medallion svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.deed-med-text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+/* On the leather disc, which stays leather: see the top of this file. */
+.deed-med-no {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #f3e3bc;
+  padding-left: 0.2em;
+}
+/* Gold foil, large text only: #f3e3bc to #e2b75a on the leather. */
+.deed-med-num {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 46px;
+  line-height: 0.95;
+  margin-top: 1px;
+  font-variation-settings: "opsz" 144;
+  background: linear-gradient(115deg, #f3e3bc 0%, #e2b75a 28%, #f3e3bc 50%, #e2b75a 72%, #f3e3bc 100%);
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.deed-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--color-ink);
+  font-variation-settings: "opsz" 96;
+}
+.deed-flourish {
+  display: block;
+  width: 220px;
+  max-width: 70%;
+  height: 14px;
+  margin: 0.7rem auto 0;
+}
+.deed-sub,
+.deed-between {
+  margin: 0.7rem auto 0;
+  max-width: 30em;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.deed-sub {
+  font-family: var(--font-deed-italic, var(--font-display));
+  font-style: italic;
+}
+.deed-between {
+  margin-top: 0.35rem;
+  line-height: 1.6;
+}
+.deed-acct {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+@media (min-width: 720px) {
+  .deed-kicker span {
+    display: inline;
+  }
+  .deed-kicker span + span::before {
+    content: " · ";
+  }
+  .deed-medallion {
+    width: 176px;
+    height: 176px;
+    margin-top: 1.1rem;
+  }
+  .deed-medallion-lg {
+    width: 196px;
+    height: 196px;
+  }
+  .deed-med-num {
+    font-size: 52px;
+  }
+  .deed-medallion-lg .deed-med-num {
+    font-size: 60px;
+  }
+  .deed-title {
+    font-size: 2.75rem;
+  }
+}
+
+/* The builder's declaration: a self-sale. */
+.deed-declare {
+  margin-top: 1.5rem;
+  position: relative;
+  background: var(--color-gold-soft);
+  border: 1px solid var(--color-gold-deep);
+  border-radius: 3px;
+  padding: 1rem 1.1rem 1.05rem;
+  outline: 1px dashed var(--color-gold-deep);
+  outline-offset: -6px;
+}
+.deed-declare-tag {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
+.deed-declare-text {
+  margin-top: 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+@media (min-width: 720px) {
+  .deed-declare-text {
+    font-size: 1.25rem;
+  }
+  .deed-full .deed-declare {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: baseline;
+    padding: 1.15rem 1.5rem;
+  }
+  .deed-full .deed-declare-text {
+    margin-top: 0;
+  }
+}
+
+/* The landing's teaser: the deed's face, then the register of the three steps that prove the sale. */
+.deed-tz-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+@media (min-width: 1024px) {
+  .deed-tz-grid {
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    column-gap: 2.75rem;
+    align-items: center;
+  }
+}
+.deed-reg {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+  grid-template-areas: "num head mark" "num text mark" "num ref mark";
+  grid-template-rows: auto auto 1fr;
+  column-gap: 0.9rem;
+  align-items: start;
+  padding: 1.15rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.deed-reg:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+.deed-reg-num {
+  grid-area: num;
+  align-self: start;
+  font-family: var(--font-deed-italic, var(--font-display));
+  font-style: italic;
+  font-weight: 500;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-gold-deep);
+}
+.deed-reg-head {
+  grid-area: head;
+  min-width: 0;
+}
+.deed-reg-when {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.deed-reg-when time {
+  color: var(--color-ink);
+}
+.deed-reg-title {
+  margin-top: 0.2rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.1875rem;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+.deed-reg-text {
+  grid-area: text;
+  min-width: 0;
+  margin-top: 0.3rem;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-ink-2);
+}
+.deed-reg-text strong,
+.deed-c-text strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.deed-reg-ref {
+  grid-area: ref;
+  margin-top: 0.35rem;
+  font-size: 13px;
+}
+.deed-reg-mark {
+  grid-area: mark;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  min-width: 8.5rem;
+}
+.deed-reg .deed-seal {
+  width: 104px;
+}
+.deed-reg .deed-stamp-bad .deed-s-big {
+  font-size: 22px;
+}
+/* Phones: the numeral sits on the heading, the mark beside it, the text full width under both. */
+@media (max-width: 559px) {
+  .deed-reg {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "num mark" "head mark" "text text" "ref ref";
+    grid-template-rows: auto 1fr auto auto;
+    column-gap: 0.5rem;
+  }
+  .deed-reg-num {
+    font-size: 1.75rem;
+  }
+  .deed-reg-mark {
+    min-width: 0;
+  }
+  .deed-reg-mark > * {
+    zoom: 0.85;
+  }
+  .deed-reg-mark :is(.deed-s-top, .deed-s-sub) {
+    display: none;
+  }
+  .deed-reg .deed-seal {
+    width: 76px;
+  }
+  .deed-reg-text {
+    margin-top: 0.5rem;
+  }
+}
+/* Narrow phones: the mark moves up beside the numeral, and the heading gets the full width. */
+@media (max-width: 419px) {
+  .deed-reg {
+    grid-template-areas: "num mark" "head head" "text text" "ref ref";
+    grid-template-rows: auto auto auto auto;
+  }
+  .deed-reg-num {
+    align-self: center;
+  }
+  .deed-reg-mark {
+    margin-bottom: 0.2rem;
+  }
+  .deed-reg-head {
+    margin-top: 0.7rem;
+  }
+}
+.deed-tz-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem 1.75rem;
+  margin-top: 2.25rem;
+}
+.deed-link,
+.deed-read-links a {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold);
+  text-underline-offset: 4px;
+}
+:is(.deed-link, .deed-read-links a, .deed-hash):hover {
+  text-decoration-thickness: 2px;
+}
+
+/* The ruler: the six steps on a scale of the record's seconds, mint to the second check. */
+.deed-ruler {
+  margin-top: 2.25rem;
+}
+.deed-ruler-cap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+.deed-ruler-cap strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--color-ink);
+}
+.deed-ruler-cap span {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.deed-r-body {
+  position: relative;
+  margin-top: 0.75rem;
+}
+.deed-r-row {
+  position: relative;
+  height: 24px;
+}
+.deed-r-lab {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--color-ink-2);
+  line-height: 1.4;
+}
+.deed-r-top .deed-r-lab {
+  bottom: 3px;
+}
+.deed-r-bot .deed-r-lab {
+  top: 3px;
+}
+.deed-r-lab b,
+.deed-r-legend b {
+  font-family: var(--font-deed-italic, var(--font-display));
+  font-style: italic;
+  font-weight: 600;
+  color: var(--color-gold-ink);
+}
+.deed-r-lab.deed-r-end {
+  translate: -100% 0;
+}
+.deed-w {
+  display: none;
+}
+/* A rule, a tick a minute and a short tick every 10 seconds; the minute and the 10 s are percentages of the span. */
+.deed-r-track {
+  position: relative;
+  height: 18px;
+  background:
+    linear-gradient(var(--color-gold-deep), var(--color-gold-deep)) 0 50% / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--color-gold-deep) 0 1px, transparent 1px var(--deed-minute)) 0 50% / 100% 16px no-repeat,
+    repeating-linear-gradient(90deg, var(--color-gold-deep) 0 1px, transparent 1px var(--deed-ten-s)) 0 50% / 100% 7px no-repeat;
+}
+.deed-r-frozen {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-left: 1px solid var(--color-gold-deep);
+  border-right: 1px solid var(--color-gold-deep);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-gold-deep) 38%, transparent) 0 1.5px, transparent 1.5px 6px);
+}
+.deed-r-dot {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: var(--color-ink);
+  box-shadow: 0 0 0 2px var(--color-card);
+}
+.deed-r-dot-ok {
+  background: var(--color-ok);
+}
+.deed-r-dot-bad {
+  background: var(--color-bad);
+}
+.deed-r-dot-gold {
+  background: var(--color-gold-deep);
+}
+.deed-r-dot-hide {
+  background: var(--color-leather);
+}
+.deed-r-ann {
+  position: relative;
+  height: 34px;
+  margin-top: 2px;
+}
+.deed-r-br {
+  position: absolute;
+  top: 0;
+  height: 7px;
+  border: 1px solid var(--color-gold-deep);
+  border-top: 0;
+}
+.deed-r-br.deed-r-bad {
+  border-color: var(--color-bad);
+}
+.deed-r-br-lab {
+  position: absolute;
+  top: 9px;
+  white-space: nowrap;
+  font-size: 12.5px;
+  translate: -50% 0;
+  color: var(--color-gold-ink);
+  font-weight: 500;
+}
+.deed-r-br-lab.deed-r-bad {
+  color: var(--color-bad);
+  font-weight: 700;
+}
+.deed-r-ends {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.deed-r-legend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px dotted var(--color-gold-deep);
+  font-size: 13px;
+  color: var(--color-ink-2);
+}
+.deed-r-legend b {
+  margin-right: 0.3em;
+}
+@media (max-width: 419px) {
+  .deed-r-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 960px) {
+  .deed-w {
+    display: inline;
+  }
+  .deed-r-dot {
+    width: 11px;
+    height: 11px;
+  }
+  .deed-r-legend {
+    display: none;
+  }
+}
+
+/* The full deed, on satchel #3's page: the parties, then one clause per step. */
+.deed-parties {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 2.5rem;
+  margin-top: 2.25rem;
+  border-top: 1px solid var(--color-line);
+}
+@media (min-width: 720px) {
+  .deed-parties {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.deed-party {
+  padding: 0.85rem 0 0.8rem;
+  border-bottom: 1px dotted var(--color-gold-deep);
+}
+.deed-party-wide {
+  grid-column: 1 / -1;
+}
+.deed-party dt {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold-ink);
+}
+.deed-party dd {
+  margin-top: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.deed-party dd.deed-serif {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+.deed-party-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-muted);
+}
+.deed-clauses-intro {
+  max-width: none;
+  margin-top: 2.5rem;
+  text-align: center;
+  font-family: var(--font-deed-italic, var(--font-display));
+  font-style: italic;
+  font-size: 1.0625rem;
+  color: var(--color-ink-2);
+}
+.deed-clauses {
+  margin-top: 1rem;
+}
+.deed-clause {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "head mark" "body body" "ref ref";
+  column-gap: 12px;
+  padding: 1.6rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.deed-clause:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+.deed-c-head {
+  grid-area: head;
+}
+.deed-c-num {
+  display: block;
+  font-family: var(--font-deed-italic, var(--font-display));
+  font-style: italic;
+  font-weight: 500;
+  font-size: 2.25rem;
+  line-height: 1;
+  color: var(--color-gold-deep);
+}
+.deed-c-when {
+  margin-top: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.deed-c-when span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+.deed-pill-bad {
+  display: inline-block;
+  margin-top: 0.55rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+.deed-c-body {
+  grid-area: body;
+  min-width: 0;
+  margin-top: 0.9rem;
+}
+.deed-c-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.375rem;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+.deed-c-text {
+  margin-top: 0.5rem;
+  max-width: 34em;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--color-ink-2);
+  font-variation-settings: "opsz" 14;
+}
+.deed-c-refs {
+  grid-area: ref;
+  min-width: 0;
+  margin-top: 1rem;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+/* A reference is a hash or a command, not prose: it takes the column's width, so the command fits on one line. */
+.deed-c-refs p {
+  max-width: none;
+}
+.deed-c-refs p + p {
+  margin-top: 0.4rem;
+}
+.deed-ref-k {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold-ink);
+}
+.deed-hash {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-ink);
+  word-break: break-all;
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold);
+  text-underline-offset: 3px;
+}
+.deed-receipt {
+  font-family: var(--font-mono);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+/* Commands keep two hyphens as two: no ligature turns --network into a dash. */
+.deed-cmd,
+.deed-term {
+  font-variant-ligatures: none;
+}
+.deed-cmd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  overflow-wrap: anywhere;
+}
+.deed-c-mark {
+  grid-area: mark;
+  justify-self: end;
+  align-self: start;
+}
+@media (max-width: 419px) {
+  .deed-clause {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "mark" "body" "ref";
+  }
+  .deed-c-mark {
+    justify-self: start;
+    margin-top: 0.75rem;
+  }
+}
+@media (min-width: 960px) {
+  .deed-clause {
+    grid-template-columns: 8.5rem minmax(0, 1fr) 10rem;
+    grid-template-areas: "head body mark" "head ref mark";
+    column-gap: 1.75rem;
+    padding: 2.1rem 0;
+  }
+  .deed-c-num {
+    font-size: 2.75rem;
+  }
+  .deed-c-body {
+    margin-top: 0.2rem;
+  }
+  .deed-c-mark {
+    justify-self: center;
+    align-self: center;
+  }
+}
+.deed-checks {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+.deed-checks li {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 15px;
+  color: var(--color-ink-2);
+}
+.deed-tick {
+  color: var(--color-ok);
+  font-weight: 700;
+}
+
+/* Rubber stamps. The speckle (deed-ink) is on the double border and the big word, never on the 13px lines. */
+.deed-stamp {
+  display: inline-block;
+  rotate: var(--deed-rot, -7deg);
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 1px 0 rgb(23 20 15 / 0.1);
+}
+.deed-stamp-ink {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+  padding: 0.5rem 0.8rem 0.55rem;
+  text-align: center;
+}
+.deed-stamp-ink::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px double currentColor;
+  border-radius: 6px;
+  filter: url(#deed-ink);
+}
+.deed-s-top,
+.deed-s-sub {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+.deed-s-big {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  padding-left: 0.14em;
+  filter: url(#deed-ink);
+}
+.deed-stamp-bad {
+  background: var(--color-bad-soft);
+  color: var(--color-bad);
+}
+.deed-stamp-bad .deed-s-big {
+  font-size: 24px;
+  letter-spacing: 0.2em;
+  padding-left: 0.2em;
+}
+.deed-stamp-small .deed-s-big {
+  font-size: 15px;
+}
+@media (min-width: 720px) {
+  .deed-s-big {
+    font-size: 19px;
+  }
+  .deed-stamp-bad .deed-s-big {
+    font-size: 27px;
+  }
+}
+
+/* The wax seal (the deed-seal symbol). */
+.deed-seal {
+  display: block;
+  width: 104px;
+  height: auto;
+  rotate: var(--deed-rot, 6deg);
+  filter: drop-shadow(0 7px 8px rgb(23 20 15 / 0.35));
+  overflow: visible;
+}
+@media (min-width: 960px) {
+  .deed-clause .deed-seal {
+    width: 150px;
+  }
+}
+
+/* The old owner's attempt: the call reads plainly on a hatched slip; the label and the stamp say it was refused. */
+.deed-attempt {
+  position: relative;
+  margin-top: 1rem;
+  border: 1.5px dashed var(--color-bad);
+  border-radius: 6px;
+  background: var(--color-card);
+  padding: 0.85rem 1rem;
+}
+.deed-attempt-k {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-bad);
+}
+.deed-attempt-line {
+  max-width: none;
+  margin-top: 0.45rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+  background:
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-bad) 18%, transparent) 0 1px, transparent 1px 7px),
+    var(--color-card);
+}
+/* The latin subset of JetBrains Mono has no "→": a system mono face draws it as compact as the call around it. */
+.deed-arrow {
+  font-family: ui-monospace, Consolas, Menlo, monospace;
+}
+/* Under 960px the stamp sits in flow under the call, so it never covers it; from 960px it hangs in the mark column. */
+.deed-attempt .deed-stamp {
+  position: relative;
+  display: block;
+  width: max-content;
+  margin: 1.5rem 0.25rem -2rem auto;
+}
+.deed-words {
+  margin-top: 2.25rem;
+}
+.deed-words figcaption {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.deed-words blockquote {
+  margin-top: 0.4rem;
+  border-left: 3px solid var(--color-bad);
+  border-radius: 0 4px 4px 0;
+  background: var(--color-bad-soft);
+  padding: 0.7rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-bad);
+  overflow-wrap: anywhere;
+}
+@media (min-width: 960px) {
+  .deed-attempt {
+    padding: 0.9rem 6.75rem 0.95rem 1rem;
+  }
+  .deed-attempt .deed-stamp {
+    position: absolute;
+    margin: 0;
+    right: -9rem;
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .deed-words {
+    margin-top: 1.25rem;
+  }
+}
+
+/* The parties' hands, the folio and the commands that re-check it. */
+.deed-hands {
+  display: grid;
+  gap: 1.75rem;
+  margin-top: 2.5rem;
+}
+.deed-hand-k {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold-ink);
+}
+.deed-hand-name {
+  margin-top: 0.7rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--color-ink-2);
+  font-family: var(--font-deed-italic, var(--font-display));
+  font-style: italic;
+  font-size: 1.5rem;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.deed-hand-ref {
+  margin-top: 0.45rem;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.deed-hand-ref .deed-hash {
+  font-size: 12.5px;
+}
+.deed-folio {
+  max-width: none;
+  margin-top: 2.25rem;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.deed-recheck {
+  max-width: 64rem;
+  margin: 3.25rem auto 0;
+  display: grid;
+  gap: 1.25rem;
+}
+.deed-recheck h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.deed-recheck p {
+  margin-top: 0.5rem;
+  max-width: 34em;
+  color: var(--color-ink-2);
+}
+/* Tokens only: paper-2 on ink, and the comments paper at 75% (both in contrast.test.ts). */
+.deed-term {
+  border-radius: 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-ink);
+  color: var(--color-paper-2);
+  padding: 1rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.deed-term-note {
+  color: color-mix(in srgb, var(--color-paper) 75%, transparent);
+}
+.deed-nb {
+  white-space: nowrap;
+}
+.deed-read-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1rem;
+}
+@media (min-width: 720px) {
+  .deed-hands {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3rem;
+  }
+}
+@media (min-width: 960px) {
+  .deed-recheck {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 2.75rem;
+    align-items: start;
+  }
+}
+
+/* The /mainnet card: a small deed across the showcase's two columns, its marks beside the text. */
+.deed-card {
+  padding: 44px 32px 40px;
+  box-shadow: 0 30px 50px -36px rgb(23 20 15 / 0.6);
+}
+.deed-card-in {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1.75rem;
+}
+.deed-card-marks {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem 1.25rem;
+  padding: 0.5rem 0;
+}
+.deed-card-marks .deed-seal {
+  width: 96px;
+}
+.deed-card-marks .deed-stamp-ink {
+  padding: 0.45rem 0.6rem 0.5rem;
+}
+.deed-card-marks .deed-stamp-small .deed-s-big {
+  font-size: 15px;
+}
+.deed-card-marks .deed-stamp-bad .deed-s-big {
+  font-size: 20px;
+}
+@media (min-width: 720px) {
+  .deed-card {
+    padding: 48px 52px 44px;
+  }
+}
+@media (min-width: 900px) {
+  .deed-card-in {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: 2.5rem;
+    align-items: center;
+  }
+}
+
+/*
+ * Motion: a stamp or seal still below the fold when the page loads waits there, hidden, and presses in
+ * as it scrolls into view (DeedDefs adds deed-wait, then deed-inked). The foil "3" catches the light once.
+ */
+@keyframes deed-press {
+  0% {
+    opacity: 0;
+    scale: 1.7;
+    rotate: calc(var(--deed-rot) - 9deg);
+  }
+  60% {
+    opacity: 1;
+    scale: 0.96;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+    rotate: var(--deed-rot);
+  }
+}
+@keyframes deed-sheen {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+[data-ink].deed-wait {
+  opacity: 0;
+}
+[data-ink].deed-inked {
+  animation: deed-press 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  animation-delay: var(--deed-delay, 0s);
+}
+.deed-med-num.deed-inked {
+  animation: deed-sheen 1.6s ease-out 0.2s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ink].deed-wait {
+    opacity: 1;
+  }
+  .deed-inked {
+    animation: none !important;
+  }
+}
