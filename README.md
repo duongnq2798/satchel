@@ -65,7 +65,7 @@ and with it the right to sign for the address on every one of those chains.
   contract asks, and the contract asks only for the token's owner, so one NEAR transaction hands the
   wallet over on 8 EVM mainnets (16 chain ids with their testnets).
 - **Mainnet.** [#2](https://satchelnft.xyz/mainnet/satchel/2) holds USDC from a NEAR Intents 1Click
-  swap; [#3](https://satchelnft.xyz/mainnet/satchel/3#deed) went through list and buy end to end (a
+  swap; [#3](https://satchelnft.xyz/mainnet/satchel/3#deed) was listed and bought end to end (a
   self-sale between two of the builder's accounts, not a market price).
 
 The 0 access keys take one RPC call to check; the answer includes `"keys":[]`:

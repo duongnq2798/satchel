@@ -25,7 +25,7 @@ Node 22 or later; the contract tests also need Rust.
   approval or raw signature signed before the transfer can still move what the address holds; the
   report checks that every signed nonce is spent and every approval revoked, and fails on any raw
   signature.
-- **Mainnet.** Satchel #2 holds USDC from a NEAR Intents 1Click swap; #3 went through list and buy
+- **Mainnet.** Satchel #2 holds USDC from a NEAR Intents 1Click swap; #3 was listed and bought
   end to end (a self-sale between two of the builder's accounts, not a market price).
 
 Three commands check the core of it, with Node 22 or later and no wallet, from the repository root

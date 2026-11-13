@@ -18,7 +18,7 @@ export function GET() {
     "- What's specific. The contract builds and records every EVM transaction it asks the MPC network to sign (a raw signature is counted and blocks a clean verdict); a buyer checks that record against each chain's finalized nonces and approvals and buys at the record version they checked.",
     "- Who it's for. An address that must keep receiving after a sale: a fee or royalty receiver a contract fixes for good, a DAO treasury, an estate.",
     "- Why NEAR. No one holds the key: NEAR's MPC network signs for the address only when the contract asks, and the contract asks only for the token's owner, so one NEAR transaction hands the wallet over on 8 EVM mainnets (16 chain ids with their testnets).",
-    "- Mainnet. #2 (https://satchelnft.xyz/mainnet/satchel/2) holds USDC from a NEAR Intents 1Click swap; #3 (https://satchelnft.xyz/mainnet/satchel/3#deed) went through list and buy end to end (a self-sale between two of the builder's accounts, not a market price).",
+    "- Mainnet. #2 (https://satchelnft.xyz/mainnet/satchel/2) holds USDC from a NEAR Intents 1Click swap; #3 (https://satchelnft.xyz/mainnet/satchel/3#deed) was listed and bought end to end (a self-sale between two of the builder's accounts, not a market price).",
     "",
     "## Check it yourself",
     "",
