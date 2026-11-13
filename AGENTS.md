@@ -34,11 +34,11 @@ Three commands check the core of it, with Node 22 or later and no wallet, from t
 ```bash
 # 1. No install, about 15 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release, run in an empty folder (inside a clone, after npm ci, npx runs the
-#    clone's own build): 49 s to 4 min the first time (download), 4 to 15 s after.
-#    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
+# 2. The npm release, run in an empty folder (inside a clone, after npm ci,
+#    npx runs the clone's own build): 49 s to 4 min the first time (download),
+#    4 to 15 s after. Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
 npx -y satchel-nft@0.2.0 verify --network mainnet 3
-# 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of the nine use cases.
+# 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of 9 use cases.
 #    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed
 #    (before npm ci and npm run build -w satchel-nft: 6 hold, 3 skipped)
 node scripts/check-use-cases.mjs
