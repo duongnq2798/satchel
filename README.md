@@ -68,7 +68,7 @@ and with it the right to sign for the address on every one of those chains.
   swap; [#3](https://satchelnft.xyz/mainnet/satchel/3#deed) went through list and buy end to end (a
   self-sale between two of the builder's accounts, not a market price).
 
-Line 1's 0 access keys takes one RPC call to check; the answer includes `"keys":[]`:
+The 0 access keys take one RPC call to check; the answer includes `"keys":[]`:
 
 ```bash
 curl -s https://rpc.mainnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"v1.satchel-nft.near"}}'
@@ -80,10 +80,11 @@ with Node 22 or later and no wallet. Times and lines are from runs on 2026-11-13
 ```bash
 # 1. No install, about 15 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release: 49 s to 4 min on a first run (download), about 4 s after.
+# 2. The npm release, run in an empty folder (inside a clone, after npm ci, npx runs the
+#    clone's own build): 49 s to 4 min the first time (download), 4 to 15 s after.
 #    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
 npx -y satchel-nft@0.2.0 verify --network mainnet 3
-# 3. About 8 to 10 min (8 min 26 s here); prints each of the nine use cases.
+# 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of the nine use cases.
 #    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed
 #    (before npm ci and npm run build -w satchel-nft: 6 hold, 3 skipped)
 node scripts/check-use-cases.mjs
@@ -94,7 +95,7 @@ Open these three; reading needs no wallet, and each page reads the chains live:
 | Open | It reads | What happened |
 | --- | --- | --- |
 | [Testnet satchel #5](https://satchelnft.xyz/satchel/5) | **Not provable**: "A signed transaction may still be pending" | Its owner had a 10,000 ETH send on Sepolia signed and never broadcast it. On an ordinary wallet nothing on chain would show that; Satchel's record names the nonce |
-| [Testnet satchel #9](https://satchelnft.xyz/satchel/9) | **Provably clean**, at record version 5 | Left with a live USDC approval and two signed sends, its owner pressed **Revoke** and **Spend nonce** on its page on 2026-11-12 ([the run](#make-it-clean-on-testnet-satchel-9)) |
+| [Testnet satchel #9](https://satchelnft.xyz/satchel/9) | **Provably clean**, at record version 5 | It was left with a live USDC approval and two signed sends; on 2026-11-12 its owner pressed **Revoke** and **Spend nonce** on its page ([the run](#make-it-clean-on-testnet-satchel-9)) |
 | [Mainnet satchel #2](https://satchelnft.xyz/mainnet/satchel/2) | **Provably clean**, holding 5.280549 USDC on Arbitrum One | Its ETH on Base was swapped through NEAR Intents' 1Click into its own address. **Quote an exit** on its page asks 1Click for a dry quote, with no wallet |
 
 [Evaluate in 5 minutes](#how-to-evaluate-satchel-in-5-minutes) covers the rest.
@@ -604,14 +605,14 @@ accounts, but no price.
 
 **Who it is for.** An address that must keep receiving after a sale: a fee or royalty receiver a
 contract fixes for good, whose income then changes hands with the NFT; a DAO treasury, passed on by
-a vote; an estate, which goes to a named heir after missed check-ins (the last two ran on testnet,
+a vote; an estate, which a small estate contract hands to a named heir after missed check-ins,
+guardians' approvals and a waiting period the owner can cancel (the last two ran on testnet,
 [use cases 5 to 7](#use-cases-you-can-run)). Satchel cannot recover a lost NEAR key
 ([Failure cases](#failure-cases)). After the hackathon both contracts keep running as deployed, with
-no keys and no admin. Running the app needs a Next.js host with no database or session (its one
-server route, `/api/room`, stores nothing) and public RPCs. A v2 would be a new contract account, so
-its satchels would have new addresses: moving is opt-in, by sending assets to a new satchel, and the
-locked v1 keeps working. A hosted verify API is a possible next step; it is not built. Nothing more
-is promised.
+no keys and no admin. Running the app takes a Next.js host and public RPCs: no database, no
+sessions, and one server route (`/api/room`) that stores nothing. A v2 would be a new contract
+account, so its satchels would have new addresses: moving is opt-in, by sending assets to a new
+satchel, and the locked v1 keeps working. A hosted verify API is a possible next step; not built.
 
 **No fee.** The contract takes nothing from a sale: `buy` pays the seller the full price and refunds
 the rest.
@@ -619,9 +620,8 @@ the rest.
 ## The other tracks, point by point
 
 Satchel is entered in three more tracks, as "Satchel (satchelnft.xyz)": Open Innovation, Unstoppable
-DeFi and Social Money. Several entries share the name: this one has the repository
-duongnq2798/satchel and the contract `v1.satchel-nft.near`, and its DAO on testnet is
-`satchel-club.sputnikv2.testnet`. Each table below takes a track's example prompt, from
+DeFi and Social Money. Another entry has the same name; this one has the repository duongnq2798/satchel
+and the contract `v1.satchel-nft.near`. Each table below takes a track's example prompt, from
 [near-hackathon-prompt-examples](https://github.com/nearai/near-hackathon-prompt-examples/tree/main/tracks),
 requirement by requirement. **Met** links to the code, a document or a transaction; **Partly** and
 **Missing** say what isn't there.
@@ -1908,10 +1908,11 @@ What the tests pin down:
   them. A wallet or marketplace has nothing to show for a satchel beyond the contract's icon; its
   address, contents and report are on its page in the app. The description `mint` writes
   ([`lib.rs`](contracts/satchel/src/lib.rs)) reads "A wallet on every chain. Whoever owns this NFT
-  controls the addresses its keys derive." What holds: one address on 16 EVM chains (8 mainnets and
-  their testnets), any other chain only through the opaque `sign_raw`; and the owner controls what
-  is signed from the transfer on, while what was signed or approved before it can still move what
-  the address holds until the report finds it spent or revoked.
+  controls the addresses its keys derive." What holds: the contract builds transactions for 16 EVM
+  chains (8 mainnets and their testnets), and any other chain needs `sign_raw`, which the record
+  counts but can't explain; the owner controls what is signed from the transfer on, while anything
+  signed or approved before it can still move funds until it is spent or revoked, which the report
+  checks for each nonce and approval.
 - **Mainnet is new.** The mainnet contract is the same build as on testnet, checked the same way, but
   the demo satchels and the end-to-end runs are on testnet. On mainnet, as of 2026-11-13, three
   satchels have been minted: #1 has sent once on Base, #2 has swapped once through 1Click, and #3

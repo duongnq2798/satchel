@@ -10,19 +10,21 @@ Node 22 or later; the contract tests also need Rust.
   contract `v1.satchel-nft.near` (0 access keys), a NEAR NFT contract (NEP-171), with the same
   reproducible build at `v1.satchel-nft.testnet`.
 - **What's specific.** The contract builds and records every EVM transaction it asks the MPC
-  network to sign, in a public signing record per token, and counts any raw signature as one it
-  can't explain. A buyer runs four checks on that record against each chain's finalized nonces and
-  approvals (the "clean transfer report") and buys at the record version they checked: `buy` names
-  it. The report and the transactions are one package, `satchel-nft` in `packages/satchel-nft`: the
-  web app runs on it, and it is also a library and a CLI.
+  network to sign, in a public signing record per token, and counts any raw signature, which makes
+  the satchel not provable for every later owner. A buyer runs four checks on that record against
+  each chain's finalized nonces and approvals (the "clean transfer report") and buys at the record
+  version they checked: `buy` names it. The report and the transactions are one package,
+  `satchel-nft` in `packages/satchel-nft`: the web app runs on it, and it is also a library and a
+  CLI.
 - **Who it's for.** An address that must keep receiving after a sale: a fee or royalty receiver a
   contract fixes for good, a DAO treasury, an estate.
 - **Why NEAR.** No one holds the key. NEAR's MPC network (Chain Signatures) derives each token's
   secp256k1 key from the contract's account and the path `satchel/<token_id>`, and signs with it
   only when the contract asks; the contract asks only for the token's owner. So one NEAR transaction
-  hands the wallet over on 8 EVM mainnets (16 chain ids with their testnets). A transaction or
-  approval signed before the transfer can still move what the address holds; the report checks that
-  every signed nonce is spent and every approval revoked.
+  hands the wallet over on 8 EVM mainnets (16 chain ids with their testnets). A transaction,
+  approval or raw signature signed before the transfer can still move what the address holds; the
+  report checks that every signed nonce is spent and every approval revoked, and fails on any raw
+  signature.
 - **Mainnet.** Satchel #2 holds USDC from a NEAR Intents 1Click swap; #3 went through list and buy
   end to end (a self-sale between two of the builder's accounts, not a market price).
 
@@ -32,10 +34,11 @@ Three commands check the core of it, with Node 22 or later and no wallet, from t
 ```bash
 # 1. No install, about 15 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release: 49 s to 4 min on a first run (download), about 4 s after.
+# 2. The npm release, run in an empty folder (inside a clone, after npm ci, npx runs the
+#    clone's own build): 49 s to 4 min the first time (download), 4 to 15 s after.
 #    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
 npx -y satchel-nft@0.2.0 verify --network mainnet 3
-# 3. About 8 to 10 min (8 min 26 s here); prints each of the nine use cases.
+# 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of the nine use cases.
 #    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed
 #    (before npm ci and npm run build -w satchel-nft: 6 hold, 3 skipped)
 node scripts/check-use-cases.mjs
