@@ -29,7 +29,7 @@ if (!browser) throw new Error("No Chromium browser found: set BROWSER=<path>");
 
 // Each shot: the page, what must be on it before the picture (the live checks take a few seconds),
 // an optional click, and the area to keep: the top of the page down to the bottom of `until`, or
-// the box of `element`.
+// the box of `element`. On a satchel's page that is the title and the report right under it.
 const shots = [
   { file: "app-landing.png", path: "/", ready: "Provably clean", until: "main section" },
   {
@@ -40,13 +40,13 @@ const shots = [
     readyIn: "#trick-panel",
     element: "#examples",
   },
-  { file: "app-report-5.png", path: "/satchel/5", ready: "Not provable", readyIn: "main", until: "main > div > section:nth-of-type(2)" },
+  { file: "app-report-5.png", path: "/satchel/5", ready: "Not provable", readyIn: "main", until: "#report" },
   {
     file: "app-mainnet-satchel-1.png",
     path: "/mainnet/satchel/1",
     ready: "Provably clean",
     readyIn: "main",
-    until: "main > div > section:nth-of-type(2)",
+    until: "#report",
   },
 ];
 const unknown = only.filter((name) => !shots.some((s) => s.file === name));

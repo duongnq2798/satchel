@@ -362,6 +362,12 @@ describe("the demo satchels", () => {
     expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8", "9"]);
   });
 
+  it("says next to mainnet #3's sale that it was a self-sale", () => {
+    const story = DEMO_SATCHELS.find((d) => d.network === "mainnet" && d.tokenId === MAINNET_SALE.tokenId)?.story ?? "";
+    expect(story).toContain(`Sold for ${MAINNET_SALE.price} NEAR`);
+    expect(story).toContain("a self-sale between two of the builder's accounts, not a market price");
+  });
+
   it("lists exactly the satchels the app's guard covers, but testnet #2, which is retired", () => {
     for (const net of ["testnet", "mainnet"] as const) {
       const listed = DEMO_SATCHELS.filter((d) => d.network === net).map((d) => d.tokenId);

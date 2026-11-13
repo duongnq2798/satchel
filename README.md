@@ -1392,11 +1392,11 @@ no database and no session.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/readme/app-report-5.png" alt="Satchel #5's page on testnet: its address 0x81149BF1C907579A150e9AB882E951B648853dA3 with 0 balances on the 8 testnets, and its clean transfer report reading Not provable because a transaction signed at nonce 0 on Sepolia may still be pending; the other three checks pass."></td>
-<td width="50%"><img src="docs/assets/readme/app-mainnet-satchel-1.png" alt="Satchel #1's page on mainnet: owned by satchel-nft.near, path satchel/1, record version 1. Its address 0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9 holds 0.00184 ETH on Base and 0 on the other seven mainnets. Its clean transfer report reads Provably clean: no access keys, the reproducible build of commit 87148c6, signs only through v1.signer; Base signed up to nonce 0, finalized nonce is 1; no approval was ever signed; 0 raw signatures, 0 unclassified calls."></td>
+<td width="50%"><img src="docs/assets/readme/app-report-5.png" alt="Satchel #5's page on testnet: owned by satchel-nft.testnet, path satchel/5, record version 1, and right under the title its clean transfer report, reading Not provable because a transaction signed at nonce 0 on Sepolia may still be pending; the other three checks pass."></td>
+<td width="50%"><img src="docs/assets/readme/app-mainnet-satchel-1.png" alt="Satchel #1's page on mainnet: owned by satchel-nft.near, path satchel/1, record version 1, and right under the title its clean transfer report, reading Provably clean: no access keys, the reproducible build of commit 87148c6, signs only through v1.signer; Base signed up to nonce 0, finalized nonce is 1; no approval was ever signed; 0 raw signatures, 0 unclassified calls."></td>
 </tr>
 <tr>
-<td><sub>A satchel's page: its address on the network's 8 chains and its report, read live. Satchel #5 hides a signed send.</sub></td>
+<td><sub>A satchel's page: its report, read live, right under the title. Satchel #5 hides a signed send.</sub></td>
 <td><sub>Satchel #1 on mainnet after its one send on Base: the same report, read live, <code>PROVABLY CLEAN</code>.</sub></td>
 </tr>
 </table>
