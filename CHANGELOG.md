@@ -7,11 +7,12 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 ### Added
 
 - "Try to cheat the buyer" on the landing page stamps each verdict the way the deed of sale does.
-  When a report arrives, a stamp presses in beside the panel's title: **Provably clean** in green or
-  **Not provable** in amber, with the record version the report read; the two refused moves are
-  stamped **Refused** in red. A stamp presses in again each time a move is picked, waits below the
-  window until it scrolls into view, and under reduced motion is simply there. Screen readers hear
-  the verdict as before. The pictures of the section in the README and the docs tutorial are
+  When a report arrives, a stamp presses in beside the panel's title, or under it on a phone:
+  **Provably clean** in green or **Not provable** in amber, with the record version the report
+  read; the two refused moves are stamped **Refused** in red. A report that couldn't settle keeps
+  its badge. A stamp presses in again each time a move is picked, waits below the window until it
+  scrolls into view, and under reduced motion is simply there. Screen readers hear the verdict as
+  before, and now the record version too. The pictures of the section in the README and the docs tutorial are
   re-taken. In the landing's short deed, each step's time line now breaks only after its "·".
 - Mainnet satchel #3's sale as a deed of sale on the site. Right below the landing page's opening
   section, a short deed: the self-sale stated next to the headline and in a box of its own, the

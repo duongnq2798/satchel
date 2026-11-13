@@ -61,15 +61,15 @@ function ReportLines({ report, focus }: { report: Report; focus: ReportTrick["ch
 }
 
 /**
- * The panel's head: what it shows, its title under that, and the verdict beside both, as a stamp
- * like the deed's. On a phone the stamp sits beside the first line and the title takes the width.
+ * The panel's head: what it shows, its title under that, and the verdict, as a stamp like the deed's:
+ * beside both, or on a phone in a row of its own under the title, so neither line is squeezed.
  */
 function PanelHead({ about, title, verdict }: { about: string; title: string; verdict: ReactNode }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 [grid-template-areas:'about_verdict'_'title_title'] sm:[grid-template-areas:'about_verdict'_'title_verdict']">
+    <div className="grid grid-cols-[minmax(0,1fr)] [grid-template-areas:'about'_'title'_'verdict'] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:[grid-template-areas:'about_verdict'_'title_verdict']">
       <p className="self-start text-sm text-paper/75 [grid-area:about]">{about}</p>
-      <div className="deed-verdict [grid-area:verdict]">{verdict}</div>
       <h3 className="mt-4 font-display text-2xl font-semibold [grid-area:title] sm:text-3xl">{title}</h3>
+      <div className="deed-verdict [grid-area:verdict]">{verdict}</div>
     </div>
   );
 }
@@ -116,7 +116,11 @@ function ReportPanel({ trick }: { trick: ReportTrick }) {
   return (
     <>
       <p role="status" className="sr-only">
-        {report.data ? `Report finished: ${VERDICT[report.data.verdict].label}` : failed ? "Couldn't read the report" : "Running the report"}
+        {report.data
+          ? `Report finished: ${VERDICT[report.data.verdict].label}, record version ${report.data.recordVersion}`
+          : failed
+            ? "Couldn't read the report"
+            : "Running the report"}
       </p>
       <PanelHead about={`Satchel #${trick.tokenId}, its clean transfer report`} title={trick.title} verdict={<VerdictStamp report={report} />} />
       <p className="mt-2 text-sm leading-relaxed text-paper/80">{trick.body}</p>

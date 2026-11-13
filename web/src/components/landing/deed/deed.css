@@ -909,28 +909,27 @@
 }
 
 /*
- * The verdict beside the heading of "Try to cheat the buyer" (components/landing/trick-explorer.tsx):
- * the report's or the contract's, as a stamp. A stamp brings its own tint, so it reads on the dark
- * panel as on paper. The slot keeps a stamp's height while the report runs, so the panel doesn't jump.
+ * The verdict of "Try to cheat the buyer" (components/landing/trick-explorer.tsx): the report's or the
+ * contract's, as a stamp beside the panel's heading, or on a phone under its title, on the left. A
+ * stamp brings its own tint, so it reads on the dark panel as on paper. The slot keeps a stamp's
+ * height while the report runs, so the panel doesn't jump when it arrives.
  */
 .deed-verdict {
   display: grid;
-  place-items: center;
-  min-width: 8rem;
+  place-items: center start;
   min-height: 4.75rem;
+  margin: 0.75rem 0 0.5rem;
 }
 .deed-verdict .deed-stamp-bad .deed-s-big {
   font-size: 20px;
   letter-spacing: 0.16em;
   padding-left: 0.16em;
 }
-@media (max-width: 639px) {
+@media (min-width: 640px) {
   .deed-verdict {
-    min-width: 0;
-    min-height: 3.5rem;
-  }
-  .deed-verdict :is(.deed-s-top, .deed-s-sub) {
-    display: none;
+    place-items: center;
+    min-width: 8rem;
+    margin: 0;
   }
 }
 
