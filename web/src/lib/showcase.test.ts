@@ -13,11 +13,15 @@ import {
   SHOWCASE,
   SITE_HOSTS,
   TOUR,
+  formatSpan,
   parseSatchelInput,
   refNetwork,
   roomDescription,
+  secondsBetween,
   tokenDescription,
   tokenPageNote,
+  utcDate,
+  utcTime,
   verifyCommand,
 } from "./showcase";
 
@@ -42,21 +46,62 @@ describe("the mainnet showcase matches the evidence files", () => {
     expect(run.sentWith).toBe("https://satchelnft.xyz/mainnet/satchel/1");
   });
 
-  it("satchel #3's sale: deployments/mainnet-sale.json", () => {
+  it("satchel #3's sale: deployments/mainnet-sale.json, every fact its deed shows", () => {
     const run = evidence("mainnet-sale.json");
+    const sale = MAINNET_SALE;
     expect(run.network).toBe("mainnet");
-    expect(run.contract).toBe(MAINNET.contract);
-    expect(run.tokenId).toBe(MAINNET_SALE.tokenId);
-    expect([run.seller, run.buyer]).toEqual([MAINNET_SALE.seller, MAINNET_SALE.buyer]);
-    // yoctoNEAR: NEAR has 24 decimals.
-    expect(run.price).toBe(parseUnits(MAINNET_SALE.price, 24).toString());
-    expect(run.buy.tx).toBe(MAINNET_SALE.buyTx);
-    expect(run.buy.signer).toBe(MAINNET_SALE.buyer);
-    // "the old owner's next sign_evm was refused": by the owner check, after the buy.
-    expect(run.refused.tx).toBe(MAINNET_SALE.refusedTx);
-    expect(run.refused.panic).toContain("Satchel: only the token's owner can do this");
+    expect([run.contract, run.mpc]).toEqual([MAINNET.contract, MAINNET.mpc]);
+    expect([run.tokenId, run.path, getAddress(run.address)]).toEqual([sale.tokenId, sale.path, sale.address]);
+    expect([run.seller, run.buyer]).toEqual([sale.seller, sale.buyer]);
+    // yoctoNEAR: NEAR has 24 decimals. The listing and the buy named the same price and record version.
+    const yocto = parseUnits(sale.price, 24).toString();
+    expect([run.price, run.list.price, run.buy.price, run.buy.paid.deposit]).toEqual([yocto, yocto, yocto, yocto]);
+    expect([run.recordVersion, run.list.recordVersion, run.buy.recordVersion]).toEqual([sale.recordVersion, sale.recordVersion, sale.recordVersion]);
+    // The four transactions: time, hash and the block that included it.
+    for (const step of ["mint", "list", "buy", "refused"] as const) {
+      expect([run[step].at, run[step].tx, run[step].block], step).toEqual([sale[step].at, sale[step].tx, sale[step].block]);
+    }
+    expect(run.buy.signer).toBe(sale.buyer);
+    expect(run.buy.paid).toMatchObject({ receipt: sale.buy.paid.receipt, to: sale.seller, block: sale.buy.paid.block });
+    expect(sale.buy.paid.to).toBe(sale.seller);
+    // The two reports: a read each, at its time, for the owner of the moment.
+    for (const [report, quoted] of [
+      [run.reportBeforeBuy, sale.checked],
+      [run.verified, sale.checkedAgain],
+    ] as const) {
+      expect([report.checkedAt, report.result, report.owner, report.recordVersion]).toEqual([quoted.at, quoted.result, quoted.owner, sale.recordVersion]);
+      expect(report.command).toBe(verifyCommand(MAINNET, sale.tokenId));
+      expect(report.pending).toBe("Nothing was ever signed for this token through sign_evm");
+    }
+    expect([sale.checked.owner, sale.checkedAgain.owner]).toEqual([sale.seller, sale.buyer]);
+    // "the old owner's next sign_evm was refused": by the owner check, after the buy, for 0 wei to 0x…dEaD on Base.
+    expect(run.refused.panic).toBe(sale.refused.panic);
+    expect(run.refused.receiptBlock).toBe(sale.refused.receiptBlock);
+    expect([run.refused.ownerAtBlock, run.refused.recordVersionAtBlock]).toEqual([sale.buyer, sale.recordVersion]);
+    const tx = run.refused.args.tx;
+    expect([run.refused.args.token_id, Number(tx.chain_id), getAddress(tx.to), tx.value]).toEqual([sale.tokenId, sale.refused.chainId, sale.refused.to, sale.refused.value]);
     expect(Number(run.refused.block)).toBeGreaterThan(Number(run.buy.block));
-    expect([run.reportBeforeBuy.result, run.verified.result]).toEqual(["PROVABLY CLEAN", "PROVABLY CLEAN"]);
+    // Each step after the one before it, in time and in blocks.
+    const times = [sale.mint.at, sale.list.at, sale.checked.at, sale.buy.at, sale.refused.at, sale.checkedAgain.at].map(Date.parse);
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
+    const blocks = [sale.mint.block, sale.list.block, sale.buy.block, sale.refused.block].map(Number);
+    expect([...blocks].sort((a, b) => a - b)).toEqual(blocks);
+  });
+
+  it("satchel #3's deed counts its spans from the record's times", () => {
+    const sale = MAINNET_SALE;
+    // "21 seconds later the old owner asked to sign for it"
+    expect(formatSpan(secondsBetween(sale.buy.at, sale.refused.at))).toBe("21 s");
+    // "3 min 16 s, mint to second check"
+    expect(formatSpan(secondsBetween(sale.mint.at, sale.checkedAgain.at))).toBe("3 min 16 s");
+    expect(formatSpan(secondsBetween(sale.mint.at, sale.checkedAgain.at), true)).toBe("3 minutes 16 seconds");
+    expect(formatSpan(secondsBetween(sale.mint.at, sale.buy.at), true)).toBe("2 minutes 20 seconds");
+    expect(formatSpan(secondsBetween(sale.mint.at, sale.list.at), true)).toBe("12 seconds");
+    expect(formatSpan(61, true)).toBe("1 minute 1 second");
+    // The deed shows each time cut to the second, never rounded up past what happened.
+    expect([sale.checked.at, sale.checkedAgain.at].map(utcTime)).toEqual(["01:19:34 UTC", "01:22:31 UTC"]);
+    expect(utcDate(sale.mint.at)).toBe("13 November 2026");
+    expect(utcDate(sale.checkedAgain.at)).toBe(utcDate(sale.mint.at));
   });
 
   it("satchel #2's swap: deployments/mainnet-1click-exit.json", () => {

@@ -78,8 +78,8 @@ export default function Market() {
           <p className="mt-1 text-sm text-muted">List one from its page; it shows up here with its report.</p>
           {net.id === "mainnet" && (
             <p className="mt-3 text-sm text-ink-2">
-              Satchels #1 and #2 aren&apos;t for sale, but each has sent ETH on Base from this app, #2 into a swap through
-              1Click:{" "}
+              Satchels #1 to #3 aren&apos;t for sale: #1 and #2 have sent ETH on Base from this app, #2 into a swap through
+              1Click, and #3 was sold between two of the builder&apos;s accounts:{" "}
               <Link
                 href={`${appPath(net, "/")}#showcase`}
                 className="font-medium text-leather underline decoration-line underline-offset-4 hover:decoration-ink"

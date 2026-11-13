@@ -7,7 +7,8 @@ import { WalletProvider } from "@/components/wallet";
 import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "satchel-nft";
 import "./globals.css";
 
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"] });
+// Real italics, not slanted roman: the deed of sale (components/landing/deed) sets its numerals and hands in them.
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"], style: ["normal", "italic"] });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
@@ -64,7 +65,14 @@ const FOOTER: { title: string; links: { href: string; label: string; external?: 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     // The docs set data-theme on <html> before React loads (components/docs/theme.tsx).
-    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+    // data-scroll-behavior: on a route change the router jumps instead of gliding (globals.css scrolls
+    // smoothly), so a link to /mainnet/satchel/3#deed lands on the deed while the report above it loads.
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <body className="min-h-screen">
         <NetworkProvider>
           <WalletProvider>

@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DeedDefs } from "@/components/landing/deed/defs";
+import { SaleCard } from "@/components/landing/deed/sale-card";
 import { LiveStats } from "@/components/live-stats";
 import { NetLink } from "@/components/site-header";
 import { CHAINS, MAINNET } from "satchel-nft";
 import { appPath } from "@/lib/routes";
-import { SHOWCASE, verifyCommand } from "@/lib/showcase";
+import { MAINNET_SALE, SHOWCASE, verifyCommand } from "@/lib/showcase";
 
 export const metadata: Metadata = {
   title: "Satchel on NEAR mainnet",
-  description: `Satchel on NEAR mainnet: ${MAINNET.contract}, the same locked, reproducible contract as on testnet, signing through ${MAINNET.mpc}. Satchel #1 sent ETH on Base from this app, and satchel #2 swapped ETH on Base for USDC on Arbitrum One through NEAR Intents' 1Click.`,
+  description: `Satchel on NEAR mainnet: ${MAINNET.contract}, the same locked, reproducible contract as on testnet, signing through ${MAINNET.mpc}. Satchel #1 sent ETH on Base from this app, satchel #2 swapped ETH on Base for USDC on Arbitrum One through NEAR Intents' 1Click, and satchel #3 was sold for ${MAINNET_SALE.price} NEAR between two of the builder's accounts, after which its old owner's sign_evm was refused.`,
 };
 
 const MAINNET_CHAINS = CHAINS.filter((c) => !c.testnet).map((c) => c.name);
@@ -47,10 +49,13 @@ export default function MainnetHome() {
       <LiveStats />
 
       <section id="showcase" className="scroll-mt-24">
-        <h2 className="font-display text-3xl font-semibold tracking-tight">Two satchels that sent real ETH</h2>
+        <DeedDefs />
+        <h2 className="font-display text-3xl font-semibold tracking-tight">Three satchels on mainnet</h2>
         <p className="mt-2 text-ink-2">
-          Both were minted by satchel-nft.near, and each send was signed in a NEAR wallet on this site. Each card says what
-          happened; the satchel&apos;s page reads its report live, against NEAR and every chain its record lists.
+          All three were minted by satchel-nft.near. Satchels #1 and #2 sent real ETH, each send signed in a NEAR wallet on this
+          site. Satchel #{MAINNET_SALE.tokenId} was sold between two of the builder&apos;s accounts, and its old owner&apos;s next sign_evm was
+          refused. Each card says what happened; the satchel&apos;s page reads its report live, against NEAR and every chain
+          its record lists.
         </p>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {SHOWCASE.map((s) => (
@@ -81,6 +86,7 @@ export default function MainnetHome() {
               </div>
             </article>
           ))}
+          <SaleCard />
         </div>
       </section>
 
