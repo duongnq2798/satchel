@@ -10,12 +10,22 @@
 // every point links the BountyDone proposal, who approved it in which role, and the transaction that
 // paid it, and every role change the proposal that made it and the finished bounty it cites. Node 22
 // or later, no install, no wallet, no key.
-// Usage: node scripts/check-dao-bounty.mjs
+// Usage: node scripts/check-dao-bounty.mjs [--claims-only]
+//   --claims-only  check the claims and leave out the board, which reads the DAO again and checks
+//                  nothing more; scripts/check-use-cases.mjs runs it so
 // NEAR_RPC, NEAR_ARCHIVAL_RPC and SEPOLIA_RPC replace the default nodes, and a node that doesn't
 // answer is asked again or passed over exactly as in scripts/check-dao.mjs. A claim whose steps
 // the file doesn't hold yet reads [WAIT], not [FAIL]; before the run there is no file, and the
 // script says so.
 import { existsSync, readFileSync } from "node:fs";
+
+const USAGE = "usage: node scripts/check-dao-bounty.mjs [--claims-only]";
+const CLAIMS_ONLY = process.argv.includes("--claims-only");
+const unknownArgs = process.argv.slice(2).filter((a) => a !== "--claims-only");
+if (unknownArgs.length) {
+  console.error(`unknown argument ${unknownArgs[0]}\n${USAGE}`);
+  process.exit(2);
+}
 
 const FILE = "deployments/testnet-dao-bounty.json";
 const PATH = new URL(`../${FILE}`, import.meta.url);
@@ -108,7 +118,8 @@ async function rpcOnce(url, method, params) {
 
 /**
  * Sends a read, and again while the node is busy: up to 4 sends, 1, 2 and 4 s apart, or longer if its
- * Retry-After asks, up to 8 s. Any other failure is tried once more, 2 s later.
+ * Retry-After asks, up to 8 s. A node whose Retry-After asks for more than 30 s isn't asked again for
+ * this read. Any other failure is tried once more, 2 s later.
  */
 async function rpc(url, method, params) {
   for (let sent = 1; ; sent += 1) {
@@ -116,7 +127,8 @@ async function rpc(url, method, params) {
       return await rpcOnce(url, method, params);
     } catch (err) {
       const busy = err instanceof NoAnswer && err.busy;
-      if (sent >= (busy ? 4 : 2)) throw err;
+      // NEAR's archival node asked for 329 s on 2026-11-14: three more sends only met three more 429s.
+      if (sent >= (busy ? 4 : 2) || (busy && (err.retryAfter ?? 0) > 30)) throw err;
       const backoff = 1_000 * 2 ** (sent - 1);
       // A Retry-After can only make the wait longer: FastNEAR's archival node sends `retry-after: 0`
       // with its 429s, and asking again at once only meets another 429.
@@ -146,15 +158,14 @@ const answeredBy = { archival: new Set(), sepolia: new Set() };
 
 /**
  * The archival nodes in the order a read asks them: NEAR_ARCHIVAL_RPC alone or, with it unset,
- * FastNEAR's and then NEAR's own. Once a fallback answers a read, with a result or an error, later
- * reads ask it first and FastNEAR's last.
+ * FastNEAR's and then NEAR's own. The node that answered the last read, with a result or an error,
+ * is asked first: once a fallback answers a read FastNEAR's didn't, later reads ask it first and
+ * FastNEAR's last, until FastNEAR's answers one the fallback didn't.
  */
 let archivalNodes = process.env.NEAR_ARCHIVAL_RPC ? [ARCHIVAL] : [ARCHIVAL, ...ARCHIVAL_FALLBACKS];
 
 function answered(url) {
-  if (url !== ARCHIVAL && archivalNodes[0] !== url) {
-    archivalNodes = [url, ...ARCHIVAL_FALLBACKS.filter((u) => u !== url), ARCHIVAL];
-  }
+  if (archivalNodes[0] !== url) archivalNodes = [url, ...archivalNodes.filter((u) => u !== url)];
 }
 
 /**
@@ -877,11 +888,13 @@ async function check() {
   }
   const held = CLAIMS.length - failed - waiting;
   console.log(`\n${held} of ${CLAIMS.length} claims hold${waiting ? `, ${waiting} not run yet` : ""} (${RPC}, archival ${ARCHIVAL}, ${SEPOLIA_RPC})`);
-  if (archivalNodes[0] !== ARCHIVAL && answeredBy.archival.size) {
-    console.log(`Archival reads came from ${[...answeredBy.archival].join(" and ")}: once ${ARCHIVAL} didn't answer one, later ones went to ${archivalNodes[0]} first`);
+  if ([...answeredBy.archival].some((u) => u !== ARCHIVAL)) {
+    console.log(`Archival reads came from ${[...answeredBy.archival].join(" and ")}: a read one of them didn't answer went to the next, and later reads to the one that answered last first`);
   }
   if (answeredBy.sepolia.size) console.log(`Sepolia reads that ${SEPOLIA_RPC} failed came from ${[...answeredBy.sepolia].join(" and ")}`);
-  if (step("create")) {
+  if (CLAIMS_ONLY) {
+    console.log("No bounty board under --claims-only: run the script without it to print the board.");
+  } else if (step("create")) {
     try {
       await board(DAO, X, step);
     } catch (err) {

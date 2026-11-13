@@ -84,7 +84,8 @@ async function rpcOnce(url, method, params) {
 
 /**
  * Sends a read, and again while the node is busy: up to 4 sends, 1, 2 and 4 s apart, or longer if its
- * Retry-After asks, up to 8 s. Any other failure is tried once more, 2 s later.
+ * Retry-After asks, up to 8 s. A node whose Retry-After asks for more than 30 s isn't asked again for
+ * this read. Any other failure is tried once more, 2 s later.
  */
 async function rpc(url, method, params) {
   for (let sent = 1; ; sent += 1) {
@@ -92,7 +93,8 @@ async function rpc(url, method, params) {
       return await rpcOnce(url, method, params);
     } catch (err) {
       const busy = err instanceof NoAnswer && err.busy;
-      if (sent >= (busy ? 4 : 2)) throw err;
+      // NEAR's archival node asked for 329 s on 2026-11-14: three more sends only met three more 429s.
+      if (sent >= (busy ? 4 : 2) || (busy && (err.retryAfter ?? 0) > 30)) throw err;
       const backoff = 1_000 * 2 ** (sent - 1);
       // A Retry-After can only make the wait longer: FastNEAR's archival node sends `retry-after: 0`
       // with its 429s, and asking again at once only meets another 429.
@@ -119,15 +121,14 @@ const answeredBy = { archival: new Set() };
 
 /**
  * The archival nodes in the order a read asks them: NEAR_ARCHIVAL_RPC alone or, with it unset,
- * FastNEAR's and then NEAR's own. Once a fallback answers a read, with a result or an error, later
- * reads ask it first and FastNEAR's last.
+ * FastNEAR's and then NEAR's own. The node that answered the last read, with a result or an error,
+ * is asked first: once a fallback answers a read FastNEAR's didn't, later reads ask it first and
+ * FastNEAR's last, until FastNEAR's answers one the fallback didn't.
  */
 let archivalNodes = process.env.NEAR_ARCHIVAL_RPC ? [ARCHIVAL] : [ARCHIVAL, ...ARCHIVAL_FALLBACKS];
 
 function answered(url) {
-  if (url !== ARCHIVAL && archivalNodes[0] !== url) {
-    archivalNodes = [url, ...ARCHIVAL_FALLBACKS.filter((u) => u !== url), ARCHIVAL];
-  }
+  if (archivalNodes[0] !== url) archivalNodes = [url, ...archivalNodes.filter((u) => u !== url)];
 }
 
 /**
@@ -609,8 +610,8 @@ async function check() {
   }
   const held = CLAIMS.length - failed - waiting;
   console.log(`\n${held} of ${CLAIMS.length} claims hold${waiting ? `, ${waiting} not run yet` : ""} (${RPC}, archival ${ARCHIVAL})`);
-  if (archivalNodes[0] !== ARCHIVAL && answeredBy.archival.size) {
-    console.log(`Archival reads came from ${[...answeredBy.archival].join(" and ")}: once ${ARCHIVAL} didn't answer one, later ones went to ${archivalNodes[0]} first`);
+  if ([...answeredBy.archival].some((u) => u !== ARCHIVAL)) {
+    console.log(`Archival reads came from ${[...answeredBy.archival].join(" and ")}: a read one of them didn't answer went to the next, and later reads to the one that answered last first`);
   }
   return failed + waiting === 0;
 }
