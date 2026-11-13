@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { DeedDefs } from "@/components/landing/deed/defs";
+import { REFUSED_AFTER } from "@/components/landing/deed/ruler";
+import { DeedTeaser } from "@/components/landing/deed/teaser";
 import { HeroCard } from "@/components/landing/hero-card";
 import { SaleFlow } from "@/components/landing/sale-flow";
 import { TrickExplorer } from "@/components/landing/trick-explorer";
@@ -9,7 +12,7 @@ import { NetLink } from "@/components/site-header";
 import { CHAINS, MAINNET, NETWORKS, REPO_URL, TESTNET } from "satchel-nft";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
 import { appPath } from "@/lib/routes";
-import { BUILT_WITH, TOUR } from "@/lib/showcase";
+import { BUILT_WITH, MAINNET_SALE, TOUR, formatSpan, utcDate } from "@/lib/showcase";
 
 const USUAL_WAY = [
   "The seller can keep a copy of the key, and nothing shows it",
@@ -167,7 +170,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the card marked Mainnet satchel #2 and the Built with links to mainnet, Base and Arbitrum One: never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the deed of mainnet satchel #3's sale right below the opening section, the card marked Mainnet satchel #2 and the Built with links to mainnet, Base and Arbitrum One: never send real funds to a testnet satchel's address.",
   },
 ];
 
@@ -224,12 +227,36 @@ export default function Home() {
                 , where{" "}
                 <a href="/mainnet#showcase" className="underline decoration-line underline-offset-2 hover:text-ink">
                   two satchels have sent real ETH
-                </a>
-                . Not audited. Reading a report needs no wallet.
+                </a>{" "}
+                and{" "}
+                <a href="#sold-on-mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
+                  a third was sold
+                </a>{" "}
+                between two of the builder&apos;s accounts. Not audited. Reading a report needs no wallet.
               </p>
             </div>
             <HeroCard />
           </div>
+        </section>
+
+        <section id="sold-on-mainnet" className="deed-section scroll-mt-24">
+          <DeedDefs />
+          <Eyebrow>
+            Mainnet satchel #{MAINNET_SALE.tokenId} · a self-sale, {utcDate(MAINNET_SALE.mint.at)}
+          </Eyebrow>
+          <H2>
+            Sold on mainnet in one transaction.
+            <span className="block text-gold-deep">Then the old owner was refused.</span>
+          </H2>
+          <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-2 sm:text-lg">
+            <strong className="font-semibold text-ink">
+              A self-sale between two of the builder&apos;s accounts: it shows each step on mainnet, not a market price.
+            </strong>{" "}
+            The buyer checked satchel #{MAINNET_SALE.tokenId} before paying. One NEAR transaction handed over the NFT, and with
+            it the right to sign on every chain. {formatSpan(REFUSED_AFTER, true)} later the old owner asked to sign for it, and
+            the chain refused.
+          </p>
+          <DeedTeaser />
         </section>
 
         <LiveStats />

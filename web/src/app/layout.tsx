@@ -64,7 +64,14 @@ const FOOTER: { title: string; links: { href: string; label: string; external?: 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     // The docs set data-theme on <html> before React loads (components/docs/theme.tsx).
-    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+    // data-scroll-behavior: on a route change the router jumps instead of gliding (globals.css scrolls
+    // smoothly), so a link to /mainnet/satchel/3#deed lands on the deed while the report above it loads.
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
       <body className="min-h-screen">
         <NetworkProvider>
           <WalletProvider>

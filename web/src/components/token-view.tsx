@@ -107,14 +107,16 @@ export function TokenView({ tokenId }: { tokenId: string }) {
     setRefresh((n) => n + 1);
   };
   // The sections render only once the satchel loads, after the browser and the router looked for the
-  // URL's #fragment (the holder room links to #report): scroll to it then, once.
+  // URL's #fragment (the holder room links to #report, satchel #3's page to #deed): scroll to it then,
+  // once. Instantly, not smoothly: the report can still grow above the target, and the browser's scroll
+  // anchoring holds a finished jump in place, where a smooth scroll still running would stop short.
   const loaded = Boolean(token.data);
   const scrolled = useRef(false);
   useEffect(() => {
     if (!loaded || scrolled.current) return;
     scrolled.current = true;
     const target = window.location.hash.slice(1);
-    if (target) document.getElementById(target)?.scrollIntoView();
+    if (target) document.getElementById(target)?.scrollIntoView({ behavior: "instant" });
   }, [loaded]);
 
   if (token.data === undefined) {

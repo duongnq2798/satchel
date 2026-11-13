@@ -121,6 +121,15 @@ const LIGHT_ONLY: [string, string, number][] = [
   ["paper", "leather ink/25", 7],
   // StatusIcon's "couldn't check".
   ["paper", "muted", 7],
+  // The deed of sale (components/landing/deed). Its text sits on card under the paper's 6% grain, which
+  // at its darkest multiplies black into card at 6%: ink at 7% over card is darker than that.
+  ...["ink", "ink-2", "muted", "leather", "gold-ink", "ok", "bad"].map((t): [string, string, number] => [t, "card ink/7", 7]),
+  ["gold-deep", "card ink/7", 4.5],
+  // The old owner's attempted call, on its hatch: the darkest pixel is bad at 18% over card.
+  ["ink", "card bad/18", 7],
+  // The terminal under the deed: paper-2 on ink and its comments, paper/75 on ink, are above. The
+  // stamps (ok on ok-soft, bad on bad-soft), the declaration (ink and ink-2 on gold-soft) and the
+  // rest of its text on paper and card hold in both themes, in BOTH.
 ];
 
 const SHIKI = Object.keys(LIGHT).filter((k) => k.startsWith("shiki-") && k !== "shiki-background");
