@@ -217,24 +217,24 @@ if a Base read is what fails, set `BASE_RPC` to an archive node.
 Until 2026-11-25:
 
 - Don't sign anything with testnet satchels #1, #3, #5, #6, #7 or #8, or with mainnet satchels #1
-  and #2. A new signature changes the report lines quoted in the README; one with satchel #5 at
+  to #3. A new signature changes the report lines quoted in the README; one with satchel #5 at
   nonce 0 would end the "signed and kept" example. Mainnet #2 holds the USDC of its swap through
   1Click on Arbitrum One: leave it there.
 - After its setup, testnet satchel #9 signed only in the 1:18 take, on 2026-11-12: the revoke and
   the nonce spend its card planned, once. The README's section on it quotes its report at record
   version 5, and its landing card (`TOUR` in `web/src/lib/showcase.ts`) tells the clean-up: don't
   sign anything with it either. The app's guard covers it from the pull request that recorded the run.
-- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #9 or mainnet #1 and
-  #2. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's
+- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #9 or mainnet #1 to
+  #3. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's
   example says #2's address belongs to the same seller; the README shows #7's history, and #9's
   approval in the 1:18 scene names #7's address; #4 is for sale for 1 NEAR at record version 0 and
   #6 at record version 1, and `list` on a listed satchel replaces its price;
   `buyer.satchel-nft.testnet` owns #8, as the DAO walkthrough ends; `satchel-nft.near` owns mainnet
-  #1 and #2.
+  #1 and #2, and `duongnq2798.near` owns #3, unlisted, at record version 0, as its sale ended.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
 If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
-#5, #6, #7 and #9, `npx -y satchel-nft@0.2.0 verify --network mainnet 1` and `2`, and the README's quick-start
-`satchel` view for #1. Then update the README's quoted outputs, AGENTS.md's table,
-`web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx`, the landing cards (`TOUR` in
-`web/src/lib/showcase.ts`) and this kit's scene notes in the same pull request.
+#5, #6, #7 and #9, `npx -y satchel-nft@0.2.0 verify --network mainnet <id>` for mainnet #1 to #3,
+and the README's quick-start `satchel` view for #1. Then update the README's quoted outputs,
+AGENTS.md's table, `web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx`, the landing
+cards (`TOUR` in `web/src/lib/showcase.ts`) and this kit's scene notes in the same pull request.

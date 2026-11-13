@@ -1,0 +1,98 @@
+{
+  "network": "mainnet",
+  "contract": "v1.satchel-nft.near",
+  "mpc": "v1.signer",
+  "tokenId": "3",
+  "path": "satchel/3",
+  "address": "0x2bc44b0d9d05a2a1161ab6f560501ca870a172a7",
+  "seller": "satchel-nft.near",
+  "buyer": "duongnq2798.near",
+  "note": "A self-sale: both accounts belong to the project's owner. It shows each step on mainnet, not a market price.",
+  "price": "100000000000000000000000",
+  "recordVersion": "0",
+  "mint": {
+    "tx": "mHornX2SqE442ikUyZoZwreSm9cSdrYAF4vneWmLVwn",
+    "block": "224293453",
+    "at": "2026-11-13T01:19:15Z",
+    "deposit": "100000000000000000000000"
+  },
+  "list": {
+    "tx": "7xzmgbStV7o5WL2DrFA2qw8hqRftv5qwp1UwcGh4UCB6",
+    "block": "224293475",
+    "at": "2026-11-13T01:19:27Z",
+    "price": "100000000000000000000000",
+    "recordVersion": "0"
+  },
+  "reportBeforeBuy": {
+    "command": "npx -y satchel-nft@0.2.0 verify --network mainnet 3",
+    "result": "PROVABLY CLEAN",
+    "checkedAt": "2026-11-13T01:19:34.480Z",
+    "owner": "satchel-nft.near",
+    "recordVersion": "0",
+    "listing": {
+      "seller": "satchel-nft.near",
+      "price": "100000000000000000000000",
+      "record_version": "0",
+      "listed_at": "1794532768380106749"
+    },
+    "pending": "Nothing was ever signed for this token through sign_evm",
+    "readFrom": [
+      "https://rpc.mainnet.fastnear.com"
+    ]
+  },
+  "buy": {
+    "tx": "FFYeAebswG8wHUwLXpmtd7okAxExZwtLMPgwSQUx3Kbo",
+    "block": "224293699",
+    "at": "2026-11-13T01:21:35Z",
+    "signer": "duongnq2798.near",
+    "price": "100000000000000000000000",
+    "recordVersion": "0",
+    "paid": {
+      "receipt": "EbK3MHAkHahfDSNF3BpEQd2hbKceVjcHKrtAHT2HjTjH",
+      "to": "satchel-nft.near",
+      "deposit": "100000000000000000000000",
+      "block": "224293701"
+    }
+  },
+  "refused": {
+    "tx": "33UTwyVyAf6CQY5a953rtdmAyF98WZKVwAnqAdY3Vk6X",
+    "block": "224293735",
+    "at": "2026-11-13T01:21:56Z",
+    "receiptBlock": "224293736",
+    "gas": "30000000000000",
+    "deposit": "1",
+    "args": {
+      "token_id": "3",
+      "tx": {
+        "chain_id": "8453",
+        "nonce": "0",
+        "max_priority_fee_per_gas": "1000000",
+        "max_fee_per_gas": "20000000",
+        "gas_limit": "21000",
+        "to": "0x000000000000000000000000000000000000dEaD",
+        "value": "0",
+        "data": "0x"
+      }
+    },
+    "panic": "Smart contract panicked: Satchel: only the token's owner can do this",
+    "ownerAtBlock": "duongnq2798.near",
+    "recordVersionAtBlock": "0"
+  },
+  "verified": {
+    "command": "npx -y satchel-nft@0.2.0 verify --network mainnet 3",
+    "result": "PROVABLY CLEAN",
+    "checkedAt": "2026-11-13T01:22:31.790Z",
+    "owner": "duongnq2798.near",
+    "recordVersion": "0",
+    "listing": null,
+    "pending": "Nothing was ever signed for this token through sign_evm",
+    "readFrom": [
+      "https://rpc.mainnet.fastnear.com"
+    ]
+  },
+  "readFrom": [
+    "https://rpc.mainnet.fastnear.com",
+    "https://archival-rpc.mainnet.fastnear.com"
+  ],
+  "recordedAt": "2026-11-13T01:23:48.048Z"
+}

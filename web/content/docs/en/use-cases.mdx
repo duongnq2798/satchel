@@ -15,6 +15,12 @@ report](/docs/concepts/clean-transfer-report), and buys only if it reads <Verdic
 names the record version the buyer checked, so anything signed between the check and the purchase
 makes the purchase fail. One NEAR transaction moves the NFT, and with it the address on every chain.
 
+**On mainnet:** satchel #3 was sold this way on 2026-11-13, for 0.1 NEAR to a second account of
+the builder's. Its report read <Verdict v="clean" /> before the buy, the buy named record version 0,
+and the old owner's next `sign_evm` was refused on chain:
+[`33UTwyVy…`](https://nearblocks.io/txns/33UTwyVyAf6CQY5a953rtdmAyF98WZKVwAnqAdY3Vk6X).
+[Its page](https://satchelnft.xyz/mainnet/satchel/3) lists the sale in its history.
+
 **Why it is safer than a seed phrase:** a seed phrase handed over is still in the seller's hands. A
 satchel's key is in no one's: the MPC network signs only when the contract asks, and the contract asks
 only for the current owner.

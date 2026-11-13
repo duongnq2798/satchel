@@ -56,8 +56,8 @@ const verify = (id, code, expect) => ({ run: [CLI, "verify", id], built: true, c
 const CASES = [
   {
     what: "Sell a wallet with what it holds; once the NFT moves, the seller can't sign for it",
-    on: "NEAR testnet: satchel #1, handed over and its old owner refused, and #4, refused a signature while listed. Mainnet satchel #3's sale hasn't run yet",
-    page: "/satchel/1",
+    on: "NEAR mainnet and testnet: mainnet satchel #3, sold to a second account and its old owner refused after the sale; testnet #1, handed over and its old owner refused, and #4, refused a signature while listed",
+    page: "/mainnet/satchel/3",
     checks: [
       claims("testnet", ["The previous owner of satchel #1 cannot sign after the transfer", "Signing is frozen while a satchel is listed"]),
       claims("mainnet", ["bought it naming record version", "After the sale,", "provably clean: the buyer's report read so"], {

@@ -16,7 +16,7 @@ export function GET() {
     "",
     "## Demo satchels",
     "",
-    "What happened to each one. Its page reads its clean transfer report live, and the command prints the same report in a terminal. The mainnet ones, with the transactions behind each story, are at https://satchelnft.xyz/mainnet#showcase.",
+    "What happened to each one. Its page reads its clean transfer report live, and the command prints the same report in a terminal. The transactions behind mainnet #1's and #2's stories are at https://satchelnft.xyz/mainnet#showcase, and #3's sale and the refused call after it are in the README (https://github.com/duongnq2798/satchel/blob/main/README.md#satchel-3-sold-to-a-second-account).",
     "",
     ...DEMO_SATCHELS.map((d) => {
       const net = NETWORKS[d.network];

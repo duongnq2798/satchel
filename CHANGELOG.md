@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Mainnet satchel #3 was sold on 2026-11-13. `satchel-nft.near` minted it and listed it for
+  0.1 NEAR, the buyer's report read `PROVABLY CLEAN` before the buy, `duongnq2798.near` bought it
+  in the app naming record version 0 and `satchel-nft.near` was paid, then `satchel-nft.near`'s
+  `sign_evm` for it was refused by the owner check. A self-sale: both accounts are the builder's,
+  and the owner signed every transaction. `deployments/mainnet-sale.json` holds the transactions
+  and both reports, and `node scripts/check-claims.mjs --network mainnet` checks 20 claims, up
+  from 15. The README's first use case now ran on both networks. The verify page offers mainnet #3
+  among its demo satchels, and until 2026-11-25 the app's guard on them covers it, as do the
+  demo guards in `tools/oneclick-exit.mjs` and `tools/mainnet-sale-record.mjs gate`.
 - "Use cases you can run" in the README: nine uses that ran on chain (selling a wallet, catching a
   seller, cleaning before a sale, a swap into its own address, a DAO treasury, bounties with earned
   trust, an heir, what came in, a holder's room), each with a page to open and a command that checks
@@ -50,14 +59,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `tools/estate-run.mjs` runs it on testnet with timers in minutes, and `scripts/check-estate.mjs`
   checks that run on chain. Not deployed yet, and not audited.
 
-- `tools/mainnet-sale-record.mjs`, for a sale of mainnet satchel #3 that has not run yet. It signs
+- `tools/mainnet-sale-record.mjs`, which recorded mainnet satchel #3's sale (above). It signs
   nothing and holds no key. `gate` says when the buyer owns the satchel at a final block and it
   isn't listed, and refuses the demo satchels. `find-refused` finds the old owner's failed
   `sign_evm` in FastNEAR's index, since the near CLI prints no hash for a failed call. `check` reads
   every step back from NEAR and the EVM chain, and `record` writes `deployments/mainnet-sale.json`
   only if each step holds and both of the buyer's saved reports (before the buy, after the refusal)
   read `PROVABLY CLEAN`. `scripts/check-claims.mjs` gains a group of 5 claims for that file, or 7
-  with a send before the sale, active only once it exists; the mainnet count stays 15 until then.
+  with a send before the sale, active only once it exists.
 - A **Received** card on the satchel page. It lists the USDC, USDT and WETH sent to the satchel's
   address since the network's contract was created, read from each chain's Transfer logs, with a
   total per token and chain and a link to each transaction. Each chain shows as soon as it has been

@@ -43,7 +43,7 @@ const ONE_CLICK = "https://1click.chaindefuser.com";
 const BASE = 8453;
 const ARBITRUM = 42161;
 /** The mainnet satchels the README quotes: they sign nothing until judging ends (docs/DEMO.md). */
-const DEMO = new Set(["1", "2"]);
+const DEMO = new Set(["1", "2", "3"]);
 const SLIPPAGE_BPS = 100;
 /** The deadline asked for. 1Click starts refunding at it, so the deposit must land well before. */
 const QUOTE_MINUTES = 60;
