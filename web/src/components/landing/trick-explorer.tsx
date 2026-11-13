@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { type Report, TESTNET, client, formatBalance, formatNear } from "satchel-nft";
 import { FOR_SALE, type RefusedTrick, type ReportTrick, TRICKS, type Trick, type TxLink } from "@/lib/copy";
 import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import { ReportBadge, useReport } from "../report-checker";
-import { Badge, StatusIcon, VERDICT } from "../ui";
+import { StatusIcon, VERDICT } from "../ui";
 import { useAsync } from "../use-async";
+import { PressIn } from "./deed/press";
+import { Stamp } from "./deed/stamp";
 
 const SEPOLIA = 11155111;
 
@@ -58,19 +60,69 @@ function ReportLines({ report, focus }: { report: Report; focus: ReportTrick["ch
   );
 }
 
+/**
+ * The panel's head: what it shows, its title under that, and the verdict, as a stamp like the deed's:
+ * beside both, or on a phone in a row of its own under the title, so neither line is squeezed.
+ */
+function PanelHead({ about, title, verdict }: { about: string; title: string; verdict: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] [grid-template-areas:'about'_'title'_'verdict'] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:[grid-template-areas:'about_verdict'_'title_verdict']">
+      <p className="self-start text-sm text-paper/75 [grid-area:about]">{about}</p>
+      <h3 className="mt-4 font-display text-2xl font-semibold [grid-area:title] sm:text-3xl">{title}</h3>
+      <div className="deed-verdict [grid-area:verdict]">{verdict}</div>
+    </div>
+  );
+}
+
+/**
+ * The report's verdict, pressed in as a stamp when it arrives: Provably clean or Not provable, with
+ * the record version it read. Until then, or when the report couldn't settle, the usual badge.
+ */
+function VerdictStamp({ report }: { report: ReturnType<typeof useReport> }) {
+  const data = report.data;
+  if (!data || data.verdict === "unknown") return <ReportBadge report={report} />;
+  const clean = data.verdict === "clean";
+  return (
+    <PressIn key={data.verdict}>
+      <Stamp
+        press="mount"
+        small
+        tone={clean ? "ok" : "warn"}
+        big={
+          clean ? (
+            <>
+              Provably
+              <br />
+              clean
+            </>
+          ) : (
+            <>
+              Not
+              <br />
+              provable
+            </>
+          )
+        }
+        sub={`record v${data.recordVersion}`}
+        rot={clean ? "-6deg" : "-4deg"}
+      />
+    </PressIn>
+  );
+}
+
 function ReportPanel({ trick }: { trick: ReportTrick }) {
   const report = useReport(trick.tokenId);
   const failed = Boolean(report.error) || report.data === null;
   return (
     <>
       <p role="status" className="sr-only">
-        {report.data ? `Report finished: ${VERDICT[report.data.verdict].label}` : failed ? "Couldn't read the report" : "Running the report"}
+        {report.data
+          ? `Report finished: ${VERDICT[report.data.verdict].label}, record version ${report.data.recordVersion}`
+          : failed
+            ? "Couldn't read the report"
+            : "Running the report"}
       </p>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-paper/75">Satchel #{trick.tokenId}, its clean transfer report</p>
-        <ReportBadge report={report} />
-      </div>
-      <h3 className="mt-4 font-display text-2xl font-semibold sm:text-3xl">{trick.title}</h3>
+      <PanelHead about={`Satchel #${trick.tokenId}, its clean transfer report`} title={trick.title} verdict={<VerdictStamp report={report} />} />
       <p className="mt-2 text-sm leading-relaxed text-paper/80">{trick.body}</p>
       {report.data ? (
         <ReportLines report={report.data} focus={trick.check} />
@@ -92,11 +144,18 @@ function RefusedPanel({ trick }: { trick: RefusedTrick }) {
   const now = report.data;
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-paper/75">The contract, on satchel #{trick.tokenId}</p>
-        <Badge tone="bad">Refused on chain</Badge>
-      </div>
-      <h3 className="mt-4 font-display text-2xl font-semibold sm:text-3xl">{trick.title}</h3>
+      <PanelHead
+        about={`The contract, on satchel #${trick.tokenId}`}
+        title={trick.title}
+        verdict={
+          <>
+            <span className="sr-only">Refused on chain</span>
+            <PressIn>
+              <Stamp press="mount" small tone="bad" top="On chain" big="Refused" rot="5deg" />
+            </PressIn>
+          </>
+        }
+      />
       <p className="mt-2 text-sm leading-relaxed text-paper/80">{trick.body}</p>
       <div className="mt-5 overflow-hidden rounded-xl border border-paper/15 font-mono text-xs">
         <p className="max-w-none bg-paper/5 px-3 py-2 break-all text-paper/80">

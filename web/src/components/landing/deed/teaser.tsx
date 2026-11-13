@@ -43,7 +43,7 @@ export function DeedTeaser() {
             </span>
             <div className="deed-reg-head">
               <p className="deed-reg-when">
-                <time dateTime={sale.checked.at}>{utcTime(sale.checked.at)}</time> · a read, no transaction
+                <time dateTime={sale.checked.at}>{utcTime(sale.checked.at)}</time>&nbsp;· <span>a read, no transaction</span>
               </p>
               <h4 className="deed-reg-title">
                 <span className="sr-only">Step III: </span>Checked before payment
@@ -63,7 +63,7 @@ export function DeedTeaser() {
             </span>
             <div className="deed-reg-head">
               <p className="deed-reg-when">
-                <time dateTime={sale.buy.at}>{utcTime(sale.buy.at)}</time> · tx in block {sale.buy.block}
+                <time dateTime={sale.buy.at}>{utcTime(sale.buy.at)}</time>&nbsp;· <span>tx in block {sale.buy.block}</span>
               </p>
               <h4 className="deed-reg-title">
                 <span className="sr-only">Step IV: </span>Bought, in one transaction
@@ -86,7 +86,7 @@ export function DeedTeaser() {
             </span>
             <div className="deed-reg-head">
               <p className="deed-reg-when">
-                <time dateTime={sale.refused.at}>{utcTime(sale.refused.at)}</time> · {formatSpan(REFUSED_AFTER)} after the sale
+                <time dateTime={sale.refused.at}>{utcTime(sale.refused.at)}</time>&nbsp;· <span>{formatSpan(REFUSED_AFTER)} after the sale</span>
               </p>
               <h4 className="deed-reg-title">
                 <span className="sr-only">Step V: </span>The old owner was refused
