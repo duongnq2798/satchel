@@ -48,7 +48,7 @@ export function SaleCard() {
                   {tx.label}
                   {/* Each card has a Mint link: a screen reader hears whose. */}
                   <span className="sr-only">, satchel #{sale.tokenId}</span>
-                  <span aria-hidden="true"> ↗</span>
+                  <span aria-hidden="true">&nbsp;↗</span>
                 </a>
               </li>
             ))}

@@ -118,7 +118,7 @@ export function TxHash({ hash, what, short = false }: { hash: string; what: stri
     <a className="deed-hash" href={nearTxUrl(MAINNET, hash)} target="_blank" rel="noreferrer" title={short ? hash : undefined}>
       {short ? shortHash(hash) : hash}
       <span className="sr-only">{short ? `, ${what}, transaction ${hash}` : `, ${what}`}</span>
-      <span aria-hidden="true"> ↗</span>
+      <span aria-hidden="true">&nbsp;↗</span>
     </a>
   );
 }

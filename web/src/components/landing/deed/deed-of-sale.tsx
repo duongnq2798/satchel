@@ -7,8 +7,8 @@ import { REFUSED_AFTER, SaleRuler } from "./ruler";
 
 const sale = MAINNET_SALE;
 const COMMAND = verifyCommand(MAINNET, sale.tokenId);
-/** "0x…dEaD": the refused call's recipient, as short as the deed writes addresses. */
-const SINK = `0x…${sale.refused.to.slice(-4)}`;
+/** "0x…dEaD": the refused call's recipient, as short as the deed writes addresses; a word joiner keeps a line from breaking after the "…". */
+const SINK = `0x…\u2060${sale.refused.to.slice(-4)}`;
 const CHAIN = chainInfo(sale.refused.chainId)?.name ?? `chain ${sale.refused.chainId}`;
 /**
  * The refused call after its "→", in groups held together by no-break spaces, so a narrow column
@@ -308,7 +308,7 @@ export function DeedOfSale() {
           <ul className="deed-read-links">
             <li>
               <a href={README_SALE} target="_blank" rel="noreferrer">
-                Every step, in the README<span aria-hidden="true"> ↗</span>
+                Every step, in the README<span aria-hidden="true">&nbsp;↗</span>
               </a>
             </li>
           </ul>

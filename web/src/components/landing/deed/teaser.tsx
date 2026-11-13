@@ -115,7 +115,7 @@ export function DeedTeaser() {
           Read the full deed <span aria-hidden="true">→</span>
         </Link>
         <a className="deed-link" href={README_SALE} target="_blank" rel="noreferrer">
-          Every step, in the README<span aria-hidden="true"> ↗</span>
+          Every step, in the README<span aria-hidden="true">&nbsp;↗</span>
         </a>
         <Link className="deed-link" href={appPath(MAINNET, `/satchel/${sale.tokenId}`)}>
           Satchel #{sale.tokenId}&apos;s live page<span aria-hidden="true"> →</span>
