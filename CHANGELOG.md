@@ -579,6 +579,16 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- "Satchel in 60 seconds" opens with five lines, the same as AGENTS.md's "Satchel in five lines"
+  and the top of `/llms.txt`: which Satchel this is (site, repository, `v1.satchel-nft.near` with 0
+  access keys), what the contract records and how a buyer checks it, who it is for, why NEAR, and
+  what ran on mainnet, #3's sale marked as a self-sale. Under them come one RPC call that shows the
+  0 access keys and three commands, each with its run time and last line from runs on 2026-11-13.
+  "Limits, stated plainly" adds that the locked code fixes the MPC `sign` request and its
+  1 yoctoNEAR deposit, that each token's on-chain description says more than holds, and why there
+  are no NEP-178 approvals. "Who it is for" now says what running the app costs, how a v2 would
+  ship and that a verify API is not built. The note on entries with the same name names no one, in
+  the README and the demo kit.
 - `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
   or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
   `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,

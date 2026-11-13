@@ -181,7 +181,7 @@ whole JSON payload and you have said yes. Use one way, once:
 
 | Field | Value |
 | --- | --- |
-| Project name | Satchel (satchelnft.xyz). Another entry is named "Satchel: membership cards that are wallets" ([ChrisTu117/satchel](https://github.com/ChrisTu117/satchel)); the domain tells the two apart |
+| Project name | Satchel (satchelnft.xyz). Several entries share the name: the domain, the repository duongnq2798/satchel and the contract `v1.satchel-nft.near` identify this one |
 | Team lead | Your name |
 | Email address | The email you use for the hackathon. It may submit 2 projects at most |
 | Team size | 1 — Solo builder (the API's value for it is `1`) |
