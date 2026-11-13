@@ -71,6 +71,20 @@ export const ONECLICK_EXIT = {
   payoutTx: "0x417322bdacc90439ada251ab53ca96117f4c5dcda5ad9671636b2dcd45243209",
 } as const;
 
+/**
+ * Mainnet satchel #3's sale to a second account, and its old owner refused after it
+ * (deployments/mainnet-sale.json).
+ */
+export const MAINNET_SALE = {
+  tokenId: "3",
+  seller: "satchel-nft.near",
+  buyer: "duongnq2798.near",
+  /** NEAR, the listing's price. */
+  price: "0.1",
+  buyTx: "FFYeAebswG8wHUwLXpmtd7okAxExZwtLMPgwSQUx3Kbo",
+  refusedTx: "33UTwyVyAf6CQY5a953rtdmAyF98WZKVwAnqAdY3Vk6X",
+} as const;
+
 export interface ShowcaseCard {
   tokenId: string;
   title: string;
@@ -267,6 +281,12 @@ export const DEMO_SATCHELS: readonly DemoSatchel[] = [
     network: "mainnet",
     tokenId: ONECLICK_EXIT.tokenId,
     story: `Swapped ${ONECLICK_EXIT.sent} ETH on Base for ${ONECLICK_EXIT.received} USDC on Arbitrum One through 1Click`,
+    pick: true,
+  },
+  {
+    network: "mainnet",
+    tokenId: MAINNET_SALE.tokenId,
+    story: `Sold for ${MAINNET_SALE.price} NEAR to a second account; the old owner's next sign_evm was refused`,
     pick: true,
   },
 ];

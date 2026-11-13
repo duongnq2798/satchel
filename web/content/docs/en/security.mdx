@@ -130,11 +130,12 @@ For a partner or a technical evaluator, without a wallet, a key or an account. Y
    node scripts/check-claims.mjs --network mainnet
    ```
 
-   You should see `13 of 13 claims hold` on testnet and `15 of 15 claims hold` on mainnet, each exiting 0. They read
+   You should see `13 of 13 claims hold` on testnet and `20 of 20 claims hold` on mainnet, each exiting 0. They read
    the contract's keys, code hash, NEP-330 metadata and MPC signer, the MPC root key the package derives addresses
    from and the keys it derives, the transactions that deployed and locked the Satchel contract,
-   the calls it refused on testnet, satchel #1's first mainnet send on Base, and mainnet satchel #2's
-   swap through NEAR Intents' 1Click, from Base to USDC on Arbitrum One.
+   the calls it refused on testnet, satchel #1's first mainnet send on Base, mainnet satchel #2's
+   swap through NEAR Intents' 1Click, from Base to USDC on Arbitrum One, and mainnet satchel #3's
+   sale to a second account, with its old owner's `sign_evm` refused after it.
    [Check every claim](/docs/security/check-every-claim#check-the-claims) says what each line reads.
 
 2. **Run the report on a clean satchel and a cheating one.**

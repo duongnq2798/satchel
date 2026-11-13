@@ -71,10 +71,11 @@ The mainnet deployment has its own record, `deployments/mainnet.json`:
 node scripts/check-claims.mjs --network mainnet
 ```
 
-You should see `15 of 15 claims hold`. The first seven are the rows above for `v1.satchel-nft.near`
+You should see `20 of 20 claims hold`. The first seven are the rows above for `v1.satchel-nft.near`
 (signer `v1.signer`, its root key, satchel #1's derived key, deploy-and-init tx `3cbRdh9W…`). The eighth reads `nft_total_supply()` at the
 block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
-satchel was minted while the key existed. The refused calls are testnet only.
+satchel was minted while the key existed. The table's refused calls are testnet only; the mainnet
+run checks one refused call of its own, satchel #3's seller's `sign_evm` after the sale (below).
 
 The next three read `deployments/mainnet-first-send.json`, satchel #1's first send:
 
@@ -91,7 +92,7 @@ The next three read `deployments/mainnet-first-send.json`, satchel #1's first se
   to Base's own `https://mainnet.base.org`) and fails until Base finalizes the block, about
   20 minutes after a send.
 
-The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap through NEAR Intents'
+The next four read `deployments/mainnet-1click-exit.json`, satchel #2's swap through NEAR Intents'
 1Click:
 
 - its mint, tx `8NE2xLni…`, was signed by `satchel-nft.near` and returned token 2 to it, and the
@@ -115,10 +116,31 @@ The last four read `deployments/mainnet-1click-exit.json`, satchel #2's swap thr
   (`https://arb1.arbitrum.io/rpc` by default).
 
 The quote itself, with its recipient and refund address, is 1Click's word, not the chain's: the
-last claim compares the file's quote with the one 1Click returns for
+last of these four compares the file's quote with the one 1Click returns for
 `https://1click.chaindefuser.com/v0/status?depositAddress=0x588f8C4419974bC735Ac784B3dA41B44c42bb64b`.
 So is the link between the deposit and the payout: the chain shows that `0x2cff890f…02680` sent the
 satchel's address that USDC, and only 1Click's status says it paid out this deposit.
+
+The last five read `deployments/mainnet-sale.json`, satchel #3's sale to a second account. Each
+reads its transactions, and the last two also read the contract's state at the blocks those ran in,
+so a later signature or sale doesn't change any of them:
+
+- its mint, tx `mHornX2S…`, was signed by `satchel-nft.near`, attached 0.1 NEAR and returned
+  token 3 to it, in a block after the lock;
+- its listing, tx `7xzmgbSt…`, by the same account: the contract logged the record's price and
+  record version 0, the version of a satchel that never signed;
+- the buy, tx `FFYeAebs…`, signed by `duongnq2798.near` after the listing, attached the price and
+  named record version 0; its receipt logged the `nft_transfer` to the buyer and the sale at that
+  version, and the transfer receipt paying `satchel-nft.near` the price ran;
+- the seller's `sign_evm` for #3 after the buy, tx `33UTwyVy…`, failed with the owner check, asked
+  for 0 wei to `0x…dEaD` with no data, logged nothing and never called `v1.signer`; at its
+  receipt's block the buyer owned #3, unlisted, and the record was at version 0 there and in the
+  block that included the call;
+- at the sale's block the record held nothing: version 0, no approval, no unclassified call, no raw
+  signature. The buyer's report from before the buy reads `PROVABLY CLEAN` for the listing the buy
+  names and was saved after the listing ran and before the block that included the buy, and the one
+  saved after the refusal reads `PROVABLY CLEAN` for the buyer. The reports are checked for what
+  they read, and the first for when it was saved, not for which program wrote them.
 
 The script tries each read that fails once more, 2 s later. When a node or 1Click still doesn't
 answer, the claim fails with a line that says this is not a change to any satchel and what to do:
@@ -342,7 +364,7 @@ of these checks.
 | Make it clean offers fixes for checks 2 and 3 only: a revoke for each approval row still live, and a send of 0 to the satchel's own address for each open nonce a revoke on that chain doesn't take. An `approve` row that both the ERC-20 and the ERC-721 read find live, or one it couldn't read, gets both calls and no button; more than 10 open nonces on a chain get a terminal command. It won't send a revoke that would be a 33rd approval row while check 4 passes, and offers no button while check 1 fails or the satchel is listed | `fixPlan`, `readFixInputs`, `revokeCalldata`, `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` in `packages/satchel-nft/src/clean.ts`; the card is `web/src/components/fix-panel.tsx` | `clean.test.ts`. The card has no test. It ran once, on testnet satchel #9 on 2026-11-12: a revoke at nonce 1 and a send of 0 at nonce 2 on Sepolia, then `PROVABLY CLEAN` ([`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json); `npx -y satchel-nft@0.2.0 verify 9`) |
 | Quote an exit asks 1Click only for dry quotes, never for a deposit address, at a slippage limit of 0.5 %, 1 % or 3 % and no other, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for, has a minimum that matches that slippage, and carries no deposit address | `QuoteRequest`, `SLIPPAGE_CHOICES`, `quoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
 | A satchel's history links a 1Click swap's payout transaction only when 1Click calls it `SUCCESS` and names an EVM hash on one of the satchel's mainnets; otherwise, `REFUNDED` and `FAILED` included, it links 1Click's status, and a line shows an amount out only for `SUCCESS` | `payoutUrl`, `swapLine`, `swapMarks` in `web/src/lib/oneclick.ts`; the card is `web/src/components/history.tsx` | `web/src/lib/oneclick.test.ts` |
-| Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #9 and mainnet #1 and #2, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
+| Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #9 and mainnet #1 to #3, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
 | The mainnet showcase's amounts and transactions match the evidence files, the testnet stories match the gallery's, the landing page's four cards link the transactions in `testnet-dao.json`, `testnet-make-clean.json` and `mainnet-1click-exit.json` and their own satchel's page and docs, and `verifyCommand` pins the npm release | `FIRST_SEND`, `ONECLICK_EXIT`, `SHOWCASE`, `TOUR`, `DEMO_SATCHELS`, `verifyCommand` in `web/src/lib/showcase.ts` | `web/src/lib/showcase.test.ts` |
 
 ## What Satchel does not claim

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { MAINNET, TESTNET } from "satchel-nft";
-import { formatEther, formatUnits, getAddress } from "viem";
+import { formatEther, formatUnits, getAddress, parseUnits } from "viem";
 import { describe, expect, it } from "vitest";
 import { FROZEN } from "./frozen";
 import { appPath } from "./routes";
@@ -8,6 +8,7 @@ import {
   BUILT_WITH,
   DEMO_SATCHELS,
   FIRST_SEND,
+  MAINNET_SALE,
   ONECLICK_EXIT,
   SHOWCASE,
   SITE_HOSTS,
@@ -39,6 +40,23 @@ describe("the mainnet showcase matches the evidence files", () => {
     expect(formatEther(BigInt(run.valueWei))).toBe(FIRST_SEND.sent);
     // "from the satchel's page here"
     expect(run.sentWith).toBe("https://satchelnft.xyz/mainnet/satchel/1");
+  });
+
+  it("satchel #3's sale: deployments/mainnet-sale.json", () => {
+    const run = evidence("mainnet-sale.json");
+    expect(run.network).toBe("mainnet");
+    expect(run.contract).toBe(MAINNET.contract);
+    expect(run.tokenId).toBe(MAINNET_SALE.tokenId);
+    expect([run.seller, run.buyer]).toEqual([MAINNET_SALE.seller, MAINNET_SALE.buyer]);
+    // yoctoNEAR: NEAR has 24 decimals.
+    expect(run.price).toBe(parseUnits(MAINNET_SALE.price, 24).toString());
+    expect(run.buy.tx).toBe(MAINNET_SALE.buyTx);
+    expect(run.buy.signer).toBe(MAINNET_SALE.buyer);
+    // "the old owner's next sign_evm was refused": by the owner check, after the buy.
+    expect(run.refused.tx).toBe(MAINNET_SALE.refusedTx);
+    expect(run.refused.panic).toContain("Satchel: only the token's owner can do this");
+    expect(Number(run.refused.block)).toBeGreaterThan(Number(run.buy.block));
+    expect([run.reportBeforeBuy.result, run.verified.result]).toEqual(["PROVABLY CLEAN", "PROVABLY CLEAN"]);
   });
 
   it("satchel #2's swap: deployments/mainnet-1click-exit.json", () => {
@@ -267,11 +285,11 @@ describe("the testnet demo stories match deployments/testnet-gallery.json", () =
 });
 
 describe("the demo satchels", () => {
-  it("offers testnet #1, #3 to #6 and mainnet #1 and #2 as quick picks, and lists #7 to #9 too", () => {
+  it("offers testnet #1, #3 to #6 and mainnet #1 to #3 as quick picks, and lists #7 to #9 too", () => {
     const ids = (network: string, pick?: boolean) =>
       DEMO_SATCHELS.filter((d) => d.network === network && (pick === undefined || d.pick === pick)).map((d) => d.tokenId);
     expect(ids("testnet", true)).toEqual(["1", "3", "4", "5", "6"]);
-    expect(ids("mainnet", true)).toEqual(["1", "2"]);
+    expect(ids("mainnet", true)).toEqual(["1", "2", "3"]);
     expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8", "9"]);
   });
 
