@@ -56,11 +56,27 @@ const PAGE = 200;
 /** The index answers at most this many transactions per request. */
 const BATCH = 20;
 
+/** An account's transactions, as FastNEAR's index lists them. */
+export interface AccountTransactions<T extends IndexedTx = IndexedTx> {
+  /** Newest first. A hash the index lists but doesn't return is left out, as is one it wasn't asked for. */
+  txs: T[];
+  /** How many of the account's transactions were read. */
+  scanned: number;
+  /** False when the index holds more transactions than were read: the oldest are missing. */
+  complete: boolean;
+  source: string;
+}
+
 /**
- * Reads the contract's transactions from the index, newest first, up to `maxTransactions`, and
- * keeps the events about `tokenId`. A request the index rate-limits is sent again (`indexPost`).
+ * Reads `accountId`'s transactions from the index, newest first, up to `maxTransactions`. A
+ * request the index rate-limits is sent again (`indexPost`). `T` names the fields the caller
+ * reads: the index answers each transaction whole, and nothing here checks more than its hash.
  */
-export async function tokenHistory(net: Network, tokenId: string, maxTransactions = 1000): Promise<History> {
+export async function accountTransactions<T extends IndexedTx = IndexedTx>(
+  net: Network,
+  accountId: string,
+  maxTransactions = 1000,
+): Promise<AccountTransactions<T>> {
   const hashes = new Set<string>();
   let total = 0;
   let resume: string | undefined;
@@ -70,7 +86,7 @@ export async function tokenHistory(net: Network, tokenId: string, maxTransaction
     const page = await indexPost<{ account_txs?: { transaction_hash: string }[]; resume_token?: string; txs_count?: number }>(
       net,
       "/v0/account",
-      { account_id: net.contract, limit: PAGE, ...(resume ? { resume_token: resume } : {}) },
+      { account_id: accountId, limit: PAGE, ...(resume ? { resume_token: resume } : {}) },
     );
     const before = hashes.size;
     for (const t of page.account_txs ?? []) hashes.add(t.transaction_hash);
@@ -87,16 +103,28 @@ export async function tokenHistory(net: Network, tokenId: string, maxTransaction
   const batches: string[][] = [];
   for (let i = 0; i < list.length; i += BATCH) batches.push(list.slice(i, i + BATCH));
   const pages = await Promise.all(
-    batches.map((tx_hashes) => limit(() => indexPost<{ transactions?: (IndexedTx | null)[] }>(net, "/v0/transactions", { tx_hashes }))),
+    batches.map((tx_hashes) => limit(() => indexPost<{ transactions?: (T | null)[] }>(net, "/v0/transactions", { tx_hashes }))),
   );
-  // Oldest first: by block, then, within a block, the older transaction first. The sort is stable,
-  // so one transaction's events keep the order the contract logged them in.
-  const age = (hash: string) => position.get(hash) ?? 0;
-  const entries = pages
+  const txs = pages
     .flatMap((p) => p.transactions ?? [])
-    .flatMap((tx) => (tx ? eventsIn(net, tx, tokenId) : []))
-    .sort((a, b) => a.block - b.block || age(b.tx) - age(a.tx));
-  return { entries, scanned: list.length, complete: list.length >= total, source: net.txApi };
+    .filter((tx): tx is T => typeof tx?.transaction?.hash === "string" && position.has(tx.transaction.hash))
+    .sort((a, b) => (position.get(a.transaction.hash) ?? 0) - (position.get(b.transaction.hash) ?? 0));
+  return { txs, scanned: list.length, complete: list.length >= total, source: net.txApi };
+}
+
+/**
+ * Reads the contract's transactions from the index, newest first, up to `maxTransactions`, and
+ * keeps the events about `tokenId`.
+ */
+export async function tokenHistory(net: Network, tokenId: string, maxTransactions = 1000): Promise<History> {
+  const { txs, scanned, complete, source } = await accountTransactions(net, net.contract, maxTransactions);
+  // Oldest first: by block, then, within a block, the older transaction first (`txs` is newest
+  // first). The sort is stable, so one transaction's events keep the order the contract logged them in.
+  const age = new Map(txs.map((tx, i) => [tx.transaction.hash, i]));
+  const entries = txs
+    .flatMap((tx) => eventsIn(net, tx, tokenId))
+    .sort((a, b) => a.block - b.block || (age.get(b.tx) ?? 0) - (age.get(a.tx) ?? 0));
+  return { entries, scanned, complete, source };
 }
 
 function succeeded(status: unknown): boolean {

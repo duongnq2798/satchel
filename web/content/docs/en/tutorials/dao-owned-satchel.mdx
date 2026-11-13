@@ -275,6 +275,17 @@ record version its members checked: if the seller signs anything before the vote
 fails and the DAO keeps its NEAR. Satchel's run did not try a DAO sale; [listings and
 sales](/docs/concepts/listings-and-sales) is what the contract does.
 
+## The DAO's board
+
+Every Sputnik DAO has a public board in the app at `/dao/<DAO account>` (`/mainnet/dao/…` on
+mainnet), and a satchel's page links it when the satchel's owner answers `get_policy` as one does.
+The board reads the DAO live, with no wallet: its roles and, in words, what passes each kind of
+proposal; its open bounties and who has claimed them; each BountyDone proposal with its votes and
+its payout, and who filed it; each contributor's record; and the satchels the DAO owns, with every
+`sign_evm` it voted and every satchel it voted to give away.
+[satchel-club's board](/dao/satchel-club.sputnikv2.testnet) lists this run's proposals 0 and 1 there.
+Nothing on the board signs anything.
+
 ## Limits
 
 - **Fees are fixed when the proposal is filed.** If the chain's base fee rises above the

@@ -176,6 +176,70 @@ describe("sputnikDao(net, dao).openProposals", () => {
   });
 });
 
+describe("sputnikDao(net, dao) for a bounty board", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A DAO whose views answer from `answer`; returns the views it was asked for, with their arguments. */
+  function dao(answer: (method: string, args: Record<string, number>) => unknown) {
+    const calls: [string, Record<string, number>][] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: { body: string }) => {
+        const { params } = JSON.parse(init.body);
+        const args = JSON.parse(atob(params.args_base64));
+        expect(params.account_id).toBe(DAO);
+        calls.push([params.method_name, args]);
+        const result = [...new TextEncoder().encode(JSON.stringify(answer(params.method_name, args)))];
+        return new Response(JSON.stringify({ jsonrpc: "2.0", id: "satchel", result: { result } }));
+      }),
+    );
+    return calls;
+  }
+
+  it("reads the newest proposals oldest first, in pages that stop at the last one filed", async () => {
+    // 250 filed; #7 was removed, so the DAO no longer returns it.
+    const stored = Array.from({ length: 250 }, (_, id) => proposal(id, "x")).filter((p) => p.id !== 7);
+    const calls = dao((method, args) =>
+      method === "get_last_proposal_id" ? 250 : stored.filter((p) => p.id >= args.from_index && p.id < args.from_index + args.limit),
+    );
+    const all = await sputnikDao(TESTNET, DAO).recentProposals();
+    expect(all.filed).toBe(250);
+    expect(all.proposals.map((p) => p.id)).toEqual(stored.map((p) => p.id));
+    expect(calls.filter(([m]) => m === "get_proposals").map(([, a]) => [a.from_index, a.limit])).toEqual([
+      [0, 100],
+      [100, 100],
+      [200, 50],
+    ]);
+
+    const newest = await sputnikDao(TESTNET, DAO).recentProposals(120);
+    expect(newest.proposals.map((p) => p.id)).toEqual(Array.from({ length: 120 }, (_, i) => 130 + i));
+  });
+
+  it("reads every bounty in pages, and nothing for a DAO with none", async () => {
+    const bounty = (id: number) => ({ id, description: `#${id}`, token: "", amount: "1", times: 1, max_deadline: "1" });
+    dao((method, args) =>
+      method === "get_last_bounty_id" ? 130 : Array.from({ length: Math.min(args.limit, 130 - args.from_index) }, (_, i) => bounty(args.from_index + i)),
+    );
+    expect((await sputnikDao(TESTNET, DAO).allBounties()).map((b) => b.id)).toEqual(Array.from({ length: 130 }, (_, i) => i));
+
+    const calls = dao((method) => (method === "get_last_bounty_id" ? 0 : []));
+    expect(await sputnikDao(TESTNET, DAO).allBounties()).toEqual([]);
+    expect(calls.map(([m]) => m)).toEqual(["get_last_bounty_id"]);
+  });
+
+  it("asks for an account's claims and a bounty's claim count by the names sputnikdao2 2.3.1 takes", async () => {
+    const calls = dao((method) => (method === "get_bounty_claims" ? [] : 2));
+    expect(await sputnikDao(TESTNET, DAO).bountyClaims("builder.testnet")).toEqual([]);
+    expect(await sputnikDao(TESTNET, DAO).bountyClaimCount(3)).toBe(2);
+    expect(calls).toEqual([
+      ["get_bounty_claims", { account_id: "builder.testnet" }],
+      ["get_bounty_number_of_claims", { id: 3 }],
+    ]);
+  });
+});
+
 /** A vote that ran sign_evm on `net`'s contract for `tokenId` and `tx`, and the MPC answer `value`. */
 function voteTx(tokenId: string, tx: ContractTx, value: string | null, net = TESTNET): TxStatus {
   return {
