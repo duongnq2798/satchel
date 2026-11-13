@@ -13,6 +13,7 @@
 // This module only builds things: the policy, each call's arguments, the plan, a contributor's
 // address. It reads nothing and signs nothing. tools/dao-bounty-run.mjs runs the plan.
 import { createHash } from "node:crypto";
+import { builtPackage } from "../scripts/built.mjs";
 
 const {
   DAO_SIGN_EVM_GAS,
@@ -28,7 +29,7 @@ const {
   deriveMpcKey,
   encodeArgs,
   isAccountId,
-} = await import("../packages/satchel-nft/dist/index.js");
+} = await builtPackage();
 
 export const NEAR = 10n ** 24n;
 const GWEI = 10n ** 9n;
