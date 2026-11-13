@@ -220,13 +220,13 @@ function Step({ n, title, time, children }: { n: number; title: ReactNode; time:
   );
 }
 
-/** A judge's three minutes: the cheat demo, the mainnet sale, the same report from a terminal. */
+/** A judge's three steps: the cheat demo, the mainnet sale, the same report from a terminal. */
 function ThreeSteps() {
   const link = "underline decoration-line underline-offset-4 hover:decoration-ink";
   return (
-    <section aria-labelledby="three-minutes" className="mt-16 sm:mt-20">
-      <h2 id="three-minutes" className="text-sm font-medium tracking-wide text-leather">
-        Check it in three minutes
+    <section aria-labelledby="three-steps" className="mt-16 sm:mt-20">
+      <h2 id="three-steps" className="text-sm font-medium tracking-wide text-leather">
+        Check it in three steps
       </h2>
       <ol className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-3">
         <Step
@@ -256,7 +256,7 @@ function ThreeSteps() {
             the old owner&apos;s next signature request was refused. A self-sale, not a market price.
           </p>
         </Step>
-        <Step n={3} time="About 1 min with the npm download, Node 22 or later" title="Verify it from a terminal">
+        <Step n={3} time="1 to 4 min with the npm download, seconds after; Node 22 or later" title="Verify it from a terminal">
           <p className="mt-1 text-sm leading-relaxed text-ink-2">The report on satchel #{MAINNET_SALE.tokenId}, from npm, against public RPCs.</p>
           <div className="mt-3 flex flex-wrap items-start gap-2">
             {/* Lines break between words only, never at the hyphen in "satchel-nft". */}
