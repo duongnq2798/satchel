@@ -883,9 +883,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   1Click answers 404 for an address it has no quote for, which the browser logged as a red console
   error on `/mainnet/satchel/1`. It asks on its own only about the deposit address the app knows
   (satchel #2's, from `showcase.ts`), and any other send gets a **Check with 1Click** button on its
-  row. The README, AGENTS.md, `watch.yml` and `frozen.ts` now say the daily watch and the demo
-  freeze run until 2026-11-25, after judging (2026-11-16 to 11-18), not that judging ends then, and
-  AGENTS.md gives each command's run time. 2 new web tests, 380 in all.
+  row; a screen reader hears 1Click's answer, and focus moves to it when it replaces the button.
+  The README, AGENTS.md, `watch.yml` and `frozen.ts` now say the daily watch and the demo freeze
+  run until 2026-11-25, after judging (2026-11-16 to 11-18), not that judging ends then, and
+  AGENTS.md gives the slow commands' run times and today's test counts (238 and 380). 2 new web
+  tests, 380 in all.
 - The clean transfer report printed an approval line twice once Make it clean had revoked it:
   `approve(spender, 0)` is itemized as a row of its own, and both rows read the same allowance
   (testnet satchel #9: "Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0", twice).

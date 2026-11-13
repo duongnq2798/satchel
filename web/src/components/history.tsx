@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, type ReactNode, useState } from "react";
+import { Component, type ReactNode, useEffect, useRef, useState } from "react";
 import { type HistoryEntry, type SigningRecord, describeEntry, nearTxUrl, signatureCounts, tokenAddress, tokenHistory } from "satchel-nft";
 import { type SwapMark, historyLookups, sendKey, swapMark, swapMarks } from "@/lib/oneclick";
 import { useNetwork } from "./network";
@@ -61,6 +61,7 @@ function HistoryCard({ tokenId, record, refresh }: Props) {
   const [asked, setAsked] = useState<ReadonlyMap<string, Asked>>(new Map());
   const ask = (send: SignEvmEntry) => {
     const key = sendKey(send);
+    if (asked.get(key)?.state === "asking") return;
     const set = (state: Asked) => setAsked((m) => new Map(m).set(key, state));
     set({ state: "asking" });
     satchel()
@@ -107,13 +108,14 @@ function HistoryCard({ tokenId, record, refresh }: Props) {
                   <span className="font-mono text-xs text-muted sm:pt-0.5">{when(e.at)} UTC</span>
                   <span className="[overflow-wrap:anywhere]">
                     {describeEntry(e)} · <ExternalLink href={nearTxUrl(net, e.tx)}>tx</ExternalLink>
-                    {swap ? (
-                      <span className="mt-0.5 block text-xs text-ink-2">
-                        {swap.line} · <ExternalLink href={swap.url}>{swap.payout ? "payout tx" : "1Click's status"}</ExternalLink>
-                      </span>
+                    {e.kind === "sign_evm" && askable.has(sendKey(e)) ? (
+                      <AskOneClick asked={asked.get(sendKey(e))} onAsk={() => ask(e)} />
                     ) : (
-                      e.kind === "sign_evm" &&
-                      askable.has(sendKey(e)) && <AskOneClick asked={asked.get(sendKey(e))} onAsk={() => ask(e)} />
+                      swap && (
+                        <span className="mt-0.5 block text-xs text-ink-2">
+                          <SwapLine swap={swap} />
+                        </span>
+                      )
                     )}
                   </span>
                 </li>
@@ -142,33 +144,50 @@ function HistoryCard({ tokenId, record, refresh }: Props) {
   );
 }
 
+/** A 1Click swap line: what 1Click says came of the swap, and a link to its status or payout. */
+function SwapLine({ swap }: { swap: SwapMark }) {
+  return (
+    <>
+      {swap.line} · <ExternalLink href={swap.url}>{swap.payout ? "payout tx" : "1Click's status"}</ExternalLink>
+    </>
+  );
+}
+
 /**
  * For a send to an address the app doesn't know as a 1Click deposit: a button that asks 1Click about
- * it, then what 1Click said. A swap it knows shows as the row's 1Click line instead.
+ * it, then what 1Click said. The live region is there from the first render, so a screen reader reads
+ * the answer out. When the answer replaces the button, focus moves to it; when asking fails, focus
+ * stays on the button, which then offers to ask again.
  */
 function AskOneClick({ asked, onAsk }: { asked: Asked | undefined; onAsk: () => void }) {
-  if (asked?.state === "answered") {
-    return (
-      <span role="status" className="mt-0.5 block text-xs text-muted">
-        1Click knows no swap this send paid into.
-      </span>
-    );
-  }
+  const answer = useRef<HTMLSpanElement>(null);
+  const wasAsking = useRef(false);
+  useEffect(() => {
+    if (asked?.state === "asking") wasAsking.current = true;
+    else if (wasAsking.current) {
+      wasAsking.current = false;
+      if (asked?.state === "answered") answer.current?.focus();
+    }
+  }, [asked]);
   const asking = asked?.state === "asking";
   return (
-    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-      <button
-        type="button"
-        onClick={onAsk}
-        disabled={asking}
-        aria-busy={asking}
-        className="rounded-full border border-line px-3 py-1 text-xs text-ink-2 transition hover:border-ink aria-busy:cursor-progress"
-      >
-        {asking ? "Asking 1Click…" : asked?.state === "failed" ? "Ask 1Click again" : "Check with 1Click"}
-      </button>
-      {asked?.state === "failed" && (
-        <span role="alert" className="text-bad">
-          {errorMessage(asked.error)}
+    <span aria-live="polite" className="block">
+      {asked?.state === "answered" ? (
+        <span ref={answer} tabIndex={-1} className={`mt-0.5 block text-xs ${asked.mark ? "text-ink-2" : "text-muted"}`}>
+          {asked.mark ? <SwapLine swap={asked.mark} /> : "1Click knows no swap this send paid into."}
+        </span>
+      ) : (
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <button
+            type="button"
+            onClick={onAsk}
+            aria-disabled={asking}
+            aria-busy={asking}
+            className="rounded-full border border-line px-3 py-1 text-xs text-ink-2 transition hover:border-ink aria-busy:cursor-progress"
+          >
+            {asking ? "Asking 1Click…" : asked?.state === "failed" ? "Ask 1Click again" : "Check with 1Click"}
+          </button>
+          {asked?.state === "failed" && <span className="text-bad">{errorMessage(asked.error)}</span>}
         </span>
       )}
     </span>

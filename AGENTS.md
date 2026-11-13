@@ -32,8 +32,8 @@ one. [SECURITY.md](SECURITY.md) says how to report a problem.
 
 Step 1's `check-claims.mjs` takes 15 s to a minute per network, and step 2's install 3 to 9 min the
 first time. Steps 3 and 4 install and build Rust, so they take longer the first time: a cold
-`cargo test` took about 7 min. Step 5 needs step 2's install and curl. Each command below says how
-long it took. Run every command from the repository root.
+`cargo test` took about 7 min. Step 5 needs step 2's install and curl. The slow commands below say how
+long they took. Run every command from the repository root.
 
 ### 1. The deployment and its history: one command
 
@@ -282,8 +282,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  235 passed (235)` for `satchel-nft`, then
-`Tests  309 passed (309)` for the app, then no type errors. Each command took under a minute on a
+Each runs in both workspaces. You should see `Tests  238 passed (238)` for `satchel-nft`, then
+`Tests  380 passed (380)` for the app, then no type errors. Each command took under a minute on a
 fresh clone (41 s and 37 s).
 
 ```bash
