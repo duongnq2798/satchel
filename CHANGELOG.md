@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Mainnet satchel #3's sale as a deed of sale on the site. Right below the landing page's opening
+  section, a short deed: the self-sale stated next to the headline and in a box of its own, the
+  buyer's check, the buy and the refused call with their stamps and seal, and a ruler of the six
+  steps across 3 min 16 s. `/mainnet` gives #3 a wide card and its showcase now reads "Three
+  satchels on mainnet", since #3 sent nothing; `/mainnet/satchel/3#deed` has the full deed, clause by
+  clause, under the live report. Every fact on it is in `showcase.ts`, and its test compares each
+  one with `deployments/mainnet-sale.json`. The deed's styles and its italic font load only on the
+  landing, `/mainnet` and the mainnet satchel pages, its stamps are drawn in place without JavaScript or with reduced motion, and
+  its text meets the site's AAA contrast.
 - Mainnet satchel #3 was sold on 2026-11-13. `satchel-nft.near` minted it and listed it for
   0.1 NEAR, the buyer's report read `PROVABLY CLEAN` before the buy, `duongnq2798.near` bought it
   in the app naming record version 0 and `satchel-nft.near` was paid, then `satchel-nft.near`'s
