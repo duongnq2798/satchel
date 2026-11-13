@@ -22,6 +22,7 @@ import {
   tokenDescription,
   tokenPageNote,
   utcDate,
+  utcDateTime,
   utcTime,
   verifyCommand,
 } from "./showcase";
@@ -121,6 +122,10 @@ describe("the mainnet showcase matches the evidence files", () => {
     expect([sale.checked.at, sale.checkedAgain.at].map(utcTime)).toEqual(["01:19:34 UTC", "01:22:31 UTC"]);
     expect(utcDate(sale.mint.at)).toBe("13 November 2026");
     expect(utcDate(sale.checkedAgain.at)).toBe(utcDate(sale.mint.at));
+    // The report card and the holder room write theirs in UTC too, beside the deed's and the history's.
+    expect(utcDateTime(sale.checked.at)).toBe("2026-11-13 01:19:34 UTC");
+    expect(utcDateTime(Date.parse(sale.checked.at))).toBe(utcDateTime(sale.checked.at));
+    expect(utcTime(Date.parse(sale.checked.at))).toBe("01:19:34 UTC");
   });
 
   it("satchel #2's swap: deployments/mainnet-1click-exit.json", () => {
@@ -349,10 +354,10 @@ describe("the testnet demo stories match deployments/testnet-gallery.json", () =
 });
 
 describe("the demo satchels", () => {
-  it("offers testnet #1, #3 to #6 and mainnet #1 to #3 as quick picks, and lists #7 to #9 too", () => {
+  it("offers testnet #1, #3 to #6, #8 (the DAO's) and #9 (Make it clean) and mainnet #1 to #3 as quick picks, and lists #7 too", () => {
     const ids = (network: string, pick?: boolean) =>
       DEMO_SATCHELS.filter((d) => d.network === network && (pick === undefined || d.pick === pick)).map((d) => d.tokenId);
-    expect(ids("testnet", true)).toEqual(["1", "3", "4", "5", "6"]);
+    expect(ids("testnet", true)).toEqual(["1", "3", "4", "5", "6", "8", "9"]);
     expect(ids("mainnet", true)).toEqual(["1", "2", "3"]);
     expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8", "9"]);
   });

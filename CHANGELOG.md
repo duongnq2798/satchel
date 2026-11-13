@@ -579,6 +579,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- A satchel's page puts its verdict first: the clean transfer report sits right under the title,
+  with Make it clean under it when the report isn't clean, then the address and What's inside,
+  Quote an exit, the sale panels, History and Received, each as before; the README's pages table
+  and the buy guide say so. On a phone the verdict is on the first or second screen. The report's
+  "checked" time and the holder room's block time and signature window are written in UTC, as the
+  deed and the history write theirs: in the viewer's own time zone, beside a UTC time, a check
+  made today could read like the next day's. `/verify` offers testnet #8, the DAO's satchel, and
+  #9, made clean from its page, among its demo picks.
 - `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
   or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
   `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,

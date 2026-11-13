@@ -135,9 +135,17 @@ export function formatSpan(seconds: number, long = false): string {
   return m ? `${unit(m, "min", "minute")} ${unit(s, "s", "second")}` : unit(s, "s", "second");
 }
 
-/** "01:19:34 UTC": an ISO time's time of day, cut to the second. */
-export function utcTime(iso: string): string {
-  return `${new Date(iso).toISOString().slice(11, 19)} UTC`;
+/** "01:19:34 UTC": an ISO time's (or epoch milliseconds') time of day, cut to the second. */
+export function utcTime(at: string | number): string {
+  return `${new Date(at).toISOString().slice(11, 19)} UTC`;
+}
+
+/**
+ * "2026-11-13 01:19:34 UTC": an ISO time (or epoch milliseconds), cut to the second, in UTC whatever
+ * the viewer's time zone, as the deed and the history write theirs, so no time reads like tomorrow's.
+ */
+export function utcDateTime(at: string | number): string {
+  return `${new Date(at).toISOString().slice(0, 19).replace("T", " ")} UTC`;
 }
 
 /** "13 November 2026": an ISO time's day, in UTC. */
@@ -332,12 +340,12 @@ export const DEMO_SATCHELS: readonly DemoSatchel[] = [
   { network: "testnet", tokenId: "5", story: "A 10,000 ETH send on Sepolia was signed and never broadcast", pick: true },
   { network: "testnet", tokenId: "6", story: "Listed, delisted, signed a raw payload and listed again; a buy naming the old record version was refused", pick: true },
   { network: "testnet", tokenId: "7", story: "Sent once on Sepolia, then listed, sold and handed back, each step with the satchel-nft CLI", pick: false },
-  { network: "testnet", tokenId: "8", story: "Minted to a Sputnik DAO, whose vote had it sign a Sepolia send; a second vote gave it to buyer.satchel-nft.testnet", pick: false },
+  { network: "testnet", tokenId: "8", story: "Minted to a Sputnik DAO; one vote had it sign a Sepolia send, a second gave it to buyer.satchel-nft.testnet", pick: true },
   {
     network: "testnet",
     tokenId: MAKE_CLEAN.tokenId,
-    story: `Left with a live USDC approval and two Sepolia sends signed but never broadcast; on ${MAKE_CLEAN.cleaned.date} its owner revoked the approval and spent both nonces from its page`,
-    pick: false,
+    story: `Two Sepolia sends signed and never broadcast, and a live USDC approval; on ${MAKE_CLEAN.cleaned.date} its owner revoked the approval and spent both nonces from its page`,
+    pick: true,
   },
   { network: "mainnet", tokenId: FIRST_SEND.tokenId, story: `Sent ${FIRST_SEND.sent} ETH on Base from this app`, pick: true },
   {

@@ -16,6 +16,7 @@ import {
 import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import type { RoomResponse } from "@/lib/room-request";
 import { appPath } from "@/lib/routes";
+import { utcDateTime, utcTime } from "@/lib/showcase";
 import { NoMessageSigning, signMessage } from "@/lib/wallet";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, Mono, VERDICT, errorMessage } from "./ui";
@@ -225,7 +226,7 @@ function HolderCard({
       "Checked at",
       <span key="b">
         block <ExternalLink href={nearBlockUrl(net, holder.block.hash)}>{holder.block.height.toLocaleString("en")}</ExternalLink>,{" "}
-        {new Date(holder.block.timestamp).toLocaleString()}
+        <time dateTime={holder.block.timestamp}>{utcDateTime(holder.block.timestamp)}</time>
       </span>,
     ],
     ["Key", <Mono key="k">{holder.publicKey}</Mono>],
@@ -246,7 +247,8 @@ function HolderCard({
       </dl>
       <p className="mt-3 text-xs text-muted">
         Checked again on every request; no cookie. Check again sends this signature until{" "}
-        {new Date(reuseUntil).toLocaleTimeString()}; after that, it asks your wallet to sign again.
+        <time dateTime={new Date(reuseUntil).toISOString()}>{utcTime(reuseUntil)}</time>; after that, it asks your wallet
+        to sign again.
       </p>
       <div className="mt-3">
         <Button onClick={onCheckAgain} busy={busy}>
