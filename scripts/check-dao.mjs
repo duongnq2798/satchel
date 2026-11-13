@@ -4,18 +4,18 @@
 // deployments/testnet-dao.json. Node 22 or later, no install, no wallet, no key.
 // Usage: node scripts/check-dao.mjs
 // NEAR_RPC, NEAR_ARCHIVAL_RPC and SEPOLIA_RPC replace the default nodes. A read a node answers with
-// HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 3 more times, 1, 2 and 4 s apart, or
-// longer if the node's Retry-After asks, up to 8 s, and not again if it asks for more than 30 s; any
-// other read that fails, a timeout included, is tried once more, 2 s later. With NEAR_ARCHIVAL_RPC
-// unset, an archival read FastNEAR doesn't answer goes to NEAR's own archival node, and once NEAR's
-// node has answered one, later archival reads go to it first and to FastNEAR's last, until FastNEAR's
-// answers one NEAR's didn't. With SEPOLIA_RPC unset, a Sepolia read the default
-// node fails, or answers with null, goes to 1rpc.io's public node, then to Tenderly's. A claim that
-// fails only because a node didn't answer says it is not a change to any satchel, and what to do.
-// One that fails because every Sepolia node asked answered without the transaction says that
-// instead. One that an archival node answered with an error, after another didn't answer, names
-// both. A hash an archival node doesn't know fails its claim with that node's error, not as a node
-// not answering.
+// HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 6 more times, 1, 2 and 4 s apart
+// and then 8 s, or longer if the node's Retry-After asks, up to 8 s, and not again if it asks for
+// more than 30 s; any other read that fails, a timeout included, is tried once more, 2 s later.
+// Archival reads go out one at a time. With NEAR_ARCHIVAL_RPC unset, an archival read FastNEAR
+// doesn't answer goes to NEAR's own archival node, and once NEAR's node has answered one, later
+// archival reads go to it first and to FastNEAR's last, until FastNEAR's answers one NEAR's didn't.
+// With SEPOLIA_RPC unset, a Sepolia read the default node fails, or answers with null, goes to
+// 1rpc.io's public node, then to Tenderly's. A claim that fails only because a node didn't answer
+// says it is not a change to any satchel, and what to do. One that fails because every Sepolia node
+// asked answered without the transaction says that instead. One that an archival node answered with
+// an error, after another didn't answer, names both. A hash an archival node doesn't know fails its
+// claim with that node's error, not as a node not answering.
 import { readFileSync } from "node:fs";
 
 const RUN = JSON.parse(readFileSync(new URL("../deployments/testnet-dao.json", import.meta.url), "utf8"));
@@ -108,9 +108,9 @@ async function rpcOnce(url, method, params) {
 }
 
 /**
- * Sends a read, and again while the node is busy: up to 4 sends, 1, 2 and 4 s apart, or longer if its
- * Retry-After asks, up to 8 s. A node whose Retry-After asks for more than 30 s isn't asked again for
- * this read. Any other failure is tried once more, 2 s later.
+ * Sends a read, and again while the node is busy: up to 7 sends, 1, 2 and 4 s apart and then 8 s, or
+ * longer if its Retry-After asks, up to 8 s. A node whose Retry-After asks for more than 30 s isn't
+ * asked again for this read. Any other failure is tried once more, 2 s later.
  */
 async function rpc(url, method, params) {
   for (let sent = 1; ; sent += 1) {
@@ -118,8 +118,8 @@ async function rpc(url, method, params) {
       return await rpcOnce(url, method, params);
     } catch (err) {
       const busy = err instanceof NoAnswer && err.busy;
-      // NEAR's archival node asked for 329 s on 2026-11-14: three more sends only met three more 429s.
-      if (sent >= (busy ? 4 : 2) || (busy && (err.retryAfter ?? 0) > 30)) throw err;
+      // NEAR's archival node asked for 329 s on 2026-11-14: more sends only met more 429s.
+      if (sent >= (busy ? 7 : 2) || (busy && (err.retryAfter ?? 0) > 30)) throw err;
       const backoff = 1_000 * 2 ** (sent - 1);
       // A Retry-After can only make the wait longer: FastNEAR's archival node sends `retry-after: 0`
       // with its 429s, and asking again at once only meets another 429.
@@ -160,11 +160,24 @@ function answered(url) {
 }
 
 /**
+ * Archival reads go out one at a time, in the order they were asked for. On 2026-11-14 FastNEAR's
+ * archival node let about 8 reads through at once and then about one every 5 s: reads sent together
+ * only raced for the same few, and the one that lost every race used up its sends.
+ */
+let archivalTurn = Promise.resolve();
+
+function archival(method, params) {
+  const read = archivalTurn.then(() => archivalRead(method, params));
+  archivalTurn = read.catch(() => {});
+  return read;
+}
+
+/**
  * An archival read from the first of `archivalNodes` that answers. Only a node that doesn't answer is
  * passed over. An error the first node asked answers with fails the claim. One a later node answers
  * with fails it too, and names the nodes before it that didn't answer: no other node checked it.
  */
-async function archival(method, params) {
+async function archivalRead(method, params) {
   const urls = archivalNodes;
   const errors = [];
   for (const [i, url] of urls.entries()) {

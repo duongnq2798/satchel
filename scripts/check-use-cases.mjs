@@ -20,10 +20,10 @@
 // once (check-dao.mjs's header). Run back to back they can still use up its rate limit, so a check
 // that failed only because nodes or the network didn't answer (each failed claim says a node didn't
 // answer, timed out or answered HTTP 408, 429 or 5xx; or the script stopped on such an error, or ran
-// past the 5 min limit) runs once more, a minute later, and says so. A claim the chain answered
+// past the 10 min limit) runs once more, a minute later, and says so. A claim the chain answered
 // against fails at once. The bounty case runs check-dao-bounty.mjs with --claims-only: its claims,
 // without the board it prints after them. Each case ends with how long it took, and the last line
-// gives the total: all nine took about 7 min on 2026-11-14, longer when a check runs again.
+// gives the total: all nine took about 9 min on 2026-11-14, longer when a check runs again.
 // Exit 0 when every case that ran holds, 1 when one failed, 2 on a bad argument.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -38,7 +38,7 @@ const SITE = "https://satchelnft.xyz";
 const CLI = "packages/satchel-nft/bin/satchel-nft.js";
 const BUILT = ["packages/satchel-nft/dist/cli.js", "packages/satchel-nft/dist/index.js"];
 /** A check still running after this long is stopped, and runs once more as one whose nodes didn't answer. */
-const TIMEOUT_MS = 300_000;
+const TIMEOUT_MS = 600_000;
 /** How long to wait before running a check again whose only failures were nodes not answering. */
 const RETRY_MS = 60_000;
 /** The pause before each case after the first, so one case's reads don't meet the last one's rate limit. */
