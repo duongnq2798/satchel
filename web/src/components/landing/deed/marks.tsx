@@ -1,42 +1,13 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { MAINNET, REPO_URL, nearTxUrl } from "satchel-nft";
 import { MAINNET_SALE } from "@/lib/showcase";
 import { deedItalic } from "./font";
+import { Stamp, type Tilt, tilt } from "./stamp";
+
+export { Stamp };
 
 /** The README's table of the sale, every step with its transaction: linked from the teaser and the full deed. */
 export const README_SALE = `${REPO_URL}#satchel-3-sold-to-a-second-account`;
-
-/** A mark's tilt and, for the press, how long it waits after the one before it. */
-interface Tilt {
-  rot: string;
-  delay?: string;
-}
-
-const tilt = ({ rot, delay }: Tilt) => ({ "--deed-rot": rot, ...(delay && { "--deed-delay": delay }) }) as CSSProperties;
-
-/**
- * A rubber stamp: a short line on top, the big word, a short line under it. Decorative: what it says
- * is in the text beside it, so screen readers skip it. `data-ink` lets DeedDefs press it in.
- */
-export function Stamp({
-  top,
-  big,
-  sub,
-  tone = "ok",
-  small = false,
-  ...rest
-}: Tilt & { top?: string; big: ReactNode; sub?: string; tone?: "ok" | "bad"; small?: boolean }) {
-  const kind = `${tone === "bad" ? " deed-stamp-bad" : ""}${small ? " deed-stamp-small" : ""}`;
-  return (
-    <span className={`deed-stamp${kind}`} data-ink="" style={tilt(rest)} aria-hidden="true">
-      <span className="deed-stamp-ink">
-        {top && <span className="deed-s-top">{top}</span>}
-        <span className="deed-s-big">{big}</span>
-        {sub && <span className="deed-s-sub">{sub}</span>}
-      </span>
-    </span>
-  );
-}
 
 /** The buyer's report as a stamp: PROVABLY CLEAN, over two lines. */
 export function CleanStamp(props: Tilt & { top?: string; sub?: string; small?: boolean }) {
@@ -57,7 +28,7 @@ export function CleanStamp(props: Tilt & { top?: string; sub?: string; small?: b
 /** The wax seal on the purchase, ribbons and all (the deed-seal symbol). Decorative. */
 export function WaxSeal(props: Tilt) {
   return (
-    <svg className="deed-seal" data-ink="" style={tilt(props)} viewBox="0 0 200 244" aria-hidden="true" focusable="false">
+    <svg className="deed-seal" data-ink="scroll" style={tilt(props)} viewBox="0 0 200 244" aria-hidden="true" focusable="false">
       <use href="#deed-seal" />
     </svg>
   );

@@ -345,6 +345,10 @@
 .deed-reg-when time {
   color: var(--color-ink);
 }
+/* A time line breaks only after its "·": the time and the words after it each stay on one line. */
+.deed-reg-when :is(time, span) {
+  white-space: nowrap;
+}
 .deed-reg-title {
   margin-top: 0.2rem;
   font-family: var(--font-display);
@@ -888,6 +892,10 @@
   letter-spacing: 0.2em;
   padding-left: 0.2em;
 }
+.deed-stamp-warn {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
 .deed-stamp-small .deed-s-big {
   font-size: 15px;
 }
@@ -897,6 +905,32 @@
   }
   .deed-stamp-bad .deed-s-big {
     font-size: 27px;
+  }
+}
+
+/*
+ * The verdict beside the heading of "Try to cheat the buyer" (components/landing/trick-explorer.tsx):
+ * the report's or the contract's, as a stamp. A stamp brings its own tint, so it reads on the dark
+ * panel as on paper. The slot keeps a stamp's height while the report runs, so the panel doesn't jump.
+ */
+.deed-verdict {
+  display: grid;
+  place-items: center;
+  min-width: 8rem;
+  min-height: 4.75rem;
+}
+.deed-verdict .deed-stamp-bad .deed-s-big {
+  font-size: 20px;
+  letter-spacing: 0.16em;
+  padding-left: 0.16em;
+}
+@media (max-width: 639px) {
+  .deed-verdict {
+    min-width: 0;
+    min-height: 3.5rem;
+  }
+  .deed-verdict :is(.deed-s-top, .deed-s-sub) {
+    display: none;
   }
 }
 
