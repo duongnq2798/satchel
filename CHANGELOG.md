@@ -7,18 +7,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 ### Added
 
 - The landing page's opening section now says who a satchel is for (an address that must keep
-  receiving after a sale: a fee or royalty receiver fixed in a contract, a DAO treasury, an estate)
+  receiving after a sale, such as a royalty receiver a contract fixes, a DAO treasury or an estate)
   and why it runs on NEAR (no one holds the key; NEAR's MPC network signs only when the contract
-  asks, and only for the token's owner), and links the 2-minute demo on X. Its mainnet line now
-  says what happened there: satchel #2 holds USDC from a NEAR Intents 1Click swap, and #3 went
-  through list and buy end to end, a self-sale between two of the builder's accounts. Under it,
-  "Check it in three minutes" gives three steps: try to cheat a buyer (about 30 s, no wallet), read
-  the mainnet sale's deed (about 1 min), and run `npx -y satchel-nft@0.2.0 verify --network mainnet 3`,
+  asks, and the contract asks only for the token's owner), and links the 2-minute demo on X. Its
+  mainnet line now says what happened there: satchel #2 holds USDC from a NEAR Intents 1Click swap,
+  and #3 was listed and bought end to end, a self-sale between two of the builder's accounts. Under
+  it, "Check it in three minutes" gives three steps: try to cheat a buyer (about 30 s, no wallet),
+  read the mainnet sale's deed (about 1 min), and run `npx -y satchel-nft@0.2.0 verify --network mainnet 3`,
   with a button that copies it (about 30 s). The deed section below states the self-sale in its
   eyebrow and in the deed's declaration, no longer a third time in between, and the verify page's
   pick for mainnet #3 now says it was a self-sale, not a market price. "A satchel" says no one holds
-  a key to copy, and in "Why not just…" Satchel's answer on a signature from before the sale leads
-  with when it stops working: until its nonce is spent, which check 2 shows before you pay.
+  a key to copy; in "Why not just…" Satchel's answer on a signature from before the sale says a
+  signed transaction works only until its nonce is spent, and that check 2 shows before you pay
+  whether one is still pending. Chain counts on the landing page now say how many are mainnets: 8
+  EVM mainnets and their testnets, or 16 EVM chains (8 mainnets and their testnets).
 - "Try to cheat the buyer" on the landing page stamps each verdict the way the deed of sale does.
   When a report arrives, a stamp presses in beside the panel's title, or under it on a phone:
   **Provably clean** in green or **Not provable** in amber, with the record version the report

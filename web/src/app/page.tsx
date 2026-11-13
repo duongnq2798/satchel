@@ -15,6 +15,9 @@ import { CHECKS, EVIDENCE } from "@/lib/copy";
 import { appPath } from "@/lib/routes";
 import { BUILT_WITH, MAINNET_SALE, ONECLICK_EXIT, TOUR, formatSpan, utcDate, verifyCommand } from "@/lib/showcase";
 
+/** How many of CHAINS are mainnets (each has its testnet beside it): a chain count on this page always says how many are mainnets. */
+const MAINNET_CHAINS = CHAINS.filter((c) => !c.testnet).length;
+
 /** The 2-minute demo film, posted on X on 2026-11-12 (README, docs/DEMO.md). */
 const DEMO_VIDEO = "https://x.com/satchelnfthq/status/2120883522059837618";
 
@@ -74,7 +77,7 @@ const COMPARISON: { question: string; answers: Answers }[] = [
       ["Yes, and nothing shows what was signed", "bad"],
       ["No: the account checks the current owner when it runs", "ok"],
       ["Yes: it signs any 32-byte hash and keeps no record of what it signed", "bad"],
-      ["Until its nonce is spent, and check 2 shows that before you pay; any raw signature makes the satchel unprovable", "warn"],
+      ["A signed transaction, only until its nonce is spent; check 2 shows before you pay whether one is still pending, and any raw signature makes the satchel unprovable", "warn"],
     ],
   },
   {
@@ -101,7 +104,7 @@ const COMPARISON: { question: string; answers: Answers }[] = [
       ["Yes, if the same key is used everywhere", "warn"],
       ["One chain per NFT, unless a bridge says who owns it", "warn"],
       ["Yes: its keys sign for any chain that takes secp256k1 ECDSA signatures", "ok"],
-      [`Yes: ${CHAINS.length} EVM chains, one NEAR transaction`, "ok"],
+      [`Yes: ${CHAINS.length} EVM chains (${MAINNET_CHAINS} mainnets and their testnets), one NEAR transaction`, "ok"],
     ],
   },
 ];
@@ -174,7 +177,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the card marked Mainnet satchel #2, the Built with links to mainnet, Base and Arbitrum One, and mainnet satchel #3's sale near the top (a self-sale between two of the builder's accounts), with its deed and the command that checks it: never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet. The mainnet ones are satchel #3's sale near the top (a self-sale between two of the builder's accounts) with its deed and the command that checks it, the card marked Mainnet satchel #2, and the Built with links to mainnet, Base and Arbitrum One. Never send real funds to a testnet satchel's address.",
   },
 ];
 
@@ -249,8 +252,8 @@ function ThreeSteps() {
           }
         >
           <p className="mt-1 text-sm leading-relaxed text-ink-2">
-            Satchel #{MAINNET_SALE.tokenId}&apos;s deed: listed, checked, bought in one NEAR transaction, then its old owner
-            refused. A self-sale between two of the builder&apos;s accounts.
+            Satchel #{MAINNET_SALE.tokenId}&apos;s deed: listed, checked before payment, then bought in one NEAR transaction;
+            the old owner&apos;s next signature request was refused. A self-sale, not a market price.
           </p>
         </Step>
         <Step n={3} time="About 30 s, Node 22 or later" title="Verify it from a terminal">
@@ -283,24 +286,24 @@ export default function Home() {
             Sell a wallet.
             <span className="block text-gold-deep">Prove nothing stayed behind.</span>
           </h1>
-          <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-12 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
-            <div className="lg:pt-4">
+          <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-12 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+            <div>
               <p className="max-w-xl text-lg leading-relaxed text-ink-2 sm:text-xl">
-                A satchel is an NFT that controls one address on {CHAINS.length} EVM chains. Transfer the NFT and the wallet moves
-                with it. The contract keeps a record of everything it ever signed, so a buyer can check what the seller could
-                have kept back before paying.
+                A satchel is an NFT that controls one address on {MAINNET_CHAINS} EVM mainnets and their testnets. Transfer the NFT
+                and the wallet moves with it. The contract records everything it ever signed, so a buyer can check what the seller
+                could have kept back before paying.
               </p>
-              <ul className="mt-5 max-w-xl space-y-2 leading-relaxed text-ink-2">
+              <ul className="mt-4 max-w-xl space-y-1.5 leading-relaxed text-ink-2">
                 <li>
                   <strong className="font-semibold text-ink">Who it&apos;s for:</strong> an address that must keep receiving after
-                  a sale: a fee or royalty receiver fixed in a contract, a DAO treasury, an estate.
+                  a sale, such as a royalty receiver a contract fixes, a DAO treasury or an estate.
                 </li>
                 <li>
                   <strong className="font-semibold text-ink">Why NEAR:</strong> no one holds the key. NEAR&apos;s MPC network signs
-                  only when the contract asks, and only for the token&apos;s owner.
+                  only when the contract asks, and it asks only for the token&apos;s owner.
                 </li>
               </ul>
-              <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Link href="#examples" className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper transition hover:bg-leather">
                   Try to cheat a buyer
                 </Link>
@@ -328,7 +331,7 @@ export default function Home() {
                 </a>{" "}
                 and{" "}
                 <a href="#sold-on-mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
-                  #{MAINNET_SALE.tokenId} went through list and buy end to end
+                  #{MAINNET_SALE.tokenId} was listed and bought end to end
                 </a>
                 , a self-sale between two of the builder&apos;s accounts. Not audited. Reading a report needs no wallet.
               </p>
@@ -582,7 +585,7 @@ export default function Home() {
           <H2>Each name links to where it ran.</H2>
           <p className="mt-4 text-ink-2">
             A transaction, the holder room, the CI run or the npm release, not a logo. A satchel has an address on{" "}
-            {CHAINS.length} EVM chains; the sends so far were on Sepolia and Base, and mainnet satchel #2 received USDC on
+            {CHAINS.length} EVM chains ({MAINNET_CHAINS} mainnets and their testnets); the sends so far were on Sepolia and Base, and mainnet satchel #2 received USDC on
             Arbitrum One.
           </p>
           <ul className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line lg:grid-cols-4">
