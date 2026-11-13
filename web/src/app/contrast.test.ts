@@ -129,7 +129,9 @@ const LIGHT_ONLY: [string, string, number][] = [
   ["ink", "card bad/18", 7],
   // The terminal under the deed: paper-2 on ink and its comments, paper/75 on ink, are above. The
   // stamps (ok on ok-soft, bad on bad-soft), the declaration (ink and ink-2 on gold-soft) and the
-  // rest of its text on paper and card hold in both themes, in BOTH.
+  // rest of its text on paper and card hold in both themes, in BOTH. The verdict stamps on "Try to
+  // cheat the buyer" bring their own tint onto the ink panel: ok, warn and bad on their soft tints,
+  // in BOTH too.
 ];
 
 const SHIKI = Object.keys(LIGHT).filter((k) => k.startsWith("shiki-") && k !== "shiki-background");
