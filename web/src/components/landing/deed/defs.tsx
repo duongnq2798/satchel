@@ -1,5 +1,7 @@
 import { MAINNET_SALE } from "@/lib/showcase";
 import { StampPress } from "./press";
+// The deed's styles, here because every page with a deed renders DeedDefs: no other page loads them.
+import "./deed.css";
 
 // Drawn once for the approved mockup (mockups/satchel-sale3-a-deed.html): the seal's wavy rim, and the
 // three curves the rosette's engraving is turned copies of.
@@ -86,7 +88,13 @@ export function DeedDefs() {
                 {`SATCHEL · NO. ${MAINNET_SALE.tokenId} · SOLD ON NEAR MAINNET ·`}
               </textPath>
             </text>
-            <g textAnchor="middle" fontStyle="italic" fontWeight="600" fontSize="64" style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}>
+            <g
+              textAnchor="middle"
+              fontStyle="italic"
+              fontWeight="600"
+              fontSize="64"
+              style={{ fontFamily: "var(--font-deed-italic, var(--font-fraunces)), Georgia, serif" }}
+            >
               <text x="100" y="121" fill="#2e190d" opacity=".55" transform="translate(1.5 2)">
                 S
               </text>

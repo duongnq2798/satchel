@@ -74,9 +74,10 @@ export const ONECLICK_EXIT = {
 
 /**
  * Mainnet satchel #3's sale to a second account, and its old owner refused after it
- * (deployments/mainnet-sale.json): every fact the deed of sale shows. A self-sale, both accounts
- * the builder's. Times are UTC as the record has them. A block is the one that included the
- * transaction; its receipts ran in later blocks.
+ * (deployments/mainnet-sale.json): every fact the deed of sale shows, and three it leaves out that the
+ * test checks against the record too (the first report's owner, and the blocks the payment and the
+ * refusal ran in). A self-sale, both accounts the builder's. Times are UTC as the record has them.
+ * A block is the one that included the transaction; its receipts ran in later blocks.
  */
 export const MAINNET_SALE = {
   tokenId: "3",
@@ -89,7 +90,8 @@ export const MAINNET_SALE = {
   price: "0.1",
   /** What the listing and the buy named. Nothing was ever signed for #3, so it never moved. */
   recordVersion: "0",
-  mint: { at: "2026-11-13T01:19:15Z", tx: "mHornX2SqE442ikUyZoZwreSm9cSdrYAF4vneWmLVwn", block: "224293453" },
+  /** `deposit`: NEAR, what the mint paid for the token's storage. */
+  mint: { at: "2026-11-13T01:19:15Z", tx: "mHornX2SqE442ikUyZoZwreSm9cSdrYAF4vneWmLVwn", block: "224293453", deposit: "0.1" },
   list: { at: "2026-11-13T01:19:27Z", tx: "7xzmgbStV7o5WL2DrFA2qw8hqRftv5qwp1UwcGh4UCB6", block: "224293475" },
   /** The buyer's report before paying: a read, no transaction. */
   checked: { at: "2026-11-13T01:19:34.480Z", result: "PROVABLY CLEAN", owner: "satchel-nft.near" },
@@ -114,6 +116,12 @@ export const MAINNET_SALE = {
   /** The report again after the refusal, for the new owner. */
   checkedAgain: { at: "2026-11-13T01:22:31.790Z", result: "PROVABLY CLEAN", owner: "duongnq2798.near" },
 } as const;
+
+/**
+ * `node scripts/check-claims.mjs --network mainnet`, as the README counts it: its claims, and how many
+ * of them, the last ones, check satchel #3's sale. The deed's terminal quotes both.
+ */
+export const MAINNET_CLAIMS = { total: "20", sale: "five" } as const;
 
 /** Whole seconds from `from` to `to`, counted from the times as the deed shows them: cut to the second. */
 export function secondsBetween(from: string, to: string): number {

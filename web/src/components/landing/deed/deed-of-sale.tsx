@@ -1,16 +1,22 @@
 import { Fragment, type ReactNode } from "react";
 import { MAINNET, chainInfo } from "satchel-nft";
 import { CHECKS } from "@/lib/copy";
-import { MAINNET_SALE, formatSpan, utcDate, utcTime, verifyCommand } from "@/lib/showcase";
-import { CleanStamp, Declaration, DeedSheet, Flourish, Kicker, Medallion, Stamp, TxHash, WaxSeal } from "./marks";
+import { MAINNET_CLAIMS, MAINNET_SALE, formatSpan, utcDate, utcTime, verifyCommand } from "@/lib/showcase";
+import { CleanStamp, Declaration, DeedSheet, Flourish, Kicker, Medallion, README_SALE, Stamp, TxHash, WaxSeal } from "./marks";
 import { REFUSED_AFTER, SaleRuler } from "./ruler";
-import { README_SALE, REFUSAL } from "./teaser";
 
 const sale = MAINNET_SALE;
 const COMMAND = verifyCommand(MAINNET, sale.tokenId);
 /** "0x…dEaD": the refused call's recipient, as short as the deed writes addresses. */
 const SINK = `0x…${sale.refused.to.slice(-4)}`;
 const CHAIN = chainInfo(sale.refused.chainId)?.name ?? `chain ${sale.refused.chainId}`;
+/**
+ * The refused call after its "→", in groups held together by no-break spaces, so a narrow column
+ * breaks it only after a "·": never inside "value 0" or before a "·".
+ */
+const ATTEMPT = [`sign_evm(token ${sale.tokenId}) ·`, `${CHAIN} ·`, `value ${sale.refused.value} ·`, `to ${SINK}`]
+  .map((group) => group.replaceAll(" ", "\u00a0"))
+  .join(" ");
 
 /** One clause: its numeral, when it happened and in which block, what happened, its references, its mark. */
 function Clause({
@@ -58,11 +64,11 @@ function Clause({
   );
 }
 
-function Reference({ hash }: { hash: string }) {
+function Reference({ hash, what }: { hash: string; what: string }) {
   return (
     <p>
       <span className="deed-ref-k">Reference</span>
-      <TxHash hash={hash} />
+      <TxHash hash={hash} what={what} />
     </p>
   );
 }
@@ -108,7 +114,8 @@ export function DeedOfSale() {
         <strong className="font-semibold text-ink">
           A self-sale between two of the builder&apos;s accounts: it shows each step on mainnet, not a market price.
         </strong>{" "}
-        One clause per step, with its time in UTC and, for each transaction, the block that included it and its hash.
+        One clause per step, with its time in UTC and, for each transaction, the block that included it and its hash. The
+        README gives the next block, where its receipts began to run.
       </p>
 
       <DeedSheet labelledBy="deed-title" full>
@@ -167,13 +174,19 @@ export function DeedOfSale() {
         </p>
 
         <ol className="deed-clauses">
-          <Clause n="I" title="Minted" at={sale.mint.at} block={sale.mint.block} refs={<Reference hash={sale.mint.tx} />}>
+          <Clause n="I" title="Minted" at={sale.mint.at} block={sale.mint.block} refs={<Reference hash={sale.mint.tx} what="the mint" />}>
             <p className="deed-c-text">
-              {sale.seller} minted satchel #{sale.tokenId} for {sale.price} NEAR, at MPC path {sale.path}.
+              {sale.seller} minted satchel #{sale.tokenId} for {sale.mint.deposit} NEAR, at MPC path {sale.path}.
             </p>
           </Clause>
 
-          <Clause n="II" title="Listed, and signing frozen" at={sale.list.at} block={sale.list.block} refs={<Reference hash={sale.list.tx} />}>
+          <Clause
+            n="II"
+            title="Listed, and signing frozen"
+            at={sale.list.at}
+            block={sale.list.block}
+            refs={<Reference hash={sale.list.tx} what="the listing" />}
+          >
             <p className="deed-c-text">
               The seller listed it for {sale.price} NEAR at record version {sale.recordVersion}. Listing freezes signing: while
               it is listed, the contract signs nothing for it.
@@ -210,7 +223,7 @@ export function DeedOfSale() {
             block={sale.buy.block}
             refs={
               <>
-                <Reference hash={sale.buy.tx} />
+                <Reference hash={sale.buy.tx} what="the buy" />
                 <p>
                   <span className="deed-ref-k">Payment</span>
                   {sale.price} NEAR to {sale.buy.paid.to}, receipt <span className="deed-receipt">{sale.buy.paid.receipt}</span>
@@ -232,7 +245,7 @@ export function DeedOfSale() {
             at={sale.refused.at}
             block={sale.refused.block}
             badge={`${formatSpan(REFUSED_AFTER)} after the sale`}
-            refs={<Reference hash={sale.refused.tx} />}
+            refs={<Reference hash={sale.refused.tx} what="the refused call" />}
           >
             <p className="deed-c-text">
               {sale.seller}, the old owner, called sign_evm for #{sale.tokenId}: a {sale.refused.value}&#8209;value {CHAIN}{" "}
@@ -241,7 +254,7 @@ export function DeedOfSale() {
             <div className="deed-attempt">
               <p className="deed-attempt-k">Attempted after the sale</p>
               <p className="deed-attempt-line">
-                {sale.seller} → sign_evm(token {sale.tokenId}) · {CHAIN} · value {sale.refused.value} · to {SINK}
+                {sale.seller}&nbsp;<span className="deed-arrow">→</span> {ATTEMPT}
               </p>
               <Stamp tone="bad" top="On chain" big="Refused" sub={utcTime(sale.refused.at)} rot="-9deg" delay=".15s" />
             </div>
@@ -272,14 +285,14 @@ export function DeedOfSale() {
             <p className="deed-hand-k">The seller&apos;s hand</p>
             <p className="deed-hand-name">{sale.seller}</p>
             <p className="deed-hand-ref">
-              signed the listing, <TxHash hash={sale.list.tx} short />
+              signed the listing, <TxHash hash={sale.list.tx} short what="the listing" />
             </p>
           </div>
           <div>
             <p className="deed-hand-k">The buyer&apos;s hand</p>
             <p className="deed-hand-name">{sale.buyer}</p>
             <p className="deed-hand-ref">
-              signed the purchase, <TxHash hash={sale.buy.tx} short />
+              signed the purchase, <TxHash hash={sale.buy.tx} short what="the buy" />
             </p>
           </div>
         </div>
@@ -308,8 +321,7 @@ export function DeedOfSale() {
           {"\n$ "}
           <Command text={`node scripts/check-claims.mjs ${FLAG}`} />
           {"\n"}
-          {/* The README's count: the mainnet run checks 20 claims, the last five of them this sale. */}
-          <span className="deed-term-note"># in the repo: 20 claims, five of them about this sale</span>
+          <span className="deed-term-note">{`# in the repo: ${MAINNET_CLAIMS.total} claims, ${MAINNET_CLAIMS.sale} of them about this sale`}</span>
         </pre>
       </div>
     </section>

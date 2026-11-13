@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MAINNET, nearTxUrl } from "satchel-nft";
 import { appPath } from "@/lib/routes";
 import { MAINNET_SALE, formatSpan, verifyCommand } from "@/lib/showcase";
+import { deedItalic } from "./font";
 import { CleanStamp, Grain, Stamp, WaxSeal } from "./marks";
 import { REFUSED_AFTER } from "./ruler";
 
@@ -20,7 +21,7 @@ const TXS = [
 export function SaleCard() {
   const page = appPath(MAINNET, `/satchel/${sale.tokenId}`);
   return (
-    <article className="deed-card lg:col-span-2">
+    <article className={`deed-card lg:col-span-2 ${deedItalic.variable}`}>
       <Grain />
       <div className="deed-card-in">
         <div>
@@ -45,6 +46,8 @@ export function SaleCard() {
                   className="underline decoration-gold underline-offset-4 hover:decoration-2"
                 >
                   {tx.label}
+                  {/* Each card has a Mint link: a screen reader hears whose. */}
+                  <span className="sr-only">, satchel #{sale.tokenId}</span>
                   <span aria-hidden="true"> ↗</span>
                 </a>
               </li>
@@ -55,7 +58,7 @@ export function SaleCard() {
               Read satchel #{sale.tokenId}&apos;s report, live
             </Link>
             <Link href={`${page}#deed`} className="text-sm font-medium underline decoration-gold underline-offset-4 hover:decoration-2">
-              Read the deed →
+              Read the deed<span className="sr-only"> of satchel #{sale.tokenId}&apos;s sale</span> <span aria-hidden="true">→</span>
             </Link>
           </div>
           <p className="mt-3 font-mono text-xs break-all text-muted">{verifyCommand(MAINNET, sale.tokenId)}</p>

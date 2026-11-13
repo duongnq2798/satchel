@@ -8,6 +8,7 @@ import {
   BUILT_WITH,
   DEMO_SATCHELS,
   FIRST_SEND,
+  MAINNET_CLAIMS,
   MAINNET_SALE,
   ONECLICK_EXIT,
   SHOWCASE,
@@ -56,6 +57,8 @@ describe("the mainnet showcase matches the evidence files", () => {
     // yoctoNEAR: NEAR has 24 decimals. The listing and the buy named the same price and record version.
     const yocto = parseUnits(sale.price, 24).toString();
     expect([run.price, run.list.price, run.buy.price, run.buy.paid.deposit]).toEqual([yocto, yocto, yocto, yocto]);
+    // Clause I: what the mint paid.
+    expect(run.mint.deposit).toBe(parseUnits(sale.mint.deposit, 24).toString());
     expect([run.recordVersion, run.list.recordVersion, run.buy.recordVersion]).toEqual([sale.recordVersion, sale.recordVersion, sale.recordVersion]);
     // The four transactions: time, hash and the block that included it.
     for (const step of ["mint", "list", "buy", "refused"] as const) {
@@ -86,6 +89,22 @@ describe("the mainnet showcase matches the evidence files", () => {
     expect([...times].sort((a, b) => a - b)).toEqual(times);
     const blocks = [sale.mint.block, sale.list.block, sale.buy.block, sale.refused.block].map(Number);
     expect([...blocks].sort((a, b) => a - b)).toEqual(blocks);
+  });
+
+  it("satchel #3's deed agrees with the README it links to", () => {
+    const readme = readFileSync(new URL("../../../README.md", import.meta.url), "utf8");
+    const sale = MAINNET_SALE;
+    // The README_SALE anchor's heading, and the README's table under it.
+    const section = readme.split(/^#### Satchel #3, sold to a second account$/m)[1]?.split(/^#{2,4} /m)[0] ?? "";
+    expect(section).not.toBe("");
+    // "The README gives the next block, where its receipts began to run": one past the block that included each.
+    for (const step of ["mint", "list", "buy", "refused"] as const) {
+      expect(section, step).toContain(`block ${Number(sale[step].block) + 1}`);
+    }
+    expect(sale.refused.receiptBlock).toBe(String(Number(sale.refused.block) + 1));
+    // The terminal's note: "20 claims, five of them about this sale".
+    expect(readme).toContain(`NEAR mainnet: ${MAINNET_CLAIMS.total} claims`);
+    expect(section).toContain(`the last ${MAINNET_CLAIMS.sale} claims of \`node scripts/check-claims.mjs --network mainnet\``);
   });
 
   it("satchel #3's deed counts its spans from the record's times", () => {

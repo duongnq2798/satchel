@@ -53,9 +53,9 @@ export default function MainnetHome() {
         <h2 className="font-display text-3xl font-semibold tracking-tight">Three satchels on mainnet</h2>
         <p className="mt-2 text-ink-2">
           All three were minted by satchel-nft.near. Satchels #1 and #2 sent real ETH, each send signed in a NEAR wallet on this
-          site. Satchel #{MAINNET_SALE.tokenId} was sold between two of the builder&apos;s accounts, and its old owner&apos;s next sign_evm was
-          refused. Each card says what happened; the satchel&apos;s page reads its report live, against NEAR and every chain
-          its record lists.
+          site. Satchel #{MAINNET_SALE.tokenId} held nothing, and nothing was ever signed for it: it was sold between two of the
+          builder&apos;s accounts, and its old owner&apos;s next sign_evm was refused. Each card says what happened; the
+          satchel&apos;s page reads its report live, against NEAR and every chain its record lists.
         </p>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {SHOWCASE.map((s) => (
@@ -70,6 +70,8 @@ export default function MainnetHome() {
                   <li key={tx.href}>
                     <a href={tx.href} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-4 hover:decoration-ink">
                       {tx.label}
+                      {/* Each card has a Mint link: a screen reader hears whose. */}
+                      <span className="sr-only">, satchel #{s.tokenId}</span>
                       <span aria-hidden="true"> ↗</span>
                     </a>
                   </li>

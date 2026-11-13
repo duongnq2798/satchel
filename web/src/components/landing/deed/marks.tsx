@@ -1,6 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
-import { MAINNET, nearTxUrl } from "satchel-nft";
+import { MAINNET, REPO_URL, nearTxUrl } from "satchel-nft";
 import { MAINNET_SALE } from "@/lib/showcase";
+import { deedItalic } from "./font";
+
+/** The README's table of the sale, every step with its transaction: linked from the teaser and the full deed. */
+export const README_SALE = `${REPO_URL}#satchel-3-sold-to-a-second-account`;
 
 /** A mark's tilt and, for the press, how long it waits after the one before it. */
 interface Tilt {
@@ -102,25 +106,18 @@ export function Kicker() {
 }
 
 /** "FFYeAe…3Kbo": a hash short enough for a narrow column. */
-export const shortHash = (hash: string) => `${hash.slice(0, 6)}…${hash.slice(-4)}`;
+const shortHash = (hash: string) => `${hash.slice(0, 6)}…${hash.slice(-4)}`;
 
 /**
- * A mainnet transaction on NearBlocks. `short` shows its first and last characters, and says the whole
- * hash, and `what` it is, to a screen reader.
+ * A mainnet transaction on NearBlocks. A screen reader hears `what` it is ("the buy") after the hash,
+ * so the link says where it goes on its own. `short` shows the hash's first and last characters, and
+ * says the whole hash too.
  */
-export function TxHash({ hash, short = false, what }: { hash: string; short?: boolean; what?: string }) {
+export function TxHash({ hash, what, short = false }: { hash: string; what: string; short?: boolean }) {
   return (
     <a className="deed-hash" href={nearTxUrl(MAINNET, hash)} target="_blank" rel="noreferrer" title={short ? hash : undefined}>
-      {short ? (
-        <>
-          {shortHash(hash)}
-          <span className="sr-only">
-            , {what ? `${what}, ` : ""}transaction {hash}
-          </span>
-        </>
-      ) : (
-        hash
-      )}
+      {short ? shortHash(hash) : hash}
+      <span className="sr-only">{short ? `, ${what}, transaction ${hash}` : `, ${what}`}</span>
       <span aria-hidden="true"> ↗</span>
     </a>
   );
@@ -128,15 +125,17 @@ export function TxHash({ hash, short = false, what }: { hash: string; short?: bo
 
 /**
  * The deed's paper: a second sheet under it, the guilloche band and the grain. `labelledBy` names
- * the heading inside that titles it.
+ * the heading inside that titles it. deed-clip trims the turned second sheet at the column's edge.
  */
 export function DeedSheet({ labelledBy, full = false, children }: { labelledBy: string; full?: boolean; children: ReactNode }) {
   return (
-    <div className="deed-stack">
-      <article className={`deed-sheet${full ? " deed-full" : ""}`} aria-labelledby={labelledBy}>
-        <Grain />
-        <div className="deed-in">{children}</div>
-      </article>
+    <div className="deed-clip">
+      <div className={`deed-stack ${deedItalic.variable}`}>
+        <article className={`deed-sheet${full ? " deed-full" : ""}`} aria-labelledby={labelledBy}>
+          <Grain />
+          <div className="deed-in">{children}</div>
+        </article>
+      </div>
     </div>
   );
 }

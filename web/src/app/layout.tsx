@@ -7,8 +7,7 @@ import { WalletProvider } from "@/components/wallet";
 import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "satchel-nft";
 import "./globals.css";
 
-// Real italics, not slanted roman: the deed of sale (components/landing/deed) sets its numerals and hands in them.
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"], style: ["normal", "italic"] });
+const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"] });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 

@@ -4,7 +4,7 @@ import { MAINNET_SALE, formatSpan, secondsBetween, utcTime } from "@/lib/showcas
 const sale = MAINNET_SALE;
 
 /** The six steps, numbered as the deed's clauses, each with its dot's colour on the scale. */
-export const STEPS = [
+const STEPS = [
   { n: "I", label: "Minted", at: sale.mint.at, dot: "" },
   { n: "II", label: "Listed", at: sale.list.at, dot: "gold" },
   { n: "III", label: "Checked", at: sale.checked.at, dot: "ok" },
@@ -21,8 +21,8 @@ const at = (seconds: number) => `${Number(((seconds / TOTAL) * 100).toFixed(3))}
 
 const [listed, bought, refused] = [since(sale.list.at), since(sale.buy.at), since(sale.refused.at)];
 
-/** The span from mint to the second check, as the ruler's caption and the deed's lead count it. */
-export const SPAN = formatSpan(TOTAL);
+/** The span from mint to the second check, as the ruler's caption counts it. */
+const SPAN = formatSpan(TOTAL);
 /** The old owner's refusal, after the sale. */
 export const REFUSED_AFTER = secondsBetween(sale.buy.at, sale.refused.at);
 

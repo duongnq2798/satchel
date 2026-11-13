@@ -2,15 +2,13 @@ import Link from "next/link";
 import { MAINNET } from "satchel-nft";
 import { appPath } from "@/lib/routes";
 import { MAINNET_SALE, formatSpan, utcDate, utcTime } from "@/lib/showcase";
-import { CleanStamp, Declaration, DeedSheet, Flourish, Kicker, Medallion, Stamp, TxHash, WaxSeal } from "./marks";
+import { CleanStamp, Declaration, DeedSheet, Flourish, Kicker, Medallion, README_SALE, Stamp, TxHash, WaxSeal } from "./marks";
 import { REFUSED_AFTER, SaleRuler } from "./ruler";
 
 const sale = MAINNET_SALE;
 
 /** The chain's own words, without the runtime's prefix. */
-export const REFUSAL = sale.refused.panic.replace(/^Smart contract panicked: /, "");
-
-export const README_SALE = "https://github.com/duongnq2798/satchel#satchel-3-sold-to-a-second-account";
+const REFUSAL = sale.refused.panic.replace(/^Smart contract panicked: /, "");
 
 /**
  * The landing's teaser of satchel #3's deed: its face (medallion, parties, the builder's declaration),
@@ -38,7 +36,7 @@ export function DeedTeaser() {
           <Declaration />
         </div>
 
-        <ol className="deed-register" aria-label="The three steps that prove the sale">
+        <ol aria-label="The three steps that prove the sale">
           <li className="deed-reg">
             <span className="deed-reg-num" aria-hidden="true">
               III

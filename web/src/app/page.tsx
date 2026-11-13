@@ -170,7 +170,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the deed of mainnet satchel #3's sale under the first screen, the card marked Mainnet satchel #2 and the Built with links to mainnet, Base and Arbitrum One: never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the deed of mainnet satchel #3's sale (Sold on mainnet in one transaction, just after the opening section), the card marked Mainnet satchel #2 and the Built with links to mainnet, Base and Arbitrum One: never send real funds to a testnet satchel's address.",
   },
 ];
 
