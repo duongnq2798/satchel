@@ -586,7 +586,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `DEMO_SATCHELS`, which the sitemap and `llms.txt` read (not as quick picks on the verify page), with
   a line each that `showcase.test.ts` compares with `deployments/testnet-dao-bounty.json` and
   `testnet-estate.json`. The README, AGENTS.md, the threat model's row 21h, the demo kit and the
-  buy, sell, send and transfer guides now say testnet #1 to #11.
+  buy, sell, send and transfer guides now say testnet #1 to #11, and `tools/make-clean-demo.mjs`
+  refuses #10 and #11 too, except with `--check`. The demo kit's Open Innovation and Social Money
+  rows no longer call the estate and the bounty board not built.
 - `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
   or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
   `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,
