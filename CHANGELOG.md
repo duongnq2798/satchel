@@ -579,6 +579,14 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The demo satchels' guard covers testnet #10 and #11 too, the satchels behind the README's DAO
+  bounty and estate use cases (`check-dao-bounty.mjs`, `check-estate.mjs`): until 2026-11-25 the app
+  shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on them
+  (`frozen.ts`), so the app can't change their owner or signing record while judging runs. Both join
+  `DEMO_SATCHELS`, which the sitemap and `llms.txt` read (not as quick picks on the verify page), with
+  a line each that `showcase.test.ts` compares with `deployments/testnet-dao-bounty.json` and
+  `testnet-estate.json`. The README, AGENTS.md, the threat model's row 21h, the demo kit and the
+  buy, sell, send and transfer guides now say testnet #1 to #11.
 - `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
   or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
   `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,

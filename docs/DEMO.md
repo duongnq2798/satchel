@@ -224,7 +224,11 @@ Until 2026-11-25:
   the nonce spend its card planned, once. The README's section on it quotes its report at record
   version 5, and its landing card (`TOUR` in `web/src/lib/showcase.ts`) tells the clean-up: don't
   sign anything with it either. The app's guard covers it from the pull request that recorded the run.
-- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #9 or mainnet #1 to
+- Testnet #10 and #11 back the README's DAO bounty and estate use cases, and
+  `satchel-builder-1112.testnet` owns both, as those runs ended. `check-estate.mjs` reads #11's
+  owner and its empty signing record as they are now: don't sign anything with either. The app's
+  guard covers both from the pull request that added them.
+- Don't list, delist, re-list, buy or transfer any demo satchel: testnet #1 to #11 or mainnet #1 to
   #3. The landing card reads #1's owner live beside its hand-over from `satchel-nft.testnet`; #3's
   example says #2's address belongs to the same seller; the README shows #7's history, and #9's
   approval in the 1:18 scene names #7's address; #4 is for sale for 1 NEAR at record version 0 and
@@ -235,6 +239,7 @@ Until 2026-11-25:
 
 If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
 #5, #6, #7 and #9, `npx -y satchel-nft@0.2.0 verify --network mainnet <id>` for mainnet #1 to #3,
-and the README's quick-start `satchel` view for #1. Then update the README's quoted outputs,
+`node scripts/check-dao-bounty.mjs` and `node scripts/check-estate.mjs` for #10 and #11, and the
+README's quick-start `satchel` view for #1. Then update the README's quoted outputs,
 AGENTS.md's table, `web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx`, the landing
 cards (`TOUR` in `web/src/lib/showcase.ts`) and this kit's scene notes in the same pull request.
