@@ -53,7 +53,7 @@ export default function YourSatchels() {
         </div>
         {accountId && deployment.data && (
           <Button variant="primary" busy={minting} onClick={mint}>
-            Mint a satchel · 0.1 NEAR
+            Mint a satchel · 0.1 {net.id === "testnet" ? "testnet " : ""}NEAR
           </Button>
         )}
       </div>
@@ -92,7 +92,7 @@ export default function YourSatchels() {
           </p>
           {net.id === "testnet" && (
             <p className="mt-1 text-sm text-muted">
-              Minting takes 0.1 testnet NEAR. If your account has none, get some free from{" "}
+              Minting takes 0.1 testnet NEAR plus a little gas. Short of it? Get free testnet NEAR from{" "}
               <ExternalLink href={TESTNET_FAUCET_URL}>NEAR&apos;s faucet</ExternalLink>.
             </p>
           )}

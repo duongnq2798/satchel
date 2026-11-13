@@ -22,7 +22,7 @@ describe("the demo satchels' guard", () => {
     expect(isFrozen(TESTNET, "4", new Date("2026-11-25T00:00:00Z"))).toBe(false);
     expect(isFrozen(MAINNET, "1", new Date("2026-12-01T00:00:00Z"))).toBe(false);
     expect(FROZEN_NOTE).toBe(
-      "Demo satchel: the app's owner and buy actions are off on it through judging (until 2026-11-25), so every claim about it stays checkable.",
+      "Demo satchel: through judging (until 2026-11-25) this app turns off the owner's buttons and the buy button on this satchel, to keep the state the README quotes for it.",
     );
   });
 });

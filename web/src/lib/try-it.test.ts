@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { MAINNET, TESTNET } from "satchel-nft";
 import { describe, expect, it } from "vitest";
 import { appPath } from "./routes";
+import { MAINNET_SALE } from "./showcase";
 import { MINT_PATH, SALE_DEED_PATH, TESTNET_ACCOUNT_URL, TESTNET_FAUCET_URL, allDemo } from "./try-it";
 
 const BEFORE = new Date("2026-11-14T12:00:00Z");
@@ -26,9 +27,13 @@ describe("the market's demo notice", () => {
 
 describe("where a visitor tries the app instead", () => {
   it("links mainnet #3's deed of sale, a section its page has", () => {
+    expect(MAINNET_SALE.tokenId).toBe("3");
     expect(SALE_DEED_PATH).toBe("/mainnet/satchel/3#deed");
     const deed = readFileSync(new URL("../components/landing/deed/deed-of-sale.tsx", import.meta.url), "utf8");
     expect(deed).toContain('<section id="deed"');
+    // The mainnet token page renders that section for the sale's token, so the anchor lands.
+    const page = readFileSync(new URL("../app/mainnet/satchel/[id]/page.tsx", import.meta.url), "utf8");
+    expect(page).toMatch(/\{id === MAINNET_SALE\.tokenId && \([\s\S]*?<DeedOfSale \/>[\s\S]*?\)\}/);
   });
 
   it("mints on testnet, whichever network the page is on", () => {

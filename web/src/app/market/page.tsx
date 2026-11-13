@@ -37,7 +37,7 @@ function ListingCard({
         {isFrozen(net, tokenId) && (
           <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-2">
             <Badge tone="gold">Demo satchel</Badge>
-            Buying is off in this app through judging (until {FROZEN_DAY}), so every claim about it stays checkable.
+            Buying is off in this app through judging (until {FROZEN_DAY}).
           </p>
         )}
       </Card>
@@ -62,8 +62,9 @@ export default function Market() {
       <ErrorNote error={listings.error} />
       {onlyDemo && (
         <p className="text-sm text-ink-2">
-          Every satchel listed here is a demo satchel: buying is off in this app through judging (until {FROZEN_DAY}), so
-          every claim about them stays checkable. See a finished sale in{" "}
+          Every satchel listed here is a demo satchel. Buying them is off in this app through judging (until{" "}
+          <span className="whitespace-nowrap">{FROZEN_DAY})</span>, to keep the state the README quotes for them. See a
+          finished sale in{" "}
           <Link
             href={SALE_DEED_PATH}
             className="font-medium text-leather underline decoration-line underline-offset-4 hover:decoration-ink"
@@ -77,7 +78,7 @@ export default function Market() {
           >
             mint your own on testnet
           </Link>
-          , list it from its page and buy it from a second wallet.
+          , list it from its page and buy it from a second testnet wallet.
         </p>
       )}
       {listings.data?.length === 0 && (

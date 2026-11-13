@@ -188,7 +188,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           <p className="min-w-0 text-sm [overflow-wrap:anywhere]">
             For sale: <strong className="font-display text-lg">{formatNear(listing.price)} NEAR</strong>, sold by{" "}
             {listing.seller}. {frozen
-              ? "Buying it from the app is off through judging (until 2026-11-25), so every claim about this demo satchel stays checkable."
+              ? "Buying it from the app is off through judging (until 2026-11-25), to keep the state the README quotes for this demo satchel."
               : "Read the report, then buy."}
           </p>
           {!frozen && (
