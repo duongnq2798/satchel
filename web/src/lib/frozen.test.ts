@@ -5,13 +5,14 @@ import { FROZEN_NOTE, isFrozen } from "./frozen";
 const BEFORE = new Date("2026-11-11T12:00:00Z");
 
 describe("the demo satchels' guard", () => {
-  it("covers testnet #1 to #9 and mainnet #1 and #2, and no other", () => {
+  it("covers testnet #1 to #9 and mainnet #1 to #3, and no other", () => {
     for (const id of ["1", "2", "3", "4", "5", "6", "7", "8", "9"]) expect(isFrozen(TESTNET, id, BEFORE), `testnet #${id}`).toBe(true);
     expect(isFrozen(TESTNET, "10", BEFORE)).toBe(false);
     expect(isFrozen(TESTNET, "11", BEFORE)).toBe(false);
     expect(isFrozen(MAINNET, "1", BEFORE)).toBe(true);
     expect(isFrozen(MAINNET, "2", BEFORE)).toBe(true);
-    expect(isFrozen(MAINNET, "3", BEFORE)).toBe(false);
+    expect(isFrozen(MAINNET, "3", BEFORE)).toBe(true);
+    expect(isFrozen(MAINNET, "4", BEFORE)).toBe(false);
     // Ids as the contract writes them: "01" is no token, not #1.
     expect(isFrozen(TESTNET, "01", BEFORE)).toBe(false);
   });

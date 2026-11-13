@@ -47,7 +47,7 @@ const EVM_NODES = {
   11155111: ["https://ethereum-sepolia-rpc.publicnode.com", "https://sepolia.gateway.tenderly.co"],
 };
 /** The satchels the README quotes, whose state stays as it is until judging ends (web/src/lib/frozen.ts). */
-const DEMO = { testnet: new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9"]), mainnet: new Set(["1", "2"]) };
+const DEMO = { testnet: new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9"]), mainnet: new Set(["1", "2", "3"]) };
 /** yoctoNEAR the contract asks for a mint (0.1 NEAR), as the CLI and the app attach it. */
 const MINT_DEPOSIT = "100000000000000000000000";
 const DEAD = "0x000000000000000000000000000000000000dead";

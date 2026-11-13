@@ -1,10 +1,10 @@
 import type { Network, NetworkId } from "satchel-nft";
 
 /**
- * The demo satchels whose state the README quotes: testnet #1 to #9, mainnet #1 and #2 (#9 added
- * after its Make it clean run on 2026-11-12). Until judging ends, the app's owner and buy actions
- * are off on them: send, list, delist, transfer, buy and the Make it clean buttons. The holder room
- * stays open.
+ * The demo satchels whose state the README quotes: testnet #1 to #9, mainnet #1 to #3 (#9 added
+ * after its Make it clean run on 2026-11-12, mainnet #3 after its sale on 2026-11-13). Until judging
+ * ends, the app's owner and buy actions are off on them: send, list, delist, transfer, buy and the
+ * Make it clean buttons. The holder room stays open.
  *
  * This is a guard in this app only, not a protection: the satchel-nft CLI, the near CLI and any
  * other client can still sign, list, buy or transfer these satchels, and the contract has no such
@@ -12,7 +12,7 @@ import type { Network, NetworkId } from "satchel-nft";
  */
 export const FROZEN: Record<NetworkId, readonly string[]> = {
   testnet: ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-  mainnet: ["1", "2"],
+  mainnet: ["1", "2", "3"],
 };
 
 export const FROZEN_UNTIL = new Date("2026-11-25T00:00:00Z");
