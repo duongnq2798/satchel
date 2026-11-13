@@ -256,7 +256,7 @@ function ThreeSteps() {
             the old owner&apos;s next signature request was refused. A self-sale, not a market price.
           </p>
         </Step>
-        <Step n={3} time="About 30 s, Node 22 or later" title="Verify it from a terminal">
+        <Step n={3} time="About 1 min with the npm download, Node 22 or later" title="Verify it from a terminal">
           <p className="mt-1 text-sm leading-relaxed text-ink-2">The report on satchel #{MAINNET_SALE.tokenId}, from npm, against public RPCs.</p>
           <div className="mt-3 flex flex-wrap items-start gap-2">
             {/* Lines break between words only, never at the hyphen in "satchel-nft". */}
