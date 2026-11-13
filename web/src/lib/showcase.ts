@@ -349,7 +349,7 @@ export const DEMO_SATCHELS: readonly DemoSatchel[] = [
   {
     network: "mainnet",
     tokenId: MAINNET_SALE.tokenId,
-    story: `Sold for ${MAINNET_SALE.price} NEAR to a second account; the old owner's next sign_evm was refused`,
+    story: `Sold for ${MAINNET_SALE.price} NEAR between two of the builder's accounts, a self-sale, not a market price; the old owner's next sign_evm was refused`,
     pick: true,
   },
 ];

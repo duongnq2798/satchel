@@ -9,10 +9,14 @@ import { TrickExplorer } from "@/components/landing/trick-explorer";
 import { LiveStats } from "@/components/live-stats";
 import { ReportProvider } from "@/components/report-checker";
 import { NetLink } from "@/components/site-header";
+import { CopyButton } from "@/components/ui";
 import { CHAINS, MAINNET, NETWORKS, REPO_URL, TESTNET } from "satchel-nft";
 import { CHECKS, EVIDENCE } from "@/lib/copy";
 import { appPath } from "@/lib/routes";
-import { BUILT_WITH, MAINNET_SALE, TOUR, formatSpan, utcDate } from "@/lib/showcase";
+import { BUILT_WITH, MAINNET_SALE, ONECLICK_EXIT, TOUR, formatSpan, utcDate, verifyCommand } from "@/lib/showcase";
+
+/** The 2-minute demo film, posted on X on 2026-11-12 (README, docs/DEMO.md). */
+const DEMO_VIDEO = "https://x.com/satchelnfthq/status/2120883522059837618";
 
 const USUAL_WAY = [
   "The seller can keep a copy of the key, and nothing shows it",
@@ -22,7 +26,7 @@ const USUAL_WAY = [
 ];
 
 const SATCHEL_WAY = [
-  "No key exists to copy: NEAR's MPC network signs, only for the NFT's owner",
+  "No one holds a key to copy: NEAR's MPC network signs, only for the NFT's owner",
   "Every nonce the contract signed is on record, and checked as spent",
   "Every approval it signed is on record, and read on chain as revoked",
   "You check before you pay, and the purchase names what you checked",
@@ -70,7 +74,7 @@ const COMPARISON: { question: string; answers: Answers }[] = [
       ["Yes, and nothing shows what was signed", "bad"],
       ["No: the account checks the current owner when it runs", "ok"],
       ["Yes: it signs any 32-byte hash and keeps no record of what it signed", "bad"],
-      ["Yes, a signed transaction until its nonce is spent, which check 2 reads; any raw signature makes the satchel unprovable", "warn"],
+      ["Until its nonce is spent, and check 2 shows that before you pay; any raw signature makes the satchel unprovable", "warn"],
     ],
   },
   {
@@ -170,7 +174,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is it on mainnet?",
-    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the deed of mainnet satchel #3's sale right below the opening section, the card marked Mainnet satchel #2 and the Built with links to mainnet, Base and Arbitrum One: never send real funds to a testnet satchel's address.",
+    a: "Yes, since 9 November 2026, at v1.satchel-nft.near: the same reproducible build as testnet, signing through v1.signer, locked before any satchel was minted. Its pages are under /mainnet. It has not been audited, so keep in a mainnet satchel only what you can afford to lose. The examples on this page are on testnet, except the card marked Mainnet satchel #2, the Built with links to mainnet, Base and Arbitrum One, and mainnet satchel #3's sale near the top (a self-sale between two of the builder's accounts), with its deed and the command that checks it: never send real funds to a testnet satchel's address.",
   },
 ];
 
@@ -194,6 +198,81 @@ function Code({ children }: { children: string }) {
   return <pre className="rounded-xl bg-ink p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-paper-2">{children}</pre>;
 }
 
+/** The command that read mainnet satchel #3's report before and after its sale (showcase.test.ts checks it against the record). */
+const VERIFY_SALE = verifyCommand(MAINNET, MAINNET_SALE.tokenId);
+
+/** One step of the short path under the hero: its number, what to do, how long it takes, and what it is. */
+function Step({ n, title, time, children }: { n: number; title: ReactNode; time: string; children: ReactNode }) {
+  return (
+    <li className="flex gap-4 rounded-2xl border border-line bg-card p-5">
+      <span className="font-display text-2xl leading-7 font-semibold text-leather" aria-hidden="true">
+        {n}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-ink">{title}</p>
+        <p className="text-xs text-muted">{time}</p>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+/** A judge's three minutes: the cheat demo, the mainnet sale, the same report from a terminal. */
+function ThreeSteps() {
+  const link = "underline decoration-line underline-offset-4 hover:decoration-ink";
+  return (
+    <section aria-labelledby="three-minutes" className="mt-16 sm:mt-20">
+      <h2 id="three-minutes" className="text-sm font-medium tracking-wide text-leather">
+        Check it in three minutes
+      </h2>
+      <ol className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-3">
+        <Step
+          n={1}
+          time="About 30 s, no wallet"
+          title={
+            <a href="#examples" className={link}>
+              Try to cheat a buyer<span aria-hidden="true"> →</span>
+            </a>
+          }
+        >
+          <p className="mt-1 text-sm leading-relaxed text-ink-2">
+            Pick what the seller does. Each move was made on testnet, and the report reads it in your browser.
+          </p>
+        </Step>
+        <Step
+          n={2}
+          time="About 1 min"
+          title={
+            <a href={`${appPath(MAINNET, `/satchel/${MAINNET_SALE.tokenId}`)}#deed`} className={link}>
+              Read the mainnet sale<span aria-hidden="true"> →</span>
+            </a>
+          }
+        >
+          <p className="mt-1 text-sm leading-relaxed text-ink-2">
+            Satchel #{MAINNET_SALE.tokenId}&apos;s deed: listed, checked, bought in one NEAR transaction, then its old owner
+            refused. A self-sale between two of the builder&apos;s accounts.
+          </p>
+        </Step>
+        <Step n={3} time="About 30 s, Node 22 or later" title="Verify it from a terminal">
+          <p className="mt-1 text-sm leading-relaxed text-ink-2">The report on satchel #{MAINNET_SALE.tokenId}, from npm, against public RPCs.</p>
+          <div className="mt-3 flex flex-wrap items-start gap-2">
+            {/* Lines break between words only, never at the hyphen in "satchel-nft". */}
+            <code className="flex-1 rounded-lg bg-paper-2 px-3 py-1.5 font-mono text-xs leading-relaxed text-ink">
+              {VERIFY_SALE.split(" ").map((word, i) => (
+                <span key={word}>
+                  {i > 0 && " "}
+                  <span className="whitespace-nowrap">{word}</span>
+                </span>
+              ))}
+            </code>
+            <CopyButton value={VERIFY_SALE} name="Copy the command" />
+          </div>
+        </Step>
+      </ol>
+    </section>
+  );
+}
+
 export default function Home() {
   return (
     <ReportProvider>
@@ -211,32 +290,52 @@ export default function Home() {
                 with it. The contract keeps a record of everything it ever signed, so a buyer can check what the seller could
                 have kept back before paying.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <ul className="mt-5 max-w-xl space-y-2 leading-relaxed text-ink-2">
+                <li>
+                  <strong className="font-semibold text-ink">Who it&apos;s for:</strong> an address that must keep receiving after
+                  a sale: a fee or royalty receiver fixed in a contract, a DAO treasury, an estate.
+                </li>
+                <li>
+                  <strong className="font-semibold text-ink">Why NEAR:</strong> no one holds the key. NEAR&apos;s MPC network signs
+                  only when the contract asks, and only for the token&apos;s owner.
+                </li>
+              </ul>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link href="#examples" className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper transition hover:bg-leather">
                   Try to cheat a buyer
                 </Link>
                 <Link href="/satchels" className="rounded-full border border-ink px-6 py-3 text-sm font-medium transition hover:bg-card">
                   Mint a satchel
                 </Link>
+                <a
+                  href={DEMO_VIDEO}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="py-1.5 text-sm font-medium text-leather underline decoration-line underline-offset-4 hover:text-ink hover:decoration-ink"
+                >
+                  Watch the 2-minute demo<span className="sr-only">, on X</span>
+                  <span aria-hidden="true"> ↗</span>
+                </a>
               </div>
               <p className="mt-5 text-sm text-muted">
-                These examples are on testnet; Satchel is also{" "}
+                These examples are on testnet. Satchel is also{" "}
                 <a href="/mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
                   live on mainnet
                 </a>
                 , where{" "}
                 <a href="/mainnet#showcase" className="underline decoration-line underline-offset-2 hover:text-ink">
-                  two satchels have sent real ETH
+                  satchel #{ONECLICK_EXIT.tokenId} holds USDC from a NEAR Intents 1Click swap
                 </a>{" "}
                 and{" "}
                 <a href="#sold-on-mainnet" className="underline decoration-line underline-offset-2 hover:text-ink">
-                  a third was sold
-                </a>{" "}
-                between two of the builder&apos;s accounts. Not audited. Reading a report needs no wallet.
+                  #{MAINNET_SALE.tokenId} went through list and buy end to end
+                </a>
+                , a self-sale between two of the builder&apos;s accounts. Not audited. Reading a report needs no wallet.
               </p>
             </div>
             <HeroCard />
           </div>
+          <ThreeSteps />
         </section>
 
         <section id="sold-on-mainnet" className="deed-section scroll-mt-24">
@@ -249,9 +348,6 @@ export default function Home() {
             <span className="block text-gold-deep">Then the old owner was refused.</span>
           </H2>
           <p className="mt-4 text-[1.0625rem] leading-relaxed text-ink-2 sm:text-lg">
-            <strong className="font-semibold text-ink">
-              A self-sale between two of the builder&apos;s accounts: it shows each step on mainnet, not a market price.
-            </strong>{" "}
             The buyer checked satchel #{MAINNET_SALE.tokenId} before paying. One NEAR transaction handed over the NFT, and with
             it the right to sign on every chain. {formatSpan(REFUSED_AFTER, true)} later the old owner asked to sign for it, and
             the chain refused.
