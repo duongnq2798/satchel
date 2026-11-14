@@ -192,9 +192,9 @@ data, so these attacks are on the gate, not on a secret.
 10. No admin, so stuck NEAR and the chain list cannot be changed.
 11. For a CLI send with `--yes`, the fee and the nonce read from one EVM RPC (row 21f). Which
     satchel is yours, read from one NEAR RPC (row 21g). A satchel's address itself no longer comes
-    from an RPC, except in `satchel-nft` 0.1.0. The README and the docs pin 0.3.0; the app's
-    holder room and `handoverKit` in npm 0.3.0 print 0.2.0 commands, which 0.2.0 runs, until the
-    next release.
+    from an RPC, except in `satchel-nft` 0.1.0. The README, the docs, the app's holder
+    room and `handoverKit` (since 0.3.1) pin 0.3.0; the kit in npm's 0.3.0 prints 0.2.0 commands,
+    which 0.2.0 runs.
 12. The npm release, published without provenance: whoever holds the owner's npm account could
     publish a version that lies (trusted, above; the README pins 0.3.0).
 13. The holder room: a captured proof opens it until 5 minutes after its `Issued` time (up to 6

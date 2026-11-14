@@ -16,7 +16,8 @@ and 0.2.0 in place of 0.1.0. Until the new version is on npm, every pinned comma
 npm serves. Between releases the checkout's package carries a `-dev` version (`0.3.0-dev` before
 0.3.0), so no clone calls unreleased code by a released version: the release's pull request drops
 the `-dev`, and the pull request that moves the pins after the publish sets the next one
-(`0.4.0-dev`).
+(`0.4.0-dev`). A patch from a `-dev` checkout works the same way: its pull request sets the patch
+version (`0.4.0-dev` to `0.3.1`), and the pull request after the publish sets `0.4.0-dev` again.
 
 ## 1. Pick the commit
 
@@ -99,9 +100,10 @@ These stay as they are: the contract's own version in `contracts/`, the MPC deri
 `near-mpc-recovery v0.1.0`, the run records in `deployments/`, and the CHANGELOG's history.
 `packages/satchel-nft` is left out of the searches: its README and code go into the next tarball,
 and every change to them after a publish is listed under Unreleased in the CHANGELOG until that
-version is out. Since 0.2.0, the handover kit (`packages/satchel-nft/src/kit.ts`) pins
-`satchel-nft@0.2.0`, a release that has every command it prints; npm's 0.3.0 pins it too, and
-npm's 0.2.0 pins 0.1.0.
+version is out. The handover kit (`packages/satchel-nft/src/kit.ts`) and `fixPlan`'s terminal note
+(`clean.ts`) pin an earlier release that has every command they print: `satchel-nft@0.3.0` since
+0.3.1, where npm's 0.3.0 pins 0.2.0 and npm's 0.2.0 pins 0.1.0. A release's pull request can move
+them to the newest version on npm.
 
 - Every `satchel-nft@0.1.0` command becomes `satchel-nft@0.2.0`: the README, AGENTS.md,
   `docs/DEMO.md`, the docs under `web/content/docs`, the app's own pages (`web/src/app/page.tsx`,

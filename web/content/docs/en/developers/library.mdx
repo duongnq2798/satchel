@@ -639,7 +639,7 @@ runs `checkHolder` on every request.
 | `RoomProof` | `{ tokenId, accountId, publicKey, signature, nonce, issuedAt }` | What a client sends. Every field is a string; `nonce` is 32 bytes in base64 |
 | `nep413Hash(payload)` | `(payload: Nep413Payload) => Uint8Array` | The 32 bytes a wallet signs for a NEP-413 message. Throws on a nonce that isn't 32 bytes |
 | `verifyNep413(signed)` | `(signed: Nep413Signed) => boolean` | Whether an `ed25519:` key signed that message, nonce and recipient, with strict RFC 8032 verification. Malformed input is `false`, never a throw |
-| `handoverKit(report)` | `(report: Report) => KitStep[]` | What to do before selling a satchel: one step for each check of its report that doesn't pass, or one step when all four do. Each step has an `action` (`fix`, `wait`, `disclose`, `not-yours` or `list`), what the check found, what it means and what to do. Its commands pin `satchel-nft@0.1.0`, which has each of them |
+| `handoverKit(report)` | `(report: Report) => KitStep[]` | What to do before selling a satchel: one step for each check of its report that doesn't pass, or one step when all four do. Each step has an `action` (`fix`, `wait`, `disclose`, `not-yours` or `list`), what the check found, what it means and what to do. Its commands pin `satchel-nft@0.3.0`, which has each of them (since 0.3.1; 0.3.0 pins `@0.2.0`, and 0.2.0 `@0.1.0`) |
 
 ## Related
 

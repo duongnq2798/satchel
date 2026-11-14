@@ -464,10 +464,10 @@ the record changed).
    npx satchel-nft verify 1
    ```
 
-   Inside the repository, `npx satchel-nft` runs this checkout's build, never a download: version
-   0.4.0-dev, with any change since 0.3.0 listed under Unreleased in the
-   [CHANGELOG](CHANGELOG.md). The pinned `npx -y satchel-nft@0.3.0` runs the npm release here too,
-   since the checkout's version differs. For the satchels above both print the same lines.
+   Inside the repository, `npx satchel-nft` runs this checkout's build, never a download, with any
+   change since 0.3.0 listed under Unreleased in the [CHANGELOG](CHANGELOG.md). The pinned
+   `npx -y satchel-nft@0.3.0` runs the npm release here too, since the checkout's version differs.
+   For the satchels above both print the same lines.
 
    </details>
 

@@ -46,7 +46,7 @@ export function handoverKit(report: Report): KitStep[] {
   const id = report.tokenId;
   const mainnet = report.network === "mainnet";
   const page = `${mainnet ? "/mainnet" : ""}/satchel/${id}`;
-  const cli = (command: string) => `npx -y satchel-nft@0.2.0 ${command}${mainnet ? " --network mainnet" : ""}`;
+  const cli = (command: string) => `npx -y satchel-nft@0.3.0 ${command}${mainnet ? " --network mainnet" : ""}`;
   // The page's "Make it clean" card, under the report, has a button for each fix the kit names.
   const card = `Make it clean, under the report on ${page}`;
   const verify = cli(`verify ${id}`);
