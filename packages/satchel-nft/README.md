@@ -184,8 +184,30 @@ if (report?.verdict === "clean") {
 | `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.2.0`, which has each of them (new in 0.2.0; 0.2.0 itself pins `@0.1.0`) |
 | `contents(net, address)`, `chainContents(chain, address)`, `TOKENS` | What an address holds on the network's EVM chains: the native coin, and USDC, USDT and WETH at their listed addresses. Display only: the report doesn't read it (new in 0.2.0) |
 | `tokenHistory(net, id)`, `describeEntry(entry)` | A satchel's mint, owners, signatures, listings and sales, from FastNEAR's transaction index, and one line for each. Display only (new in 0.2.0) |
-| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0) |
+| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0; the `version`, `config` and bounty-claim reads are new in 0.3.0) |
 | `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (new in 0.2.0) |
+| `fixPlan(inputs)`, `readFixInputs(report, record)`, `revokeCalldata` | Make it clean: the sends of 0 from the satchel that would make its report read clean, a revoke for each live approval and a send to its own address for each open nonce, and what each costs in approval slots. `fixPlan` reads nothing; `readFixInputs` reads each chain's latest block (new in 0.3.0) |
+| `accountTransactions(net, account)`, `indexPost(net, path, body)` | Any account's transactions from FastNEAR's transaction index, and the request that sends a rate-limited read again (new in 0.3.0) |
+
+## What changed in 0.3.0
+
+- **Make it clean, in the library.** `fixPlan` turns a report that doesn't pass into the sends
+  that fix it: a revoke for each approval still live (`revokeCalldata` builds the call) and a send
+  of 0 to the satchel's own address for each open nonce, with what each costs in approval slots.
+  `readFixInputs` reads what it needs. satchelnft.xyz's Make it clean card runs on them, and they
+  cleaned testnet satchel #9 on 2026-11-12.
+- **Check 3 joins rows that read the same.** Approval rows that name the same chain, contract,
+  token and spender and read the same share one line, ending "(N record rows)". 0.2.0 printed
+  satchel #9's approval and its revoke as two identical lines. Every row still counts toward the
+  verdict, and `chains` keeps one entry per row.
+- **`history` reads through a busy index.** A request FastNEAR's transaction index answers with
+  408, 429 or 5xx, or doesn't answer, is sent again, up to 5 sends, waiting as its Retry-After
+  asks, up to 8 s. A revoke, `approve(spender, 0)`, reads "a revoke (approve of 0)", where 0.2.0
+  said "an approval".
+- **The handover kit** pins `satchel-nft@0.2.0` (0.2.0 pinned 0.1.0) and points at the app's Make
+  it clean card for each revoke and nonce spend.
+- **New in the library:** `fixPlan`, `readFixInputs`, `revokeCalldata`, `accountTransactions`,
+  `indexPost`, and the Sputnik DAO reads `version`, `config` and bounty claims.
 
 ## What changed in 0.2.0
 
