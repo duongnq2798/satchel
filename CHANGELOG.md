@@ -599,6 +599,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   zone, beside a UTC time, a check made today could read like the next day's. `/verify` offers
   testnet #8, the DAO's satchel, and #9, made clean from its page, among its demo picks, and mainnet
   #3's line there says its sale was a self-sale between two of the builder's accounts.
+- The demo satchels' notes give the reason in a visitor's terms: buying, and the owner's buttons,
+  are off in the app through judging (until 2026-11-25), to keep the state the README quotes for
+  them, on `/market`, the satchel pages, the holder room, the landing's listed example and the
+  use-cases page; each `/market` card says it in one line. When every listing is a demo satchel, `/market` links mainnet satchel #3's deed of sale (a
+  self-sale between two of the builder's accounts) and minting one's own on testnet; the check moved
+  to `allDemo` in `web/src/lib/try-it.ts`, with tests. Without a wallet, `/satchels` links NEAR's
+  docs for a testnet account and free testnet NEAR (docs.near.org's faucet page) and, once
+  connected with no satchel, says minting takes 0.1 testnet NEAR plus a little gas. The holder room's connect prompt
+  links minting a testnet satchel to open a room of one's own.
 - `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
   or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
   `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,

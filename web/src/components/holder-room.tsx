@@ -17,6 +17,7 @@ import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import type { RoomResponse } from "@/lib/room-request";
 import { appPath } from "@/lib/routes";
 import { utcDateTime, utcTime } from "@/lib/showcase";
+import { MINT_PATH } from "@/lib/try-it";
 import { NoMessageSigning, signMessage } from "@/lib/wallet";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, Mono, VERDICT, errorMessage } from "./ui";
@@ -145,7 +146,16 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
             <p className="text-sm text-muted">Looking for your wallet…</p>
           ) : accountId === null ? (
             <div className="space-y-3">
-              <p className="text-sm">Connect the NEAR {net.id} account that owns satchel #{tokenId}.</p>
+              <div>
+                <p className="text-sm">Connect the NEAR {net.id} account that owns satchel #{tokenId}.</p>
+                <p className="mt-1 text-sm text-muted">
+                  Not yours?{" "}
+                  <Link href={MINT_PATH} className="underline decoration-line underline-offset-4 hover:decoration-ink">
+                    Mint a testnet satchel
+                  </Link>{" "}
+                  to open a room of your own.
+                </p>
+              </div>
               <ConnectButton align="left" />
             </div>
           ) : (

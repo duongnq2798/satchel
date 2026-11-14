@@ -19,7 +19,7 @@ export const FROZEN: Record<NetworkId, readonly string[]> = {
 export const FROZEN_UNTIL = new Date("2026-11-25T00:00:00Z");
 
 export const FROZEN_NOTE =
-  "Demo satchel: its state is quoted in the README, so the app's owner and buy actions are off until 2026-11-25.";
+  "Demo satchel: through judging (until 2026-11-25) this app turns off the owner's buttons and the buy button on this satchel, to keep the state the README quotes for it.";
 
 /** Whether the app's owner and buy actions are off for satchel `tokenId` on `net` at `now`. */
 export function isFrozen(net: Network, tokenId: string, now: Date = new Date()): boolean {
