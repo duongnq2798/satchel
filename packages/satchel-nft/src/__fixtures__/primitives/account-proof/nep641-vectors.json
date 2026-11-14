@@ -1,0 +1,39 @@
+{
+  "provenance": {
+    "network": "upstream",
+    "source": "https://github.com/near/intents/blob/75d2976949f2b05693133b123e8eefb3f14add05/crates/signatures/nep641/src/message.rs, the doc tests of OffchainMessage::hash and OffchainMessage::into_nep413_payload (near/intents at 75d2976949f2b05693133b123e8eefb3f14add05, committed 2026-10-20, the last commit touching crates/signatures/nep641 on 2026-11-14), the reference implementation NEP-641 names",
+    "capturedAt": "2026-11-14T12:35:00.000Z",
+    "capturedBy": "copied from upstream",
+    "modified": false,
+    "notes": "Copied as data from the raw file at that commit, read with WebFetch on 2026-11-14 (upstream data is not on a chain, so the capture script does not read it). The hash vector's message has path [wallet.near]; the NEP-413 mapping vector's has path [wallet.near, v1.signer]: so the second nonce is not the first hash. DOMAIN_SEPARATOR is b\"NEAR_NEP641_OFFCHAIN_MESSAGE/V1\" in the same file. nep641.test.ts recomputes all of it; a copying error would fail it."
+  },
+  "result": {
+    "domainSeparator": "NEAR_NEP641_OFFCHAIN_MESSAGE/V1",
+    "hash": {
+      "msg": {
+        "chain_id": "mainnet",
+        "signer_id": "extension.near",
+        "path": ["wallet.near"],
+        "timestamp": "2026-08-05T07:28:00.123456789Z",
+        "payload": "Hello, Near!"
+      },
+      "hash": "ac9fc5df2a1da51c4e0446185c8e5b58b65f37d12c544d144fa8f026239962ae"
+    },
+    "nep413": {
+      "msg": {
+        "chain_id": "mainnet",
+        "signer_id": "extension.near",
+        "path": ["wallet.near", "v1.signer"],
+        "timestamp": "2026-08-05T07:28:00.123456789Z",
+        "payload": "Hello, Near!"
+      },
+      "callbackUrl": "https://wallet.com/callback",
+      "payload": {
+        "message": "Hello, Near!",
+        "nonce": "039f8afb4ef2d76c621d3952f214bd2a080ce977ef351d52ff65a090eebbf72c",
+        "recipient": "mainnet: extension.near -> wallet.near -> v1.signer @ 2026-08-05T07:28:00Z",
+        "callbackUrl": "https://wallet.com/callback"
+      }
+    }
+  }
+}
