@@ -6,11 +6,13 @@
 // `first` is a Transfer of the chain's tokens in the block it names, and the node has none of
 // them from the start block to the block before. Every chain with tokens is in SCANS or
 // NOT_SCANNED. It reads received.ts as text, as check-claims.mjs reads config.ts, and the chains
-// from the built package, so build it first. Node 22 or later, no wallet, no key.
+// from the built package, so build it first: without it, it says so and exits 2. Node 22 or later,
+// no wallet, no key.
 // Usage: npm run build -w satchel-nft && node scripts/check-scan-start.mjs
 import { readFileSync } from "node:fs";
+import { builtPackage } from "./built.mjs";
 
-const { CHAINS, NEAR_ARCHIVAL_RPC, NETWORKS, TOKENS } = await import("../packages/satchel-nft/dist/index.js");
+const { CHAINS, NEAR_ARCHIVAL_RPC, NETWORKS, TOKENS } = await builtPackage();
 
 const source = readFileSync(new URL("../web/src/lib/received.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const block = (name) => source.match(new RegExp(`export const ${name}\\b[^=]*= \\{\\n([\\s\\S]*?)\\n\\};`))?.[1] ?? "";

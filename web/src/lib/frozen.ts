@@ -2,9 +2,10 @@ import type { Network, NetworkId } from "satchel-nft";
 
 /**
  * The demo satchels whose state the README quotes: testnet #1 to #9, mainnet #1 to #3 (#9 added
- * after its Make it clean run on 2026-11-12, mainnet #3 after its sale on 2026-11-13). Until judging
- * ends, the app's owner and buy actions are off on them: send, list, delist, transfer, buy and the
- * Make it clean buttons. The holder room stays open.
+ * after its Make it clean run on 2026-11-12, mainnet #3 after its sale on 2026-11-13). Until
+ * FROZEN_UNTIL, 2026-11-25 (judging runs 2026-11-16 to 11-18), the app's owner and buy actions are
+ * off on them: send, list, delist, transfer, buy and the Make it clean buttons. The holder room stays
+ * open.
  *
  * This is a guard in this app only, not a protection: the satchel-nft CLI, the near CLI and any
  * other client can still sign, list, buy or transfer these satchels, and the contract has no such

@@ -1,6 +1,7 @@
 name: Watch
 
-# Re-checks the demo every day until judging ends: the README's claims on both deployments, the run
+# Re-checks the demo every day until the demo freeze ends on 2026-11-25, after judging (2026-11-16 to
+# 11-18): the README's claims on both deployments, the run
 # of the satchel a DAO owned, and that satchelnft.xyz answers. The scripts need only Node: no install,
 # no wallet, no key, no secret. GitHub runs a schedule only from the default branch, `main`.
 on:
@@ -20,15 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      # Judging ends on 2026-11-25, and so does the demo freeze (FROZEN_UNTIL in web/src/lib/frozen.ts):
-      # after that the demo satchels may change, and the claims about them with them.
-      - name: Stop once judging ends
+      # The demo freeze ends on 2026-11-25 (FROZEN_UNTIL in web/src/lib/frozen.ts), after judging
+      # (2026-11-16 to 11-18): after that the demo satchels may change, and the claims about them with them.
+      - name: Stop once the demo freeze ends
         id: window
         run: |
           if [ "$(date -u +%s)" -lt "$(date -u -d 2026-11-25T00:00:00Z +%s)" ]; then
             echo "watch=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice title=Watch over::Judging ended on 2026-11-25, and the demo freeze with it: nothing is checked."
+            echo "::notice title=Watch over::The demo freeze ended on 2026-11-25, after judging: nothing is checked."
             echo "watch=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@v4

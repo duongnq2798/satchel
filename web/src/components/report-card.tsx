@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Report } from "satchel-nft";
-import { verifyCommand } from "@/lib/showcase";
+import { utcDateTime, verifyCommand } from "@/lib/showcase";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, Placeholder, StatusIcon, VERDICT } from "./ui";
 
@@ -97,7 +97,11 @@ export function ReportCard({
       {report && (
         <div className="mt-4 border-t border-line pt-3 text-xs text-muted">
           <p>
-            Record version {report.recordVersion}, checked {new Date(report.checkedAt).toLocaleString()}. Run it yourself,
+            Record version {report.recordVersion}, checked{" "}
+            <time dateTime={report.checkedAt} className="whitespace-nowrap">
+              {utcDateTime(report.checkedAt)}
+            </time>
+            . Run it yourself,
             no wallet needed: <code className="font-mono">{verifyCommand(net, report.tokenId)}</code>, with Node 22 or later (
             <ExternalLink href="https://www.npmjs.com/package/satchel-nft">satchel-nft on npm</ExternalLink>). The code hash
             it expects comes from the <ExternalLink href={net.build.ciRun}>reproducible CI build</ExternalLink>.

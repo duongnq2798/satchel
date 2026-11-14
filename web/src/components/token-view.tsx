@@ -71,11 +71,11 @@ function TokenSkeleton({ tokenId }: { tokenId: string }) {
         </p>
         <Placeholder className="mt-2 h-5 w-full max-w-sm" />
       </div>
+      <ReportCard report={undefined} loading error={null} onRecheck={() => {}} />
       <Card>
         <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, signed for only when this NFT's owner asks</p>
         <AddressPending />
       </Card>
-      <ReportCard report={undefined} loading error={null} onRecheck={() => {}} />
       <Placeholder className="h-36 rounded-2xl!" />
       <Placeholder className="h-64 rounded-2xl!" />
     </div>
@@ -182,6 +182,19 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       </div>
       <ErrorNote error={token.error} />
 
+      {/* The verdict first, under the title, and Make it clean under it when it isn't clean; the rest of the page follows. */}
+      <div id="report" className="scroll-mt-24">
+        <ReportCard
+          report={report.data}
+          loading={report.loading || token.loading}
+          error={report.error}
+          onRecheck={() => reloadAll()}
+        />
+      </div>
+      {deployment.data && (
+        <FixPanel token={view} address={address} report={report.data ?? undefined} frozen={frozen} onRecheck={() => reloadAll()} />
+      )}
+
       {listing && !isOwner && (
         // The price where a buyer lands, from the same listing the buy panel shows; the purchase stays in that panel.
         <Card className="flex flex-wrap items-center justify-between gap-3 border-gold/60!">
@@ -230,18 +243,6 @@ export function TokenView({ tokenId }: { tokenId: string }) {
 
       {/* A dry 1Click quote for what the satchel holds, once the contract passed check 1. A refresh closes it, so it reads the balances again. */}
       {deployment.data && <QuotePanel key={refresh} address={address} />}
-
-      <div id="report" className="scroll-mt-24">
-        <ReportCard
-          report={report.data}
-          loading={report.loading || token.loading}
-          error={report.error}
-          onRecheck={() => reloadAll()}
-        />
-      </div>
-      {deployment.data && (
-        <FixPanel token={view} address={address} report={report.data ?? undefined} frozen={frozen} onRecheck={() => reloadAll()} />
-      )}
 
       {lastTx && (
         <p className="text-sm text-ok">

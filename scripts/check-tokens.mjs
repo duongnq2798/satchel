@@ -1,9 +1,12 @@
 // Checks the token list a satchel's page reads (packages/satchel-nft/src/contents.ts) against each
 // chain: every address holds code, and its symbol() and decimals() are what the list says. It reads
-// the list from the built package, so build it first. Node 22 or later, no wallet, no key.
+// the list from the built package, so build it first: without it, it says so and exits 2. Node 22
+// or later, no wallet, no key.
 // Usage: npm run build -w satchel-nft && node scripts/check-tokens.mjs
 // It doesn't prove a deployment is the issuer's; the list's sources are its comments.
-const { CHAINS, TOKENS } = await import("../packages/satchel-nft/dist/index.js");
+import { builtPackage } from "./built.mjs";
+
+const { CHAINS, TOKENS } = await builtPackage();
 
 async function rpc(url, method, params) {
   const res = await fetch(url, {
