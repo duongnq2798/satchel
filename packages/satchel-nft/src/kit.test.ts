@@ -53,7 +53,7 @@ describe("handoverKit", () => {
     expect(steps).toHaveLength(1);
     expect(steps[0]).toMatchObject({ check: null, action: "list", title: "The satchel reads clean" });
     expect(steps[0].todo[0]).toContain("pins record version 3");
-    expect(steps[0].todo[0]).toContain("npx -y satchel-nft@0.2.0 list 4 <price> --as <you>");
+    expect(steps[0].todo[0]).toContain("npx -y satchel-nft@0.3.0 list 4 <price> --as <you>");
     expect(steps[0].todo[1]).toMatch(/after any new signature/);
     // Already listed: nothing to list, signing is frozen.
     expect(handoverKit(report({ listed: true }))[0].todo[0]).toMatch(/listed at record version 3/);
@@ -74,7 +74,7 @@ describe("handoverKit", () => {
     const todo = step.todo.join("\n");
     expect(step.todo[0]).toMatch(/^On Sepolia \(11155111\), click Spend nonce in Make it clean/);
     expect(todo).toContain("Make it clean, under the report on /satchel/4");
-    expect(todo).toContain("npx -y satchel-nft@0.2.0 send 4 --chain <chain> --to 0x0000000000000000000000000000000000000001 --value 0 --as <you>");
+    expect(todo).toContain("npx -y satchel-nft@0.3.0 send 4 --chain <chain> --to 0x0000000000000000000000000000000000000001 --value 0 --as <you>");
     expect(todo).toMatch(/Neither the app nor the CLI lets you type a nonce/);
     expect(todo).toMatch(/a revoke on the same chain spends one too/);
     expect(todo).toMatch(/send once for each nonce/);
@@ -95,7 +95,7 @@ describe("handoverKit", () => {
     expect(step.todo[0]).toMatch(/^On Base Sepolia \(84532\), click Spend nonce/);
     expect(step.todo.join("\n")).not.toMatch(/Sepolia \(11155111\)/);
     expect(step.todo).toContain(
-      "Arbitrum Sepolia (421614) couldn't be confirmed yet: a transaction there may not be final, or its RPC didn't answer. Check again in a few minutes; if it stays this way, read it from a node you trust: RPC_<chain id>=<url> npx -y satchel-nft@0.2.0 verify 4",
+      "Arbitrum Sepolia (421614) couldn't be confirmed yet: a transaction there may not be final, or its RPC didn't answer. Check again in a few minutes; if it stays this way, read it from a node you trust: RPC_<chain id>=<url> npx -y satchel-nft@0.3.0 verify 4",
     );
   });
 
@@ -156,13 +156,13 @@ describe("handoverKit", () => {
     const todo = step.todo.join("\n");
     expect(step.todo[0]).toMatch(/^For each live approval above on Sepolia \(11155111\), click Revoke in Make it clean, under the report on \/satchel\/4/);
     expect(todo).not.toContain("There is no revoke button");
-    expect(todo).toContain("npx -y satchel-nft@0.2.0 send 4 --chain <chain> --to <contract> --value 0 --data <calldata> --as <you>");
+    expect(todo).toContain("npx -y satchel-nft@0.3.0 send 4 --chain <chain> --to <contract> --value 0 --data <calldata> --as <you>");
     expect(todo).toContain("the CLI has no revoke command, so you give it the calldata");
     expect(todo).toContain("approve(spender, 0)");
     expect(todo).toContain("won't send one that would be the 33rd");
     expect(todo).toContain("setApprovalForAll(operator, false)");
     // The found lines shorten addresses: the kit says where the full ones are.
-    expect(todo).toContain("under Raw record in the Signing record on /satchel/4, or in npx -y satchel-nft@0.2.0 record 4.");
+    expect(todo).toContain("under Raw record in the Signing record on /satchel/4, or in npx -y satchel-nft@0.3.0 record 4.");
     // An ERC-721 revoke takes a slot too.
     expect(todo).toContain("Each approve revoke, approve(spender, 0) or approve(0x0000…0000, tokenId), is itemized as a new row and takes one of the 32 slots");
   });
@@ -189,7 +189,7 @@ describe("handoverKit", () => {
       ["approvals", "wait"],
     ]);
     expect(steps[0].found).toEqual(["Base: could not read the nonce at a finalized block"]);
-    expect(steps[0].todo[1]).toContain("RPC_<chain id>=<url> npx -y satchel-nft@0.2.0 verify 4 --network mainnet");
+    expect(steps[0].todo[1]).toContain("RPC_<chain id>=<url> npx -y satchel-nft@0.3.0 verify 4 --network mainnet");
     // An approval on a contract that isn't a token never reads, whatever the RPC.
     expect(steps[1].means).toMatch(/doesn't answer the call that reads it/);
     expect(steps[1].todo.join(" ")).toMatch(/may not be a token.*tell the buyer/);

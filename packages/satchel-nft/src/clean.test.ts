@@ -244,7 +244,7 @@ describe("fixPlan", () => {
     expect(actions(eleven)).toHaveLength(0);
     expect(eleven.chains[0].openNonces).toBe(11n);
     expect(text(eleven)).toContain("11 nonces are open on Avalanche Fuji, more than the app sends one by one (10), so they can't be fixed from here");
-    expect(text(eleven)).toContain(`npx -y satchel-nft@0.2.0 send 9 --chain 43113 --to ${ADDRESS} --value 0 --as <you>:`);
+    expect(text(eleven)).toContain(`npx -y satchel-nft@0.3.0 send 9 --chain 43113 --to ${ADDRESS} --value 0 --as <you>:`);
     expect(text(eleven)).toContain("send 0 to the satchel's own address once per open nonce, with npx");
 
     // With a revoke on the chain, it keeps its button and takes one of them; the command covers the rest.

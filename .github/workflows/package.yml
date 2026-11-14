@@ -64,4 +64,4 @@ jobs:
           # checkout npx would run the local build, and setup-node's saved ~/.npm could hand it an
           # install from an earlier run.
           mkdir from-npm && cd from-npm
-          test "$(npx --cache "$RUNNER_TEMP/npx-cache" -y satchel-nft@0.2.0 --version)" = 0.2.0
+          test "$(npx --cache "$RUNNER_TEMP/npx-cache" -y satchel-nft@0.3.0 --version)" = 0.3.0

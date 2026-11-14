@@ -181,13 +181,27 @@ if (report?.verdict === "clean") {
 | `assertDeployment(net)`, `assertReceiver(net, account)` | The checks the app and the CLI run before signing |
 | `checkHolder(net, proof)`, `roomMessage(net, id, account, issuedAt)` | The holder room's gate: whether a signed NEP-413 proof comes from a full-access key of the account that owns the satchel at a final NEAR block, and the message it must sign (new in 0.2.0) |
 | `verifyNep413(signed)`, `nep413Hash(payload)` | NEP-413 message signatures: the hash a wallet signs, and a strict ed25519 check of one (new in 0.2.0) |
-| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.2.0`, which has each of them (new in 0.2.0; 0.2.0 itself pins `@0.1.0`) |
+| `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.3.0`, which has each of them (new in 0.2.0; 0.3.0 pins `@0.2.0`, and 0.2.0 `@0.1.0`) |
 | `contents(net, address)`, `chainContents(chain, address)`, `TOKENS` | What an address holds on the network's EVM chains: the native coin, and USDC, USDT and WETH at their listed addresses. Display only: the report doesn't read it (new in 0.2.0) |
 | `tokenHistory(net, id)`, `describeEntry(entry)` | A satchel's mint, owners, signatures, listings and sales, from FastNEAR's transaction index, and one line for each. Display only (new in 0.2.0) |
-| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0; the `version`, `config` and bounty-claim reads are new in 0.3.0) |
+| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0; `version`, `config`, `recentProposals` and the bounty reads are new in 0.3.0) |
 | `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (new in 0.2.0) |
 | `fixPlan(inputs)`, `readFixInputs(report, record)`, `revokeCalldata` | Make it clean: the sends of 0 from the satchel that would make its report read clean, a revoke for each live approval and a send to its own address for each open nonce, and what each costs in approval slots. `fixPlan` reads nothing; `readFixInputs` reads each chain's latest block (new in 0.3.0) |
-| `accountTransactions(net, account)`, `indexPost(net, path, body)` | Any account's transactions from FastNEAR's transaction index, and the request that sends a rate-limited read again (new in 0.3.0) |
+| `accountTransactions(net, accountId, maxTransactions?)` | Any account's transactions from FastNEAR's transaction index, newest first; a read the index rate-limits is sent again (new in 0.3.0) |
+
+## What changed in 0.3.1
+
+A patch. The only code change is the version in the commands the package prints.
+
+- **This README lists the library as it is.** 0.3.0's README named `indexPost`, which the package
+  doesn't export, and only three of the eight new Sputnik DAO reads. The library table now gives
+  `accountTransactions(net, accountId, maxTransactions?)`, and "What changed in 0.3.0" names all
+  eight: `version`, `config`, `recentProposals`, `lastBountyId`, `bounties`, `allBounties`,
+  `bountyClaims` and `bountyClaimCount`.
+- **The commands it prints pin `satchel-nft@0.3.0`**, where 0.3.0's pinned `@0.2.0`: the handover
+  kit's, and the terminal command in `fixPlan`'s note for a chain with more open nonces than the app
+  sends one by one. 0.3.0 is the release the docs pin, and its `verify` prints satchel #9's approval
+  and revoke as one line, as the app does.
 
 ## What changed in 0.3.0
 
@@ -206,8 +220,9 @@ if (report?.verdict === "clean") {
   said "an approval".
 - **The handover kit** pins `satchel-nft@0.2.0` (0.2.0 pinned 0.1.0) and points at the app's Make
   it clean card for each revoke and nonce spend.
-- **New in the library:** `fixPlan`, `readFixInputs`, `revokeCalldata`, `accountTransactions`,
-  `indexPost`, and the Sputnik DAO reads `version`, `config` and bounty claims.
+- **New in the library:** `fixPlan`, `readFixInputs`, `revokeCalldata`, `accountTransactions`, and
+  the Sputnik DAO reads `version`, `config`, `recentProposals`, `lastBountyId`, `bounties`,
+  `allBounties`, `bountyClaims` and `bountyClaimCount`.
 
 ## What changed in 0.2.0
 

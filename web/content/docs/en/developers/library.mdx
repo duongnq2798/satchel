@@ -1,10 +1,10 @@
 `satchel-nft` is the code the web app and the CLI run. Install it, import from `"satchel-nft"`, and you
 get the same report, the same reads, the same transactions and the same checks. This page lists the
-exports of version 0.2.0, grouped by what you use it for, with each signature as it is in the
+exports of version 0.3.0, grouped by what you use it for, with each signature as it is in the
 [source](https://github.com/duongnq2798/satchel/tree/main/packages/satchel-nft/src).
 
 ```bash
-npm install satchel-nft@0.2.0
+npm install satchel-nft@0.3.0
 ```
 
 - **ES module only**, with types (`dist/index.d.ts`). Use `import`, not `require`.
@@ -383,12 +383,23 @@ const DAO_VOTE_GAS: bigint; // 300 Tgas, for the vote that runs the proposal
 function daoVote(id: number, kind: DaoProposalKind, action?: "VoteApprove" | "VoteReject"): { id: number; action: string; proposal: DaoProposalKind };
 
 // Reads: get_policy, get_proposal, get_last_proposal_id, get_proposals, and the proposals that can
-// still run (in progress or failed, inside the proposal period).
+// still run (in progress or failed, inside the proposal period). Since 0.3.0 also version,
+// get_config, the newest proposals, and the bounties and their claims.
 function sputnikDao(net: Network, daoId: string): {
+  version(): Promise<string>; // since 0.3.0
+  config(): Promise<DaoConfig>; // since 0.3.0: name, purpose, metadata
   policy(): Promise<DaoPolicy>;
   proposal(id: number): Promise<DaoProposal>;
   lastProposalId(): Promise<number>;
   proposals(fromIndex: number, limit: number): Promise<DaoProposal[]>;
+  // Since 0.3.0: the newest max (default 1,000), oldest first, and how many the DAO has filed.
+  recentProposals(max?: number): Promise<{ proposals: DaoProposal[]; filed: number }>;
+  lastBountyId(): Promise<number>; // since 0.3.0
+  bounties(fromIndex: number, limit: number): Promise<DaoBounty[]>; // since 0.3.0
+  allBounties(): Promise<DaoBounty[]>; // since 0.3.0
+  // Since 0.3.0: accountId's claims. The DAO keeps claims by claimer, with no list of every claim.
+  bountyClaims(accountId: string): Promise<DaoBountyClaim[]>;
+  bountyClaimCount(id: number): Promise<number>; // since 0.3.0: open claims, and done ones awaiting a vote
   openProposals(nowMs?: number): Promise<DaoProposal[]>;
 };
 
@@ -552,10 +563,32 @@ limits](/docs/developers/rpc-and-finality) covers finality and choosing nodes.
   const reports = await Promise.all(ids.map((id) => limit(() => buildReport(TESTNET, id, facts))));
   ```
 
+## Make it clean
+
+<Callout type="note" title="Since 0.3.0">
+These exports came in 0.3.0. satchelnft.xyz's Make it clean card runs on them.
+</Callout>
+
+From `clean.ts`. For a report that doesn't pass, the sends that would make it read clean: a revoke
+for each approval still live, and a send of 0 to the satchel's own address for each nonce it signed
+that no transaction has taken yet. Every fix is a send of 0 from the satchel, so it goes through
+`sendFromSatchel` and the owner's wallet like any other send. Nothing fixes check 4: its counters
+only grow.
+
+| Export | Signature | What it is |
+| --- | --- | --- |
+| `readFixInputs(report, record)` | `(report: Report, record: SigningRecord) => Promise<FixInputs>` | Reads what the plan needs at each chain's latest block, not the finalized one, so a fix already sent isn't offered again: the nonce the next send takes, the balance, and whether each approval row is still live. A read that fails is `null`, and the plan says so |
+| `fixPlan(inputs)` | `(inputs: FixInputs) => FixPlan` | The plan, per chain: free revokes first, then revokes that take an approval slot, then nonce spends, each with the nonce it takes. Reads nothing |
+| `FixPlan` | `{ canSend, notes, chains, unfixable }` | `canSend` is `false` when check 1 fails, the satchel is listed or the report is stale; `chains` holds only the chains with something to do or wait for (`ChainFix`); `unfixable` is check 4's lines |
+| `FixAction` | `{ chainId, kind, title, call, to, value, data, rows, slot, cost, nonce, refused? }` | One send: `kind` is `"revoke"` or `"spend"`, `rows` the record's approval rows it clears, `refused` why the app won't send it |
+| `ManualFix` | `{ chainId, row, why, calls }` | A live or unread approval the plan builds no button for, with the calls that could clear it |
+| `revokeCalldata` | `{ erc20, erc721, operator, permit2 }` | The calls that clear an approval: `approve(spender, 0)`, ERC-721 `approve(0x0, tokenId)`, `setApprovalForAll(operator, false)`, and Permit2's `approve(token, spender, 0, 0)` |
+| `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` | `32`, `10` | The contract's `MAX_APPROVALS`, and the open nonces on one chain above which the plan offers no buttons |
+
 ## What a satchel holds, and its history
 
 <Callout type="note" title="Since 0.2.0">
-These exports came in 0.2.0. The report reads none of them: they are for display.
+These exports came in 0.2.0, `accountTransactions` in 0.3.0. The report reads none of them: they are for display.
 </Callout>
 
 From `contents.ts`, `history.ts` and `evm.ts`.
@@ -570,6 +603,7 @@ From `contents.ts`, `history.ts` and `evm.ts`.
 | `formatAmount(amount, decimals)` | `(amount: bigint, decimals: number) => string` | Like `formatBalance`, for any number of decimals |
 | `tokenHistory(net, tokenId, maxTransactions?)` | `=> Promise<History>` | The events the contract logged about a token, oldest first, from FastNEAR's transaction index (`net.txApi`). Reads at most `maxTransactions` (default 1,000) of the contract's newest transactions |
 | `History` | `{ entries, scanned, complete, source }` | `complete` is `false` when the index holds more transactions than were read |
+| `accountTransactions(net, accountId, maxTransactions?)` | `=> Promise<AccountTransactions>` | Any account's transactions from the same index, newest first, up to `maxTransactions` (default 1,000), as `{ txs, scanned, complete, source }`. Since 0.3.0 |
 | `HistoryEntry` | `HistoryEvent & { tx, block, at, caller }` | One event, with its NEAR transaction, block, time in ms and the calling account |
 | `HistoryEvent` | union on `kind` | `mint`, `transfer`, `sign_evm`, `sign_raw`, `list`, `delist`, `sale`, with the fields the contract logged |
 | `eventsIn(net, tx, tokenId)` | `(net, tx: IndexedTx, tokenId: string) => HistoryEntry[]` | The events in one indexed transaction: only the contract's own logs, from receipts that succeeded, and a sale without the transfer it also logs |
@@ -577,9 +611,8 @@ From `contents.ts`, `history.ts` and `evm.ts`.
 | `signatureCounts(history, record)` | `=> { history: number; record: number }` | Signatures the history shows, and the number the record counts. The record is what the report checks |
 
 `tokenHistory` reads `Network`'s `txApi`: `https://tx.test.fastnear.com` on testnet,
-`https://tx.main.fastnear.com` on mainnet. 0.2.0 sends each request once. After it, in the
-repository and on this site, a request the index answers with 408, 429 or a 5xx, or that gets no answer
-at all, is sent again, up to 5 sends in all, after random waits of up to 0.5, 1, 2 and 4 s, or
+`https://tx.main.fastnear.com` on mainnet. Since 0.3.0, a request the index answers with 408, 429 or
+a 5xx, or that gets no answer at all, is sent again (0.2.0 sent each request once), up to 5 sends in all, after random waits of up to 0.5, 1, 2 and 4 s, or
 the index's Retry-After, up to 8 s. A request that timed out after 20 s isn't sent again.
 
 ```ts title="history.ts"
@@ -606,7 +639,7 @@ runs `checkHolder` on every request.
 | `RoomProof` | `{ tokenId, accountId, publicKey, signature, nonce, issuedAt }` | What a client sends. Every field is a string; `nonce` is 32 bytes in base64 |
 | `nep413Hash(payload)` | `(payload: Nep413Payload) => Uint8Array` | The 32 bytes a wallet signs for a NEP-413 message. Throws on a nonce that isn't 32 bytes |
 | `verifyNep413(signed)` | `(signed: Nep413Signed) => boolean` | Whether an `ed25519:` key signed that message, nonce and recipient, with strict RFC 8032 verification. Malformed input is `false`, never a throw |
-| `handoverKit(report)` | `(report: Report) => KitStep[]` | What to do before selling a satchel: one step for each check of its report that doesn't pass, or one step when all four do. Each step has an `action` (`fix`, `wait`, `disclose`, `not-yours` or `list`), what the check found, what it means and what to do. Its commands pin `satchel-nft@0.1.0`, which has each of them |
+| `handoverKit(report)` | `(report: Report) => KitStep[]` | What to do before selling a satchel: one step for each check of its report that doesn't pass, or one step when all four do. Each step has an `action` (`fix`, `wait`, `disclose`, `not-yours` or `list`), what the check found, what it means and what to do. Its commands pin `satchel-nft@0.3.0`, which has each of them (since 0.3.1; 0.3.0 pins `@0.2.0`, and 0.2.0 `@0.1.0`) |
 
 ## Related
 

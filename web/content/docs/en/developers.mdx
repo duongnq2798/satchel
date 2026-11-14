@@ -38,7 +38,7 @@ library's own command. All three produce the same report, because it is the same
 <Tab>
 
 ```bash
-npm install satchel-nft@0.2.0
+npm install satchel-nft@0.3.0
 ```
 
 The package is an ES module with types, for Node 22 or later. Its dependencies are
@@ -48,18 +48,18 @@ The package is an ES module with types, for Node 22 or later. Its dependencies a
 <Tab>
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 1
+npx -y satchel-nft@0.3.0 verify 1
 ```
 
-`-y` lets npx install it without asking. Pin `@0.2.0`: a later version holds whatever its publisher
+`-y` lets npx install it without asking. Pin `@0.3.0`: a later version holds whatever its publisher
 put in it, and the [threat model](/docs/security/threat-model#what-satchel-trusts) says how to check
-that 0.2.0 is commit `2dd4209`.
+that 0.3.0 is commit `63f1fd7`.
 
 </Tab>
 <Tab>
 
 ```bash
-npm install --global satchel-nft@0.2.0
+npm install --global satchel-nft@0.3.0
 satchel-nft --version
 ```
 
@@ -114,7 +114,7 @@ is `"clean"`, `"not-provable"` or `"unknown"`.
 <Tab>
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 7 --json
+npx -y satchel-nft@0.3.0 verify 7 --json
 ```
 
 The exit code is the answer: `0` only when the report reads `PROVABLY CLEAN`, `1` when it doesn't,

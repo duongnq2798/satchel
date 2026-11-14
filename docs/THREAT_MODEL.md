@@ -66,17 +66,21 @@ transaction on testnet that shows it working.
   (`checkQuote` in `web/src/lib/oneclick.ts`), and never asks for a deposit address. The report reads
   none of it.
 - **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**
-  Version 0.2.0 was published on 2026-11-10 from the owner's npm account and a clean Windows clone
-  of commit `2dd4209`, which npm records as its `gitHead`, without npm provenance. Packing that
-  commit on the same machine before the publish gave the same shasum,
-  `b9822a7ac13476566bc6772ccda08979e5802480` (`npm view satchel-nft@0.2.0 dist.shasum`). On
-  another machine, where the launcher's file mode can differ, compare files instead: unpack
-  `npm pack satchel-nft@0.2.0`. Its files are LF. `bin/`, `package.json`, `README.md` and
-  `LICENSE` are byte for byte the commit's, and `dist/`, the code the launcher runs, is byte for
-  byte what `npm run build -w satchel-nft` builds from it. npm also lists 0.1.0 (2026-11-09, commit
-  `728ed74`, packed with Windows line endings) and `0.0.0-stage`, a two-file, 333-byte "Temporary
-  package placeholder for staged publishing" that npm made two minutes before 0.1.0. A later
-  version holds whatever its publisher put in it: pin `@0.2.0` to run this one.
+  Version 0.3.1 was published on 2026-11-14 from the owner's npm account and a clean Windows clone
+  of commit `cfa0d29`, which npm records as its `gitHead`, without npm provenance. Its code is
+  0.3.0's except for the version its printed commands pin (`@0.3.0`, where 0.3.0's pin `@0.2.0`);
+  its README and its version changed too. Packing that commit on the same machine before the
+  publish gave the same shasum, `1e8db4a1dca27b452a90179347332cb97e1c1896`
+  (`npm view satchel-nft@0.3.1 dist.shasum`). On another machine, where the launcher's file mode
+  can differ, compare files instead: unpack `npm pack satchel-nft@0.3.1`. Its files are LF.
+  `bin/`, `package.json`, `README.md` and `LICENSE` are byte for byte the commit's, and `dist/`,
+  the code the launcher runs, is byte for byte what `npm run build -w satchel-nft` builds from it.
+  npm also lists 0.3.0 (2026-11-14, commit `63f1fd7`, shasum
+  `ddbb4a26b3b5f6b77237faa9a9ad47c0155f6025`, checked the same way), 0.2.0 (2026-11-10, commit
+  `2dd4209`), 0.1.0 (2026-11-09, commit `728ed74`, packed with Windows line endings) and
+  `0.0.0-stage`, a two-file, 333-byte "Temporary package placeholder for staged publishing" that
+  npm made two minutes before 0.1.0. A later version holds whatever its publisher put in it: the
+  README and the docs pin `@0.3.0`, and `@0.3.1` runs this one.
 
 ## Attacks and what stops them
 
@@ -191,11 +195,11 @@ data, so these attacks are on the gate, not on a secret.
 10. No admin, so stuck NEAR and the chain list cannot be changed.
 11. For a CLI send with `--yes`, the fee and the nonce read from one EVM RPC (row 21f). Which
     satchel is yours, read from one NEAR RPC (row 21g). A satchel's address itself no longer comes
-    from an RPC, except in `satchel-nft` 0.1.0. The README, the docs and the app's holder room pin
-    0.2.0; `handoverKit` in npm 0.2.0 still prints 0.1.0 commands, which 0.1.0 runs, until the next
-    release.
+    from an RPC, except in `satchel-nft` 0.1.0. The README, the docs, the app's holder
+    room and `handoverKit` (since 0.3.1) pin 0.3.0; the kit in npm's 0.3.0 prints 0.2.0 commands,
+    which 0.2.0 runs.
 12. The npm release, published without provenance: whoever holds the owner's npm account could
-    publish a version that lies (trusted, above; the README pins 0.2.0).
+    publish a version that lies (trusted, above; the README pins 0.3.0).
 13. The holder room: a captured proof opens it until 5 minutes after its `Issued` time (up to 6
     minutes, since `Issued` may run a minute ahead of the server's clock) while that account still
     owns the satchel, a former holder for the few seconds a final block lags a sale, and a lying NEAR
