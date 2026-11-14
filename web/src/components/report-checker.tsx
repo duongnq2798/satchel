@@ -82,7 +82,7 @@ export function useReport(tokenId: string) {
   const reports = useContext(ReportContext);
   const net = useNetwork();
   if (!reports) throw new Error("useReport needs a ReportProvider");
-  return useAsync(() => reports.check(tokenId), `${net.id}:${tokenId}`, reports.peek(tokenId));
+  return useAsync(() => reports.check(tokenId), `${net.id}:${tokenId}`, { initial: reports.peek(tokenId) });
 }
 
 /** A report's verdict as a badge, with the reason on hover when it couldn't be read. */

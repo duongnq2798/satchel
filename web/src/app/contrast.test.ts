@@ -174,3 +174,21 @@ describe("the test reads the stylesheet", () => {
     expect(SHIKI.length).toBeGreaterThan(10);
   });
 });
+
+describe("busy buttons keep their text's contrast", () => {
+  const ui = readFileSync(new URL("../components/ui.tsx", import.meta.url), "utf8");
+  /** The source from `start` to `end`, or "" when `start` isn't there. */
+  const from = (start: string, end: string) => {
+    const at = ui.indexOf(start);
+    return at < 0 ? "" : ui.slice(at, ui.indexOf(end, at));
+  };
+
+  it.each([
+    ["the BUTTON constant", from("const BUTTON = {", "} as const;")],
+    ["the Button function", from("export function Button(", "\n}\n")],
+  ])("%s dims nothing with opacity", (_, code) => {
+    expect(code.length).toBeGreaterThan(50);
+    expect(code).not.toMatch(/opacity-[1-9]/);
+    expect(code).not.toMatch(/aria-busy:opacity/);
+  });
+});
