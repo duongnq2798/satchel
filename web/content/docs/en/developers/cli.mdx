@@ -12,19 +12,19 @@ You need Node.js 22 or later. The sign commands also need near-cli-rs; the read 
 Run a pinned release without installing it. `-y` lets `npx` fetch it without asking:
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 1
+npx -y satchel-nft@0.3.0 verify 1
 ```
 
 Or install it once and call it by name:
 
 ```bash
-npm install -g satchel-nft@0.2.0
-satchel-nft --version    # 0.2.0
+npm install -g satchel-nft@0.3.0
+satchel-nft --version    # 0.3.0
 ```
 
-Pin the version. A later release holds whatever its publisher put in it, and 0.2.0 was published
+Pin the version. A later release holds whatever its publisher put in it, and 0.3.0 was published
 without npm provenance; the [threat model](/docs/security/threat-model#what-satchel-trusts) says how
-to check that the release matches commit `2dd4209`.
+to check that the release matches commit `63f1fd7`.
 
 To run the code of a checkout instead, build the package at the repository root:
 
@@ -54,7 +54,7 @@ node packages/satchel-nft/bin/satchel-nft.js verify 1
 | [`dao finish <near tx>`](#dao-finish) | No | Broadcasts what a DAO's vote had a satchel sign, once the hash and the signature check out. Since 0.2.0 |
 
 `history`, `dao finish` and the tokens `show` prints came in 0.2.0. 0.1.0 is still on npm and has
-none of them, so pin `@0.2.0`.
+none of them, so pin `@0.3.0`.
 
 Every command reads NEAR testnet unless you pass `--network mainnet`. A token id is a whole number
 up to the `u64` maximum, like `1` (leading zeros are dropped, so `007` is `7`); anything else stops
@@ -73,7 +73,7 @@ the contract's own facts from NEAR, then, for every chain the satchel's record l
 nonce and every recorded approval at that chain's finalized block.
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 1
+npx -y satchel-nft@0.3.0 verify 1
 ```
 
 ```text
@@ -106,7 +106,7 @@ names every RPC the report read.
 The same report on mainnet:
 
 ```bash
-npx -y satchel-nft@0.2.0 verify --network mainnet 1
+npx -y satchel-nft@0.3.0 verify --network mainnet 1
 ```
 
 ```text
@@ -134,7 +134,7 @@ read from https://rpc.mainnet.fastnear.com, https://base-rpc.publicnode.com
 With `--json` it prints the library's `Report` object. This is satchel #5, which hides a signed send:
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 5 --json
+npx -y satchel-nft@0.3.0 verify 5 --json
 ```
 
 ```json
@@ -212,7 +212,7 @@ holds on each chain its network sends on: the native coin, and USDC, USDT and WE
 address until the contract passes check 1, as the app does.
 
 ```bash
-npx -y satchel-nft@0.2.0 show 1
+npx -y satchel-nft@0.3.0 show 1
 ```
 
 ```text
@@ -295,7 +295,7 @@ Prints the [signing record](/docs/concepts/signing-record) as the contract retur
 reading any EVM chain.
 
 ```bash
-npx -y satchel-nft@0.2.0 record 6
+npx -y satchel-nft@0.3.0 record 6
 ```
 
 ```text
@@ -312,7 +312,7 @@ With `--json`, `record` is the contract's `SigningRecord`. Satchel #3, which lef
 behind:
 
 ```bash
-npx -y satchel-nft@0.2.0 record 3 --json
+npx -y satchel-nft@0.3.0 record 3 --json
 ```
 
 ```json
@@ -351,10 +351,12 @@ satchel-nft history <id> [--network testnet|mainnet] [--json]
 ```
 
 Lists everything the Satchel contract logged about the satchel, oldest first: its mint, transfers,
-signatures, listings, delistings and sales, each with its NEAR transaction. It came in 0.2.0.
+signatures, listings, delistings and sales, each with its NEAR transaction. It came in 0.2.0. Since
+0.3.0 a revoke, `approve(spender, 0)`, reads "a revoke (approve of 0)" where 0.2.0 said "an
+approval", and a read FastNEAR's index rate-limits is sent again, up to 5 sends.
 
 ```bash
-npx -y satchel-nft@0.2.0 history 7
+npx -y satchel-nft@0.3.0 history 7
 ```
 
 ```text
@@ -436,7 +438,7 @@ they cover `nft_total_supply`, so it lists every live listing. 0.1.0 stopped at 
 100 rows, so it could miss listings once the contract held more than 100, stale ones included.
 
 ```bash
-npx -y satchel-nft@0.2.0 market
+npx -y satchel-nft@0.3.0 market
 ```
 
 ```text
@@ -718,7 +720,7 @@ On Windows, give the path of `near.exe` itself. npm's `near.cmd` is a script tha
 shell, and `satchel-nft` refuses `.cmd`, `.bat` and `.ps1` files:
 
 ```powershell
-npx -y satchel-nft@0.2.0 list <id> 0.5 --as <account> --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
+npx -y satchel-nft@0.3.0 list <id> 0.5 --as <account> --near-cli "$env:USERPROFILE\.cargo\bin\near.exe"
 ```
 
 If none is found, the command stops with
@@ -737,7 +739,7 @@ in, run it from PowerShell or cmd, or pass `--yes`.
 | `NEAR_CLI` | The near CLI to sign with, when `--near-cli` isn't given |
 
 ```bash
-NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.3.0 verify 1
 ```
 
 [RPCs, finality and rate limits](/docs/developers/rpc-and-finality) has the default nodes and how

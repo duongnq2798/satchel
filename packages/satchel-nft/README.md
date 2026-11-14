@@ -184,10 +184,10 @@ if (report?.verdict === "clean") {
 | `handoverKit(report)` | What to do before selling a satchel, one step per check of its report that doesn't pass. Its commands pin `satchel-nft@0.2.0`, which has each of them (new in 0.2.0; 0.2.0 itself pins `@0.1.0`) |
 | `contents(net, address)`, `chainContents(chain, address)`, `TOKENS` | What an address holds on the network's EVM chains: the native coin, and USDC, USDT and WETH at their listed addresses. Display only: the report doesn't read it (new in 0.2.0) |
 | `tokenHistory(net, id)`, `describeEntry(entry)` | A satchel's mint, owners, signatures, listings and sales, from FastNEAR's transaction index, and one line for each. Display only (new in 0.2.0) |
-| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0; the `version`, `config` and bounty-claim reads are new in 0.3.0) |
+| `daoProposal(net)`, `daoVote(id, kind)`, `sputnikDao(net, dao)`, `nonceClash(…)` | A Sputnik DAO's `add_proposal` arguments for `sign_evm` and `nft_transfer`, its `act_proposal` arguments, its reads, and the open proposal that already signs a nonce (new in 0.2.0; `version`, `config`, `recentProposals` and the bounty reads are new in 0.3.0) |
 | `signatureFromReceipts(net, tx)`, `finishSignEvm(net, nearTx, deps)` | The MPC signature in a transaction's receipts, and the `dao finish` flow (new in 0.2.0) |
 | `fixPlan(inputs)`, `readFixInputs(report, record)`, `revokeCalldata` | Make it clean: the sends of 0 from the satchel that would make its report read clean, a revoke for each live approval and a send to its own address for each open nonce, and what each costs in approval slots. `fixPlan` reads nothing; `readFixInputs` reads each chain's latest block (new in 0.3.0) |
-| `accountTransactions(net, account)`, `indexPost(net, path, body)` | Any account's transactions from FastNEAR's transaction index, and the request that sends a rate-limited read again (new in 0.3.0) |
+| `accountTransactions(net, accountId, maxTransactions?)` | Any account's transactions from FastNEAR's transaction index, newest first; a read the index rate-limits is sent again (new in 0.3.0) |
 
 ## What changed in 0.3.0
 
@@ -206,8 +206,9 @@ if (report?.verdict === "clean") {
   said "an approval".
 - **The handover kit** pins `satchel-nft@0.2.0` (0.2.0 pinned 0.1.0) and points at the app's Make
   it clean card for each revoke and nonce spend.
-- **New in the library:** `fixPlan`, `readFixInputs`, `revokeCalldata`, `accountTransactions`,
-  `indexPost`, and the Sputnik DAO reads `version`, `config` and bounty claims.
+- **New in the library:** `fixPlan`, `readFixInputs`, `revokeCalldata`, `accountTransactions`, and
+  the Sputnik DAO reads `version`, `config`, `recentProposals`, `lastBountyId`, `bounties`,
+  `allBounties`, `bountyClaims` and `bountyClaimCount`.
 
 ## What changed in 0.2.0
 

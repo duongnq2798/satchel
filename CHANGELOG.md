@@ -617,11 +617,26 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   reads, this checkout's build, the Rust tests) folded in `<details>`, and the RPC retry policy moved
   to AGENTS.md's [Check the claims](AGENTS.md#check-the-claims), which now gives it for all four
   check scripts. Every heading stays, so every link to the README still lands.
-- `satchel-nft` 0.3.0 is ready to publish: the package says 0.3.0, and its README, which npm shows,
-  lists what changed since 0.2.0 (Make it clean in the library, check 3's joined rows, `history`
-  through a busy index and its revoke label, the kit pointing at Make it clean). Until the owner
-  publishes it ([docs/RELEASING.md](docs/RELEASING.md)), npm serves 0.2.0 and every pinned command
-  keeps `@0.2.0`.
+- `satchel-nft` 0.3.0 is on npm, published on 2026-11-14 from a clean clone of commit `63f1fd7`
+  (shasum `ddbb4a26b3b5f6b77237faa9a9ad47c0155f6025`, the same as a pack of that commit; its 46
+  files match the commit and its build byte for byte). Its README, which npm shows, lists what
+  changed since 0.2.0: Make it clean in the library, check 3's joined rows, `history` through a
+  busy index and its revoke label, the kit pointing at Make it clean. Every pinned command (the
+  README, AGENTS.md, the docs, the app's pages, `/llms.txt`, `docs/DEMO.md`, the 1Click exit tool's
+  hints and CI's package workflow) now pins `@0.3.0`. The threat model, the production checklist
+  and the CLI, developer and security pages give its commit and shasum, and
+  [docs/RELEASING.md](docs/RELEASING.md) lists it. The handover kit still prints `@0.2.0`
+  commands, which 0.2.0 runs, until the next release. The checkout's package is now `0.4.0-dev`.
+- Satchel #9's two lines are one: `satchel-nft@0.3.0 verify 9` prints the approval and its revoke
+  as one line ending "(2 record rows)", as the page does, so the README's Make it clean run and the
+  report concept page no longer say npm is behind `main`.
+- The docs' library page lists 0.3.0's exports: a new Make it clean section (`readFixInputs`,
+  `fixPlan`, `revokeCalldata` and their types), `accountTransactions`, and the new `sputnikDao`
+  reads. The CLI page says what 0.3.0's `history` changed.
+- The first run of the npm release is quoted as 49 s to 7 min (1 to 7 min on the landing page):
+  0.3.0's first `--version` from an empty folder with its own cache took 433 s on 2026-11-14,
+  minutes after its publish. The mainnet showcase tests compare a run record's command with the
+  app's apart from the version, since the records keep the 0.2.0 they ran.
 - The package in this repository was `0.3.0-dev`, where it said 0.2.0 while holding unreleased code.
   Inside a clone, `npx -y satchel-nft@0.2.0` now runs the npm release, as it does anywhere else, and
   `npx satchel-nft` with no version runs the checkout. The README, AGENTS.md, `/llms.txt`, the docs'
@@ -953,6 +968,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   The README's commands pin the same release.
 
 ### Fixed
+
+- `satchel-nft`'s README, which npm shows, listed `indexPost` among 0.3.0's new exports, though
+  the package doesn't export it, and named only three of its eight new Sputnik DAO reads. It now
+  lists `accountTransactions` with its real signature and all eight reads. npm shows 0.3.0's README
+  until the next release.
 
 - A satchel's history called a revoke an approval: `approve(spender, 0)`, which Make it clean's
   Revoke sends and the contract logs as an approval row, read "had an approval signed". It now

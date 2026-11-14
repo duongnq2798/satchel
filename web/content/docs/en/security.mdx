@@ -76,9 +76,9 @@ public, so what it protects is the gate. `/api/room` stores nothing between requ
 - **The pinned build image** behind the reproducible build, `sourcescan/cargo-near:0.22.0-rust-1.99.1`.
 - **The RPCs the reader picks.** The report names them; `satchel-nft verify` can use your own.
 - **The NEAR RPC behind the holder room**, which decides only who opens the room. The room holds nothing secret.
-- **The npm release**, for anyone who runs `npx satchel-nft` instead of the repository's code. Version 0.2.0 was
+- **The npm release**, for anyone who runs `npx satchel-nft` instead of the repository's code. Version 0.3.0 was
   published without npm provenance; the [threat model](/docs/security/threat-model#what-satchel-trusts) says how
-  to check its files against commit `2dd4209`.
+  to check its files against commit `63f1fd7`.
 
 ## What Satchel does not claim
 
@@ -144,8 +144,8 @@ For a partner or a technical evaluator, without a wallet, a key or an account. Y
 2. **Run the report on a clean satchel and a cheating one.**
 
    ```bash
-   npx -y satchel-nft@0.2.0 verify --network mainnet 1
-   npx -y satchel-nft@0.2.0 verify 5
+   npx -y satchel-nft@0.3.0 verify --network mainnet 1
+   npx -y satchel-nft@0.3.0 verify 5
    ```
 
    The first reads `PROVABLY CLEAN` and exits 0; the second reads `NOT PROVABLE` and exits 1, on the pending check.
