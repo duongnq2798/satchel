@@ -18,8 +18,8 @@ const ALLOWED: Record<string, string[]> = {
   "sputnik.ts": ["./near-rpc.js", "./base58.js"],
 };
 
-/** The ones that have landed: this phase's, and nep413.ts, which was already here. */
-const LANDED = ["base58.ts", "mpc-kdf.ts", "near-rpc.ts", "nep413.ts"];
+/** The ones that have landed (Phases 0 and 1), and nep413.ts, which was already here. */
+const LANDED = ["base58.ts", "mpc-kdf.ts", "near-rpc.ts", "nep413.ts", "chain-signatures.ts"];
 
 /** Node-only or ambient-environment tokens no primitive source may contain, comments included. */
 const FORBIDDEN = ["node:", "process.", "Buffer", "require("];
@@ -100,6 +100,7 @@ describe("primitive sources", () => {
     expect(exports["."]).toEqual({ types: "./dist/index.d.ts", default: "./dist/index.js" });
     expect(exports["./package.json"]).toBe("./package.json");
     expect(exports["./near-rpc"]).toEqual({ types: "./dist/near-rpc.d.ts", default: "./dist/near-rpc.js" });
+    expect(exports["./chain-signatures"]).toEqual({ types: "./dist/chain-signatures.d.ts", default: "./dist/chain-signatures.js" });
     // Every subpath export names a flat dist file, the only kind package.yml lets into the tarball.
     for (const [key, value] of Object.entries(exports)) {
       if (key === "." || key === "./package.json") continue;

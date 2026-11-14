@@ -4,7 +4,8 @@
 // when, and the node's version. A fixture is frozen once captured: an existing file is kept unless
 // --force is given.
 // Node 22 or later, no install, no wallet, no key. Run `npm run build -w satchel-nft` first: the
-// reads go through the built satchel-nft/near-rpc (packages/satchel-nft/dist/near-rpc.js).
+// reads go through the built satchel-nft/near-rpc and satchel-nft/chain-signatures
+// (packages/satchel-nft/dist/near-rpc.js and chain-signatures.js).
 // Usage: node scripts/capture-primitive-fixtures.mjs [--only <primitive>] [--force]
 //        node scripts/capture-primitive-fixtures.mjs --check-guards   (offline: both guards refuse writes)
 //
@@ -16,10 +17,11 @@
 // 2. Every request leaves through guardedFetch, which lets out only: JSON-RPC reads (the same list)
 //    to the NEAR nodes in ENDPOINTS; EVM JSON-RPC reads (eth_chainId, eth_getTransactionByHash,
 //    eth_getTransactionReceipt, eth_getBlockByNumber) to config.ts's publicnode Base and Sepolia
-//    nodes; and FastNEAR's read-only REST calls (POST <txApi>/v0/transactions,
-//    GET https://api.fastnear.com/v1/account/<id>/nft). Anything else throws before any network
-//    access, so broadcast_tx_*, send_tx, eth_sendRawTransaction and every signing method are refused
-//    twice. (There is no EVM capture yet; guard 2 already covers EVM reads.)
+//    nodes and THIRD_PARTY.sepoliaReceipts; and FastNEAR's read-only REST calls
+//    (POST <txApi>/v0/transactions, GET https://api.fastnear.com/v1/account/<id>/nft). Anything else
+//    throws before any network access, so broadcast_tx_*, send_tx, eth_sendRawTransaction and every
+//    signing method are refused twice. EVM reads also go through chain-signatures' readOnlyEvmClient,
+//    whose readOnlyEvm guard refuses any method but those four before its transport is called.
 // Calls run one at a time. No header or API key is ever written to a fixture.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { builtPackage } from "./built.mjs";
@@ -50,7 +52,26 @@ const THIRD_PARTY = {
   // function-call keys, so `limit: 2` gives several real pages with real `last_key` values. Found by
   // listing its keys with view_access_key_list (9 keys on 2026-11-14).
   intents: "intents.near",
+  // Sign requests tx-bench.testnet sent v1.signer-prod.testnet directly, found in FastNEAR's
+  // transaction index (tx.test.fastnear.com) of v1.signer-prod.testnet on 2026-11-14: public
+  // Chain Signatures traffic, with ed25519 (domain 1) requests no Satchel transaction makes.
+  txBench: {
+    account: "tx-bench.testnet",
+    // Domain 1 (ed25519), path "", Eddsa payload 7e2b493e…4829, included at block 277610643.
+    eddsa: "FgbWCHbK6AAYAJ31tBNZHph3M7V3Ltt4aGrX7mvGtKWm",
+    // Domain 0 (secp256k1), path "".
+    ecdsa: "9FsAULuTHAmYXKanZKntNGwPYK1ydnCBFeXrs2huPSmM",
+    // Domain 1, included at block 277610675. Recorded with whatever status it has.
+    eddsaLater: "HthQSVE5dEbQwTH6UPRRTykFJkijPodv3RWSjsdiMhzk",
+  },
+  // A public Sepolia node that serves the receipt of testnet-dao.json steps[7].sepolia.tx: on
+  // 2026-11-14 config.ts's publicnode Sepolia node (and 1rpc.io's) answered that transaction but a
+  // null receipt for it, while this one answered the receipt (status 0x1). Reads only, as the others.
+  sepoliaReceipts: "https://sepolia.gateway.tenderly.co",
 };
+
+/** Satchel tokens minted on each network (testnet #1-#11, mainnet #1-#3), whose keys the derived-key fixtures read. */
+const SATCHEL_TOKENS = { testnet: 11, mainnet: 3 };
 
 // ---- Satchel values, from deployments/*.json --------------------------------------------------
 
@@ -75,7 +96,7 @@ function fromDeployment(file, path) {
 
 const EVM_READ_METHODS = ["eth_chainId", "eth_getTransactionByHash", "eth_getTransactionReceipt", "eth_getBlockByNumber"];
 const NEAR_URLS = new Set(Object.values(ENDPOINTS).flatMap((e) => [e.rpc, e.archival, e.nearArchival]));
-const EVM_URLS = new Set([chainInfo(8453)?.rpc, chainInfo(11155111)?.rpc].filter(Boolean));
+const EVM_URLS = new Set([chainInfo(8453)?.rpc, chainInfo(11155111)?.rpc, THIRD_PARTY.sepoliaReceipts].filter(Boolean));
 const TX_INDEX_URLS = new Set(Object.values(ENDPOINTS).map((e) => `${e.txApi}/v0/transactions`));
 const NFT_INDEX = /^https:\/\/api\.fastnear\.com\/v1\/account\/[a-z0-9._-]+\/nft$/;
 
@@ -265,33 +286,158 @@ const JOBS = {
     },
   ],
   "chain-signatures": [
-    {
-      name: "tx-EZLX",
-      /** The owner's direct sign_evm on testnet: the full EXPERIMENTAL_tx_status answer at FINAL, from archival. */
-      async run() {
-        const tx = fromDeployment("testnet-e2e.json", "steps[1].tx");
-        const { answered, archival } = transports("testnet");
-        const rec = recorder(archival);
-        const senderLookup = fastnearSenderLookup(ENDPOINTS.testnet.txApi, { fetch: guardedFetch });
-        const result = await readTx(rec, tx.value, { senderLookup });
-        const block = await blockAt(archival, { blockHash: result.transaction_outcome.block_hash });
-        const [call] = rec.calls;
-        return {
-          provenance: provenance({
-            network: "testnet",
-            rpc: [...answered].join(", "),
-            source: `${tx.source}; sender from ${redactUrl(ENDPOINTS.testnet.txApi)}/v0/transactions`,
-            method: call.method,
-            params: call.params,
-            block: { height: block.height, hash: block.hash, why: "the block that included the transaction" },
-            nodeVersion: await nodeVersions(answered),
-          }),
-          result,
-        };
-      },
-    },
+    // NEAR transactions: each the full EXPERIMENTAL_tx_status answer at FINAL, from archival, untrimmed.
+    txJob("tx-EZLX", "testnet", () => fromDeployment("testnet-e2e.json", "steps[1].tx"), "the owner's direct sign_evm (satchel #1)"),
+    txJob("tx-2ryQps", "testnet", () => fromDeployment("testnet-dao.json", "steps[5].tx"), "the DAO vote that had satchel #8 sign through v1.satchel-nft.testnet"),
+    txJob("tx-GqFsnm", "testnet", () => fromDeployment("testnet-e2e.json", "steps[4].tx"), "the previous owner's sign_evm, refused"),
+    txJob("tx-2xqwe8", "mainnet", () => fromDeployment("mainnet-first-send.json", "nearTx"), "mainnet satchel #1's sign_evm for its Base send"),
+    txJob("tx-FnFSMSh1", "mainnet", () => fromDeployment("mainnet-1click-exit.json", "deposit.nearTx"), "mainnet satchel #2's sign_evm for its 1Click deposit on Base"),
+    txJob("tx-33UTwy", "mainnet", () => fromDeployment("mainnet-sale.json", "refused.tx"), "the seller's sign_evm after the sale, refused"),
+    txJob("tx-FgbW", "testnet", () => thirdParty("txBench.eddsa"), "tx-bench.testnet's ed25519 (domain 1) request, path \"\""),
+    txJob("tx-9FsA", "testnet", () => thirdParty("txBench.ecdsa"), "tx-bench.testnet's secp256k1 (domain 0) request, path \"\""),
+    txJob("tx-HthQSVE", "testnet", () => thirdParty("txBench.eddsaLater"), "tx-bench.testnet's later ed25519 (domain 1) request"),
+    // The MPC root keys and derived keys at one final block on each network.
+    derivedKeysJob("testnet"),
+    derivedKeysJob("mainnet"),
+    // EVM transactions the MPC answers signed, read through readOnlyEvmClient: Base at config.ts's
+    // publicnode node, Sepolia at THIRD_PARTY.sepoliaReceipts (publicnode answers no receipt for it).
+    evmJob(
+      "evm-sepolia-27e3",
+      "sepolia",
+      11155111,
+      () => fromDeployment("testnet-dao.json", "steps[7].sepolia.tx"),
+      "satchel #8's Sepolia send, signed through the DAO vote",
+      "sepoliaReceipts",
+    ),
+    evmJob("evm-base-8044", "base", 8453, () => fromDeployment("mainnet-first-send.json", "baseTx"), "mainnet satchel #1's Base send"),
+    evmJob("evm-base-2d9b", "base", 8453, () => fromDeployment("mainnet-1click-exit.json", "deposit.tx"), "mainnet satchel #2's 1Click deposit on Base"),
   ],
 };
+
+/** A third-party value by its path in THIRD_PARTY, with that path as its source. */
+function thirdParty(path) {
+  let value = THIRD_PARTY;
+  for (const part of path.split(".")) value = value?.[part];
+  if (typeof value !== "string") throw new Error(`THIRD_PARTY has no ${path}`);
+  return { value, source: `THIRD_PARTY.${path}` };
+}
+
+/** A transaction's full EXPERIMENTAL_tx_status answer at FINAL, read through archival, its sender from FastNEAR's index. */
+function txJob(name, network, pick, what) {
+  return {
+    name,
+    async run() {
+      const tx = pick();
+      const { answered, archival } = transports(network);
+      const rec = recorder(archival);
+      const senderLookup = fastnearSenderLookup(ENDPOINTS[network].txApi, { fetch: guardedFetch });
+      const result = await readTx(rec, tx.value, { senderLookup });
+      const block = await blockAt(archival, { blockHash: result.transaction_outcome.block_hash });
+      const call = rec.calls.at(-1);
+      return {
+        provenance: provenance({
+          network,
+          rpc: [...answered].join(", "),
+          source: `${tx.source}; sender from ${redactUrl(ENDPOINTS[network].txApi)}/v0/transactions`,
+          method: call.method,
+          params: call.params,
+          block: { height: block.height, hash: block.hash, why: "the block that included the transaction" },
+          nodeVersion: await nodeVersions(answered),
+          notes: what,
+        }),
+        result,
+      };
+    },
+  };
+}
+
+/**
+ * At one final block: the MPC contract's `public_key` for domains 0 and 1, and `derived_public_key` for
+ * Satchel's contract and each minted token's path (domain 0); on testnet also tx-bench.testnet with
+ * the empty path, in both domains. The values in MPC_ROOT_KEYS must equal what was read here.
+ */
+function derivedKeysJob(network) {
+  return {
+    name: `derived-keys-domains-${network}`,
+    async run() {
+      const file = `${network}.json`;
+      const contract = fromDeployment(file, "contract");
+      const mpc = fromDeployment(file, "mpc_contract");
+      const { answered, regular } = transports(network);
+      const final = await blockAt(regular, "final");
+      const rec = recorder(regular);
+      const reader = await pinnedReader(rec, { blockHash: final.hash });
+      for (const domain of [0, 1]) await reader.view(mpc.value, "public_key", { domain_id: domain });
+      for (let i = 1; i <= SATCHEL_TOKENS[network]; i++) {
+        await reader.view(mpc.value, "derived_public_key", { path: `satchel/${i}`, predecessor: contract.value, domain_id: 0 });
+      }
+      const sources = [contract.source, mpc.source];
+      if (network === "testnet") {
+        for (const domain of [1, 0]) await reader.view(mpc.value, "derived_public_key", { path: "", predecessor: THIRD_PARTY.txBench.account, domain_id: domain });
+        sources.push("THIRD_PARTY.txBench.account");
+      }
+      return {
+        provenance: provenance({
+          network,
+          rpc: [...answered].join(", "),
+          source: `${sources.join(", ")}; tokens 1-${SATCHEL_TOKENS[network]} (SATCHEL_TOKENS)`,
+          block: { height: final.height, hash: final.hash, why: "a final block at capture: MPC_ROOT_KEYS names it" },
+          nodeVersion: await nodeVersions(answered),
+        }),
+        calls: rec.calls,
+      };
+    },
+  };
+}
+
+/**
+ * An EVM transaction's eth_chainId, eth_getTransactionByHash, eth_getTransactionReceipt and the
+ * finalized block, read through satchel-nft/chain-signatures' readOnlyEvmClient (guard 1 for EVM) over
+ * guardedFetch (guard 2), recorded as the node answered them.
+ */
+function evmJob(name, network, chainId, pick, what, node = null) {
+  return {
+    name,
+    async run() {
+      const { readOnlyEvmClient } = await builtPackage("chain-signatures.js");
+      const chains = await import("viem/chains");
+      const chain = network === "base" ? chains.base : chains.sepolia;
+      const tx = pick();
+      const url = node === null ? chainInfo(chainId)?.rpc : THIRD_PARTY[node];
+      if (!url) throw new Error(`config.ts has no chain ${chainId}`);
+      const calls = [];
+      const recording = async (input, init = {}) => {
+        const res = await guardedFetch(input, init);
+        const asked = JSON.parse(String(init.body));
+        const text = await res.clone().text();
+        let answer = null;
+        try {
+          answer = JSON.parse(text);
+        } catch {
+          // Not JSON: nothing to record; the client reports it.
+        }
+        if (answer && answer.result !== undefined) calls.push({ method: asked.method, params: asked.params ?? [], result: answer.result });
+        else if (answer && answer.error !== undefined) calls.push({ method: asked.method, params: asked.params ?? [], error: answer.error });
+        return res;
+      };
+      const client = readOnlyEvmClient(chain, url, { fetch: recording });
+      await client.getChainId();
+      const read = await client.getTransaction({ hash: tx.value });
+      await client.getTransactionReceipt({ hash: tx.value });
+      const finalized = await client.getBlock({ blockTag: "finalized" });
+      return {
+        provenance: provenance({
+          network,
+          rpc: redactUrl(url),
+          source: `${tx.source}; node from ${node === null ? `config.ts chainInfo(${chainId}).rpc` : `THIRD_PARTY.${node}`}`,
+          block: { height: Number(read.blockNumber), hash: read.blockHash, why: "the block that included the transaction" },
+          notes: `${what}; the finalized block was ${finalized.number} at capture`,
+        }),
+        calls,
+      };
+    },
+  };
+}
 
 // ---- --check-guards: both guards, offline ------------------------------------------------------
 
@@ -304,6 +450,13 @@ async function checkGuards() {
     throw new Error("the network was reached");
   };
   const raw = fromDeployment("testnet-e2e.json", "steps[2].raw").value;
+  const { readOnlyEvmClient } = await builtPackage("chain-signatures.js");
+  const { sepolia } = await import("viem/chains");
+  // viem wraps what its transport throws, so the ReadOnlyError is somewhere on the cause chain.
+  const readOnlyCause = (e) => {
+    for (let at = e; at; at = at.cause) if (at instanceof ReadOnlyError) return at;
+    return e;
+  };
   const post = (method, params) => ({ method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: "satchel", method, params }) });
   const cases = [
     ["readOnlyRpc: broadcast_tx_commit to the testnet node", () => transports("testnet").regular("broadcast_tx_commit", ["AAAA"])],
@@ -313,6 +466,13 @@ async function checkGuards() {
     ["guardedFetch: eth_sendRawTransaction of testnet-e2e.json steps[2].raw to Sepolia", () => guardedFetch(chainInfo(11155111).rpc, post("eth_sendRawTransaction", [raw]))],
     ["guardedFetch: eth_sendTransaction to Base", () => guardedFetch(chainInfo(8453).rpc, post("eth_sendTransaction", [{}]))],
     ["guardedFetch: a host outside the lists", () => guardedFetch("https://rpc.example.org", post("status", []))],
+    [
+      "readOnlyEvmClient: sendRawTransaction of testnet-e2e.json steps[2].raw to Sepolia",
+      () =>
+        readOnlyEvmClient(sepolia, chainInfo(11155111).rpc, { fetch: guardedFetch })
+          .sendRawTransaction({ serializedTransaction: raw })
+          .catch((e) => Promise.reject(readOnlyCause(e))),
+    ],
   ];
   let through = 0;
   for (const [name, attempt] of cases) {

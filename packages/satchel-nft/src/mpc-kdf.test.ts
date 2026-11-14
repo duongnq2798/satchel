@@ -3,10 +3,12 @@ import { sha3_256 } from "@noble/hashes/sha3";
 import { bytesToHex } from "@noble/hashes/utils";
 import { describe, expect, it, vi } from "vitest";
 import derived from "./__fixtures__/derived-keys.json" with { type: "json" };
+import { type Provenance, loadFixture } from "./__fixtures__/replay.js";
 import { base58Encode } from "./base58.js";
 import { MAINNET, TESTNET } from "./config.js";
 import { deriveMpcKey } from "./evm.js";
 import { TWEAK_PREFIX, deriveKey, deriveTweak } from "./mpc-kdf.js";
+import { decodeBase64 } from "./near-rpc.js";
 
 // v1.signer-prod.testnet's domain 1 (ed25519) root key and the key it derives for tx-bench.testnet
 // with an empty path: `public_key({domain_id: 1})` and
@@ -125,4 +127,48 @@ describe("MPC key derivation, domain 1 (ed25519)", () => {
     }
     expect(() => deriveKey("ed25519:0OIl", "tx-bench.testnet", "", 1)).toThrow("the root key is not a valid ed25519 point");
   });
+});
+
+describe("MPC key derivation, against upstream and recorded vectors", () => {
+  // near/mpc's own tweak vectors (the snapshot of its derive_tweak__has_not_changed test), copied as
+  // data with the URL and commit in the fixture's provenance.
+  const upstream = loadFixture<{
+    provenance: Provenance;
+    result: { prefix: string; accountIds: string[]; paths: string[]; tweaks: number[][] };
+  }>("primitives/chain-signatures/upstream-tweaks.json");
+
+  it("gives the tweaks of near/mpc's derive_tweak test, for every account id and path", () => {
+    const { prefix, accountIds, paths, tweaks } = upstream.result;
+    expect(upstream.provenance.network).toBe("upstream");
+    expect(upstream.provenance.source).toMatch(/github\.com\/near\/mpc\/blob\/[0-9a-f]{40}\//);
+    expect(prefix).toBe(TWEAK_PREFIX);
+    expect(tweaks).toHaveLength(accountIds.length * paths.length);
+    let i = 0;
+    for (const account of accountIds) {
+      for (const path of paths) {
+        expect(Array.from(deriveTweak(account, path))).toEqual(tweaks[i]);
+        i++;
+      }
+    }
+  });
+
+  for (const network of ["testnet", "mainnet"] as const) {
+    it(`gives every key ${network}'s MPC contract derived at the recorded final block, in both domains`, () => {
+      const cassette = loadFixture(`primitives/chain-signatures/derived-keys-domains-${network}.json`);
+      const views = cassette.calls.filter((c) => c.method === "query");
+      const viewed = views.map((c) => {
+        const p = c.params as { method_name: string; args_base64: string };
+        const answer = c.result as { result: number[] };
+        return { method: p.method_name, args: JSON.parse(decodeBase64(p.args_base64)), value: JSON.parse(new TextDecoder().decode(Uint8Array.from(answer.result))) as string };
+      });
+      const roots = new Map(viewed.filter((v) => v.method === "public_key").map((v) => [v.args.domain_id as number, v.value]));
+      expect([...roots.keys()].sort()).toEqual([0, 1]);
+      const derivedViews = viewed.filter((v) => v.method === "derived_public_key");
+      expect(derivedViews.length).toBeGreaterThanOrEqual(3);
+      for (const { args, value } of derivedViews) {
+        const domain = args.domain_id as 0 | 1;
+        expect(deriveKey(roots.get(domain) as string, args.predecessor, args.path, domain)).toBe(value);
+      }
+    });
+  }
 });

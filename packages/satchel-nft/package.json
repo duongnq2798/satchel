@@ -36,6 +36,10 @@
     "./near-rpc": {
       "types": "./dist/near-rpc.d.ts",
       "default": "./dist/near-rpc.js"
+    },
+    "./chain-signatures": {
+      "types": "./dist/chain-signatures.d.ts",
+      "default": "./dist/chain-signatures.js"
     }
   },
   "files": [

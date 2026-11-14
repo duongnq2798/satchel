@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { type RpcCall, RpcError } from "../near-rpc.js";
 
-// Recorded chain answers, replayed. Every fixture under primitives/ was written by
-// scripts/capture-primitive-fixtures.mjs and is never edited by hand: a test that needs a broken
-// answer changes a deep copy and says what it changed.
+// Recorded chain answers, replayed. Every chain fixture under primitives/ was written by
+// scripts/capture-primitive-fixtures.mjs (upstream test vectors are copied from their source file, with
+// its URL and commit) and is never edited by hand: a test that needs a broken answer changes a deep
+// copy and says what it changed.
 
 /** Where a fixture came from. */
 export interface Provenance {
@@ -16,7 +17,8 @@ export interface Provenance {
   params?: unknown;
   block?: { height: number; hash: string; why: string };
   capturedAt: string;
-  capturedBy: "scripts/capture-primitive-fixtures.mjs";
+  /** The capture script for chain data; upstream test vectors (network "upstream") are copied from their source file. */
+  capturedBy: "scripts/capture-primitive-fixtures.mjs" | "copied from upstream";
   /** From `status`: version.version and version.build of each node read. */
   nodeVersion?: string;
   modified: false;
