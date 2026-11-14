@@ -80,9 +80,9 @@ with Node 22 or later and no wallet. Times and lines are from runs on 2026-11-13
 ```bash
 # 1. No install, 10 to 20 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release, run in an empty folder (inside a clone, after npm ci,
-#    npx runs the clone's own build): 49 s to 4 min the first time (download),
-#    4 to 15 s after. Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
+# 2. The npm release, from any folder (inside a clone too): 49 s to 4 min the
+#    first time (download), 4 to 15 s after.
+#    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
 npx -y satchel-nft@0.2.0 verify --network mainnet 3
 # 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of 9 use cases.
 #    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed, in <time>
@@ -195,7 +195,7 @@ You need Node.js 22 or later, git and curl. No wallet, no key and no account: ev
 NEAR, Sepolia, Base and Arbitrum One data through public RPC nodes. Step 2's scripts use only Node,
 and step 3's reads are curl, two of which redo one of the report's verdicts by hand. Step 4's `npx`
 command downloads the package `satchel-nft` first (142 s and 230 s in two runs), so start it early,
-in a second terminal and an empty folder. The folded parts are optional. Times and outputs below are
+in a second terminal. The folded parts are optional. Times and outputs below are
 from a fresh clone on a Windows 10 laptop with Node 24, 2026-11-09 to 11-14.
 
 **Try to cheat a buyer in your browser; it needs no install.** Open
@@ -1381,7 +1381,11 @@ The card planned those two sends, in that order: the revoke at nonce 1, which to
 buttons. Until then the two signed sends were public in their NEAR receipts, so while the address
 held enough ETH anyone could have broadcast them instead, spending the same nonces and sending
 0.02 ETH to `0x…dEaD`. Nonces 1 and 2 are spent now, so neither can be broadcast.
-`npx -y satchel-nft@0.2.0 verify 9` prints the same verdict. Then the same wallet opened satchel #9's
+`npx -y satchel-nft@0.2.0 verify 9` prints the same verdict, with one difference: under check 3 it
+prints the approval and its revoke as two identical lines, "allowance is 0", because the revoke,
+`approve(spender, 0)`, is a record row of its own. The page joins them into one line ending
+"(2 record rows)". That change, like Make it clean, is on `main` but not yet on npm: 0.2.0 is the
+latest release, and the [CHANGELOG](CHANGELOG.md) lists what is unreleased. Then the same wallet opened satchel #9's
 [holder room](#holder-room): the server read `satchel-nft.testnet` as the owner at final NEAR block
 277348286.
 

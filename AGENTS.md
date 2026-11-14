@@ -34,9 +34,9 @@ Three commands check the core of it, with Node 22 or later and no wallet, from t
 ```bash
 # 1. No install, 10 to 20 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release, run in an empty folder (inside a clone, after npm ci,
-#    npx runs the clone's own build): 49 s to 4 min the first time (download),
-#    4 to 15 s after. Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
+# 2. The npm release, from any folder (inside a clone too): 49 s to 4 min the
+#    first time (download), 4 to 15 s after.
+#    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
 npx -y satchel-nft@0.2.0 verify --network mainnet 3
 # 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of 9 use cases.
 #    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed, in <time>
@@ -279,10 +279,10 @@ npm run build -w satchel-nft
 npx satchel-nft verify 1
 ```
 
-Outside a clone, `npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from
-commit `2dd4209` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside the
-repository that pinned command runs this checkout's build instead, because the checkout's package
-is also 0.2.0. On its initial run the release downloads the package (timed above); later runs take
+`npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from commit `2dd4209`
+([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). It does inside the repository
+too: the checkout's package is 0.3.0-dev, unreleased, so only `npx satchel-nft`, with no version,
+runs this checkout's build. On its initial run the release downloads the package (timed above); later runs take
 6 to 11 s.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
