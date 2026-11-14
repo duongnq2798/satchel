@@ -210,7 +210,13 @@ export function LoadState<T>({
       : state.wait === "hidden"
         ? ""
         : `Reading ${what}…`;
-  const late = state.wait === "slow" || state.wait === "timeout";
+  // The timeout's Try again stays mounted, with focus, while its read runs; busy until that read's own deadline.
+  const [retrying, setRetrying] = useState(false);
+  const retry = () => {
+    setRetrying(true);
+    void state.reload().finally(() => setRetrying(false));
+  };
+  const late = state.wait === "slow" || state.wait === "timeout" || retrying;
   return (
     <>
       <Status>{live}</Status>
@@ -227,11 +233,11 @@ export function LoadState<T>({
           {state.loading && late && (
             <div className="absolute top-3 left-3 z-10 rounded-full bg-card px-3 py-1 shadow-sm">
               <WaitLine
-                wait={state.wait}
+                wait={retrying ? "timeout" : state.wait}
                 timeout={
                   <span className="inline-flex flex-wrap items-center gap-2">
                     No answer in 15 s.
-                    <Button size="sm" onClick={state.reload}>
+                    <Button size="sm" busy={retrying && state.wait !== "timeout"} onClick={retry}>
                       Try again
                     </Button>
                   </span>

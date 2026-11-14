@@ -9,7 +9,6 @@ import { useAsync } from "@/components/use-async";
 import { useNavigate } from "@/components/use-navigate";
 import { TxStatus, useTxAction } from "@/components/use-tx";
 import { useConnect, useWallet } from "@/components/wallet";
-import { WalletPending } from "@/components/wallet-pending";
 import { type Token, satchel, satchelTx, tokenAddress } from "satchel-nft";
 import { appPath } from "@/lib/routes";
 import { TESTNET_ACCOUNT_URL, TESTNET_FAUCET_URL } from "@/lib/try-it";
@@ -87,15 +86,11 @@ export default function YourSatchels() {
         done={opening && `Minted satchel #${opening}. Opening its page…`}
         recheckNote="This list reads your satchels again to check."
       />
-      <DeploymentNote deployment={deployment} />
+      {/* Signed out there is no address or Mint button for it to explain, so its line never comes and goes. */}
+      {accountId !== null && <DeploymentNote deployment={deployment} />}
 
-      {!ready && (
-        <Card>
-          <WalletPending />
-        </Card>
-      )}
-
-      {ready && accountId === null && (
+      {/* The same card while the wallet is looked up (no account yet), so only its button slot swaps. */}
+      {accountId === null && (
         <Card>
           <h2 className="font-display text-xl font-semibold">Connect a NEAR {net.id} wallet</h2>
           <p className="mt-1 text-sm text-muted">
@@ -110,9 +105,13 @@ export default function YourSatchels() {
             </p>
           )}
           <div className="mt-4">
-            <Button variant="primary" onClick={connect} busyText="Connecting to your wallet…">
-              Connect wallet
-            </Button>
+            {ready ? (
+              <Button variant="primary" onClick={connect} busyText="Connecting to your wallet…">
+                Connect wallet
+              </Button>
+            ) : (
+              <Placeholder className="h-9 w-32 rounded-full!" />
+            )}
           </div>
           {connectError !== null && connectError !== undefined && (
             <div className="mt-3">

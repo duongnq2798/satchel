@@ -23,7 +23,7 @@ export interface Async<T> {
   refreshing: boolean;
   wait: WaitPhase;
   status: "loading" | "slow" | "timeout" | "success" | "error";
-  /** Settles when the next run for this key settles, or on unmount. */
+  /** Settles when the next run for this key settles, at its soft deadline, or on unmount. */
   reload: () => Promise<void>;
 }
 
@@ -38,6 +38,11 @@ export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, key: stri
   const { data, error, lastError, loading } = viewOf(state, key, identity, initial);
   const wait = useWait(loading, timing, token);
   const waiting = useRef<(() => void)[]>([]);
+
+  // reload() also settles at the read's soft deadline, so a Try again that holds its promise frees itself.
+  useEffect(() => {
+    if (wait === "timeout") for (const done of waiting.current.splice(0)) done();
+  }, [wait]);
 
   const run = useEffectEvent(async (token: string, first: boolean, signal: AbortSignal) => {
     if (first && initial !== undefined) return;
@@ -84,6 +89,12 @@ export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, key: stri
  */
 export function useWait(active: boolean, timing: Timing = TIMING.action, run?: string): WaitPhase {
   const [phase, setPhase] = useState<WaitPhase>("hidden");
+  // A new run starts hidden in its first render, so nothing reports the previous run's slow or timeout.
+  const [seen, setSeen] = useState(run);
+  if (seen !== run) {
+    setSeen(run);
+    if (active) setPhase("hidden");
+  }
   const span = useRef<{ start: number; end: number | null; run?: string } | null>(null);
 
   useEffect(() => {

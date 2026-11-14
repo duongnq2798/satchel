@@ -2,17 +2,19 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type WalletTx, nearTxUrl } from "satchel-nft";
-import { TimeoutError, errorKind } from "@/lib/errors";
+import { PendingTx, TimeoutError, errorKind } from "@/lib/errors";
 import { followUp } from "@/lib/final";
 import { TIMING, deadline } from "@/lib/timing";
+import { settleTx } from "@/lib/wallet";
 import { useNetwork } from "./network";
 import { Button, ErrorNote, ExternalLink, Spinner } from "./ui";
 import { useWait } from "./use-async";
 import { useWallet } from "./wallet";
 
-export type TxStage = "idle" | "wallet" | "final" | "updating";
+export type TxStage = "idle" | "checking" | "wallet" | "final" | "updating";
 
 export const TX_LABEL = {
+  checking: "Checking with NEAR…",
   wallet: "Waiting for your wallet…",
   final: "Sent. Finalizing on NEAR…",
   updating: "Updating the page…",
@@ -28,7 +30,8 @@ const REFRESH_MS = 15_000;
  * then `after`, which shows the outcome on the page (bounded at 15 s) before the buttons free up.
  */
 export function useTxAction(after: (result: TxResult | null) => Promise<unknown> | void) {
-  const { send } = useWallet();
+  const { accountId, send } = useWallet();
+  const net = useNetwork();
   const guard = useRef(false);
   // The page's latest `after`: a wallet can take minutes, and the page may have re-rendered meanwhile.
   const latest = useRef(after);
@@ -57,7 +60,8 @@ export function useTxAction(after: (result: TxResult | null) => Promise<unknown>
     if (guard.current) return null;
     guard.current = true;
     setRunning(id);
-    setStage("wallet");
+    // The page's own checks first (the receiver, the contract); "your wallet" only once it opens.
+    setStage("checking");
     setHash(null);
     setError(null);
     setLate(false);
@@ -67,8 +71,10 @@ export function useTxAction(after: (result: TxResult | null) => Promise<unknown>
     let failure: unknown = null;
     try {
       result = await send(await build(), (p) => {
-        if (p.phase === "wallet") reached = true;
-        else {
+        if (p.phase === "wallet") {
+          reached = true;
+          setStage("wallet");
+        } else {
           setHash(p.hash);
           setStage("final");
         }
@@ -90,9 +96,27 @@ export function useTxAction(after: (result: TxResult | null) => Promise<unknown>
     return result;
   }
 
-  /** after(null), for Check again: re-reads the satchel. */
+  /**
+   * Check again: for a pending transaction, asks NEAR once how it ended (done: the page shows it as
+   * after a run; failed: its error; unfinished: the note stays), then re-reads the satchel.
+   */
   const recheck = async () => {
-    if (await refresh(null)) setLate(false);
+    if (guard.current) return;
+    let result: TxResult | null = null;
+    if (error instanceof PendingTx && accountId !== null) {
+      try {
+        result = await settleTx(net, error.hash, accountId, 1);
+        setError(null);
+      } catch (err) {
+        if (!(err instanceof PendingTx)) {
+          setError(err);
+          setRechecked(true);
+        }
+      }
+    }
+    const shown = await refresh(result);
+    if (result !== null) setLate(!shown);
+    else if (shown) setLate(false);
   };
 
   return { stage, running, busy: running !== null, hash, error, late, rechecked, run, recheck };
@@ -110,7 +134,7 @@ export function TxStatus({
 }) {
   const net = useNetwork();
   const { stage, hash, error, late, rechecked } = action;
-  const slow = useWait(stage === "wallet", TIMING.wallet) === "slow";
+  const hint = useWait(stage === "wallet", TIMING.wallet) === "slow" && stage === "wallet";
   const link = hash && <ExternalLink href={nearTxUrl(net, hash)}>View it</ExternalLink>;
   const failed = error !== null && error !== undefined;
   // Out of the flow while it has nothing to say, but still in the page, so the live region hears the next stage.
@@ -125,7 +149,10 @@ export function TxStatus({
               {TX_LABEL[stage]}
               {link}
             </p>
-            {stage === "wallet" && slow && <p className="mt-1 text-muted">Still waiting for your wallet. Look for its window or extension.</p>}
+            {/* In the layout for the whole run, invisible until the wallet is slow, so it never pushes the page down. */}
+            <p className={`mt-1 text-muted ${hint ? "" : "invisible"}`} aria-hidden={hint ? undefined : true}>
+              Still waiting for your wallet. Look for its window or extension.
+            </p>
           </>
         ) : late ? (
           <p>Done. The page hasn&apos;t refreshed yet.</p>

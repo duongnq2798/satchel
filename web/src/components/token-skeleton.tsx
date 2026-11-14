@@ -1,12 +1,12 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { CHAINS, sendChains } from "satchel-nft";
 import type { WaitPhase } from "@/lib/timing";
 import { useNetwork } from "./network";
 import { ReportCard } from "./report-card";
-import { Card, Placeholder, WaitLine } from "./ui";
+import { Card, Placeholder, Status, WaitLine } from "./ui";
 
 /** The page's heading, the same while the satchel loads and after, so it never moves. */
 export function Heading({ tokenId }: { tokenId: string }) {
@@ -50,20 +50,37 @@ export function AddressPending({ note }: { note?: ReactNode }) {
 export function TokenSkeleton({ tokenId, wait, onRetry }: { tokenId?: string; wait?: WaitPhase; onRetry?: () => unknown }) {
   const params = useParams<{ id: string }>();
   const id = tokenId ?? params.id;
-  const late = wait === "slow" || wait === "timeout";
+  // Try again stays mounted, with focus, while its read runs, and ignores clicks until that read's own deadline.
+  const [retrying, setRetrying] = useState(false);
+  const held = retrying && wait !== "timeout";
+  const retry = () => {
+    if (held) return;
+    setRetrying(true);
+    void Promise.resolve(onRetry?.()).finally(() => setRetrying(false));
+  };
+  const late = wait === "slow" || wait === "timeout" || retrying;
+  const live =
+    wait === "timeout" ? `No answer in 15 s while reading satchel #${id}.` : wait === "shown" || wait === "slow" ? `Reading satchel #${id}…` : "";
   return (
     <div className="space-y-6">
       <div>
         <Heading tokenId={id} />
+        <Status>{live}</Status>
         <div className="mt-4 flex min-h-5 items-center">
           {late ? (
             <WaitLine
-              wait={wait}
+              wait={retrying ? "timeout" : (wait ?? "hidden")}
               timeout={
                 <>
                   No answer in 15 s.{" "}
                   {onRetry && (
-                    <button type="button" onClick={onRetry} className="font-medium underline underline-offset-4">
+                    <button
+                      type="button"
+                      onClick={retry}
+                      aria-disabled={held || undefined}
+                      aria-busy={held || undefined}
+                      className="font-medium underline underline-offset-4 aria-busy:cursor-progress"
+                    >
                       Try again
                     </button>
                   )}

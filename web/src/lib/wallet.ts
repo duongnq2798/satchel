@@ -7,7 +7,7 @@ import {
   outcomeValue,
   rpcFor,
 } from "satchel-nft";
-import { UserRejected, walletRefused } from "./errors";
+import { UserRejected, WalletUnsure, walletRefused } from "./errors";
 import { waitFinal } from "./final";
 import { rememberTx } from "./last-tx";
 import { deadline } from "./timing";
@@ -54,11 +54,22 @@ function networkStorage(net: Network) {
   };
 }
 
-const local = () => (typeof window === "undefined" ? null : window.localStorage);
+/** The page's localStorage, or null on the server and where site data is blocked (its getter then throws a SecurityError). */
+function local(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
-/** The id of the wallet near-connect has saved for `net` (in `networkStorage`), if any. */
+/** The id of the wallet near-connect has saved for `net` (in `networkStorage`), if any; null where storage is blocked. */
 export function savedWallet(net: Network): string | null {
-  return local()?.getItem(`satchel:${net.id}:selected-wallet`) ?? null;
+  try {
+    return local()?.getItem(`satchel:${net.id}:selected-wallet`) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const pending = new Map<NetworkId, Promise<Connector>>();
@@ -115,8 +126,9 @@ export type TxPhase = { phase: "wallet" } | { phase: "sent"; hash: string };
 /**
  * Has the wallet sign and send `tx`, then waits until every receipt is final and returns the value
  * the call resolved to. Wallets often return before a promise chain finishes, as with `sign_evm`,
- * which resolves only when the MPC network answers. A refusal in the wallet throws UserRejected, and
- * a sent transaction NEAR hasn't finished in time throws PendingTx with its hash.
+ * which resolves only when the MPC network answers. A refusal in the wallet, or a failure with no
+ * reason, throws UserRejected; any other wallet error throws WalletUnsure, since it may have sent; a
+ * sent transaction NEAR hasn't finished in time throws PendingTx with its hash.
  */
 export async function runTx<T>(
   net: Network,
@@ -130,15 +142,20 @@ export async function runTx<T>(
   try {
     sent = await wallet.signAndSendTransaction({ signerId: signer, receiverId: tx.receiverId, actions: tx.actions });
   } catch (err) {
-    throw walletRefused(err) ? new UserRejected("tx", { cause: err }) : err;
+    // A wallet that fails without saying why (reject(), reject(undefined)) must not read as success.
+    throw err === null || err === undefined || walletRefused(err) ? new UserRejected("tx", { cause: err }) : new WalletUnsure(err);
   }
   const hash = sent?.transaction?.hash;
   if (!hash) throw new Error("The wallet did not return a transaction hash");
   rememberTx(net, hash);
   onPhase({ phase: "sent", hash });
-  const settled =
-    sent.final_execution_status === "FINAL" ? sent : await waitFinal(rpcFor(net), hash, sent.transaction.signer_id ?? signer);
-  return { hash, value: outcomeValue<T>(settled) };
+  if (sent.final_execution_status === "FINAL") return { hash, value: outcomeValue<T>(sent) };
+  return settleTx<T>(net, hash, sent.transaction.signer_id ?? signer);
+}
+
+/** Waits for sent transaction `hash` to finish (`attempts` polls), then its value; PendingTx if it hasn't, its Failure if it failed. */
+export async function settleTx<T>(net: Network, hash: string, signer: string, attempts = 30): Promise<{ hash: string; value: T | null }> {
+  return { hash, value: outcomeValue<T>(await waitFinal(rpcFor(net), hash, signer, { attempts })) };
 }
 
 /** Thrown when the connected wallet can't sign NEP-413 messages at all. */

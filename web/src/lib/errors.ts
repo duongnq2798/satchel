@@ -33,6 +33,19 @@ export class PendingTx extends Error {
   }
 }
 
+/**
+ * The wallet's own send threw after its prompt opened, with no hash and no refusal: the transaction
+ * may still have gone out, so the page never words it as a plain failure to retry.
+ */
+export class WalletUnsure extends Error {
+  override name = "WalletUnsure";
+  constructor(cause: unknown) {
+    const said = errorMessage(cause).trim();
+    const stop = /[.!?]$/.test(said) ? "" : ".";
+    super(`Your wallet reported an error: ${said}${stop} If you approved it, it can still go through: check before you try again.`, { cause });
+  }
+}
+
 export type ErrorKind = "rejected" | "pending" | "offline" | "timeout" | "rate-limit" | "chunk" | "unreachable" | "other";
 
 const TIMEOUT = /no answer (from .+ )?in \d|timed? ?out|took too long/i;
@@ -46,6 +59,8 @@ const nameOf = (error: unknown) => (error && typeof error === "object" && "name"
 export function errorKind(error: unknown, online = typeof navigator === "undefined" || navigator.onLine): ErrorKind {
   if (error instanceof UserRejected) return "rejected";
   if (error instanceof PendingTx) return "pending";
+  // Its own hedged words, even offline: "check your connection, then try again" could send it twice.
+  if (error instanceof WalletUnsure) return "other";
   if (online === false) return "offline";
   const text = errorMessage(error);
   if (error instanceof TimeoutError || nameOf(error) === "TimeoutError" || TIMEOUT.test(text)) return "timeout";
@@ -81,7 +96,7 @@ export function errorMessage(error: unknown): string {
   if (typeof error === "string") return error;
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
   try {
-    return JSON.stringify(error);
+    return JSON.stringify(error) ?? String(error);
   } catch {
     return String(error);
   }

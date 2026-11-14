@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExecutionOutcome, RpcCall } from "satchel-nft";
-import { PendingTx, UserRejected } from "./errors";
+import { PendingTx, UserRejected, WalletUnsure } from "./errors";
 import { followUp, waitFinal } from "./final";
 
 const HASH = "8Xh1";
@@ -74,6 +74,7 @@ describe("followUp", () => {
     ["no error: refresh", true, null, "refresh"],
     ["a pending tx: nothing yet", true, new PendingTx(HASH), "none"],
     ["a cancel in the wallet: recheck", true, new UserRejected("tx"), "recheck"],
+    ["an unsure wallet: recheck", true, new WalletUnsure(new Error("x")), "recheck"],
     ["any error after the wallet: recheck", true, new Error("Satchel: listed"), "recheck"],
     ["an error before the wallet: nothing", false, new Error("Enter a price"), "none"],
   ] as const)("%s", (_, reached, error, next) => {

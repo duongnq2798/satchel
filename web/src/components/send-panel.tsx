@@ -14,9 +14,10 @@ import {
   sendChains,
   sendFromSatchel,
 } from "satchel-nft";
-import { TimeoutError, errorKind } from "@/lib/errors";
+import { TimeoutError, errorMessage } from "@/lib/errors";
 import { FROZEN_NOTE } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
+import { sendFailure } from "@/lib/send-failure";
 import { TIMING, deadline } from "@/lib/timing";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote, ExternalLink } from "./ui";
@@ -151,9 +152,8 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
   const reached = step ? STEPS.findIndex((s) => s.id === step) : -1;
   const running = reached >= 0 && !result && !error ? `Step ${reached + 1} of ${STEPS.length}: ${STEPS[reached].label}` : "";
   const slow = useWait(sender.busy && step === "wallet", TIMING.wallet) === "slow";
-  // A cancel in the wallet, or a sign_evm NEAR hasn't finished: maybe signed, so not "failed".
-  const kind = errorKind(error);
-  const unsure = kind === "rejected" || kind === "pending";
+  // Maybe signed (a cancel, an unsure wallet, a sign_evm NEAR hasn't finished) or maybe on chain: not "failed".
+  const { outgoing, unsure } = sendFailure(step, error);
   const ended = unsure ? "Stopped" : "Failed";
   return (
     <div>
@@ -165,6 +165,7 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
           {STEPS.map((s, i) => {
             const done = i < reached || result !== null;
             const current = i === reached && !done;
+            const hint = current && !error && slow;
             return (
               <li key={s.id} className={i <= reached ? "text-ink" : "text-muted"}>
                 <span aria-hidden="true">{done ? "✓" : current ? (error ? (unsure ? "!" : "✗") : "…") : "·"}</span>{" "}
@@ -176,8 +177,9 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
                     (fees up to {formatEther(links.fee)} {links.chain.symbol}, paid by the satchel)
                   </span>
                 )}
-                {s.id === "wallet" && current && !error && slow && (
-                  <span className="mt-1 block text-muted">
+                {/* In the layout for the whole send, invisible until the wallet is slow, so it never pushes the page down. */}
+                {s.id === "wallet" && sender.busy && (
+                  <span className={`mt-1 block text-muted ${hint ? "" : "invisible"}`} aria-hidden={hint ? undefined : true}>
                     Still waiting for your wallet or NEAR&apos;s MPC network. Reloading stops the wait; if you approved, check
                     History before sending again.
                   </span>
@@ -189,7 +191,14 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
       )}
       <div aria-live="polite">
         <div className="mt-3">
-          <ErrorNote error={error}>{unsure && <p className="mt-1">Check History before you send again.</p>}</ErrorNote>
+          {outgoing ? (
+            <div role="alert" className="rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
+              <p>{errorMessage(error)}</p>
+              <p className="mt-1">It may already be on chain. Open its link and check History before you send again.</p>
+            </div>
+          ) : (
+            <ErrorNote error={error}>{unsure && <p className="mt-1">Check History before you send again.</p>}</ErrorNote>
+          )}
         </div>
         {result &&
           (result.status === "success" ? (

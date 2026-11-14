@@ -1,6 +1,6 @@
 import { NearRpcError } from "satchel-nft";
 import { describe, expect, it } from "vitest";
-import { PendingTx, TimeoutError, UserRejected, errorKind, errorMessage, errorText, walletRefused } from "./errors";
+import { PendingTx, TimeoutError, UserRejected, WalletUnsure, errorKind, errorMessage, errorText, walletRefused } from "./errors";
 
 describe("errorKind and errorText", () => {
   it.each([
@@ -41,6 +41,16 @@ describe("errorKind and errorText", () => {
     expect(errorKind(new PendingTx("h"), false)).toBe("pending");
   });
 
+  it("keeps an unsure wallet's hedge, even offline", () => {
+    const unsure = new WalletUnsure(new Error("Failed to fetch"));
+    expect(errorKind(unsure, false)).toBe("other");
+    expect(errorText(unsure, false)).toBe(
+      "Your wallet reported an error: Failed to fetch. If you approved it, it can still go through: check before you try again.",
+    );
+    expect(errorText(new WalletUnsure("HTTP 429 Too Many Requests."), true)).toContain("Requests. If you approved it, it can still go through");
+    expect(unsure.cause).toBeInstanceOf(Error);
+  });
+
   it("keeps the hash and cause of a pending transaction", () => {
     const cause = new Error("no answer in 10 s");
     const pending = new PendingTx("9xHash", { cause });
@@ -55,6 +65,7 @@ describe("errorMessage", () => {
     expect(errorMessage("plain")).toBe("plain");
     expect(errorMessage(new Error("boom"))).toBe("boom");
     expect(errorMessage({ code: 1 })).toBe('{"code":1}');
+    expect(errorMessage(undefined)).toBe("undefined");
   });
 });
 

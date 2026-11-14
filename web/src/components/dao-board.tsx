@@ -156,7 +156,8 @@ export function DaoBoard({ daoId }: { daoId: string }) {
   const metas = useAsync(() => readMetas(net, tokens), `${net.id}:${tokens.join(",")}`);
 
   if (dao.data === undefined) {
-    if (!dao.error) return <DaoBoardSkeleton daoId={daoId} />;
+    // On lastError, not error: the card and its Try again stay mounted, with focus, while it retries.
+    if (dao.lastError === null || dao.lastError === undefined) return <DaoBoardSkeleton daoId={daoId} />;
     return (
       <div className="space-y-6">
         <DaoHeading daoId={daoId} />
@@ -166,9 +167,8 @@ export function DaoBoard({ daoId }: { daoId: string }) {
             The board reads {daoId}&apos;s get_config and get_policy views, and they didn&apos;t answer, or not as a Sputnik
             DAO&apos;s would.
           </p>
-          <div className="mt-3 space-y-3 [overflow-wrap:anywhere]">
-            <ErrorNote error={dao.error} />
-            <Button onClick={dao.reload}>Try again</Button>
+          <div className="mt-3 [overflow-wrap:anywhere]">
+            <ErrorNote error={dao.lastError} onRetry={dao.reload} />
           </div>
         </Card>
       </div>
