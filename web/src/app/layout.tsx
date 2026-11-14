@@ -8,7 +8,11 @@ import { MAINNET, REPO_URL, TESTNET, nearAccountUrl } from "satchel-nft";
 import "./globals.css";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", axes: ["opsz"] });
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+// Body text never swaps fonts mid-page: Inter is used when it arrives within the first ~100 ms (it is
+// preloaded, and cached after the first visit), and otherwise Inter Fallback, Arial sized to match, stays
+// for that page load. A late swap rewrapped long lines, such as the DAO board's heading on a phone, and
+// moved everything under them (0.123 layout shift on slow 4G, measured by scripts/loading-check.mjs).
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "optional" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
