@@ -6,6 +6,15 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- Primitives for NEAR Builders: read-only modules in satchel-nft, imported as
+  `satchel-nft/near-rpc`, `satchel-nft/chain-signatures` and `satchel-nft/account-proof`. Each has unit
+  tests on data recorded from mainnet and testnet, live tests (`SATCHEL_LIVE=1`,
+  `SATCHEL_LIVE_ARCHIVAL=1`) and an example in `packages/satchel-nft/examples/`, and a page in
+  `docs/primitives/` with its API, its fixtures' provenance, every live run with its date and
+  command, and each function's status. `deriveMpcKey` now computes through the shared derivation,
+  with the same keys and messages; the base58 helpers moved to their own module and are still
+  exported. The README has a "Primitives for NEAR Builders" section, with a Contents entry, and the
+  package's test counts: 453 unit tests in 25 files, and 25 live tests in 4 files.
 - README: an "After the hackathon" section, with a Contents entry. What keeps running without us
   (both contracts locked, with no keys and no admin; the report and the app need no server of ours),
   who maintains the app, the package and the repository, "Funding: none", and what changes when the

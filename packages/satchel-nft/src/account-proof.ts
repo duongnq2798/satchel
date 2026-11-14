@@ -20,6 +20,7 @@ export { NEP413_TAG, type Nep413Payload, base64ToBytes, bytesToBase64, nep413Has
 export {
   type AccessKeyAuthorization,
   NEP641_DOMAIN,
+  NEP641_LIMITS,
   type Nep641Code,
   type Nep641LeafResult,
   type Nep641ParseCode,
@@ -43,11 +44,16 @@ export interface Nep413Proof {
   callbackUrl?: string | null;
 }
 
-/** A time bound. `issuedAt` must appear, exactly, in the message the server built and the key signed. */
+/**
+ * A time bound. `issuedAt` must appear, exactly, in the message the server built and the key signed.
+ * The message should also name the account on its own line (as satchel-nft/holder's roomMessage does
+ * with `Account: <id>`): a NEP-413 signature does not cover the account id, so only the message ties
+ * the proof to one account.
+ */
 export interface Freshness {
   /** ISO 8601 UTC, as Date.prototype.toISOString writes it (up to 9 fractional digits). */
   issuedAt: string;
-  /** ms; default Date.now(). */
+  /** ms, the server's time when the call starts; default Date.now(). The replay step moves it on by the time the call has taken. */
   now?: number;
   /** How long a proof stays fresh. Default 300_000. */
   windowMs?: number;
@@ -55,7 +61,13 @@ export interface Freshness {
   skewMs?: number;
 }
 
-/** Remembers nonces. `claim` is true the first time it sees `key` within `ttlMs`, false after. */
+/**
+ * Remembers nonces. `claim` is true the first time it sees `key` within `ttlMs`, false after.
+ * verifyAccountProof passes a `ttlMs` that lasts until at least issuedAt + windowMs + skewMs by this
+ * server's clock, so a replay that is still fresh always finds the first claim. A shared store must
+ * keep a key at least that long by its own clock: its expiry must outlive issuedAt + windowMs, and
+ * skewMs is the margin for drift between the two clocks.
+ */
 export interface NonceStore {
   claim(key: string, ttlMs: number): Promise<boolean>;
 }
@@ -133,6 +145,9 @@ export type AccountProofResult<F> =
       block?: PinnedBlock;
     };
 
+const MAX_NONCE_CHARS = 64;
+const MAX_CALLBACK_URL_CHARS = 2048;
+
 const ISSUED_AT = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d{1,9})?Z$/;
 
 /** An answer about another block than the pinned one. */
@@ -145,8 +160,10 @@ const said = (err: unknown) => (err instanceof Error ? err.message : String(err)
 /**
  * Decides a NEP-413 signed message at one block (default the final one). In order:
  *  0. `nonceStore` without `freshness` rejects with a TypeError: the only rejection.
- *  1. shape (400 malformed / too-long): an account id, a key of at most 128 and a signature of at
- *     most 256 characters, a 32-byte nonce, a message of at most `maxMessageBytes` in UTF-8;
+ *  1. shape (400 malformed / too-long), before any decoding or hashing: an account id, a key of at
+ *     most 128 and a signature of at most 256 characters, a 32-byte nonce (as a string, at most 64
+ *     characters), a callbackUrl of at most 2048 characters, a message of at most `maxMessageBytes`
+ *     in UTF-8;
  *  2. time, with `freshness` (400 malformed / freshness-unbound, 401 stale / from-the-future): the
  *     message must contain `issuedAt` exactly, so the time is part of what was signed;
  *  3. signature (401): ed25519 only, strict RFC 8032, over `expect` (the server builds it);
@@ -154,8 +171,11 @@ const said = (err: unknown) => (err instanceof Error ? err.message : String(err)
  *     unless `keyPolicy.functionCallReceiver` is its receiver, unknown-permission; 502 wrong-block,
  *     rpc-key);
  *  6. the predicate, with the same reader (its own status, code predicate-refused; 502 predicate-rpc);
- *  7. replay (409 replayed, 502 replay-store): `accountId \n publicKey \n hex(nonce) \n recipient`,
- *     claimed last, for `nonceTtlMs` (default windowMs + skewMs).
+ *  7. replay (401 stale, 409 replayed, 502 replay-store): the clock is read again (`freshness.now`
+ *     moved on by the time spent since the call started), and a proof that went stale while it was
+ *     checked is refused without a claim. Otherwise `publicKey \n hex(nonce) \n recipient` (what the
+ *     signature binds; the account id is not signed) is claimed last, until issuedAt + windowMs +
+ *     skewMs, or for `nonceTtlMs` when that is longer: `nonceTtlMs` is a minimum.
  */
 export async function verifyAccountProof<F = undefined>(input: {
   rpc: RpcCall;
@@ -184,18 +204,29 @@ export async function verifyAccountProof<F = undefined>(input: {
   });
 
   // 1. Shape.
+  const entryDateNow = Date.now();
   const p = (typeof input.proof === "object" && input.proof !== null ? input.proof : {}) as Partial<Record<keyof Nep413Proof, unknown>>;
   const e = (typeof input.expect === "object" && input.expect !== null ? input.expect : {}) as Partial<Record<"recipient" | "message", unknown>>;
   if (typeof p.accountId !== "string" || !isAccountId(p.accountId)) return refuse(400, "shape", "malformed", "accountId is not a NEAR account id");
   if (typeof p.publicKey !== "string" || typeof p.signature !== "string") return refuse(400, "shape", "malformed", "publicKey and signature must be strings");
   if (p.publicKey.length > 128 || p.signature.length > 256) return refuse(400, "shape", "too-long", "publicKey or signature is too long");
+  // Base64 of 32 bytes is 44 characters; 64 leaves slack, and nothing longer is decoded.
+  if (typeof p.nonce === "string" && p.nonce.length > MAX_NONCE_CHARS) {
+    return refuse(400, "shape", "too-long", `the nonce is longer than ${MAX_NONCE_CHARS} characters`);
+  }
   const nonce = typeof p.nonce === "string" ? base64ToBytes(p.nonce) : p.nonce instanceof Uint8Array ? p.nonce : null;
   if (nonce === null || nonce.length !== 32) return refuse(400, "shape", "malformed", "nonce must be 32 bytes, as bytes or base64");
   if (typeof e.message !== "string" || typeof e.recipient !== "string") return refuse(400, "shape", "malformed", "expect.message and expect.recipient must be strings");
   const maxMessageBytes = input.maxMessageBytes ?? 8192;
-  if (new TextEncoder().encode(e.message).length > maxMessageBytes) return refuse(400, "shape", "too-long", `the message is longer than ${maxMessageBytes} bytes`);
+  // UTF-8 never takes fewer bytes than UTF-16 code units, so a longer string is refused unencoded.
+  if (e.message.length > maxMessageBytes || new TextEncoder().encode(e.message).length > maxMessageBytes) {
+    return refuse(400, "shape", "too-long", `the message is longer than ${maxMessageBytes} bytes`);
+  }
   if (p.callbackUrl !== undefined && p.callbackUrl !== null && typeof p.callbackUrl !== "string") {
     return refuse(400, "shape", "malformed", "callbackUrl must be a string or null");
+  }
+  if (typeof p.callbackUrl === "string" && p.callbackUrl.length > MAX_CALLBACK_URL_CHARS) {
+    return refuse(400, "shape", "too-long", `callbackUrl is longer than ${MAX_CALLBACK_URL_CHARS} characters`);
   }
   const accountId = p.accountId;
   const publicKey = p.publicKey;
@@ -206,10 +237,11 @@ export async function verifyAccountProof<F = undefined>(input: {
   const freshness = input.freshness;
   const windowMs = freshness?.windowMs ?? 300_000;
   const skewMs = freshness?.skewMs ?? 60_000;
+  let issuedMs = Number.NaN;
   if (freshness !== undefined) {
     const issuedAt = freshness.issuedAt;
     const m = typeof issuedAt === "string" ? ISSUED_AT.exec(issuedAt) : null;
-    const issuedMs = m ? Date.parse(issuedAt) : Number.NaN;
+    issuedMs = m ? Date.parse(issuedAt) : Number.NaN;
     // Date.parse rolls 02-30 over into March, and takes 24:00: such a time does not round-trip.
     if (!m || Number.isNaN(issuedMs) || new Date(issuedMs).toISOString().slice(0, 19) !== m[1]) {
       return refuse(400, "time", "malformed", "issuedAt must be an ISO 8601 UTC time, as toISOString writes it, like 2026-11-14T09:30:00.000Z");
@@ -286,12 +318,26 @@ export async function verifyAccountProof<F = undefined>(input: {
     facts = result.facts;
   }
 
-  // 7. Replay, last.
-  if (input.nonceStore) {
-    const claimKey = `${accountId}\n${publicKey}\n${bytesToHex(nonce)}\n${recipient}`;
+  // 7. Replay, last. The reads above took time: a proof that went stale meanwhile is refused
+  // unclaimed, and the claim lives until issuedAt + windowMs + skewMs, past the last moment at which
+  // a replay could still be fresh.
+  if (input.nonceStore && freshness !== undefined) {
+    const nowClaim = freshness.now === undefined ? Date.now() : freshness.now + (Date.now() - entryDateNow);
+    if (issuedMs < nowClaim - windowMs) {
+      return refuse(
+        401,
+        "time",
+        "stale",
+        `this proof went stale while it was checked: signed at ${freshness.issuedAt}, more than ${windowMs / 1000} s before the server's time, ${new Date(nowClaim).toISOString()}`,
+        { block },
+      );
+    }
+    // What the signature binds. The account id is not signed, so it is not part of the key.
+    const claimKey = `${publicKey}\n${bytesToHex(nonce)}\n${recipient}`;
+    const ttlMs = Math.max(input.nonceTtlMs ?? 0, issuedMs + windowMs + skewMs - nowClaim);
     let first: boolean;
     try {
-      first = await input.nonceStore.claim(claimKey, input.nonceTtlMs ?? windowMs + skewMs);
+      first = await input.nonceStore.claim(claimKey, ttlMs);
     } catch (err) {
       return refuse(502, "replay", "replay-store", `couldn't check the nonce: ${said(err)}`, { cause: err, block });
     }

@@ -318,7 +318,8 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  239 passed (239)` for `satchel-nft`, then
+Each runs in both workspaces. You should see `Tests  453 passed | 25 skipped (478)` for `satchel-nft`
+(the 25 skipped are the live tests of step 6), then
 `Tests  387 passed (387)` for the app, then no type errors. Each command took under a minute on a
 fresh clone (41 s and 37 s).
 
@@ -385,6 +386,28 @@ the signature verifies. To be refused as a non-holder (403, naming satchel #4's 
 read), sign the message with a testnet account of your own: the README's
 [Holder room](README.md#holder-room) has the near-cli-rs steps. That needs a key, so it is not one
 of these checks.
+
+### 6. The primitives for NEAR builders
+
+Claim: `satchel-nft/near-rpc`, `satchel-nft/chain-signatures` and `satchel-nft/account-proof` hold
+against the real chains, not only against their recorded fixtures. Each primitive's live tests read
+mainnet and testnet through the public nodes and the read-only guards, and sign nothing. They need
+step 2's install; in PowerShell set `$env:SATCHEL_LIVE='1'` (or `$env:SATCHEL_LIVE_ARCHIVAL='1'`) first.
+
+- **near-rpc:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- near-rpc.live` (`Tests  5 passed | 3 skipped (8)`),
+  then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live` (`3 passed | 5 skipped`; it
+  waits about 30 s on purpose for a regular node to give up on an old transaction).
+- **chain-signatures:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live` (`4 passed | 6
+  skipped`), then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- chain-signatures.live` (`6 passed | 4
+  skipped`). The archival group's Sepolia proof reads `sepolia.gateway.tenderly.co`, which serves the
+  transaction's receipt; set `SATCHEL_LIVE_SEPOLIA_RPC=<url>` to use another node that does.
+- **account-proof:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- account-proof.live nep641.live` (`5 passed
+  | 2 skipped`), then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- account-proof.live` (`2 passed | 2
+  skipped`).
+
+Each took under 40 s on 2026-11-14. A run that ends in `rate-limited` is the public node limiting
+requests, not a failed claim: wait and run that file again. Every run, with its date, command and the
+blocks it read, is recorded in [docs/primitives](docs/primitives).
 
 ## Where each rule lives
 

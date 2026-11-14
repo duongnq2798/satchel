@@ -6,7 +6,7 @@ import { TEST_KEY } from "./__fixtures__/test-key.js";
 import { base58Encode } from "./base58.js";
 import type { RpcCall } from "./near-rpc.js";
 import { nep413Hash } from "./nep413.js";
-import { type OffchainMessage, encodeOffchainMessage, nep641Hash, nep641ToNep413, parseAccessKeyAuthorization, verifyNep641Leaf } from "./nep641.js";
+import { NEP641_LIMITS, type OffchainMessage, encodeOffchainMessage, nep641Hash, nep641ToNep413, parseAccessKeyAuthorization, verifyNep641Leaf } from "./nep641.js";
 
 // The codec is checked against the two doc-test vectors of near/intents' reference implementation
 // (nep641-vectors.json, copied with URL and commit). The resolver runs on nep641-testnet-final.json,
@@ -220,6 +220,34 @@ describe("parseAccessKeyAuthorization", () => {
       if (!parsed.ok) expect(parsed.reason.length).toBeGreaterThan(0);
     }
   });
+
+  it("caps every size before decoding or hashing anything (too-long), and takes what is just within the caps", () => {
+    const signed = leaf(message());
+    const big = (n: number) => "a".repeat(n);
+    const tooLong: [string, unknown][] = [
+      ["a blob string over 6 × 8192 + 32768 characters", JSON.stringify({ ...signed, msg: { ...signed.msg, payload: big(6 * 8192 + 32_768) } })],
+      ["a payload over 8192 bytes", { ...signed, msg: { ...signed.msg, payload: big(8193) } }],
+      ["a payload over 8192 bytes in UTF-8, under it in characters", { ...signed, msg: { ...signed.msg, payload: "é".repeat(4097) } }],
+      ["a path over 16 entries", { ...signed, msg: { ...signed.msg, path: Array.from({ length: 17 }, (_, i) => `a${i}.testnet`) } }],
+      ["a chain_id over 64 characters", { ...signed, msg: { ...signed.msg, chain_id: big(65) } }],
+      ["an access_key over 128 characters", { ...signed, access_key: `ed25519:${big(121)}` }],
+      ["a signature over 256 characters", { ...signed, signature: `ed25519:${big(249)}` }],
+      ["a callback_url over 2048 characters", { ...signed, via: { schema: "nep413", extra: { callback_url: `https://example.app/${big(2029)}` } } }],
+    ];
+    for (const [what, c] of tooLong) expect(parseAccessKeyAuthorization(c), what).toMatchObject({ ok: false, code: "too-long" });
+    // A caller's own cap.
+    expect(parseAccessKeyAuthorization({ ...signed, msg: { ...signed.msg, payload: big(101) } }, { maxPayloadBytes: 100 })).toMatchObject({ ok: false, code: "too-long" });
+    expect(parseAccessKeyAuthorization({ ...signed, msg: { ...signed.msg, payload: big(100) } }, { maxPayloadBytes: 100 })).toMatchObject({ ok: true });
+    // Just within: they parse (the signature then fails at step 4, which is not this function's).
+    for (const c of [
+      { ...signed, msg: { ...signed.msg, payload: big(8192) } },
+      { ...signed, msg: { ...signed.msg, path: Array.from({ length: 16 }, (_, i) => `a${i}.testnet`) } },
+      { ...signed, via: { schema: "nep413", extra: { callback_url: `https://example.app/${big(2028)}` } } },
+    ]) {
+      expect(parseAccessKeyAuthorization(c)).toMatchObject({ ok: true });
+    }
+    expect(NEP641_LIMITS).toEqual({ payloadBytes: 8192, pathEntries: 16, chainIdChars: 64, accessKeyChars: 128, signatureChars: 256, callbackUrlChars: 2048, blobSlackChars: 32_768 });
+  });
 });
 
 describe("verifyNep641Leaf, steps 0-6 on testnet answers", () => {
@@ -318,5 +346,42 @@ describe("verifyNep641Leaf, steps 0-6 on testnet answers", () => {
     (view.result as { block_hash: string }).block_hash = "11111111111111111111111111111111";
     const wrong = await verifyNep641Leaf({ rpc: replayRpc(other), authorization: leaf(message({ signer_id: CONTRACT })), expect: expectTestnet(CONTRACT), at: AT });
     expect(wrong).toMatchObject({ ok: false, step: 6, code: "wrong-block" });
+  });
+
+  it("never accepts the implicit account on an UNKNOWN_ACCOUNT error about another block, or (strict) about no block", async () => {
+    // In-test changes to the recorded UNKNOWN_ACCOUNT error for the test key's implicit account: its
+    // cause.info.block_hash, which names the pinned block, is changed or deleted.
+    const withError = (change: (info: Record<string, unknown>) => void) => {
+      const cassette = copy(CASSETTE);
+      const call = cassette.calls.find((c) => params(c).request_type === "view_account" && params(c).account_id === TEST_KEY.implicit) as Recorded & {
+        error: { cause: { name: string; info: Record<string, unknown> } };
+      };
+      expect(call.error.cause).toMatchObject({ name: "UNKNOWN_ACCOUNT", info: { block_hash: BLOCK_HASH } });
+      change(call.error.cause.info);
+      return cassette;
+    };
+    const other = withError((info) => {
+      info.block_hash = "11111111111111111111111111111111";
+    });
+    const none = withError((info) => {
+      delete info.block_hash;
+    });
+    const run = (cassette: Cassette, strictBlock?: boolean) =>
+      verifyNep641Leaf({ rpc: replayRpc(cassette), authorization: leaf(message()), expect: expectTestnet(), at: AT, ...(strictBlock === undefined ? {} : { strictBlock }) });
+    for (const strictBlock of [undefined, false]) {
+      const result = await run(other, strictBlock);
+      expect(result).toMatchObject({ ok: false, step: 6, code: "wrong-block" });
+      expect(result.ok ? "" : result.reason).toContain("answered at block 11111111111111111111111111111111");
+    }
+    expect(await run(none)).toMatchObject({ ok: false, step: 6, code: "wrong-block", reason: expect.stringContaining("answered without a block hash") });
+    expect(await run(none, false)).toMatchObject({ ok: true, implicit: true });
+  });
+
+  it("refuses at step 0, before the signature is hashed, a payload over maxPayloadBytes", async () => {
+    const rpc = counted();
+    const signed = leaf(message({ payload: "a".repeat(200) }));
+    expect(await verifyNep641Leaf({ rpc, authorization: signed, expect: expectTestnet(), at: AT, maxPayloadBytes: 100 })).toMatchObject({ ok: false, step: 0, code: "too-long" });
+    expect(rpc.asked).toEqual([]);
+    expect(await verifyNep641Leaf({ rpc, authorization: signed, expect: expectTestnet(), at: AT })).toMatchObject({ ok: true, implicit: true });
   });
 });

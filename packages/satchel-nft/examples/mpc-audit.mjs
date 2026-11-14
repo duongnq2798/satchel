@@ -32,7 +32,9 @@ try {
   process.exit(1);
 }
 
-const DOMAINS = { 0: "0 (secp256k1 ECDSA)", 1: "1 (ed25519 EdDSA)" };
+// The signing domains (MPC_SIGN_DOMAINS); any other id is followed but never verified.
+const DOMAINS = { 0: "0 (secp256k1 ECDSA)", 1: "1 (ed25519 EdDSA)", 4: "4 (secp256k1 ECDSA)", 5: "5 (ed25519 EdDSA)" };
+const domainLabel = (d) => (d === null ? "not mapped" : (DOMAINS[d] ?? `${d} (not a signing domain known here)`));
 const row = (label, value) => console.log(`  ${label.padEnd(13)}${value}`);
 
 console.log(`network        ${network}, MPC contract ${mpcContract}`);
@@ -46,7 +48,7 @@ for (const [i, r] of audit.requests.entries()) {
   row("receipt", r.request.receiptId);
   row("predecessor", r.request.predecessor);
   row("path", JSON.stringify(r.request.path));
-  row("domain", r.request.domain === null ? "not mapped" : DOMAINS[r.request.domain]);
+  row("domain", domainLabel(r.request.domain));
   row("form", r.request.form);
   row("payload", `${r.request.payload.kind} ${r.request.payload.hex}`);
   row("deposit", `${String(r.request.deposit)} yoctoNEAR`);

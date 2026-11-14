@@ -55,6 +55,32 @@ describe.skipIf(!LIVE)("near-rpc live, final blocks", () => {
     }
   });
 
+  it("reads null for a missing account and for an account with no code under strictBlock: the nodes' errors name the pinned block", async () => {
+    for (const [network, file, codeless] of [
+      ["mainnet", "mainnet.json", "satchel-nft.near"],
+      ["testnet", "testnet.json", "satchel-nft.testnet"],
+    ] as const) {
+      const { contract } = deployment(file);
+      const rpc = liveRpc(network);
+      const reader = await live(() => pinnedReader(rpc));
+      expect(await live(() => reader.account(`missing.${contract}`))).toBeNull();
+      expect(await live(() => reader.codeSha256(codeless))).toBeNull();
+      // The same errors, read directly: each names the block it was asked about.
+      for (const request of [
+        { request_type: "view_account", account_id: `missing.${contract}` },
+        { request_type: "view_code", account_id: codeless },
+      ]) {
+        const err = await live(() => rpc("query", { ...request, block_id: reader.block.hash })).then(
+          () => null,
+          (e: unknown) => e,
+        );
+        expect(err).toBeInstanceOf(RpcError);
+        expect((err as RpcError).data).toMatchObject({ cause: { info: { block_hash: reader.block.hash } } });
+      }
+      console.log(`${network} UNKNOWN_ACCOUNT and NO_CONTRACT_CODE name block ${reader.block.height} (${reader.block.hash})`);
+    }
+  });
+
   it("pins the same block by finality, by hash and by height", async () => {
     const rpc = liveRpc("testnet");
     const final = await live(() => blockAt(rpc, "final"));

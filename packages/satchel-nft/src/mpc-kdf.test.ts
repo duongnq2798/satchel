@@ -7,7 +7,7 @@ import { type Provenance, loadFixture } from "./__fixtures__/replay.js";
 import { base58Encode } from "./base58.js";
 import { MAINNET, TESTNET } from "./config.js";
 import { deriveMpcKey } from "./evm.js";
-import { TWEAK_PREFIX, deriveKey, deriveTweak } from "./mpc-kdf.js";
+import { MPC_SIGN_DOMAINS, TWEAK_PREFIX, deriveKey, deriveTweak, signDomainCurve } from "./mpc-kdf.js";
 import { decodeBase64 } from "./near-rpc.js";
 
 // v1.signer-prod.testnet's domain 1 (ed25519) root key and the key it derives for tx-bench.testnet
@@ -95,8 +95,15 @@ describe("MPC key derivation, domain 0 (secp256k1)", () => {
     vi.resetModules();
   });
 
-  it("refuses a domain it does not know", () => {
-    expect(() => deriveKey(derived.testnet.rootKey, TESTNET.contract, "satchel/1", 2 as 0)).toThrow("unknown MPC domain 2");
+  it("refuses a domain that is not a signing domain: 2 and 3 (CKD, ForeignTx), one no contract lists, and ids that are not integers", () => {
+    for (const domain of [2, 3, 6, 7, 8, -1, 0.5, Number.NaN]) {
+      expect(() => deriveKey(derived.testnet.rootKey, TESTNET.contract, "satchel/1", domain)).toThrow(
+        `unknown MPC signing domain ${domain}: the signing domains are 0, 1, 4, 5`,
+      );
+      expect(signDomainCurve(domain)).toBeNull();
+    }
+    // Inherited names are not domains.
+    expect(signDomainCurve("constructor" as unknown as number)).toBeNull();
   });
 });
 
@@ -152,9 +159,20 @@ describe("MPC key derivation, against upstream and recorded vectors", () => {
     }
   });
 
-  for (const network of ["testnet", "mainnet"] as const) {
-    it(`gives every key ${network}'s MPC contract derived at the recorded final block, in both domains`, () => {
-      const cassette = loadFixture(`primitives/chain-signatures/derived-keys-domains-${network}.json`);
+  it("knows the signing domains both contracts' state() listed: 0 and 4 secp256k1, 1 and 5 ed25519", () => {
+    expect(MPC_SIGN_DOMAINS).toEqual({ 0: "secp256k1", 1: "ed25519", 4: "secp256k1", 5: "ed25519" });
+    expect(Object.isFrozen(MPC_SIGN_DOMAINS)).toBe(true);
+    expect([0, 1, 4, 5].map(signDomainCurve)).toEqual(["secp256k1", "ed25519", "secp256k1", "ed25519"]);
+  });
+
+  for (const [network, file, domains] of [
+    ["testnet", "derived-keys-domains", [0, 1]],
+    ["mainnet", "derived-keys-domains", [0, 1]],
+    ["testnet", "derived-keys-domains-4-5", [4, 5]],
+    ["mainnet", "derived-keys-domains-4-5", [4, 5]],
+  ] as const) {
+    it(`gives every key ${network}'s MPC contract derived at the recorded final block, in domains ${domains.join(" and ")}`, () => {
+      const cassette = loadFixture(`primitives/chain-signatures/${file}-${network}.json`);
       const views = cassette.calls.filter((c) => c.method === "query");
       const viewed = views.map((c) => {
         const p = c.params as { method_name: string; args_base64: string };
@@ -162,12 +180,14 @@ describe("MPC key derivation, against upstream and recorded vectors", () => {
         return { method: p.method_name, args: JSON.parse(decodeBase64(p.args_base64)), value: JSON.parse(new TextDecoder().decode(Uint8Array.from(answer.result))) as string };
       });
       const roots = new Map(viewed.filter((v) => v.method === "public_key").map((v) => [v.args.domain_id as number, v.value]));
-      expect([...roots.keys()].sort()).toEqual([0, 1]);
+      expect([...roots.keys()].sort((a, b) => a - b)).toEqual(domains);
       const derivedViews = viewed.filter((v) => v.method === "derived_public_key");
-      expect(derivedViews.length).toBeGreaterThanOrEqual(3);
+      expect(derivedViews.length).toBeGreaterThanOrEqual(2);
       for (const { args, value } of derivedViews) {
-        const domain = args.domain_id as 0 | 1;
+        const domain = args.domain_id as number;
         expect(deriveKey(roots.get(domain) as string, args.predecessor, args.path, domain)).toBe(value);
+        // The curve is the domain's: 0 and 4 give secp256k1 keys, 1 and 5 ed25519 ones.
+        expect(value.startsWith(`${signDomainCurve(domain)}:`)).toBe(true);
       }
     });
   }

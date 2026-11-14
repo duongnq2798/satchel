@@ -204,6 +204,19 @@ describe("verifyAccountProof shape, time and signature: 400 and 401, with no RPC
     expect((await run({ maxMessageBytes: bytes })).result).toMatchObject({ ok: true });
   });
 
+  it("refuses an over-long nonce string or callbackUrl as too-long before decoding or hashing it", async () => {
+    // Base64 of 32 bytes is 44 characters; up to 64 is read, and a longer one is not decoded.
+    expect(await run({ proof: { nonce: "A".repeat(65) } })).toMatchObject({ result: { status: 400, stage: "shape", code: "too-long" }, asked: [] });
+    expect(await run({ proof: { nonce: "A".repeat(10_000_000) } })).toMatchObject({ result: { code: "too-long" }, asked: [] });
+    // 64 characters are decoded: these are not 32 bytes.
+    expect((await run({ proof: { nonce: "A".repeat(64) } })).result).toMatchObject({ status: 400, code: "malformed" });
+    expect(await run({ proof: { callbackUrl: `https://satchelnft.xyz/${"a".repeat(2026)}` } })).toMatchObject({ result: { status: 400, stage: "shape", code: "too-long" }, asked: [] });
+    // At 2048 characters it is read, and is part of what is signed (this one was not).
+    expect(await run({ proof: { callbackUrl: `https://satchelnft.xyz/${"a".repeat(2025)}` } })).toMatchObject({ result: { status: 401, code: "bad-signature" }, asked: [] });
+    // A message longer in UTF-16 code units than the cap is refused without encoding it.
+    expect((await run({ expect: { message: "a".repeat(8193) } })).result).toMatchObject({ status: 400, code: "too-long" });
+  });
+
   it("refuses a key type other than ed25519, and a signature over anything else, as 401", async () => {
     const secp = `secp256k1:${BUYER.publicKey.slice("ed25519:".length)}`;
     expect(await run({ proof: { publicKey: secp } })).toMatchObject({ result: { status: 401, stage: "signature", code: "unsupported-key-type" }, asked: [] });
@@ -426,6 +439,36 @@ describe("predicates, on recorded answers", () => {
     expect(passed).toMatchObject({ ok: true, facts: [{ token: { owner_id: BUYER.accountId } }, { balance: "0" }] });
   });
 
+  it("does not read an error about another block as an answer: the missing DAO's UNKNOWN_ACCOUNT (in-test change)", async () => {
+    // The recorded call_function on the DAO that did not exist yet at the sign_evm block answers
+    // UNKNOWN_ACCOUNT, naming the pinned block. In this copy it names another block.
+    const cassette = copy(HOLDER);
+    const call = cassette.calls.find((c) => c.error !== undefined && params(c).account_id === DAO) as Recorded & { error: { cause: { info: { block_hash: string } } } };
+    expect(call.error.cause.info.block_hash).toBe(AT_SIGN.blockHash);
+    call.error.cause.info.block_hash = "11111111111111111111111111111111";
+    const result = await proofAt(BUYER, cassette, AT_SIGN, sputnikRole(DAO, "council"));
+    expect(result).toMatchObject({ ok: false, status: 502, stage: "predicate", code: "predicate-rpc" });
+    expect(result.ok === false && result.reason).toContain("answered at block 11111111111111111111111111111111");
+  });
+
+  it("refuses with wrong-block a key answer that is an error about another block (in-test error)", async () => {
+    // Written here: the node answers the key read with UNKNOWN_ACCOUNT about another block, which
+    // was read as "no such key" (403) before.
+    const replay = replayRpc(HOLDER);
+    const rpc = (async (method: string, p: unknown) => {
+      if ((p as Record<string, unknown> | null)?.request_type !== "view_access_key") return replay(method, p);
+      throw new RpcError({
+        method,
+        kind: "rpc-error",
+        endpoint: "https://rpc.example.org",
+        detail: "UNKNOWN_ACCOUNT",
+        data: { name: "HANDLER_ERROR", cause: { name: "UNKNOWN_ACCOUNT", info: { block_hash: "11111111111111111111111111111111" } } },
+      });
+    }) as RpcCall;
+    const result = await verifyAccountProof({ rpc, proof: proofOf(BUYER), expect: expectOf(BUYER), at: AT_SIGN });
+    expect(result).toMatchObject({ ok: false, status: 502, stage: "key", code: "wrong-block" });
+  });
+
   it("a predicate that throws is predicate-rpc, 502; it reads with the pinned reader and the same rpc", async () => {
     const seen: unknown[] = [];
     const throwing: Predicate<never> = async (ctx) => {
@@ -456,13 +499,24 @@ describe("the replay guard", () => {
     };
   };
 
-  it("claims account, key, nonce and recipient with the window plus skew as TTL, only after every other check passed", async () => {
+  it("claims key, nonce and recipient (what the signature binds) until issuedAt + window + skew, only after every other check passed", async () => {
+    // Date is faked (frozen), so no time passes between the call and the claim.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.parse(issuedAt) + 5_000);
     const nonces = store();
     expect(await verifyAccountProof({ ...signed(), nonceStore: nonces })).toMatchObject({ ok: true });
-    expect(nonces.claims).toEqual([{ key: `${BUYER.accountId}\n${TEST_KEY.publicKey}\n${bytesToHex(nonce)}\nexample.app`, ttlMs: 360_000 }]);
-    const ttl = store();
-    await verifyAccountProof({ ...signed(), nonceStore: ttl, nonceTtlMs: 1_000 });
-    expect(ttl.claims[0].ttlMs).toBe(1_000);
+    expect(nonces.claims).toEqual([{ key: `${TEST_KEY.publicKey}\n${bytesToHex(nonce)}\nexample.app`, ttlMs: 360_000 }]);
+    // Checked later (freshness.now moved on), the claim lasts as long past the same issuedAt.
+    const later = store();
+    await verifyAccountProof({ ...signed(), nonceStore: later, freshness: { issuedAt, now: Date.parse(issuedAt) + 100_000 } });
+    expect(later.claims[0].ttlMs).toBe(260_000);
+    // nonceTtlMs is a minimum: a longer one is used, a shorter one is not.
+    const longer = store();
+    await verifyAccountProof({ ...signed(), nonceStore: longer, nonceTtlMs: 900_000 });
+    expect(longer.claims[0].ttlMs).toBe(900_000);
+    const shorter = store();
+    await verifyAccountProof({ ...signed(), nonceStore: shorter, nonceTtlMs: 1_000 });
+    expect(shorter.claims[0].ttlMs).toBe(360_000);
     // A proof that fails, at any stage, claims nothing.
     const failing = store();
     const input = signed();
@@ -470,6 +524,50 @@ describe("the replay guard", () => {
     await verifyAccountProof({ ...input, nonceStore: failing, expect: { ...input.expect, recipient: "other.app" } });
     await verifyAccountProof({ ...input, nonceStore: failing, freshness: { ...input.freshness, now: Date.parse(issuedAt) + 600_000 } });
     expect(failing.claims).toEqual([]);
+  });
+
+  it("refuses, without a claim, a proof that went stale while its reads ran, so a slow replay never outlives the first claim", async () => {
+    // A simulated clock (Date faked) that every RPC read moves on by `perRead` ms, as a slow or
+    // flooded node would; memoryNonceStore reads the same clock.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const slow = (perRead: number) => {
+      const { rpc } = signed();
+      return (async (method: string, p: unknown) => {
+        vi.setSystemTime(Date.now() + perRead);
+        return rpc(method, p);
+      }) as RpcCall;
+    };
+    const issuedMs = Date.parse(issuedAt);
+    const nonces = memoryNonceStore();
+    const at = (ms: number, perRead: number, freshness: { issuedAt: string; now?: number } = { issuedAt }) => {
+      vi.setSystemTime(ms);
+      return verifyAccountProof({ ...signed(), rpc: slow(perRead), freshness, nonceStore: nonces });
+    };
+    // The first use, at once: claimed until issuedAt + 360 s.
+    expect(await at(issuedMs + 1_000, 0)).toMatchObject({ ok: true });
+    // Replayed 0.1 s before it goes stale, behind 31 s per read (the block and the key: two reads):
+    // the old rule claimed it at issuedAt + 361.9 s, after the first claim expired, and took it.
+    const replay = await at(issuedMs + 299_900, 31_000);
+    expect(replay).toMatchObject({ ok: false, status: 401, stage: "time", code: "stale" });
+    expect(replay.ok === false && replay.reason).toMatch(/went stale while it was checked/);
+    // The same with the server's clock passed as freshness.now: it is moved on by the time spent.
+    expect(await at(issuedMs + 299_900, 31_000, { issuedAt, now: issuedMs + 299_900 })).toMatchObject({ status: 401, code: "stale" });
+    // A replay still fresh when it is claimed finds the first claim.
+    expect(await at(issuedMs + 299_000, 400)).toMatchObject({ ok: false, status: 409, code: "replayed" });
+  });
+
+  it("claims once per signature, whichever account it is offered for: two accounts holding the same key (in-test cassette entries)", async () => {
+    // In-test cassette entries: the buyer's account and satchel-nft.testnet both hold the test key.
+    const cassette = copy(HOLDER);
+    const own = keyCall(cassette, BUYER.accountId, BUYER.publicKey);
+    for (const account of [BUYER.accountId, OWNER_BEFORE.accountId]) {
+      cassette.calls.push({ ...copy(own), params: { ...params(own), account_id: account, public_key: TEST_KEY.publicKey } });
+    }
+    const input = { ...signed(), rpc: replayRpc(cassette), nonceStore: memoryNonceStore() };
+    expect(await verifyAccountProof(input)).toMatchObject({ ok: true, accountId: BUYER.accountId });
+    // The signature does not cover the account id: the same proof offered for the other account.
+    const other = await verifyAccountProof({ ...input, proof: { ...input.proof, accountId: OWNER_BEFORE.accountId } });
+    expect(other).toMatchObject({ ok: false, status: 409, stage: "replay", code: "replayed" });
   });
 
   it("refuses a second claim with 409, and fails closed with 502 when the store throws", async () => {

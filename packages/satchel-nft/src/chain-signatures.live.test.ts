@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { LIVE, LIVE_ARCHIVAL, LIVE_EVM_RPC, type NetworkName, live, liveArchival, liveRpc, txProjection } from "./__fixtures__/live.js";
 import derived from "./__fixtures__/derived-keys.json" with { type: "json" };
 import { type OneCall, loadFixture } from "./__fixtures__/replay.js";
-import { MPC_CONTRACTS, MPC_ROOT_KEYS, auditSignTx, crossCheckDerivation, proveEvmTx, proveRawTx, readOnlyEvmClient } from "./chain-signatures.js";
+import { MPC_CONTRACTS, MPC_ROOT_KEYS, MPC_SIGN_DOMAINS, auditSignTx, crossCheckDerivation, proveEvmTx, proveRawTx, readOnlyEvmClient } from "./chain-signatures.js";
 import { ENDPOINTS, type TxStatusView, blockAt, fastnearSenderLookup, pinnedReader, readTx } from "./near-rpc.js";
 
 // chain-signatures against the real chains, through the public endpoints (each can be pointed
@@ -13,9 +13,10 @@ import { ENDPOINTS, type TxStatusView, blockAt, fastnearSenderLookup, pinnedRead
 // unless SATCHEL_LIVE=1 (final blocks, regular RPC) or SATCHEL_LIVE_ARCHIVAL=1 (historical
 // transactions, archival RPC):
 //   SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live
-//   SATCHEL_LIVE_ARCHIVAL=1 SATCHEL_LIVE_SEPOLIA_RPC=https://sepolia.gateway.tenderly.co npm test -w satchel-nft -- chain-signatures.live
-// The Sepolia proof needs a node that serves the receipt of 0x27e3…5ba3: on 2026-11-14 config.ts's
-// publicnode Sepolia node (the default) answered that transaction but a null receipt for it.
+//   SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- chain-signatures.live
+// The Sepolia proof needs a node that serves the receipt of 0x27e3…5ba3, so LIVE_EVM_RPC.sepolia
+// defaults to sepolia.gateway.tenderly.co (SATCHEL_LIVE_SEPOLIA_RPC overrides it): on 2026-11-14
+// config.ts's publicnode Sepolia node answered that transaction but a null receipt for it.
 
 const deployment = (file: string) => JSON.parse(readFileSync(new URL(`../../../deployments/${file}`, import.meta.url), "utf8"));
 const NET = { testnet: deployment("testnet.json"), mainnet: deployment("mainnet.json") } as { testnet: { contract: string }; mainnet: { contract: string } };
@@ -37,13 +38,37 @@ const audit = (network: NetworkName, hash: string) =>
 const failing = (proof: { checks: { id: string; ok: boolean; detail: string }[] }) => proof.checks.filter((c) => !c.ok).map((c) => `${c.id}: ${c.detail}`);
 
 describe.skipIf(!LIVE)("chain-signatures live, final blocks", () => {
-  it("reads public_key for domains 0 and 1 on both MPC contracts equal to MPC_ROOT_KEYS", async () => {
+  it("reads public_key for the signing domains 0, 1, 4 and 5 on both MPC contracts equal to MPC_ROOT_KEYS", async () => {
     for (const network of ["mainnet", "testnet"] as const) {
       const reader = await live(() => pinnedReader(liveRpc(network)));
-      for (const domain of [0, 1] as const) {
+      for (const domain of [0, 1, 4, 5] as const) {
         expect(await live(() => reader.view<string>(MPC_CONTRACTS[network], "public_key", { domain_id: domain }))).toBe(MPC_ROOT_KEYS[network][domain]);
       }
-      console.log(`${network} root keys equal MPC_ROOT_KEYS at block ${reader.block.height} (${reader.block.hash})`);
+      console.log(`${network} root keys for domains 0, 1, 4, 5 equal MPC_ROOT_KEYS at block ${reader.block.height} (${reader.block.hash})`);
+    }
+  });
+
+  it("finds in each MPC contract's state() exactly the signing domains MPC_SIGN_DOMAINS lists, each key on its curve", async () => {
+    // Only the domain list is read out of state(); the rest (the participants) is not printed.
+    const domainsOf = (state: unknown): { id: number; purpose?: unknown }[] | null => {
+      if (typeof state !== "object" || state === null) return null;
+      const own = (state as { domains?: unknown }).domains;
+      if (Array.isArray(own) && own.every((d) => typeof (d as { id?: unknown })?.id === "number")) return own as { id: number }[];
+      for (const value of Object.values(state)) {
+        const found = domainsOf(value);
+        if (found) return found;
+      }
+      return null;
+    };
+    for (const network of ["mainnet", "testnet"] as const) {
+      const reader = await live(() => pinnedReader(liveRpc(network)));
+      const domains = domainsOf(await live(() => reader.view<unknown>(MPC_CONTRACTS[network], "state")));
+      expect(domains).not.toBeNull();
+      const sign = (domains ?? []).filter((d) => d.purpose === "Sign").map((d) => d.id);
+      expect(sign.map(String)).toEqual(Object.keys(MPC_SIGN_DOMAINS));
+      for (const id of sign) expect(MPC_ROOT_KEYS[network][id as 0 | 1 | 4 | 5].startsWith(`${MPC_SIGN_DOMAINS[id]}:`)).toBe(true);
+      const list = (domains ?? []).map((d) => JSON.stringify(d)).join(" ");
+      console.log(`${network} ${MPC_CONTRACTS[network]} state() domains at block ${reader.block.height} (${reader.block.hash}): ${list}`);
     }
   });
 
@@ -56,8 +81,27 @@ describe.skipIf(!LIVE)("chain-signatures live, final blocks", () => {
     expect(check.results.map((r) => `${r.path} ${r.domain} ${r.match}`)).toEqual(cases.map((c) => `${c.path} ${c.domain} true`));
     expect(check.results[0].contract).toBe(derived.testnet.keys["satchel/1"]);
     expect(check.results[8].contract).toBe(TX_BENCH_ED25519);
-    expect(check.rootKeys).toEqual(MPC_ROOT_KEYS.testnet);
+    expect(check.rootKeys).toEqual({ 0: MPC_ROOT_KEYS.testnet[0], 1: MPC_ROOT_KEYS.testnet[1] });
     console.log(`testnet derivation matches the contract at block ${check.block.height} (${check.block.hash})`);
+  });
+
+  it("derives satchel/1 in domains 4 and 5 on both networks, and tx-bench.testnet's \"\" on testnet, as each derived_public_key does", async () => {
+    for (const network of ["mainnet", "testnet"] as const) {
+      const cases = [
+        { predecessor: NET[network].contract, path: "satchel/1", domain: 4 },
+        { predecessor: NET[network].contract, path: "satchel/1", domain: 5 },
+        ...(network === "testnet"
+          ? [
+              { predecessor: "tx-bench.testnet", path: "", domain: 4 },
+              { predecessor: "tx-bench.testnet", path: "", domain: 5 },
+            ]
+          : []),
+      ];
+      const check = await live(() => crossCheckDerivation(liveRpc(network), MPC_CONTRACTS[network], cases));
+      expect(check.results.map((r) => `${r.path} ${r.domain} ${r.match}`)).toEqual(cases.map((c) => `${c.path} ${c.domain} true`));
+      expect(check.rootKeys).toEqual({ 4: MPC_ROOT_KEYS[network][4], 5: MPC_ROOT_KEYS[network][5] });
+      console.log(`${network} domain 4 and 5 derivation matches the contract at block ${check.block.height} (${check.block.hash})`);
+    }
   });
 });
 

@@ -335,6 +335,9 @@ const JOBS = {
     // The MPC root keys and derived keys at one final block on each network.
     derivedKeysJob("testnet"),
     derivedKeysJob("mainnet"),
+    // The same for the later signing domains 4 (secp256k1) and 5 (ed25519), added after the review.
+    derivedKeysLaterJob("testnet"),
+    derivedKeysLaterJob("mainnet"),
     // EVM transactions the MPC answers signed, read through readOnlyEvmClient: Base at config.ts's
     // publicnode node, Sepolia at THIRD_PARTY.sepoliaReceipts (publicnode answers no receipt for it).
     evmJob(
@@ -568,6 +571,45 @@ function derivedKeysJob(network) {
           rpc: [...answered].join(", "),
           source: `${sources.join(", ")}; tokens 1-${SATCHEL_TOKENS[network]} (SATCHEL_TOKENS)`,
           block: { height: final.height, hash: final.hash, why: "a final block at capture: MPC_ROOT_KEYS names it" },
+          nodeVersion: await nodeVersions(answered),
+        }),
+        calls: rec.calls,
+      };
+    },
+  };
+}
+
+/**
+ * At one final block: the MPC contract's `public_key` for the later signing domains 4 (secp256k1) and
+ * 5 (ed25519), and `derived_public_key` in both for Satchel's contract and the path satchel/1; on
+ * testnet also tx-bench.testnet with the empty path. MPC_ROOT_KEYS[4] and [5] must equal what was read
+ * here. The contract's `state()`, which lists the domains, is not recorded: it names the MPC
+ * participants' accounts and URLs, third-party data the live test reads instead.
+ */
+function derivedKeysLaterJob(network) {
+  return {
+    name: `derived-keys-domains-4-5-${network}`,
+    async run() {
+      const file = `${network}.json`;
+      const contract = fromDeployment(file, "contract");
+      const mpc = fromDeployment(file, "mpc_contract");
+      const { answered, regular } = transports(network);
+      const final = await blockAt(regular, "final");
+      const rec = recorder(regular);
+      const reader = await pinnedReader(rec, { blockHash: final.hash });
+      for (const domain of [4, 5]) await reader.view(mpc.value, "public_key", { domain_id: domain });
+      for (const domain of [4, 5]) await reader.view(mpc.value, "derived_public_key", { path: "satchel/1", predecessor: contract.value, domain_id: domain });
+      const sources = [contract.source, mpc.source];
+      if (network === "testnet") {
+        for (const domain of [4, 5]) await reader.view(mpc.value, "derived_public_key", { path: "", predecessor: THIRD_PARTY.txBench.account, domain_id: domain });
+        sources.push("THIRD_PARTY.txBench.account");
+      }
+      return {
+        provenance: provenance({
+          network,
+          rpc: [...answered].join(", "),
+          source: `${sources.join(", ")}; token 1`,
+          block: { height: final.height, hash: final.hash, why: "a final block at capture: MPC_ROOT_KEYS[4] and [5] name it" },
           nodeVersion: await nodeVersions(answered),
         }),
         calls: rec.calls,

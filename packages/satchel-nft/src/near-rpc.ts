@@ -97,7 +97,11 @@ export interface HttpRpcOptions {
   maxRetryAfterMs?: number;
   /** A Retry-After longer than this fails at once, as rate limiting. Default 30_000. */
   giveUpRetryAfterMs?: number;
-  /** Sent with every request, such as { Authorization: "Bearer <key>" }. Never logged, never in errors. */
+  /**
+   * Sent with every request, such as { Authorization: "Bearer <key>" }. Never logged, never in errors.
+   * A value fetch would refuse (a line break in it, say) is refused when the transport is built, with
+   * a TypeError that names the header but not its value.
+   */
   headers?: Record<string, string>;
   fetch?: typeof fetch;
 }
@@ -111,9 +115,34 @@ export function redactUrl(url: string): string {
 }
 
 function checkUrl(url: string): string {
-  const parsed = new URL(url);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // The URL's own error carries the text it was given, which may hold a key.
+    throw new TypeError("the URL is not an absolute http(s) URL; it is not shown");
+  }
   if (parsed.username !== "" || parsed.password !== "" || parsed.search !== "" || url.includes("?")) throw new TypeError(URL_RULE);
   return parsed.origin;
+}
+
+/**
+ * Refuses, before any request, a header fetch would refuse: fetch's own error quotes the value, which
+ * is often a key, and it would be retried as a network failure. The TypeError names the header only.
+ */
+function checkHeaders(headers: Record<string, string> | undefined): void {
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    try {
+      new Headers([[name, "x"]]);
+    } catch {
+      throw new TypeError("a header name fetch refuses was given in headers");
+    }
+    try {
+      new Headers([[name, value]]);
+    } catch {
+      throw new TypeError(`the ${name} header has a value fetch refuses (a line break, say); its value is not shown`);
+    }
+  }
 }
 
 const RETRY_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
@@ -237,6 +266,7 @@ async function send(sent: Sent, endpoint: string, options: HttpRpcOptions, slot:
  */
 export function httpRpc(url: string, options: HttpRpcOptions = {}): RpcCall {
   const endpoint = checkUrl(url);
+  checkHeaders(options.headers);
   const slot = limiter(options.concurrency ?? 4);
   const headers = { "content-type": "application/json", ...options.headers };
   const call = async <T>(method: string, params: unknown): Promise<T> => {
@@ -262,10 +292,14 @@ export function httpRpc(url: string, options: HttpRpcOptions = {}): RpcCall {
   return named(call as RpcCall, endpoint);
 }
 
-/** GETs JSON from `url` with httpRpc's retry, timeout, URL and header rules. */
+/**
+ * GETs JSON from `url` with httpRpc's retry, timeout, URL and header rules. Its errors name the method
+ * (`GET`) and the origin only, never the path, which some providers put a key in.
+ */
 export function httpGetJson<T>(url: string, options: Omit<HttpRpcOptions, "concurrency"> = {}): Promise<T> {
   const endpoint = checkUrl(url);
-  return restJson<T>({ label: `GET ${new URL(url).pathname}`, url, init: { method: "GET", headers: { ...options.headers } } }, endpoint, options);
+  checkHeaders(options.headers);
+  return restJson<T>({ label: "GET", url, init: { method: "GET", headers: { ...options.headers } } }, endpoint, options);
 }
 
 async function restJson<T>(sent: Sent, endpoint: string, options: HttpRpcOptions): Promise<T> {
@@ -286,6 +320,7 @@ async function restJson<T>(sent: Sent, endpoint: string, options: HttpRpcOptions
 export function fastnearSenderLookup(txApiBase: string, options: HttpRpcOptions = {}): (hash: string) => Promise<string | null> {
   const url = `${txApiBase.replace(/\/+$/, "")}/v0/transactions`;
   const endpoint = checkUrl(url);
+  checkHeaders(options.headers);
   const headers = { "content-type": "application/json", ...options.headers };
   return async (hash) => {
     const body = await restJson<{ transactions?: ({ transaction?: { signer_id?: unknown } } | null)[] }>(
@@ -519,9 +554,9 @@ export interface PinnedReader {
   readonly block: PinnedBlock;
   /** Calls a view method at the pinned block and decodes its JSON (null for an empty result). Throws ViewError or RpcError. */
   view<T>(account: string, method: string, args?: unknown): Promise<T>;
-  /** Null when the account does not exist at the block. */
+  /** Null when the account does not exist at the block (an UNKNOWN_ACCOUNT error about that block). */
   account(accountId: string): Promise<AccountView | null>;
-  /** Null when the key, or the account, does not exist at the block. */
+  /** Null when the key, or the account, does not exist at the block (an answer about that block). */
   accessKey(accountId: string, publicKey: string): Promise<AccessKeyInfo | null>;
   /** Every key of the account at the block, page by page. */
   accessKeys(accountId: string, options?: { pageSize?: number; max?: number }): Promise<{ keys: AccessKeyInfo[]; pages: number; paged: boolean }>;
@@ -535,26 +570,49 @@ interface KeyListAnswer {
   block_hash?: string;
 }
 
+/** The JSON-RPC errors a pinned reader turns into a value (null) or a ViewError: answers about the block. */
+const ANSWER_ERRORS: ReadonlySet<string> = new Set(["UNKNOWN_ACCOUNT", "UNKNOWN_ACCESS_KEY", "NO_CONTRACT_CODE", "CONTRACT_EXECUTION_ERROR"]);
+
 /**
- * Resolves `at` (default the final block) once, then reads every query at that block's hash. With
- * `strictBlock` (the default), every answer must name that block; `strictBlock: false` lets an
- * answer with no block hash through, as near.ts does. State at block B is the state after B's chunks
- * ran, so what a receipt saw before it ran is read at its block's `prevHash`.
+ * Resolves `at` (default the final block) once, then reads every query at that block's hash. Every
+ * answer must be about that block: a result's `block_hash`, and the `cause.info.block_hash` of a
+ * JSON-RPC error the reader turns into a value (UNKNOWN_ACCOUNT, UNKNOWN_ACCESS_KEY, NO_CONTRACT_CODE,
+ * CONTRACT_EXECUTION_ERROR: null, or a ViewError). An answer about another block is refused
+ * (RpcError kind "bad-answer"); with `strictBlock` (the default) so is one that names no block, while
+ * `strictBlock: false` lets that through, as near.ts does. State at block B is the state after B's
+ * chunks ran, so what a receipt saw before it ran is read at its block's `prevHash`.
  */
 export async function pinnedReader(rpc: RpcCall, at: At = "final", options: { strictBlock?: boolean } = {}): Promise<PinnedReader> {
   const block = await blockAt(rpc, at);
   const strict = options.strictBlock ?? true;
   const endpoint = endpointOf(rpc);
-  const bad = (detail: string) => new RpcError({ method: "query", kind: "bad-answer", endpoint, detail });
+  const bad = (detail: string, cause?: unknown) => new RpcError({ method: "query", kind: "bad-answer", endpoint, detail, cause });
+
+  /** The rule every answer meets: about the pinned block, or (lenient only) about no named block. */
+  function checkBlock(named: unknown, cause?: unknown): void {
+    if (named === undefined || named === null) {
+      if (strict) throw bad("answered without a block hash", cause);
+    } else if (named !== block.hash) {
+      throw bad(`answered at block ${typeof named === "string" ? named : JSON.stringify(named)}, not ${block.hash}`, cause);
+    }
+  }
 
   async function query<T extends { block_hash?: string }>(request: Record<string, unknown>): Promise<T> {
-    const answer = await rpc<T>("query", { request_type: request.request_type, block_id: block.hash, ...request });
-    if (typeof answer !== "object" || answer === null) throw bad("the query answer is not an object");
-    if (answer.block_hash === undefined) {
-      if (strict) throw bad("answered without a block hash");
-    } else if (answer.block_hash !== block.hash) {
-      throw bad(`answered at block ${answer.block_hash}, not ${block.hash}`);
+    let answer: T;
+    try {
+      answer = await rpc<T>("query", { request_type: request.request_type, block_id: block.hash, ...request });
+    } catch (err) {
+      // A JSON-RPC error the reader reads as an answer is held to the same rule as a result. The node
+      // names the block in `cause.info.block_hash`.
+      const name = causeName(err);
+      if (name !== undefined && ANSWER_ERRORS.has(name)) {
+        const info = ((err as RpcError).data as { cause?: { info?: { block_hash?: unknown } } } | null)?.cause?.info;
+        checkBlock(info?.block_hash, err);
+      }
+      throw err;
     }
+    if (typeof answer !== "object" || answer === null) throw bad("the query answer is not an object");
+    checkBlock(answer.block_hash);
     return answer;
   }
 

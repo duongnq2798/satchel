@@ -8,7 +8,10 @@
 // Defaults: mainnet 2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4 8453
 // 0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532 (deployments/mainnet-first-send.json:
 // satchel #1's Base send). The EVM node defaults to the chain's URL in satchel-nft's chainInfo, and is
-// read only through readOnlyEvmClient, which refuses anything but four read methods. Run
+// read only through readOnlyEvmClient, which refuses anything but four read methods. A proof needs a
+// node that serves the transaction's receipt: for Sepolia (11155111), chainInfo's publicnode node
+// answered no receipt for 0x27e3…5ba3 on 2026-11-14, so pass https://sepolia.gateway.tenderly.co as
+// the fifth argument. Run
 // `npm run build -w satchel-nft` first. It exits 0 whatever the verdict, and 1 only when a read fails,
 // printing the error's kind.
 import { chainInfo } from "satchel-nft";
@@ -17,7 +20,10 @@ import { ENDPOINTS, ReadTxError, RpcError, fastnearSenderLookup, httpRpc, readOn
 import { defineChain } from "viem";
 import * as chains from "viem/chains";
 
-const usage = "usage: node packages/satchel-nft/examples/prove-evm-tx.mjs [testnet|mainnet] [nearTx] [chainId] [evmTxHash] [evmRpcUrl]";
+const usage = [
+  "usage: node packages/satchel-nft/examples/prove-evm-tx.mjs [testnet|mainnet] [nearTx] [chainId] [evmTxHash] [evmRpcUrl]",
+  "  the EVM node must serve the transaction's receipt: for a Sepolia proof, pass https://sepolia.gateway.tenderly.co as evmRpcUrl",
+].join("\n");
 const [
   network = "mainnet",
   nearTx = "2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4",
@@ -69,3 +75,6 @@ console.log(`evm node       ${redactUrl(evmUrl)}`);
 for (const check of proof.checks) console.log(`${check.ok ? "ok  " : "FAIL"} ${check.id.padEnd(14)}${check.detail}`);
 console.log(`from           ${proof.evm.from ?? "unknown"}, nonce ${String(proof.evm.nonce)}, block ${proof.evm.blockNumber ?? "none"}, status ${proof.evm.status ?? "none"}`);
 console.log(`verdict        ${proof.verdict}`);
+if (rpcArg === undefined && chainId === 11155111 && proof.checks.some((c) => c.id === "receipt" && !c.ok)) {
+  console.log("note           this node gave no receipt; pass https://sepolia.gateway.tenderly.co as the fifth argument");
+}

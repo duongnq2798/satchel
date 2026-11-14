@@ -123,7 +123,21 @@ export function nep641ToNep413(msg: OffchainMessage, callbackUrl?: string): Nep4
   };
 }
 
-export type Nep641ParseCode = "malformed" | "unknown-field" | "wrong-schema" | "timestamp-format";
+export type Nep641ParseCode = "malformed" | "too-long" | "unknown-field" | "wrong-schema" | "timestamp-format";
+
+/** The size caps parseAccessKeyAuthorization applies before any decoding or hashing. */
+export const NEP641_LIMITS = Object.freeze({
+  /** The default for maxPayloadBytes: msg.payload in UTF-8, as verifyAccountProof's maxMessageBytes. */
+  payloadBytes: 8192,
+  /** Entries in msg.path. */
+  pathEntries: 16,
+  chainIdChars: 64,
+  accessKeyChars: 128,
+  signatureChars: 256,
+  callbackUrlChars: 2048,
+  /** Beyond six characters per payload byte (JSON escapes a code unit in six), for the other fields and whitespace. */
+  blobSlackChars: 32_768,
+});
 
 const KEY_BYTES: Record<string, number> = { ed25519: 32, secp256k1: 64 };
 const SIGNATURE_BYTES: Record<string, number> = { ed25519: 64, secp256k1: 65 };
@@ -148,14 +162,22 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
  * are refused at every level (the reference refuses them on the authorization itself; this is
  * stricter inside `msg` and `via`). `via.schema` must be "nep413"; `path` may be omitted when empty;
  * the timestamp must be RFC 3339 in UTC with a Z (another offset is refused, stricter than upstream).
- * The value always carries `path`. Never throws.
+ * The value always carries `path`. Never throws. Sizes are capped before anything is decoded or
+ * hashed (too-long, see NEP641_LIMITS): a blob string over 6 × maxPayloadBytes + 32768 characters is
+ * not parsed, msg.payload may take at most `maxPayloadBytes` (default 8192) in UTF-8, msg.path at most
+ * 16 entries, chain_id 64, access_key 128, signature 256 and callback_url 2048 characters.
  */
 export function parseAccessKeyAuthorization(
   json: unknown,
+  options: { maxPayloadBytes?: number } = {},
 ): { ok: true; value: AccessKeyAuthorization } | { ok: false; code: Nep641ParseCode; reason: string } {
   const fail = (code: Nep641ParseCode, reason: string) => ({ ok: false as const, code, reason });
+  const maxPayloadBytes = options.maxPayloadBytes ?? NEP641_LIMITS.payloadBytes;
+  const tooLong = (v: unknown, max: number) => typeof v === "string" && v.length > max;
   let value = json;
   if (typeof json === "string") {
+    const maxBlob = 6 * maxPayloadBytes + NEP641_LIMITS.blobSlackChars;
+    if (json.length > maxBlob) return fail("too-long", `the authorization is longer than ${maxBlob} characters`);
     try {
       value = JSON.parse(json);
     } catch {
@@ -175,9 +197,11 @@ export function parseAccessKeyAuthorization(
   const inMsg = unknown(msg, ["chain_id", "signer_id", "path", "timestamp", "payload"], "msg");
   if (inMsg) return inMsg;
   if (typeof msg.chain_id !== "string") return fail("malformed", "msg.chain_id must be a string");
+  if (tooLong(msg.chain_id, NEP641_LIMITS.chainIdChars)) return fail("too-long", `msg.chain_id is longer than ${NEP641_LIMITS.chainIdChars} characters`);
   if (typeof msg.signer_id !== "string" || !isAccountId(msg.signer_id)) return fail("malformed", "msg.signer_id must be a NEAR account id");
   // Omitted means empty; null is not a list (serde's `default` fills in only a missing field).
   const path = msg.path === undefined ? [] : msg.path;
+  if (Array.isArray(path) && path.length > NEP641_LIMITS.pathEntries) return fail("too-long", `msg.path has more than ${NEP641_LIMITS.pathEntries} entries`);
   if (!Array.isArray(path) || !path.every((id) => typeof id === "string" && isAccountId(id))) {
     return fail("malformed", "msg.path must be a list of NEAR account ids");
   }
@@ -186,6 +210,10 @@ export function parseAccessKeyAuthorization(
     return fail("timestamp-format", `msg.timestamp ${JSON.stringify(msg.timestamp)} is not an RFC 3339 UTC time with a Z (0-9 fractional digits), from 1970 to 2554`);
   }
   if (typeof msg.payload !== "string") return fail("malformed", "msg.payload must be a string");
+  // UTF-8 never takes fewer bytes than UTF-16 code units, so a longer string is refused unencoded.
+  if (msg.payload.length > maxPayloadBytes || new TextEncoder().encode(msg.payload).length > maxPayloadBytes) {
+    return fail("too-long", `msg.payload is longer than ${maxPayloadBytes} bytes`);
+  }
 
   const via = value.via;
   if (!isObject(via)) return fail("malformed", "via must be an object");
@@ -199,9 +227,13 @@ export function parseAccessKeyAuthorization(
     if (inExtra) return inExtra;
     const cb = via.extra.callback_url;
     if (cb !== undefined && cb !== null && typeof cb !== "string") return fail("malformed", "via.extra.callback_url must be a string");
+    if (tooLong(cb, NEP641_LIMITS.callbackUrlChars)) return fail("too-long", `via.extra.callback_url is longer than ${NEP641_LIMITS.callbackUrlChars} characters`);
     extra = typeof cb === "string" ? { callback_url: cb } : {};
   }
 
+  if (tooLong(value.access_key, NEP641_LIMITS.accessKeyChars) || tooLong(value.signature, NEP641_LIMITS.signatureChars)) {
+    return fail("too-long", `access_key or signature is longer than ${NEP641_LIMITS.accessKeyChars} or ${NEP641_LIMITS.signatureChars} characters`);
+  }
   if (curveOf(value.access_key, KEY_BYTES) === null) return fail("malformed", "access_key must be ed25519:<base58 of 32 bytes> or secp256k1:<base58 of 64 bytes>");
   if (curveOf(value.signature, SIGNATURE_BYTES) === null) {
     return fail("malformed", "signature must be ed25519:<base58 of 64 bytes> or secp256k1:<base58 of 65 bytes>");
@@ -248,7 +280,7 @@ const said = (err: unknown) => (err instanceof Error ? err.message : String(err)
 /**
  * Resolves one NEP-641 access-key authorization (a leaf) at one block (default the final one), by the
  * NEP's verification procedure:
- *   0. parse (parseAccessKeyAuthorization);
+ *   0. parse (parseAccessKeyAuthorization), sizes capped before any decoding or hashing;
  *   1. `chain_id` is `expect.chainId`; 2. `signer_id` is `expect.signerId`; 3. `path` is `expect.path`
  *      (default []), element by element;
  *   4. the signature verifies, strict ed25519 over the NEP-413 mapping (nep641ToNep413), with
@@ -268,12 +300,14 @@ export async function verifyNep641Leaf(input: {
   expect: { chainId: "mainnet" | "testnet"; signerId: string; path?: string[] };
   at?: At;
   strictBlock?: boolean;
+  /** msg.payload's cap in UTF-8 bytes (parseAccessKeyAuthorization); default 8192. */
+  maxPayloadBytes?: number;
 }): Promise<Nep641LeafResult> {
   type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
   const fail = (step: Step, code: Nep641Code, reason: string, cause?: unknown): Nep641LeafResult =>
     cause === undefined ? { ok: false, step, code, reason } : { ok: false, step, code, reason, cause };
 
-  const parsed = parseAccessKeyAuthorization(input.authorization);
+  const parsed = parseAccessKeyAuthorization(input.authorization, { maxPayloadBytes: input.maxPayloadBytes });
   if (!parsed.ok) return fail(0, parsed.code, parsed.reason);
   const auth = parsed.value;
   const msg = auth.msg;

@@ -13,7 +13,9 @@ import {
   EVM_READ_METHODS,
   MPC_CONTRACTS,
   MPC_ROOT_KEYS,
+  MPC_SIGN_DOMAINS,
   type MpcResponse,
+  ReadOnlyError as ChainSignaturesReadOnlyError,
   type SignTxAudit,
   auditSignTx,
   crossCheckDerivation,
@@ -60,6 +62,11 @@ const DERIVED = {
   testnet: loadFixture<Cassette>("primitives/chain-signatures/derived-keys-domains-testnet.json"),
   mainnet: loadFixture<Cassette>("primitives/chain-signatures/derived-keys-domains-mainnet.json"),
 };
+/** Domains 4 and 5, recorded at a later final block of each network. */
+const DERIVED_LATER = {
+  testnet: loadFixture<Cassette>("primitives/chain-signatures/derived-keys-domains-4-5-testnet.json"),
+  mainnet: loadFixture<Cassette>("primitives/chain-signatures/derived-keys-domains-4-5-mainnet.json"),
+};
 const DAO_VOTE_TRIMMED = loadFixture<TxStatusView>("dao-vote-outcome.json");
 
 const deployment = (file: string) => JSON.parse(readFileSync(new URL(`../../../deployments/${file}`, import.meta.url), "utf8"));
@@ -79,7 +86,7 @@ const copy = <T>(value: T): T => structuredClone(value);
 const senderOf = (f: TxFixture) => (f.provenance.params as { sender_account_id: string }).sender_account_id;
 /** A replaying RpcCall for a transaction answer (the recorded one, or a changed copy). */
 const replayTx = (f: TxFixture, result: TxStatusView = f.result) => replayRpc(cassetteOf({ provenance: f.provenance, result }));
-const auditOf = (name: TxName, network: "testnet" | "mainnet", options: { result?: TxStatusView; rootKeys?: Partial<Record<0 | 1, string>> } = {}) =>
+const auditOf = (name: TxName, network: "testnet" | "mainnet", options: { result?: TxStatusView; rootKeys?: Partial<Record<number, string>> } = {}) =>
   auditSignTx(replayTx(TX[name], options.result), TX[name].result.transaction.hash, {
     sender: senderOf(TX[name]),
     mpcContract: MPC_CONTRACTS[network],
@@ -112,6 +119,20 @@ const SIGNED = {
 const SECP_SIGNED = ["EZLX", "2ryQps", "9FsA", "2xqwe8", "FnFSMSh1"] as const;
 const ED_SIGNED = ["FgbW", "HthQSVE"] as const;
 
+// In-test changes for the signing domains 4 and 5 and for a domain id this code does not know: the
+// request's domain_id and the callback's (a deep copy of the recorded transaction), nothing else.
+const onDomain = (name: "9FsA" | "FgbW", domain: number) => {
+  const tx = copy(TX[name].result);
+  const sign = functionCallOf(tx, SIGNED[name].sign);
+  const { request } = JSON.parse(decodeBase64(sign.args));
+  sign.args = encodeArgs({ request: { ...request, domain_id: domain } });
+  const callback = functionCallOf(tx, SIGNED[name].callback);
+  const args = JSON.parse(decodeBase64(callback.args));
+  args[0].domain_id = domain;
+  callback.args = encodeArgs(args);
+  return tx;
+};
+
 /** The key a recorded request was signed with, derived from the pinned root key. */
 function keyFor(name: keyof typeof SIGNED): string {
   const [request] = mpcRequests(TX[name].result, MPC_CONTRACTS[SIGNED[name].network]);
@@ -128,13 +149,16 @@ describe("MPC_CONTRACTS, MPC_ROOT_KEYS and evmAddress", () => {
     expect(MPC_ROOT_KEYS.testnet[0]).toBe(TESTNET.mpcRootKey);
     expect(MPC_ROOT_KEYS.mainnet[0]).toBe(MAINNET.mpcRootKey);
     for (const network of ["testnet", "mainnet"] as const) {
-      const roots = DERIVED[network].calls
+      const roots = [...DERIVED[network].calls, ...DERIVED_LATER[network].calls]
         .filter((c) => (c.params as { method_name?: string }).method_name === "public_key")
         .map((c) => [
           JSON.parse(decodeBase64((c.params as { args_base64: string }).args_base64)).domain_id,
           JSON.parse(new TextDecoder().decode(Uint8Array.from((c.result as { result: number[] }).result))),
         ]);
       expect(Object.fromEntries(roots)).toEqual(MPC_ROOT_KEYS[network]);
+      // One root key per signing domain, on the domain's curve.
+      expect(Object.keys(MPC_ROOT_KEYS[network])).toEqual(Object.keys(MPC_SIGN_DOMAINS));
+      for (const [domain, key] of Object.entries(MPC_ROOT_KEYS[network])) expect(key.startsWith(`${MPC_SIGN_DOMAINS[Number(domain)]}:`)).toBe(true);
     }
   });
 
@@ -160,7 +184,7 @@ describe("crossCheckDerivation, on the recorded final blocks", () => {
     const check = await crossCheckDerivation(rpc, MPC_CONTRACTS.testnet, testnetCases, at);
     expect(check.block.hash).toBe(at.blockHash);
     expect(check.block.height).toBe(DERIVED.testnet.provenance.block?.height);
-    expect(check.rootKeys).toEqual(MPC_ROOT_KEYS.testnet);
+    expect(check.rootKeys).toEqual({ 0: MPC_ROOT_KEYS.testnet[0], 1: MPC_ROOT_KEYS.testnet[1] });
     expect(check.results.map((r) => r.match)).toEqual(testnetCases.map(() => true));
     expect(check.results[0].contract).toBe(derived.testnet.keys["satchel/1"]);
     expect(check.results[11]).toMatchObject({ predecessor: "tx-bench.testnet", path: "", domain: 1, local: TX_BENCH_ED25519, contract: TX_BENCH_ED25519 });
@@ -174,6 +198,31 @@ describe("crossCheckDerivation, on the recorded final blocks", () => {
     expect(check.results.every((r) => r.match)).toBe(true);
     expect(check.results[0].local).toBe(derived.mainnet.keys["satchel/1"]);
     expect(check.rootKeys).toEqual({ 0: MPC_ROOT_KEYS.mainnet[0] });
+  });
+
+  it("derives the domain 4 (secp256k1) and 5 (ed25519) keys the same way, on both networks, from each domain's own root key", async () => {
+    for (const network of ["testnet", "mainnet"] as const) {
+      const cassette = DERIVED_LATER[network];
+      const contract = network === "testnet" ? TESTNET.contract : MAINNET.contract;
+      const cases = [
+        { predecessor: contract, path: "satchel/1", domain: 4 },
+        { predecessor: contract, path: "satchel/1", domain: 5 },
+        ...(network === "testnet"
+          ? [
+              { predecessor: "tx-bench.testnet", path: "", domain: 4 },
+              { predecessor: "tx-bench.testnet", path: "", domain: 5 },
+            ]
+          : []),
+      ];
+      const rpc = replayRpc(cassette);
+      const check = await crossCheckDerivation(rpc, MPC_CONTRACTS[network], cases, { blockHash: cassette.provenance.block?.hash as string });
+      expect(check.rootKeys).toEqual({ 4: MPC_ROOT_KEYS[network][4], 5: MPC_ROOT_KEYS[network][5] });
+      expect(check.results.map((r) => r.match)).toEqual(cases.map(() => true));
+      expect(check.results.map((r) => r.local.slice(0, r.local.indexOf(":")))).toEqual(cases.map((c) => MPC_SIGN_DOMAINS[c.domain]));
+      // Another domain's root key gives another key for the same caller and path.
+      expect(check.results[0].local).not.toBe(deriveKey(MPC_ROOT_KEYS[network][0], contract, "satchel/1", 0));
+      expect(rpc.unused()).toEqual([]);
+    }
   });
 
   it("reports a contract key that differs as match: false, from that block's own root key", async () => {
@@ -404,9 +453,50 @@ describe("mpcRequests, on the recorded transactions", () => {
       return mpcRequests(tx, MPC_CONTRACTS.testnet)[0];
     };
     expect(legacy(0)).toMatchObject({ status: "signed", request: { form: "legacy", domain: 0, payload: { kind: "ecdsa" } } });
-    expect(legacy(5)).toMatchObject({ status: "inconsistent", detail: "legacy key_version 5 is not mapped", request: { domain: null } });
-    // key_version 1 is domain 1 (ed25519), which a legacy (ECDSA) payload does not fit.
-    expect(legacy(1)).toMatchObject({ status: "inconsistent", request: { domain: 1, payload: { kind: "ecdsa" } } });
+    // key_version 1 and 5 are ed25519 domains, which a legacy (ECDSA) payload does not fit (the contract
+    // would refuse it, so a recorded one would show as failed).
+    expect(legacy(1)).toMatchObject({ status: "inconsistent", detail: "an ecdsa payload does not fit domain 1 (ed25519)", request: { domain: 1, payload: { kind: "ecdsa" } } });
+    expect(legacy(5)).toMatchObject({ status: "inconsistent", detail: "an ecdsa payload does not fit domain 5 (ed25519)", request: { domain: 5, payload: { kind: "ecdsa" } } });
+    // key_version 4 is domain 4 (secp256k1): a valid request. The recorded callback still names domain
+    // 0, so it is the callback that does not match.
+    expect(legacy(4)).toMatchObject({ status: "inconsistent", detail: expect.stringContaining("domain_id"), request: { form: "legacy", domain: 4 } });
+    // A key_version that is not a non-negative integer is refused.
+    for (const bad of [-1, 1.5]) {
+      expect(legacy(bad)).toMatchObject({ status: "inconsistent", detail: `legacy key_version ${bad} is not a key version`, request: { domain: null } });
+    }
+  });
+
+  it("follows a request on signing domain 4 (secp256k1) or 5 (ed25519) as on 0 or 1, and parses the answer by the payload's kind", () => {
+    const secp = mpcRequests(onDomain("9FsA", 4), MPC_CONTRACTS.testnet);
+    expect(secp).toHaveLength(1);
+    expect(secp[0]).toMatchObject({ status: "signed", detail: null, request: { domain: 4, payload: { kind: "ecdsa" } }, hops: [SIGNED["9FsA"].sign, SIGNED["9FsA"].callback] });
+    expect(secp[0].response).toEqual(answerOf(TX["9FsA"].result, SIGNED["9FsA"].callback));
+    const ed = mpcRequests(onDomain("FgbW", 5), MPC_CONTRACTS.testnet);
+    expect(ed[0]).toMatchObject({ status: "signed", detail: null, request: { domain: 5, payload: { kind: "eddsa" } } });
+    expect(ed[0].response).toEqual(answerOf(TX.FgbW.result, SIGNED.FgbW.callback));
+  });
+
+  it("follows a request on a domain id it does not know, with no fit check: the contract refuses a misfit, which shows as failed", () => {
+    for (const domain of [2, 9]) {
+      expect(mpcRequests(onDomain("9FsA", domain), MPC_CONTRACTS.testnet)[0]).toMatchObject({ status: "signed", request: { domain } });
+      // An Eddsa payload on an unknown domain is not called inconsistent here.
+      expect(mpcRequests(onDomain("FgbW", domain), MPC_CONTRACTS.testnet)[0]).toMatchObject({ status: "signed", request: { domain, payload: { kind: "eddsa" } } });
+    }
+    // In-test change: the contract refused the request (its sign receipt fails), as it does for a
+    // domain that is not a Sign domain.
+    const refused = onDomain("9FsA", 9);
+    outcomeOf(refused, SIGNED["9FsA"].sign).outcome.status = {
+      Failure: { ActionError: { index: 0, kind: { FunctionCallError: { ExecutionError: "Smart contract panicked: the domain is not a Sign domain" } } } },
+    };
+    expect(mpcRequests(refused, MPC_CONTRACTS.testnet)[0]).toMatchObject({ status: "failed", request: { domain: 9 }, response: null });
+    // An id that is not a non-negative integer is still refused.
+    for (const bad of [-1, 0.5, "0"]) {
+      const tx = copy(TX["9FsA"].result);
+      const sign = functionCallOf(tx, SIGNED["9FsA"].sign);
+      const { request } = JSON.parse(decodeBase64(sign.args));
+      sign.args = encodeArgs({ request: { ...request, domain_id: bad } });
+      expect(mpcRequests(tx, MPC_CONTRACTS.testnet)[0]).toMatchObject({ status: "inconsistent", detail: `domain_id ${JSON.stringify(bad)} is not a domain id`, request: { domain: null } });
+    }
   });
 
   it("calls a payload that does not fit its domain inconsistent", () => {
@@ -642,6 +732,32 @@ describe("auditSignTx, through replayRpc", () => {
     }
   });
 
+  it("audits a domain 4 or 5 request under that domain's own root key, and reaches its answer (no orphan, no inconsistency)", async () => {
+    // In-test change (onDomain): 9FsA's and FgbW's requests moved to domains 4 and 5. Their answers were
+    // made by the domain 0 and 1 keys, so under domain 4's and 5's keys they do not verify.
+    for (const [name, domain] of [
+      ["9FsA", 4],
+      ["FgbW", 5],
+    ] as const) {
+      const audit = await auditOf(name, "testnet", { result: onDomain(name, domain) });
+      expect(audit.orphanResponses).toBe(0);
+      expect(audit.verdict).toBe("some-unverified");
+      const [request] = audit.requests;
+      expect(request.status).toBe("signed");
+      expect(request.derivedKey).toBe(deriveKey(MPC_ROOT_KEYS.testnet[domain], request.request.predecessor, request.request.path, domain));
+      expect(request.verify?.ok).toBe(false);
+      expect(request.evmAddress === null).toBe(domain === 5);
+    }
+    // Without domain 4's root key the request is followed but not verified.
+    const without = await auditOf("9FsA", "testnet", { result: onDomain("9FsA", 4), rootKeys: { 0: MPC_ROOT_KEYS.testnet[0] } });
+    expect(without).toMatchObject({ verdict: "some-unverified", orphanResponses: 0, requests: [{ status: "signed", derivedKey: null, verify: null, evmAddress: null }] });
+  });
+
+  it("follows a request on a domain it does not know and never verifies it, whatever root keys are passed", async () => {
+    const audit = await auditOf("9FsA", "testnet", { result: onDomain("9FsA", 2), rootKeys: { ...MPC_ROOT_KEYS.testnet, 2: MPC_ROOT_KEYS.testnet[0] } });
+    expect(audit).toMatchObject({ verdict: "some-unverified", orphanResponses: 0, requests: [{ status: "signed", derivedKey: null, verify: null, evmAddress: null }] });
+  });
+
   it("verifies only the domains whose root key was passed, and never fetches one", async () => {
     const audit = await auditOf("FgbW", "testnet", { rootKeys: { 0: MPC_ROOT_KEYS.testnet[0] } });
     expect(audit.requests[0]).toMatchObject({ status: "signed", derivedKey: null, verify: null, evmAddress: null });
@@ -837,6 +953,30 @@ describe("readOnlyEvm, readOnlyEvmClient and evmJsonRpc", () => {
     expect(request).toHaveBeenCalledTimes(EVM_READ_METHODS.length);
   });
 
+  it("refuses with EIP-1193's code 4200, so viem neither retries a refused read nor hides the ReadOnlyError", async () => {
+    // A counting wrapper around the guard, under viem's own retrying transport.
+    let entered = 0;
+    const guarded = readOnlyEvm(async () => "0x1");
+    const counting = async (args: { method: string; params?: unknown }) => {
+      entered++;
+      return guarded(args);
+    };
+    const client = createPublicClient({ chain: sepolia, transport: custom({ request: counting }, { retryCount: 3, retryDelay: 1 }) });
+    const err = await client.getBalance({ address: TOKEN_1 as Hex }).then(
+      () => null,
+      (e: unknown) => e as Error & { cause?: unknown; code?: number },
+    );
+    expect(entered).toBe(1);
+    expect(err?.name).toBe("UnsupportedProviderMethodError");
+    expect(err?.code).toBe(4200);
+    expect(err?.cause).toBeInstanceOf(ReadOnlyError);
+    expect(await guarded({ method: "eth_getBalance" }).catch((e: unknown) => e)).toMatchObject({ code: 4200, method: "eth_getBalance" });
+  });
+
+  it("re-exports near-rpc's ReadOnlyError, the class readOnlyEvm throws", () => {
+    expect(ChainSignaturesReadOnlyError).toBe(ReadOnlyError);
+  });
+
   it("gives a client whose sendRawTransaction rejects with ReadOnlyError, and no fetch happens", async () => {
     const fetch = vi.fn(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetch);
@@ -849,6 +989,9 @@ describe("readOnlyEvm, readOnlyEvmClient and evmJsonRpc", () => {
       const chain: unknown[] = [];
       for (let e = err as { cause?: unknown } | undefined; e; e = e.cause as { cause?: unknown } | undefined) chain.push(e);
       expect(chain.some((e) => e instanceof ReadOnlyError)).toBe(true);
+      // viem's error is on top, with the ReadOnlyError as its cause.
+      expect(chain[0]).toMatchObject({ name: "UnsupportedProviderMethodError" });
+      expect(chain[1]).toBeInstanceOf(ReadOnlyError);
       expect(fetch).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
@@ -874,6 +1017,59 @@ describe("readOnlyEvm, readOnlyEvmClient and evmJsonRpc", () => {
     const httpError = await request({ method: "eth_chainId" }).catch((e: unknown) => e as Error);
     expect(httpError).toMatchObject({ status: 429 });
     for (const e of [rpcError, httpError]) expect(`${(e as Error).message} ${JSON.stringify(e)}`).not.toContain("SECRET-KEY");
+  });
+
+  it("never repeats a secret of its URL: refused when built with credentials or unparsable, and a network error by name only", async () => {
+    /** Every string reachable from an error: its message, its fields and its causes. */
+    const text = (err: unknown): string => {
+      const out: string[] = [];
+      const seen = new Set<unknown>();
+      const walk = (v: unknown) => {
+        if (v === null || v === undefined || seen.has(v)) return;
+        if (typeof v === "string") {
+          out.push(v);
+          return;
+        }
+        if (typeof v !== "object") {
+          out.push(String(v));
+          return;
+        }
+        seen.add(v);
+        if (v instanceof Error) out.push(v.message, v.stack ?? "");
+        for (const key of Object.getOwnPropertyNames(v)) walk((v as Record<string, unknown>)[key]);
+      };
+      walk(err);
+      return out.join(" ");
+    };
+    const refused = (url: string) => {
+      try {
+        evmJsonRpc(url);
+        return null;
+      } catch (e) {
+        return e;
+      }
+    };
+    const withCredentials = refused("https://user:SECRETPASS@rpc.example.org/v2/SECRETPATH?apikey=SECRETQUERY");
+    expect(withCredentials).toBeInstanceOf(TypeError);
+    expect(text(withCredentials)).not.toMatch(/SECRET/);
+    const unparsable = refused("rpc.example.org/v2/SECRETPATH");
+    expect(unparsable).toBeInstanceOf(TypeError);
+    expect(text(unparsable)).not.toMatch(/SECRET/);
+    expect(() => readOnlyEvmClient(sepolia, "https://user:SECRETPASS@rpc.example.org/")).toThrow(TypeError);
+
+    // A fetch failure whose message and cause quote the whole URL, as undici's do.
+    const url = "https://rpc.example.org/v2/SECRETPATH?apikey=SECRETQUERY";
+    const fetch = vi.fn(async () => {
+      throw Object.assign(new TypeError(`fetch failed for ${url}`), { cause: Object.assign(new Error(`connect ECONNREFUSED ${url}`), { code: "ECONNREFUSED" }) });
+    });
+    const err = (await evmJsonRpc(url, { fetch: fetch as unknown as typeof globalThis.fetch })({ method: "eth_chainId" }).then(
+      () => null,
+      (e: unknown) => e,
+    )) as (Error & { details?: string }) | null;
+    expect(err?.name).toBe("HttpRequestError");
+    expect(err?.details).toBe("network error (TypeError ECONNREFUSED)");
+    expect(text(err)).not.toMatch(/SECRET/);
+    expect(text(err)).toContain("https://rpc.example.org");
   });
 });
 

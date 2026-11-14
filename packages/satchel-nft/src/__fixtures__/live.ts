@@ -60,10 +60,16 @@ export function liveArchival(network: NetworkName): RpcCall {
   return readOnlyRpc(withFallback(httpRpc(archival, optionsFor(archival)), httpRpc(nearArchival)));
 }
 
-/** EVM nodes for the EVM checks: config.ts's publicnode URLs unless overridden (not viem's defaults). */
+/**
+ * EVM nodes for the EVM checks, each overridable (never viem's defaults). Base: config.ts's publicnode
+ * URL. Sepolia: the node the evm-sepolia-27e3 cassette was captured from (the capture script's
+ * THIRD_PARTY.sepoliaReceipts), a departure from the spec's config.ts default: on 2026-11-14
+ * config.ts's publicnode Sepolia node answered transaction 0x27e3…5ba3 but a null receipt for it, so
+ * the receipt check could not pass there.
+ */
 export const LIVE_EVM_RPC = {
   base: env("SATCHEL_LIVE_BASE_RPC") ?? configRpc(8453),
-  sepolia: env("SATCHEL_LIVE_SEPOLIA_RPC") ?? configRpc(11155111),
+  sepolia: env("SATCHEL_LIVE_SEPOLIA_RPC") ?? "https://sepolia.gateway.tenderly.co",
 } as const;
 
 function configRpc(chainId: number): string {

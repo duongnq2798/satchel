@@ -251,6 +251,39 @@ describe("httpRpc (transport, fake fetch)", () => {
     expect(JSON.stringify({ ...(err as object), message: (err as Error).message })).not.toMatch(/k-123|secret-path/);
   });
 
+  it("refuses, when built, a header fetch would refuse, naming the header but not its value, and no request leaves", () => {
+    const fetch = fakeFetch([ok("never")]);
+    const builds = [
+      (headers: Record<string, string>) => httpRpc(URL_A, { fetch, headers }),
+      (headers: Record<string, string>) => httpGetJson(`${URL_A}/v1/account/a.near/nft`, { fetch, headers }),
+      (headers: Record<string, string>) => fastnearSenderLookup(ENDPOINTS.testnet.txApi, { fetch, headers }),
+    ];
+    for (const build of builds) {
+      let err: unknown = null;
+      try {
+        build({ Authorization: "Bearer SECRETKEY\nX-Injected: 1" });
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(TypeError);
+      expect((err as Error).message).toContain("Authorization");
+      expect((err as Error).message).not.toMatch(/SECRETKEY|Injected/);
+      expect(() => build({ "bad header": "x" })).toThrow("a header name fetch refuses was given in headers");
+    }
+    expect(fetch.seen).toEqual([]);
+  });
+
+  it("refuses a URL it cannot parse without repeating it", () => {
+    let err: unknown = null;
+    try {
+      httpRpc("rpc.example.org/SECRETPATH");
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(TypeError);
+    expect((err as Error).message).not.toContain("SECRETPATH");
+  });
+
   it("refuses a URL with credentials or a query string", () => {
     const text =
       'httpRpc takes a URL without credentials or a query string; send an API key as headers: { Authorization: "Bearer <key>" }';
@@ -273,6 +306,18 @@ describe("httpGetJson and fastnearSenderLookup (transport, fake fetch)", () => {
     const { value } = await settle(() => httpGetJson<{ tokens: unknown[] }>("https://api.fastnear.com/v1/account/a.near/nft", { fetch }));
     expect(value).toEqual({ tokens: [] });
     expect(fetch.seen.map((s) => s.init.method ?? "GET")).toEqual(["GET", "GET"]);
+  });
+
+  it("names the method and origin in its errors, never the path, which can hold a key", async () => {
+    const fetch = fakeFetch([{ status: 404, text: "no" }]);
+    const err = (await httpGetJson("https://api.example.org/SECRETPATHKEY/v1/account/a.near/nft", { fetch }).then(
+      () => null,
+      (e: unknown) => e,
+    )) as RpcError;
+    expect(err).toBeInstanceOf(RpcError);
+    expect(err).toMatchObject({ method: "GET", endpoint: "https://api.example.org" });
+    expect(`${err.message} ${JSON.stringify(err)}`).not.toContain("SECRETPATHKEY");
+    expect(fetch.seen[0].url).toBe("https://api.example.org/SECRETPATHKEY/v1/account/a.near/nft");
   });
 
   it("asks FastNEAR's transaction index for the signer, as dao.ts does, and returns null when it has none", async () => {
@@ -444,7 +489,7 @@ describe("blockAt and pinnedReader, on recorded mainnet answers", () => {
     for (const name of ["UNKNOWN_ACCESS_KEY", "UNKNOWN_ACCOUNT"]) {
       const node = (async (method: string, p: unknown) => {
         if ((p as Record<string, unknown>).request_type !== "view_access_key") return replay(method, p);
-        throw new RpcError({ method, kind: "rpc-error", endpoint: URL_A, detail: name, data: { name: "HANDLER_ERROR", cause: { name } } });
+        throw new RpcError({ method, kind: "rpc-error", endpoint: URL_A, detail: name, data: { name: "HANDLER_ERROR", cause: { name, info: { block_hash: hash } } } });
       }) as RpcCall;
       const reader = await pinnedReader(node, { blockHash: hash });
       expect(await reader.accessKey(MAINNET_DEPLOY.parent_account, "ed25519:11111111111111111111111111111111")).toBeNull();
@@ -455,6 +500,62 @@ describe("blockAt and pinnedReader, on recorded mainnet answers", () => {
     }) as RpcCall;
     const reader = await pinnedReader(other, { blockHash: hash });
     await expect(reader.accessKey(MAINNET_DEPLOY.parent_account, "ed25519:11111111111111111111111111111111")).rejects.toBeInstanceOf(RpcError);
+  });
+
+  it("holds an error it reads as an answer to the pinned block, as it holds a result (in-test changes to the recorded errors)", async () => {
+    // The recorded UNKNOWN_ACCOUNT (missing.v1.satchel-nft.near) and NO_CONTRACT_CODE (satchel-nft.near)
+    // errors name the pinned block in cause.info.block_hash. Each copy changes or deletes that hash.
+    const missingAccount = `missing.${MAINNET_DEPLOY.contract}`;
+    const errorsOf = (cassette: Cassette) => cassette.calls.filter((c) => c.error !== undefined) as (Recorded & { error: { cause: { name: string; info: Record<string, unknown> } } })[];
+    expect(errorsOf(VIEWS).map((c) => [c.error.cause.name, c.error.cause.info.block_hash])).toEqual([
+      ["UNKNOWN_ACCOUNT", hash],
+      ["UNKNOWN_ACCOUNT", hash],
+      ["NO_CONTRACT_CODE", hash],
+    ]);
+    const changed = (change: (info: Record<string, unknown>) => void) => {
+      const cassette = copy(VIEWS);
+      for (const c of errorsOf(cassette)) change(c.error.cause.info);
+      return cassette;
+    };
+    const other = changed((info) => {
+      info.block_hash = "11111111111111111111111111111111";
+    });
+    const none = changed((info) => {
+      delete info.block_hash;
+    });
+    const reads = (reader: Awaited<ReturnType<typeof pinnedReader>>) => [
+      () => reader.account(missingAccount),
+      () => reader.codeSha256(MAINNET_DEPLOY.parent_account),
+      () => reader.view(missingAccount, "mpc_contract"),
+    ];
+    // About another block: refused, strict or not, as a result about another block is.
+    for (const strictBlock of [true, false]) {
+      for (const read of reads(await pinnedReader(replayRpc(other), { blockHash: hash }, { strictBlock }))) {
+        const err = await read().then(
+          () => null,
+          (e: unknown) => e,
+        );
+        expect(err).toBeInstanceOf(RpcError);
+        expect(err).toMatchObject({ kind: "bad-answer", detail: `answered at block 11111111111111111111111111111111, not ${hash}` });
+        expect((err as RpcError).cause).toBeInstanceOf(RpcError);
+      }
+    }
+    // Naming no block: refused when strict; read as before when not.
+    for (const read of reads(await pinnedReader(replayRpc(none), { blockHash: hash }))) {
+      await expect(read()).rejects.toMatchObject({ kind: "bad-answer", detail: "answered without a block hash" });
+    }
+    const lenient = await pinnedReader(replayRpc(none), { blockHash: hash }, { strictBlock: false });
+    expect(await lenient.account(missingAccount)).toBeNull();
+    expect(await lenient.codeSha256(MAINNET_DEPLOY.parent_account)).toBeNull();
+    await expect(lenient.view(missingAccount, "mpc_contract")).rejects.toMatchObject({ kind: "account-missing" });
+    // An error the reader does not read as an answer is passed on unchanged, whatever block it names.
+    const replay = replayRpc(VIEWS);
+    const unknownBlock = (async (method: string, p: unknown) => {
+      if (method !== "query") return replay(method, p);
+      throw new RpcError({ method, kind: "rpc-error", endpoint: URL_A, detail: "x", data: { name: "HANDLER_ERROR", cause: { name: "UNKNOWN_BLOCK", info: {} } } });
+    }) as RpcCall;
+    const passOn = await pinnedReader(unknownBlock, { blockHash: hash });
+    await expect(passOn.account(missingAccount)).rejects.toMatchObject({ kind: "rpc-error", detail: "x" });
   });
 
   it("lists no key on the locked contract, and no code on an account without any", async () => {

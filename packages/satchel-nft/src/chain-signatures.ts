@@ -19,7 +19,7 @@ import {
   serializeTransaction,
 } from "viem";
 import { base58Decode } from "./base58.js";
-import { type MpcDomain, deriveKey, deriveTweak } from "./mpc-kdf.js";
+import { type MpcDomain, deriveKey, deriveTweak, signDomainCurve } from "./mpc-kdf.js";
 import {
   type At,
   type PinnedBlock,
@@ -51,25 +51,34 @@ import {
 // `return_signature_and_clean_state_on_success`, whose arguments must carry the request's tweak,
 // payload and domain. Keys are derived here from root keys pinned below, never fetched to verify.
 
-export { type MpcDomain, TWEAK_PREFIX, deriveKey, deriveTweak } from "./mpc-kdf.js";
+export { type MpcCurve, type MpcDomain, MPC_SIGN_DOMAINS, TWEAK_PREFIX, deriveKey, deriveTweak, signDomainCurve } from "./mpc-kdf.js";
+/** The error readOnlyEvm throws for a method it refuses (the same class as satchel-nft/near-rpc's). */
+export { ReadOnlyError } from "./near-rpc.js";
 
 /** NEAR's Chain Signatures contracts. */
 export const MPC_CONTRACTS = { mainnet: "v1.signer", testnet: "v1.signer-prod.testnet" } as const;
 
 /**
- * Each MPC contract's `public_key({domain_id})`, pinned: domain 0 is secp256k1, domain 1 ed25519. They
- * are the trust anchor, so nothing here fetches them; `crossCheckDerivation` is how a change is noticed.
+ * Each MPC contract's `public_key({domain_id})` for its signing domains (MPC_SIGN_DOMAINS), pinned:
+ * domains 0 and 4 are secp256k1, 1 and 5 ed25519, each with its own root key. They are the trust
+ * anchor, so nothing here fetches them; `crossCheckDerivation` is how a change is noticed.
  */
 export const MPC_ROOT_KEYS = {
-  // Read on v1.signer at block 224509629 (FF8VF3XabkuFuCfo43WFGYx8931cpmmoDMJNBDNe8KVA), 2026-11-14.
   mainnet: {
+    // Domains 0 and 1: read on v1.signer at block 224509629 (FF8VF3XabkuFuCfo43WFGYx8931cpmmoDMJNBDNe8KVA), 2026-11-14.
     0: "secp256k1:3tFRbMqmoa6AAALMrEFAYCEoHcqKxeW38YptwowBVBtXK1vo36HDbUWuR6EZmoK4JcH6HDkNMGGqP1ouV7VZUWya",
     1: "ed25519:G9hwngxWNKdmqMCmU1Yt6LPhFpayJeKFxyAV1HqMNLtF",
+    // Domains 4 and 5: read on v1.signer at block 224521129 (2msKYdwCer3GzLEG6kHti3GCznqgHgUdC8XLYGHqdiBh), 2026-11-14.
+    4: "secp256k1:47q96QqEhpbY6R7t3s29w2DKWCV6uKGSPUmaCnppRkrJhD9gjZoHM3qSETbJFhdjiRGHbCpunnGAKDSM78EwGirc",
+    5: "ed25519:8C65zxCVFG2fXN58cDB71gpUeUPQiihzNjEuBsvDLAh1",
   },
-  // Read on v1.signer-prod.testnet at block 277652699 (H2zz4BGLMi3PkUDZ3CAjvx7HhwmQ3ZExWnFJFkZzv4GZ), 2026-11-14.
   testnet: {
+    // Domains 0 and 1: read on v1.signer-prod.testnet at block 277652699 (H2zz4BGLMi3PkUDZ3CAjvx7HhwmQ3ZExWnFJFkZzv4GZ), 2026-11-14.
     0: "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3",
     1: "ed25519:6vSEtQxrQj6txUMh33WC4ERyCWmNMRTdufDWAaDY3Un2",
+    // Domains 4 and 5: read on v1.signer-prod.testnet at block 277663870 (7nEdjbkonBnhTPJzb6oLsiDo5jyemcRd5MVmbTtk2nbe), 2026-11-14.
+    4: "secp256k1:3XcQcfDKvbyNdkKHpN11vtsjX4dX1ABf4HFyqcxiTUbEgnjRzKtR9Cv43fggtseGVCiSxRSgMG5GGFpXhDHyVtuQ",
+    5: "ed25519:HapeyU4SFvrQKMa8zijPF8KC9g5J1tcuxx2FXAfEcQDQ",
   },
 } as const;
 
@@ -90,7 +99,7 @@ export function evmAddress(secp256k1Key: string): `0x${string}` {
 
 // ---- Requests and answers ----------------------------------------------------------------------
 
-/** An MPC answer as the contract returns it: ECDSA for domain 0 (`scheme` may be absent), EdDSA for domain 1. */
+/** An MPC answer as the contract returns it: ECDSA for a secp256k1 domain (`scheme` may be absent), EdDSA for an ed25519 one. */
 export type MpcResponse =
   | { scheme?: "Secp256k1"; big_r: { affine_point: string }; s: { scalar: string }; recovery_id: number }
   | { scheme: "Ed25519"; signature: number[] };
@@ -104,7 +113,12 @@ export interface MpcSignRequest {
   /** Who called `sign`: the key's owner. */
   predecessor: string;
   path: string;
-  /** Null for a domain this code does not check (status "inconsistent"). */
+  /**
+   * The domain id the request names (`domain_id`, or the legacy `key_version`, which near/mpc reads as
+   * the same id). Any non-negative integer is kept: a domain that is not in MPC_SIGN_DOMAINS is
+   * followed like any other, and never verified. Null only when the request names no readable domain
+   * (status "inconsistent").
+   */
   domain: MpcDomain | null;
   /** Lower-case hex of the payload bytes. */
   payload: { kind: "ecdsa" | "eddsa"; hex: string };
@@ -195,12 +209,18 @@ interface ParsedRequest {
   problem: string | null;
 }
 
+/** A domain id as the contract reads one: a non-negative integer (a u64 there; a safe integer here). */
+const isDomainId = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0;
+
 /**
  * `sign`'s `{request: …}`, read as near/mpc's SignRequestArgs reads it: the payload from `payload_v2`
  * or the legacy `payload` (32 numbers, ECDSA), and the domain from `domain_id` or the legacy
  * `key_version`, each on its own. near/mpc reads key_version n as DomainId(n)
- * (crates/near-mpc-crypto-types/src/sign.rs at 686fbb2de1a6b426303c23617ab84773f15bfb19); this code
- * maps only 0 and 1, the domains it checks, and calls any other key_version inconsistent.
+ * (crates/near-mpc-crypto-types/src/sign.rs at 686fbb2de1a6b426303c23617ab84773f15bfb19), and so does
+ * this. The contract's `sign` takes any domain whose purpose is Sign (crates/contract/src/api/sign.rs,
+ * same commit), so any domain id is followed; only a signing domain in MPC_SIGN_DOMAINS is checked
+ * against the payload's kind, since for another one the contract itself refuses a mismatch, which
+ * shows as "failed".
  */
 function parseRequest(argsBase64: string): ParsedRequest {
   const out: ParsedRequest = { path: "", payload: { kind: "ecdsa", hex: "" }, form: "legacy", domain: null, problem: null };
@@ -231,15 +251,16 @@ function parseRequest(argsBase64: string): ParsedRequest {
   const { domain_id: id, key_version: keyVersion } = request;
   if (id !== undefined && keyVersion !== undefined) problem("domain_id and key_version are mutually exclusive");
   if (id !== undefined) {
-    if (id === 0 || id === 1) out.domain = id;
-    else problem(`domain_id ${JSON.stringify(id)} is not a domain this code checks`);
+    if (isDomainId(id)) out.domain = id;
+    else problem(`domain_id ${JSON.stringify(id)} is not a domain id`);
   } else if (keyVersion !== undefined) {
-    if (keyVersion === 0 || keyVersion === 1) out.domain = keyVersion;
-    else problem(`legacy key_version ${JSON.stringify(keyVersion)} is not mapped`);
+    if (isDomainId(keyVersion)) out.domain = keyVersion;
+    else problem(`legacy key_version ${JSON.stringify(keyVersion)} is not a key version`);
   } else problem("the request has no domain_id or key_version");
 
-  if (out.domain !== null && (out.domain === 0) !== (out.payload.kind === "ecdsa")) {
-    problem(`an ${out.payload.kind} payload does not fit domain ${out.domain}`);
+  const curve = out.domain === null ? null : signDomainCurve(out.domain);
+  if (curve !== null && (curve === "secp256k1") !== (out.payload.kind === "ecdsa")) {
+    problem(`an ${out.payload.kind} payload does not fit domain ${out.domain} (${curve})`);
   }
   return out;
 }
@@ -346,9 +367,11 @@ function follow(
 
     const status = statusOf(receipt.status);
     if (status.kind === "value") {
+      // The payload's kind says which signature answers it: ECDSA (secp256k1) or EdDSA (ed25519).
       const value = jsonOf(status.value);
-      const response = request.domain === 0 ? (isSecp256k1Response(value) ? value : null) : isEd25519Response(value) ? value : null;
-      if (!response) return inconsistent(`the callback's answer is not ${request.domain === 0 ? "a secp256k1" : "an ed25519"} signature`);
+      const ecdsa = request.payload.kind === "ecdsa";
+      const response = ecdsa ? (isSecp256k1Response(value) ? value : null) : isEd25519Response(value) ? value : null;
+      if (!response) return inconsistent(`the callback's answer is not ${ecdsa ? "a secp256k1" : "an ed25519"} signature`);
       return done("signed", { callback, response });
     }
     if (status.kind === "receipt") {
@@ -535,7 +558,7 @@ export async function crossCheckDerivation(
 }> {
   const reader = await pinnedReader(rpc, at);
   const rootKeys: Partial<Record<MpcDomain, string>> = {};
-  for (const domain of [...new Set(cases.map((c) => c.domain))].sort()) {
+  for (const domain of [...new Set(cases.map((c) => c.domain))].sort((a, b) => a - b)) {
     rootKeys[domain] = await reader.view<string>(mpcContract, "public_key", { domain_id: domain });
   }
   const results = [];
@@ -565,9 +588,10 @@ export interface SignTxAudit {
 /**
  * Reads transaction `hash` (readTx, FINAL by default) and reports each MPC request in it: its
  * outcome, the key derived for it from `rootKeys`, whether the answer verifies under that key, and
- * for domain 0 the key's EVM address. Only domains whose root key is passed are verified; none is
- * fetched. The verdict is the first that applies: no-requests, has-inconsistent, has-failed
- * (failed or timed out), has-pending, some-unverified, all-verified.
+ * for a secp256k1 domain the key's EVM address. Only signing domains (MPC_SIGN_DOMAINS) whose root
+ * key is passed are verified; none is fetched, and a request on another domain gets `verify: null`.
+ * The verdict is the first that applies: no-requests, has-inconsistent, has-failed (failed or timed
+ * out), has-pending, some-unverified, all-verified.
  */
 export async function auditSignTx(
   rpc: RpcCall,
@@ -579,13 +603,14 @@ export async function auditSignTx(
   const outcomes = mpcRequests(tx, mpcContract, { maxHops });
   const requests = outcomes.map((o) => {
     const domain = o.request.domain;
-    const root = domain === null ? undefined : rootKeys[domain];
-    const derivedKey = root === undefined || domain === null ? null : deriveKey(root, o.request.predecessor, o.request.path, domain);
+    const known = domain !== null && signDomainCurve(domain) !== null;
+    const root = known ? rootKeys[domain as number] : undefined;
+    const derivedKey = root === undefined ? null : deriveKey(root, o.request.predecessor, o.request.path, domain as number);
     const verify =
       o.status === "signed" && o.response !== null && derivedKey !== null
         ? verifySignature({ key: derivedKey, payload: hexToBytes(o.request.payload.hex), response: o.response })
         : null;
-    return { ...o, derivedKey, verify, evmAddress: derivedKey !== null && domain === 0 ? evmAddress(derivedKey) : null };
+    return { ...o, derivedKey, verify, evmAddress: derivedKey?.startsWith("secp256k1:") ? evmAddress(derivedKey) : null };
   });
 
   const reached = new Set(outcomes.flatMap((o) => o.hops));
@@ -623,12 +648,24 @@ type Eip1193Request = (args: { method: string; params?: unknown }) => Promise<un
 
 /**
  * A plain JSON-RPC POST to an EVM node, as an EIP-1193 `request` function. Errors name only the
- * node's origin, since EVM node URLs often carry a key in their path. An HTTP failure throws viem's
- * HttpRequestError (which viem's clients retry for 408, 429 and 5xx), a JSON-RPC error throws with
- * its `code`, and no answer within `timeoutMs` (default 15_000) throws viem's TimeoutError.
+ * node's origin, since EVM node URLs often carry a key in their path: a URL that does not parse, or
+ * one with credentials (user:pass@), is refused here with a TypeError that does not repeat it, and a
+ * network failure is reported by the error's name and code alone, without its message or cause
+ * (fetch's own errors can quote the URL). An HTTP failure throws viem's HttpRequestError (which
+ * viem's clients retry for 408, 429 and 5xx), a JSON-RPC error throws with its `code`, and no answer
+ * within `timeoutMs` (default 15_000) throws viem's TimeoutError.
  */
 export function evmJsonRpc(url: string, options: { timeoutMs?: number; fetch?: typeof fetch } = {}): Eip1193Request {
-  const origin = new URL(url).origin;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new TypeError("evmJsonRpc takes an absolute http(s) URL; the one given is not shown");
+  }
+  if (parsed.username !== "" || parsed.password !== "") {
+    throw new TypeError("evmJsonRpc takes a URL without credentials (user:pass@); the one given is not shown");
+  }
+  const origin = parsed.origin;
   let id = 0;
   return async ({ method, params }) => {
     const doFetch = options.fetch ?? globalThis.fetch;
@@ -649,7 +686,8 @@ export function evmJsonRpc(url: string, options: { timeoutMs?: number; fetch?: t
       text = await res.text();
     } catch (err) {
       if (controller.signal.aborted) throw new TimeoutError({ body: { method }, url: origin });
-      throw new HttpRequestError({ url: origin, details: err instanceof Error ? err.message : String(err), cause: err instanceof Error ? err : undefined });
+      // Only the error's name and a short code: fetch's message and cause can quote the full URL.
+      throw new HttpRequestError({ url: origin, details: `network error (${networkErrorLabel(err)})` });
     } finally {
       clearTimeout(timer);
     }
@@ -669,15 +707,26 @@ export function evmJsonRpc(url: string, options: { timeoutMs?: number; fetch?: t
   };
 }
 
+/** `name` and, when it is a short token, `code` of a network error (or of its cause), never its message. */
+function networkErrorLabel(err: unknown): string {
+  const token = (v: unknown) => (typeof v === "string" && /^[A-Za-z0-9_]{1,40}$/.test(v) ? v : null);
+  const name = err instanceof Error ? (token(err.name) ?? "Error") : "Error";
+  const cause = err instanceof Error ? (err as { cause?: unknown }).cause : undefined;
+  const code = token((err as { code?: unknown } | null)?.code) ?? token((cause as { code?: unknown } | null | undefined)?.code);
+  return code ? `${name} ${code}` : name;
+}
+
 /**
  * `request`, letting through only EVM_READ_METHODS: anything else, such as eth_sendRawTransaction,
- * eth_sendTransaction or any signing method, throws ReadOnlyError before `request` is called.
+ * eth_sendTransaction or any signing method, throws ReadOnlyError before `request` is called. The
+ * error carries EIP-1193's code 4200 (unsupported method), so viem's custom transport wraps it in its
+ * UnsupportedProviderMethodError (the ReadOnlyError is its `cause`) and does not retry it.
  */
 export function readOnlyEvm(request: Eip1193Request): Eip1193Request {
   return async (args) => {
     const method = isRecord(args) ? args.method : undefined;
     if (typeof method !== "string" || !(EVM_READ_METHODS as readonly string[]).includes(method)) {
-      throw new ReadOnlyError(String(method), "not an EVM read method");
+      throw Object.assign(new ReadOnlyError(String(method), "not an EVM read method"), { code: 4200 });
     }
     return request(args);
   };
@@ -685,8 +734,9 @@ export function readOnlyEvm(request: Eip1193Request): Eip1193Request {
 
 /**
  * A viem public client whose only way to the network is readOnlyEvm over evmJsonRpc(url): a read
- * outside EVM_READ_METHODS, or any send, is refused before a request leaves. viem retries a read
- * `retryCount` times (default 3).
+ * outside EVM_READ_METHODS, or any send, is refused before a request leaves, once and without a
+ * retry (viem's UnsupportedProviderMethodError, whose cause is the ReadOnlyError). viem retries a
+ * read `retryCount` times (default 3).
  */
 export function readOnlyEvmClient(
   chain: Chain,
@@ -839,12 +889,12 @@ function signatureChecks(
 
   const signingHash = fields?.unsigned ? keccak256(serializeTransaction(fields.unsigned)) : null;
   const answer = request?.response;
-  const secpAnswer = request !== undefined && request.status === "signed" && request.request.domain === 0 && isSecp256k1Response(answer) ? answer : null;
+  const secpAnswer = request !== undefined && request.status === "signed" && request.request.payload.kind === "ecdsa" && isSecp256k1Response(answer) ? answer : null;
   const noAnswer = !request
     ? `the audit has no request ${requestIndex}`
     : request.status !== "signed"
       ? `request ${requestIndex} is ${request.status}, not signed`
-      : `request ${requestIndex} has no secp256k1 (domain 0) answer`;
+      : `request ${requestIndex} has no secp256k1 answer`;
 
   if (!signingHash) add("signing-hash", false, fields ? `not rebuilt: ${typeName}` : unreadable);
   else if (!request) add("signing-hash", false, noAnswer);
@@ -876,7 +926,7 @@ function signatureChecks(
   const recovered = signingHash && sig && sig.yParity !== undefined ? recoverAddress(signingHash, { r: sig.r, s: sig.s, yParity: sig.yParity }) : null;
   const derived = request?.evmAddress ?? null;
   if (!recovered) add("sender", false, signingHash ? "no sender recovers from the transaction's signature" : "no signing hash, so no sender to recover");
-  else if (!derived) add("sender", false, request ? `request ${requestIndex} has no derived EVM address (pass the domain 0 root key)` : noAnswer);
+  else if (!derived) add("sender", false, request ? `request ${requestIndex} has no derived EVM address (pass the root key for its domain)` : noAnswer);
   else {
     const fromOk = nodeFrom === null || getAddress(nodeFrom) === recovered;
     const ok = recovered === getAddress(derived) && fromOk;
