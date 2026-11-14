@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { builtPackage } from "../scripts/built.mjs";
 import {
   AMOUNTS,
   DAY_NS,
@@ -42,7 +43,7 @@ import {
   votesNeeded,
 } from "./dao-bounty.mjs";
 
-const { TESTNET, addressFromMpcKey, base58Encode, decodeBase64, deriveMpcKey } = await import("../packages/satchel-nft/dist/index.js");
+const { TESTNET, addressFromMpcKey, base58Encode, decodeBase64, deriveMpcKey } = await builtPackage();
 
 const cfg = runConfig();
 const [A, B, C] = cfg.council;

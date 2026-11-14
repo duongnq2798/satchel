@@ -21,6 +21,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { formatEther, getAddress, isAddress, parseEther } from "viem";
+import { builtPackage } from "../scripts/built.mjs";
 
 const {
   MAINNET,
@@ -37,7 +38,7 @@ const {
   signEvmCalls,
   tokenAddress,
   verifiedClient,
-} = await import("../packages/satchel-nft/dist/index.js");
+} = await builtPackage();
 
 const ONE_CLICK = "https://1click.chaindefuser.com";
 const BASE = 8453;

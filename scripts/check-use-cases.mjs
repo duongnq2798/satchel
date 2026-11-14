@@ -15,15 +15,21 @@
 //   --list      print the cases, their pages and their checks, and run nothing
 //   --strict    count a check skipped for want of the built package as failed
 // NEAR_RPC, NEAR_ARCHIVAL_RPC, SEPOLIA_RPC, BASE_RPC, ARBITRUM_RPC and RPC_<chain id> reach every
-// check unchanged; each script's header says which it reads. The checks run one at a time: FastNEAR's
-// archival node answers HTTP 429 when two of them read it at once (check-dao.mjs's header). Run back
-// to back they can still use up its rate limit, so a check whose every failed claim says its nodes
-// didn't answer runs once more, a minute later, and says so.
+// check unchanged; each script's header says which it reads. The checks run one at a time, with a
+// pause of 3 s between cases: FastNEAR's archival node answers HTTP 429 when two of them read it at
+// once (check-dao.mjs's header). Run back to back they can still use up its rate limit, so a check
+// that failed only because nodes or the network didn't answer (each failed claim says a node didn't
+// answer, timed out or answered HTTP 408, 429 or 5xx; or the script stopped on such an error, or ran
+// past the 10 min limit) runs once more, a minute later, and says so. A claim the chain answered
+// against fails at once. The bounty case runs check-dao-bounty.mjs with --claims-only: its claims,
+// without the board it prints after them. Each case ends with how long it took, and the last line
+// gives the total: all nine took about 9 min on 2026-11-14, longer when a check runs again.
 // Exit 0 when every case that ran holds, 1 when one failed, 2 on a bad argument.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { BUILD_HINT as BUILD } from "./built.mjs";
 
 const ROOT_URL = new URL("../", import.meta.url);
 const ROOT = fileURLToPath(ROOT_URL);
@@ -31,11 +37,12 @@ const SITE = "https://satchelnft.xyz";
 /** The checkout's `satchel-nft` command; it runs dist/cli.js, which `npm run build -w satchel-nft` makes. */
 const CLI = "packages/satchel-nft/bin/satchel-nft.js";
 const BUILT = ["packages/satchel-nft/dist/cli.js", "packages/satchel-nft/dist/index.js"];
-const BUILD = "run npm ci and npm run build -w satchel-nft first";
-/** A check still running after this long is stopped and fails. */
-const TIMEOUT_MS = 300_000;
+/** A check still running after this long is stopped, and runs once more as one whose nodes didn't answer. */
+const TIMEOUT_MS = 600_000;
 /** How long to wait before running a check again whose only failures were nodes not answering. */
 const RETRY_MS = 60_000;
+/** The pause before each case after the first, so one case's reads don't meet the last one's rate limit. */
+const PAUSE_MS = 3_000;
 
 const USAGE = "usage: node scripts/check-use-cases.mjs [--case <n>]... [--list] [--strict]";
 
@@ -107,7 +114,7 @@ const CASES = [
     page: "/dao/satchel-bounty.sputnikv2.testnet",
     checks: [
       {
-        run: ["scripts/check-dao-bounty.mjs"],
+        run: ["scripts/check-dao-bounty.mjs", "--claims-only"],
         needs: ["scripts/check-dao-bounty.mjs", "deployments/testnet-dao-bounty.json"],
         later: "the bounty run's branch adds them",
       },
@@ -207,9 +214,9 @@ function run(args) {
     let stderr = "";
     child.stdout.setEncoding("utf8").on("data", (d) => (stdout += d));
     child.stderr.setEncoding("utf8").on("data", (d) => (stderr += d));
-    child.on("error", (err) => resolve({ code: null, stdout, stderr, error: err.message }));
+    child.on("error", (err) => resolve({ code: null, stdout, stderr, error: err.message, stopped: false }));
     child.on("close", (code, signal) =>
-      resolve({ code, stdout, stderr, error: signal ? `stopped after ${TIMEOUT_MS / 60_000} min (${signal})` : null }),
+      resolve({ code, stdout, stderr, error: signal ? `stopped after ${TIMEOUT_MS / 60_000} min (${signal})` : null, stopped: Boolean(signal) }),
     );
   });
 }
@@ -243,18 +250,30 @@ function failing(text) {
 }
 
 /**
- * Whether every claim a run failed failed only because NEAR or EVM nodes didn't answer (an HTTP 429 or
- * a timeout), as the scripts word it, rather than because the chain says something else. Run back to
- * back, the cases can use up a public node's rate limit.
+ * A node or the network not answering, as the scripts word it ("not answering", "didn't answer", "not
+ * a change to any satchel", an HTTP 408, 429 or 5xx) and as Node does ("fetch failed", a timeout, a
+ * connection reset or refused, a name that didn't resolve).
+ */
+const NO_ANSWER =
+  /not a change to any satchel|not answering|didn't answer|did not answer|HTTP (?:408|429|5\d\d)\b|fetch failed|timed? ?out|TimeoutError|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|other side closed/i;
+
+/**
+ * Whether a run failed only because NEAR or EVM nodes, or the network, didn't answer, rather than
+ * because the chain says something else: every claim it failed says so in its details, or it printed
+ * no failed claim and stopped on such an error, or it ran past TIMEOUT_MS. Run back to back, the cases
+ * can use up a public node's rate limit.
  */
 function nodesBusy(r) {
+  if (r.stopped) return true;
   if (r.error !== null || r.code === 0) return false;
   const claims = [];
   for (const line of failing(r.stdout)) {
-    if (line.startsWith("  ") && claims.length) claims[claims.length - 1] += `\n${line}`;
-    else claims.push(line);
+    if (line.startsWith("  ") && claims.length) claims[claims.length - 1].push(line);
+    else claims.push([line]);
   }
-  return claims.length > 0 && claims.every((c) => /HTTP 429|not answering/.test(c));
+  // A claim's title can say anything; what it failed on is in the lines under it.
+  if (claims.length) return claims.every(([title, ...details]) => NO_ANSWER.test(details.length ? details.join("\n") : title));
+  return NO_ANSWER.test(r.stderr);
 }
 
 /** Runs a check, and once more after a minute when its only failures were nodes not answering. */
@@ -262,7 +281,7 @@ async function runPatiently(args) {
   const first = await run(args);
   if (!nodesBusy(first)) return first;
   await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
-  return { ...(await run(args)), retried: true };
+  return { ...(await run(args)), retried: first.stopped ? `ran past ${TIMEOUT_MS / 60_000} min` : "failed only on nodes not answering" };
 }
 
 /** The room's server refusing a request whose signature doesn't verify, as the README's curl shows. */
@@ -316,8 +335,13 @@ async function evaluate(check, n) {
   const shared = runs.get(key);
   if (!shared) runs.set(key, { n, result: runPatiently(check.run) });
   const r = await runs.get(key).result;
+  if (check.built && r.code === 2 && r.stderr.includes(BUILD)) {
+    // The script found the build missing, or a package it imports not installed (scripts/built.mjs).
+    if (options.strict) return { status: "failed", shown: [`failed under --strict: the package can't be loaded; ${BUILD}`] };
+    return { status: "skipped", shown: [`skipped: ${BUILD}`] };
+  }
   const shown = [shared ? `${summary(r)}  [its run for case ${shared.n}]` : summary(r)];
-  if (r.retried && !shared) shown.push("its first run failed only on nodes not answering, so it ran again a minute later");
+  if (r.retried && !shared) shown.push(`its first run ${r.retried}, so it ran again a minute later`);
   let ok = r.error === null && r.code === (check.code ?? 0);
   for (const title of check.titles ?? []) {
     const line = lines(r.stdout).find((l) => /^\[(PASS|FAIL)\] /.test(l) && l.includes(title));
@@ -346,9 +370,18 @@ async function evaluate(check, n) {
   return { status: "failed", shown };
 }
 
+/** A run time as "42 s" or "8 min 5 s". */
+function took(ms) {
+  const s = Math.round(ms / 1_000);
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+}
+
 console.log("Satchel's use cases, each with the checks that show it ran. Nothing here signs or sends.\n");
+const started = Date.now();
 const results = [];
-for (const n of chosen) {
+for (const [i, n] of chosen.entries()) {
+  if (i > 0) await new Promise((resolve) => setTimeout(resolve, PAUSE_MS));
+  const caseStarted = Date.now();
   printCase(n);
   const statuses = [];
   for (const check of CASES[n - 1].checks) {
@@ -364,13 +397,13 @@ for (const n of chosen) {
       : statuses.includes("holds")
         ? "holds"
         : "not run yet";
-  console.log(`${LABEL("Result")}${result}\n`);
+  console.log(`${LABEL("Result")}${result}, in ${took(Date.now() - caseStarted)}\n`);
   results.push(result);
 }
 
 const count = (status) => results.filter((r) => r === status).length;
 const held = count("holds");
 console.log(
-  `${plural(results.length, "use case")}: ${held} hold${held === 1 ? "s" : ""}, ${count("not run yet")} not run yet, ${count("skipped")} skipped, ${count("failed")} failed`,
+  `${plural(results.length, "use case")}: ${held} hold${held === 1 ? "s" : ""}, ${count("not run yet")} not run yet, ${count("skipped")} skipped, ${count("failed")} failed, in ${took(Date.now() - started)}`,
 );
 process.exitCode = count("failed") ? 1 : 0;

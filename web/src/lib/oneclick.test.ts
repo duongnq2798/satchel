@@ -4,6 +4,7 @@ import quote from "./__fixtures__/oneclick-quote-2.json" with { type: "json" };
 import status from "./__fixtures__/oneclick-status-2.json" with { type: "json" };
 import tokens from "./__fixtures__/oneclick-tokens.json" with { type: "json" };
 import {
+  KNOWN_DEPOSITS,
   ONE_CLICK,
   OneClickError,
   type QuoteRequest,
@@ -17,12 +18,14 @@ import {
   dryQuote,
   findListed,
   forgetTokens,
+  historyLookups,
   holdingsFrom,
   minimumIn,
   oneClickTokens,
   parseAmount,
   parseStatus,
   parseTokens,
+  paysKnownDeposit,
   payoutUrl,
   quotableAssets,
   quoteRequest,
@@ -31,6 +34,7 @@ import {
   statusOf,
   statusUrl,
   swapLine,
+  swapMark,
   swapMarks,
 } from "./oneclick";
 
@@ -362,6 +366,20 @@ describe("the history's 1Click lines", () => {
     expect(sendsToLookUp(seven).map((s) => s.tx)).toEqual(["tx7", "tx6", "tx5", "tx4", "tx3"]);
   });
 
+  it("asks as the page loads only about a deposit address the app knows, and about any other send on a click", () => {
+    // Satchel #2's deposit address, from showcase.ts, which showcase.test.ts checks against deployments/mainnet-1click-exit.json.
+    expect([...KNOWN_DEPOSITS]).toEqual([DEPOSIT.toLowerCase()]);
+    expect(paysKnownDeposit(SEND_2)).toBe(true);
+    expect(paysKnownDeposit({ ...SEND_2, to: DEPOSIT.toLowerCase() })).toBe(true);
+    // A plain send, like mainnet satchel #1's 0.0001 ETH on Base, to an address 1Click has no quote for: 1Click answers
+    // 404 for it, which a browser logs as an error, so the page asks only when the reader clicks.
+    const plain = send(1, { to: "0x000000000000000000000000000000000000dEaD", value: "100000000000000" });
+    expect(paysKnownDeposit(plain)).toBe(false);
+    expect(historyLookups([MINT_2, SEND_2, plain])).toEqual({ known: [SEND_2], onClick: [plain] });
+    expect(historyLookups([MINT_2, plain])).toEqual({ known: [], onClick: [plain] });
+    expect(historyLookups([MINT_2, send(2, { value: "0" })])).toEqual({ known: [], onClick: [] });
+  });
+
   it("marks satchel #2's Base send with 1Click's status, what came out, where, and to whom", () => {
     expect(swapLine(SEND_2, parseStatus(status), listed, SATCHEL_2)).toBe("1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One");
     const elsewhere = tampered(status, (s) => (s.quoteResponse.quoteRequest.recipient = "0x000000000000000000000000000000000000dEaD"));
@@ -423,6 +441,30 @@ describe("the history's 1Click lines", () => {
     expect((await swapMarks([SEND_2], SATCHEL_2)).size).toBe(0);
     serve((url) => (url.endsWith("/v0/tokens") ? json({ message: "busy" }, 503) : json(status)));
     expect((await swapMarks([SEND_2], SATCHEL_2)).size).toBe(0);
+  });
+
+  it("asks about one send on the reader's click: its line, none when 1Click knows no swap it paid, an error when 1Click fails", async () => {
+    serve((url) => (url.endsWith("/v0/tokens") ? json(tokens) : json(status)));
+    expect(await swapMark(SEND_2, SATCHEL_2)).toEqual({
+      line: "1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One",
+      url: `https://arbiscan.io/tx/${PAYOUT}`,
+      payout: true,
+    });
+    // A swap at that address that didn't start from the native coin of the chain this send is on.
+    expect(await swapMark({ ...SEND_2, chainId: "42161" }, SATCHEL_2)).toBeNull();
+
+    forgetTokens();
+    const plain = { ...SEND_2, to: "0x000000000000000000000000000000000000dEaD" };
+    const unknown = serve(() => json({ message: "Deposit address 0x000000000000000000000000000000000000dEaD not found", statusCode: 404 }, 404));
+    expect(await swapMark(plain, SATCHEL_2)).toBeNull();
+    expect(unknown.mock.calls.map(([url]) => url)).toEqual([statusUrl(plain.to)]);
+
+    serve(() => {
+      throw new TypeError("fetch failed");
+    });
+    await expect(swapMark(SEND_2, SATCHEL_2)).rejects.toThrow("1Click didn't answer (fetch failed)");
+    serve(() => json({ message: "busy" }, 503));
+    await expect(swapMark(SEND_2, SATCHEL_2)).rejects.toThrow(OneClickError);
   });
 });
 
