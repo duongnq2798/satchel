@@ -16,8 +16,9 @@ Node 22 or later; the contract tests also need Rust.
   version they checked: `buy` names it. The report and the transactions are one package,
   `satchel-nft` in `packages/satchel-nft`: the web app runs on it, and it is also a library and a
   CLI.
-- **Who it's for.** An address that must keep receiving after a sale: a fee or royalty receiver a
-  contract fixes for good, a DAO treasury, an estate.
+- **Who it's for.** An address that must keep receiving after a sale: a DAO treasury, passed on by a
+  vote, or an estate, handed to a named heir (both ran on testnet, builder-held). A fee or royalty
+  receiver a contract fixes for good fits too (not yet demonstrated).
 - **Why NEAR.** No one holds the key. NEAR's MPC network (Chain Signatures) derives each token's
   secp256k1 key from the contract's account and the path `satchel/<token_id>`, and signs with it
   only when the contract asks; the contract asks only for the token's owner. So one NEAR transaction

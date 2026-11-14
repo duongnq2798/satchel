@@ -4,7 +4,7 @@
 
 # Satchel
 
-**An NFT that is one wallet on 16 EVM chains (8 mainnets and a testnet of each), built on NEAR Chain Signatures. Transfer the NFT and the right to sign for that wallet goes with it; no one ever holds its key. The contract keeps a public record of what its key signs, so before paying, a buyer can check on chain what the seller could have kept back.**
+**Sell a wallet, prove nothing stayed behind. A satchel is a NEAR NFT that controls one address on 16 EVM chains (8 mainnets and a testnet of each) through NEAR Chain Signatures. Its contract builds and records every EVM transaction that key signs, so before paying, a buyer checks that record against each chain's finalized nonces and approvals, and buys at the record version they checked. Transfer the NFT and the right to sign goes with it; no one ever holds its key.**
 
 [![Contract CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/contract.yml?branch=main&style=flat-square&label=contract%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/contract.yml)
 [![Web CI](https://img.shields.io/github/actions/workflow/status/duongnq2798/satchel/web.yml?branch=main&style=flat-square&label=web%20CI)](https://github.com/duongnq2798/satchel/actions/workflows/web.yml)
@@ -59,8 +59,9 @@ and with it the right to sign for the address on every one of those chains.
 - **What's specific.** The contract builds and records every EVM transaction it asks the MPC network
   to sign (a raw signature is counted and blocks a clean verdict); a buyer checks that record
   against each chain's finalized nonces and approvals and buys at the record version they checked.
-- **Who it's for.** An address that must keep receiving after a sale: a fee or royalty receiver a
-  contract fixes for good, a DAO treasury, an estate.
+- **Who it's for.** An address that must keep receiving after a sale: a DAO treasury, passed on by a
+  vote, or an estate, handed to a named heir (both ran on testnet, builder-held). A fee or royalty
+  receiver a contract fixes for good fits too (not yet demonstrated).
 - **Why NEAR.** No one holds the key: NEAR's MPC network signs for the address only when the
   contract asks, and the contract asks only for the token's owner, so one NEAR transaction hands the
   wallet over on 8 EVM mainnets (16 chain ids with their testnets).
@@ -179,6 +180,7 @@ account, mainnet #3's buyer included, so these show each use working, not people
 - [Where things are in this repository](#where-things-are-in-this-repository)
 - [Documentation](#documentation)
 - [Development](#development)
+- [After the hackathon](#after-the-hackathon)
 - [Limits, stated plainly](#limits-stated-plainly)
 - [Failure cases](#failure-cases)
 - [The case against Satchel](#the-case-against-satchel)
@@ -628,7 +630,7 @@ a vote; an estate, which a small estate contract hands to a named heir after mis
 guardians' approvals and a waiting period the owner can cancel (the last two ran on testnet,
 [use cases 5 to 7](#use-cases-you-can-run)). Satchel cannot recover a lost NEAR key
 ([Failure cases](#failure-cases)). After the hackathon both contracts keep running as deployed, with
-no keys and no admin. Running the app takes a Next.js host and public RPCs: no database, no
+no keys and no admin ([After the hackathon](#after-the-hackathon)). Running the app takes a Next.js host and public RPCs: no database, no
 sessions, and one server route (`/api/room`) that stores nothing. A v2 would be a new contract
 account, so its satchels would have new addresses: moving is opt-in, by sending assets to a new
 satchel, and the locked v1 keeps working. A hosted verify API is a possible next step; not built.
@@ -1863,6 +1865,23 @@ What the tests pin down:
   that only has function-call access, a satchel someone else owns, an RPC answer for another block or
   token), with no NEAR read before the signature verifies; the body limit, a streamed body included;
   and one kit step per check that doesn't pass.
+
+## After the hackathon
+
+- **Runs without us.** `v1.satchel-nft.near` and `v1.satchel-nft.testnet` are locked, with no access
+  keys and no admin: they keep minting, signing and selling as deployed, and no one can switch them
+  off or change them. The report needs no server of ours: `npx -y satchel-nft@0.2.0 verify` reads
+  public nodes, and [Run the app yourself](https://satchelnft.xyz/docs/advanced/run-the-app) builds
+  satchelnft.xyz from this repository.
+- **Maintainer.** `duongnq2798` on GitHub maintains the app, the `satchel-nft` package and this
+  repository. Security reports go through [SECURITY.md](SECURITY.md); npm releases follow
+  [docs/RELEASING.md](docs/RELEASING.md). A contract fix ships as `v2.satchel-nft.*`, and moving to
+  it is opt-in.
+- **Funding: none.** v1 takes no fee, and never can: the contract is locked.
+- **2026-11-25.** The demo freeze ends (`FROZEN_UNTIL` in
+  [`web/src/lib/frozen.ts`](web/src/lib/frozen.ts)): the app's guard on the demo satchels lifts, and
+  [`watch.yml`](.github/workflows/watch.yml) stops checking the demo claims, which may change from
+  then on. `node scripts/check-claims.mjs` still checks them by hand.
 
 ## Limits, stated plainly
 
