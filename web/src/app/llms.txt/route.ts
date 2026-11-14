@@ -25,7 +25,7 @@ export function GET() {
     "Node 22 or later and no wallet, from a clone of https://github.com/duongnq2798/satchel. Times and lines are from runs on 2026-11-13 and 11-14.",
     "",
     "- `node scripts/check-claims.mjs --network mainnet`: no install, 10 to 20 s. Last line, exit 0: `20 of 20 claims hold (…)`.",
-    "- `npx -y satchel-nft@0.2.0 verify --network mainnet 3`: the npm release, from any folder (inside a clone too; `npx satchel-nft` with no version runs the clone's unreleased 0.3.0-dev build): 49 s to 4 min the first time (download), 4 to 15 s after. Verdict line, exit 0: `PROVABLY CLEAN (checked <time>)`.",
+    "- `npx -y satchel-nft@0.2.0 verify --network mainnet 3`: the npm release, from any folder (inside a clone too; `npx satchel-nft` with no version runs the clone's own build): 49 s to 4 min the first time (download), 4 to 15 s after. Verdict line, exit 0: `PROVABLY CLEAN (checked <time>)`.",
     "- `node scripts/check-use-cases.mjs`: about 8 to 10 minutes (8 min 26 s on 2026-11-13); prints each of the nine use cases. Last line, exit 0: `9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed, in <time>` (before `npm ci` and `npm run build -w satchel-nft`: 6 hold, 3 skipped).",
     "- The contract's 0 access keys, in one RPC call whose answer includes `\"keys\":[]`: `curl -s https://rpc.mainnet.near.org -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"view_access_key_list\",\"finality\":\"final\",\"account_id\":\"v1.satchel-nft.near\"}}'`",
     "",

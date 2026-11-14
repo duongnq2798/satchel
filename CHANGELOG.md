@@ -617,7 +617,12 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   reads, this checkout's build, the Rust tests) folded in `<details>`, and the RPC retry policy moved
   to AGENTS.md's [Check the claims](AGENTS.md#check-the-claims), which now gives it for all four
   check scripts. Every heading stays, so every link to the README still lands.
-- The package in this repository is `0.3.0-dev`, where it said 0.2.0 while holding unreleased code.
+- `satchel-nft` 0.3.0 is ready to publish: the package says 0.3.0, and its README, which npm shows,
+  lists what changed since 0.2.0 (Make it clean in the library, check 3's joined rows, `history`
+  through a busy index and its revoke label, the kit pointing at Make it clean). Until the owner
+  publishes it ([docs/RELEASING.md](docs/RELEASING.md)), npm serves 0.2.0 and every pinned command
+  keeps `@0.2.0`.
+- The package in this repository was `0.3.0-dev`, where it said 0.2.0 while holding unreleased code.
   Inside a clone, `npx -y satchel-nft@0.2.0` now runs the npm release, as it does anywhere else, and
   `npx satchel-nft` with no version runs the checkout. The README, AGENTS.md, `/llms.txt`, the docs'
   run-the-app page and `docs/RELEASING.md` say so.
