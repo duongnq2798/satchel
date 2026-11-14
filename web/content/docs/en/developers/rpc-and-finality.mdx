@@ -49,7 +49,7 @@ Two checks catch a node that serves the wrong network:
   serves the other network stops it with exit code 2:
 
   ```bash
-  NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.2.0 verify 1
+  NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.3.0 verify 1
   ```
 
   ```text
@@ -191,7 +191,7 @@ const reports = await Promise.all(
 <Tab>
 
 ```bash
-NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
+NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.3.0 verify 1
 ```
 
 </Tab>
@@ -200,7 +200,7 @@ NEAR_RPC=https://<your-near-node> RPC_11155111=https://<your-sepolia-node> npx -
 ```powershell
 $env:NEAR_RPC = "https://<your-near-node>"
 $env:RPC_11155111 = "https://<your-sepolia-node>"
-npx -y satchel-nft@0.2.0 verify 1
+npx -y satchel-nft@0.3.0 verify 1
 ```
 
 </Tab>
@@ -260,7 +260,7 @@ report you trusted from a node that lied could cost you real NEAR. For a mainnet
 `verify` again from nodes you run, or from a second provider, before you buy:
 
 ```bash
-NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.2.0 verify --network mainnet 1
+NEAR_RPC=https://<your-near-mainnet-node> RPC_8453=https://<your-base-node> npx -y satchel-nft@0.3.0 verify --network mainnet 1
 ```
 
 ## Related

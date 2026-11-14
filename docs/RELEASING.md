@@ -7,6 +7,7 @@ provenance. npm records the commit as `gitHead`:
 | --- | --- | --- | --- |
 | 0.1.0 | 2026-11-09 | `728ed74` | `599980b6445558157e28f7bae7872b0756988150` |
 | 0.2.0 | 2026-11-10 | `2dd4209` | `b9822a7ac13476566bc6772ccda08979e5802480` |
+| 0.3.0 | 2026-11-14 | `63f1fd7` | `ddbb4a26b3b5f6b77237faa9a9ad47c0155f6025` |
 
 This is the checklist 0.2.0 went through. The package's README, which npm shows, says what changed
 under "What changed in 0.2.0". For a later version, bump `packages/satchel-nft/package.json` and its
@@ -99,7 +100,8 @@ These stay as they are: the contract's own version in `contracts/`, the MPC deri
 `packages/satchel-nft` is left out of the searches: its README and code go into the next tarball,
 and every change to them after a publish is listed under Unreleased in the CHANGELOG until that
 version is out. Since 0.2.0, the handover kit (`packages/satchel-nft/src/kit.ts`) pins
-`satchel-nft@0.2.0`, a release that has every command it prints; npm's 0.2.0 still pins 0.1.0.
+`satchel-nft@0.2.0`, a release that has every command it prints; npm's 0.3.0 pins it too, and
+npm's 0.2.0 pins 0.1.0.
 
 - Every `satchel-nft@0.1.0` command becomes `satchel-nft@0.2.0`: the README, AGENTS.md,
   `docs/DEMO.md`, the docs under `web/content/docs`, the app's own pages (`web/src/app/page.tsx`,

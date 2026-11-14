@@ -11,7 +11,7 @@ import type { TxLink } from "./copy";
 
 /** The terminal command that prints satchel `tokenId`'s report on `net`, from the release on npm. */
 export function verifyCommand(net: Network, tokenId: string): string {
-  return `npx -y satchel-nft@0.2.0 verify ${net.id === "mainnet" ? "--network mainnet " : ""}${tokenId}`;
+  return `npx -y satchel-nft@0.3.0 verify ${net.id === "mainnet" ? "--network mainnet " : ""}${tokenId}`;
 }
 
 /** What a satchel's page shows, for its description in search results and share cards. */
@@ -319,7 +319,7 @@ export const BUILT_WITH: readonly BuiltWith[] = [
   { name: "NEP-413 and NEAR Connect", label: "testnet satchel #4's room", href: "/satchel/4/room" },
   { name: "Locked NEP-171 contract", label: "the mainnet lock: 0 keys left", href: nearTxUrl(MAINNET, MAINNET_LOCK_TX) },
   { name: "NEP-330 reproducible build", label: "the CI run", href: MAINNET.build.ciRun },
-  { name: "satchel-nft on npm", label: "version 0.2.0", href: "https://www.npmjs.com/package/satchel-nft/v/0.2.0" },
+  { name: "satchel-nft on npm", label: "version 0.3.0", href: "https://www.npmjs.com/package/satchel-nft/v/0.3.0" },
   { name: "EVM chains", label: "a send on Base", href: evmTxUrl(BASE, FIRST_SEND.sendTx) },
 ];
 

@@ -6,7 +6,7 @@ import { DocsNav, MobileNav } from "@/components/docs/sidebar";
 import { THEME_SCRIPT, ThemeController, ThemeToggle } from "@/components/docs/theme";
 
 /** Versions the docs describe. Bump with a release; the changelog says what changed. */
-const VERSIONS = "Contract v1 · satchel-nft 0.2.0";
+const VERSIONS = "Contract v1 · satchel-nft 0.3.0";
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
   return (
