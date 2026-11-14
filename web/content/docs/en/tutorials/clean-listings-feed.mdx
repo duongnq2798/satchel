@@ -19,7 +19,7 @@ It reads only public data, so it needs no wallet and no key.
    ```bash
    npm init -y
    npm pkg set type=module
-   npm install --save-exact satchel-nft@0.2.0 tsx@4.23.15
+   npm install --save-exact satchel-nft@0.3.0 tsx@4.23.15
    ```
 
 2. **Write the script.** Save it as `feed.ts`:
@@ -185,7 +185,7 @@ An EVM RPC that answers with another chain id is refused, so its checks read `"u
 The CLI's `market` command is this script, built in:
 
 ```bash
-npx -y satchel-nft@0.2.0 market --json
+npx -y satchel-nft@0.3.0 market --json
 ```
 
 It prints `{ network, contract, listings }`, each listing with `tokenId`, `seller`, `price`,
@@ -221,7 +221,7 @@ and the buyer keeps their NEAR.
 | `Top-level await is not supported with the "cjs" output format`, `ERR_REQUIRE_ESM` or `Cannot use import statement outside a module` | The project isn't an ES module | Run `npm pkg set type=module` |
 | Every verdict is `"unknown"` | An RPC is down or rate-limiting you, or a satchel sent recently and its block isn't final yet | Run it again in a few minutes, lower the limiter to 1 or 2, or use your own nodes |
 | `NEAR RPC query failed: HTTP 429` | The NEAR RPC rate-limited you | Lower the limiter, or set `NEAR_RPC` to your own node |
-| A satchel you expect is missing | It was bought, delisted or transferred; any transfer ends a listing | Check it with `npx -y satchel-nft@0.2.0 show <id>` |
+| A satchel you expect is missing | It was bought, delisted or transferred; any transfer ends a listing | Check it with `npx -y satchel-nft@0.3.0 show <id>` |
 
 ## Next steps
 

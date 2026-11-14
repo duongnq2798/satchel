@@ -29,6 +29,8 @@ import {
 
 // biome-ignore lint/suspicious/noExplicitAny: evidence files, read as they are
 const evidence = (name: string): any => JSON.parse(readFileSync(new URL(`../../../deployments/${name}`, import.meta.url), "utf8"));
+/** A command without its `satchel-nft@` version: a record keeps the release it ran, the app shows today's pin. */
+const unpinned = (command: string) => command.replace(/satchel-nft@\d+\.\d+\.\d+ /, "satchel-nft@<version> ");
 
 describe("the mainnet showcase matches the evidence files", () => {
   it("satchel #1's send: deployments/mainnet-first-send.json", () => {
@@ -74,7 +76,8 @@ describe("the mainnet showcase matches the evidence files", () => {
       [run.verified, sale.checkedAgain],
     ] as const) {
       expect([report.checkedAt, report.result, report.owner, report.recordVersion]).toEqual([quoted.at, quoted.result, quoted.owner, sale.recordVersion]);
-      expect(report.command).toBe(verifyCommand(MAINNET, sale.tokenId));
+      expect(report.command).toContain("satchel-nft@0.2.0 ");
+      expect(unpinned(report.command)).toBe(unpinned(verifyCommand(MAINNET, sale.tokenId)));
       expect(report.pending).toBe("Nothing was ever signed for this token through sign_evm");
     }
     expect([sale.checked.owner, sale.checkedAgain.owner]).toEqual([sale.seller, sale.buyer]);
@@ -156,8 +159,9 @@ describe("the mainnet showcase matches the evidence files", () => {
     expect(run.status.status).toBe("SUCCESS");
     expect(run.status.swapDetails.originChainTxHashes.map((tx: { hash: string }) => tx.hash)).toEqual([ONECLICK_EXIT.depositTx]);
     expect(run.status.swapDetails.destinationChainTxHashes.map((tx: { hash: string }) => tx.hash)).toEqual([ONECLICK_EXIT.payoutTx]);
-    // The command the record says it ran is the one the app shows.
-    expect(run.verified.command).toBe(verifyCommand(MAINNET, ONECLICK_EXIT.tokenId));
+    // The command the record says it ran, with 0.2.0, is the one the app shows at today's pin.
+    expect(run.verified.command).toContain("satchel-nft@0.2.0 ");
+    expect(unpinned(run.verified.command)).toBe(unpinned(verifyCommand(MAINNET, ONECLICK_EXIT.tokenId)));
   });
 
   it("each card links every transaction its story names, on the right explorer", () => {
@@ -411,8 +415,8 @@ describe("the demo satchels", () => {
 
 describe("verifyCommand and the token page's note", () => {
   it("pins the release on npm and adds --network mainnet on mainnet", () => {
-    expect(verifyCommand(TESTNET, "5")).toBe("npx -y satchel-nft@0.2.0 verify 5");
-    expect(verifyCommand(MAINNET, "1")).toBe("npx -y satchel-nft@0.2.0 verify --network mainnet 1");
+    expect(verifyCommand(TESTNET, "5")).toBe("npx -y satchel-nft@0.3.0 verify 5");
+    expect(verifyCommand(MAINNET, "1")).toBe("npx -y satchel-nft@0.3.0 verify --network mainnet 1");
   });
 
   it("names the satchel, the contract, the network and the command", () => {

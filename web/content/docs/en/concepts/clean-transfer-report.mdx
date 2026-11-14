@@ -15,7 +15,7 @@ prints `PROVABLY CLEAN`, `NOT PROVABLE` or `COULD NOT CHECK EVERYTHING`, and exi
 Satchel #1 on testnet, which signed seven Sepolia transactions and reads clean:
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 1
+npx -y satchel-nft@0.3.0 verify 1
 ```
 
 ```text
@@ -128,8 +128,8 @@ the row it revoked, so satchel #9 reads:
        Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0 (2 record rows)
 ```
 
-`satchel-nft` 0.2.0 on npm, the release these pages pin, still prints that line once per row, so twice, with
-the same verdict. The joined line is in the app and in the repository's unreleased package.
+`satchel-nft` 0.3.0, the release these pages pin, prints the same line. 0.2.0 printed it once per row, so
+twice, with the same verdict.
 
 Every row still counts: a live one fails the check, whichever line it shares. Rows of one pair that read differently,
 such as ERC-721 approvals of two token ids of which one is still approved, keep a line each.
@@ -251,7 +251,7 @@ refuses an EVM RPC that answers for the wrong chain. It does not compare several
 read from nodes you trust, set `NEAR_RPC` and `RPC_<chain id>`:
 
 ```bash
-NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.2.0 verify 1
+NEAR_RPC=https://<your-near-testnet-node> RPC_11155111=https://<your-sepolia-node> npx -y satchel-nft@0.3.0 verify 1
 ```
 
 The app and the CLI derive a satchel's address from the MPC network's root key pinned in the package

@@ -97,7 +97,7 @@ The `satchel` view returns `null` for an id that doesn't exist, and the CLI then
 These ran on testnet:
 
 ```bash
-npx -y satchel-nft@0.2.0 verify abc; echo "exit $?"
+npx -y satchel-nft@0.3.0 verify abc; echo "exit $?"
 ```
 
 ```text
@@ -108,7 +108,7 @@ exit 2
 ```
 
 ```bash
-NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.2.0 verify 1; echo "exit $?"
+NEAR_RPC=https://rpc.mainnet.fastnear.com npx -y satchel-nft@0.3.0 verify 1; echo "exit $?"
 ```
 
 ```text
@@ -119,7 +119,7 @@ exit 2
 With `--json`, every error is an object on stdout instead:
 
 ```bash
-npx -y satchel-nft@0.2.0 verify 1 --json --network devnet
+npx -y satchel-nft@0.3.0 verify 1 --json --network devnet
 ```
 
 ```json

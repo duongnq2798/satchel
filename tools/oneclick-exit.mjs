@@ -498,7 +498,7 @@ async function submit(hash) {
   const told = answer === null ? `1Click already read ${saved.status.status}` : `1Click answered ${answer.status ?? json(answer)}`;
   const now = readSaved();
   const next = finished(now)
-    ? `the record is complete. Next: npx -y satchel-nft@0.2.0 verify --network mainnet ${saved.tokenId}`
+    ? `the record is complete. Next: npx -y satchel-nft@0.3.0 verify --network mainnet ${saved.tokenId}`
     : ended && now.deposit.nearTx === undefined
       ? `the record still needs the sign_evm: ${cmd(`submit ${hash} --near-tx <the sign_evm hash>`)}`
       : `Next: ${cmd("status --wait")}`;
@@ -571,7 +571,7 @@ async function status() {
     if (!frozen && readSaved().deposit?.nearTx === undefined) {
       console.log(`The record has no deposit or no sign_evm yet: ${cmd("submit <the Base tx hash> --near-tx <the sign_evm hash>")}`);
     }
-    console.log(`Base finalizes the deposit about 20 minutes after it was sent. Then: npx -y satchel-nft@0.2.0 verify --network mainnet ${saved.tokenId}`);
+    console.log(`Base finalizes the deposit about 20 minutes after it was sent. Then: npx -y satchel-nft@0.3.0 verify --network mainnet ${saved.tokenId}`);
   } else if (now.status === "REFUNDED" || now.status === "FAILED") {
     console.error(`The swap ended ${now.status}: the exit didn't happen.`);
     process.exitCode = 1;

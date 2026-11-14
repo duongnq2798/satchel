@@ -35,10 +35,10 @@ Three commands check the core of it, with Node 22 or later and no wallet, from t
 ```bash
 # 1. No install, 10 to 20 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release, from any folder (inside a clone too): 49 s to 4 min the
+# 2. The npm release, from any folder (inside a clone too): 49 s to 7 min the
 #    first time (download), 4 to 15 s after.
 #    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
-npx -y satchel-nft@0.2.0 verify --network mainnet 3
+npx -y satchel-nft@0.3.0 verify --network mainnet 3
 # 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of 9 use cases.
 #    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed, in <time>
 #    (before npm ci and npm run build -w satchel-nft: 6 hold, 3 skipped)
@@ -265,7 +265,7 @@ Run step 1's `node scripts/check-claims.mjs` before this step: it needs no insta
 seconds. This step installs or downloads the package before it runs, which takes longer than a
 2-minute tool timeout: the root `npm ci` below installs the package and the web app, which took
 3 to 9 min on a fresh clone (8 min 43 s on Windows), and the package alone (`npm ci -w
-satchel-nft`) took 2 min 54 s here; `npx -y satchel-nft@0.2.0 verify 1`
+satchel-nft`) took 2 min 54 s here; `npx -y satchel-nft@0.3.0 verify 1`
 in an empty folder took 142 s and 230 s in two runs. An agent should
 start the install or the `npx` run in the background, with its output going to a file, and read the
 file once it ends. To redo one verdict with no install at all, the README's
@@ -280,9 +280,9 @@ npm run build -w satchel-nft
 npx satchel-nft verify 1
 ```
 
-`npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from commit `2dd4209`
+`npx -y satchel-nft@0.3.0 verify 1` runs the release on npm, published from commit `63f1fd7`
 ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). It does inside the repository
-too: the checkout's package is 0.3.0-dev, unreleased, so only `npx satchel-nft`, with no version,
+too: the checkout's package has another version, so only `npx satchel-nft`, with no version,
 runs this checkout's build. On its initial run the release downloads the package (timed above); later runs take
 6 to 11 s.
 
@@ -427,7 +427,7 @@ of these checks.
 | The holder room opens only for the account that owns the satchel at a final NEAR block, signing with one of its full-access keys, within 5 minutes of the `Issued` time it signed; the server writes the message itself and reads NEAR only once the signature verifies, the key and the owner at the same block, each read giving up after 10 s (a 502) | `checkHolder`, `roomMessage` in `packages/satchel-nft/src/holder.ts`; `finalBlock`, `accessKeyAt`, `viewAt`, `rpcFor` in `near.ts` | `holder.test.ts` |
 | `/api/room` takes only POST (another method gets Next.js's empty 405, with no body), reads at most 4 KB of body, and answers every POST as JSON with `Cache-Control: no-store`, a refusal with its status. A report that doesn't come within 20 s still leaves the holder card, with no kit | `readRoomRequest`, `within` in `web/src/lib/room-request.ts`, `POST` in `web/src/app/api/room/route.ts` | `room-request.test.ts` |
 | The handover kit has one step per check that doesn't pass, in the report's order, and one step to list only when all four pass. It names only the chains still open, offers no fix while check 1 fails (the app and the CLI then sign nothing), and says so for a chain the app and the CLI don't send on | `handoverKit` in `packages/satchel-nft/src/kit.ts` | `kit.test.ts` |
-| Make it clean offers fixes for checks 2 and 3 only: a revoke for each approval row still live, and a send of 0 to the satchel's own address for each open nonce a revoke on that chain doesn't take. An `approve` row that both the ERC-20 and the ERC-721 read find live, or one it couldn't read, gets both calls and no button; more than 10 open nonces on a chain get a terminal command. It won't send a revoke that would be a 33rd approval row while check 4 passes, and offers no button while check 1 fails or the satchel is listed | `fixPlan`, `readFixInputs`, `revokeCalldata`, `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` in `packages/satchel-nft/src/clean.ts`; the card is `web/src/components/fix-panel.tsx` | `clean.test.ts`. The card has no test. It ran once, on testnet satchel #9 on 2026-11-12: a revoke at nonce 1 and a send of 0 at nonce 2 on Sepolia, then `PROVABLY CLEAN` ([`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json); `npx -y satchel-nft@0.2.0 verify 9`) |
+| Make it clean offers fixes for checks 2 and 3 only: a revoke for each approval row still live, and a send of 0 to the satchel's own address for each open nonce a revoke on that chain doesn't take. An `approve` row that both the ERC-20 and the ERC-721 read find live, or one it couldn't read, gets both calls and no button; more than 10 open nonces on a chain get a terminal command. It won't send a revoke that would be a 33rd approval row while check 4 passes, and offers no button while check 1 fails or the satchel is listed | `fixPlan`, `readFixInputs`, `revokeCalldata`, `MAX_APPROVAL_ROWS`, `MAX_NONCE_SPENDS` in `packages/satchel-nft/src/clean.ts`; the card is `web/src/components/fix-panel.tsx` | `clean.test.ts`. The card has no test. It ran once, on testnet satchel #9 on 2026-11-12: a revoke at nonce 1 and a send of 0 at nonce 2 on Sepolia, then `PROVABLY CLEAN` ([`deployments/testnet-make-clean.json`](deployments/testnet-make-clean.json); `npx -y satchel-nft@0.3.0 verify 9`) |
 | Quote an exit asks 1Click only for dry quotes, never for a deposit address, at a slippage limit of 0.5 %, 1 % or 3 % and no other, and shows a quote only when 1Click's answer echoes the assets, amount, recipient, refund address, slippage and deadline asked for, has a minimum that matches that slippage, and carries no deposit address | `QuoteRequest`, `SLIPPAGE_CHOICES`, `quoteRequest`, `dryQuote`, `checkQuote` in `web/src/lib/oneclick.ts`; the panel is `web/src/components/quote-panel.tsx` | `web/src/lib/oneclick.test.ts`, with 1Click's real answers of 2026-11-11 as fixtures |
 | A satchel's history links a 1Click swap's payout transaction only when 1Click calls it `SUCCESS` and names an EVM hash on one of the satchel's mainnets; otherwise, `REFUNDED` and `FAILED` included, it links 1Click's status, and a line shows an amount out only for `SUCCESS` | `payoutUrl`, `swapLine`, `swapMarks` in `web/src/lib/oneclick.ts`; the card is `web/src/components/history.tsx` | `web/src/lib/oneclick.test.ts` |
 | Until 2026-11-25 the app shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on testnet #1 to #11 and mainnet #1 to #3, whose state the README quotes. It is a guard in the app, not a protection: the CLI and the near CLI can still sign for them | `FROZEN`, `FROZEN_UNTIL`, `isFrozen` in `web/src/lib/frozen.ts` | `web/src/lib/frozen.test.ts` |
