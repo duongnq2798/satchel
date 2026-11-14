@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { builtPackage } from "../scripts/built.mjs";
 import { codeHash as scriptCodeHash } from "../scripts/code-hash.mjs";
 import {
   EARLY_MARGIN_NS,
@@ -34,7 +35,7 @@ import {
   unresolved,
 } from "./estate.mjs";
 
-const { TESTNET, TGAS, base58Encode } = await import("../packages/satchel-nft/dist/index.js");
+const { TESTNET, TGAS, base58Encode } = await builtPackage();
 
 const cfg = runConfig();
 const LIB = readFileSync(new URL("../contracts/estate/src/lib.rs", import.meta.url), "utf8");

@@ -102,9 +102,13 @@ points ([others have tied keys to NFTs](#the-nft-tracks-brief-point-by-point)).
 
 Each use below ran on chain. Each has a page to open with no wallet and a command that checks it
 against the chains. [`node scripts/check-use-cases.mjs`](scripts/check-use-cases.mjs) runs every
-check, one case after another, and prints each case's result; `--list` prints the cases and their
-pages without running anything. Cases 2, 3 and 8 read the built package (`npm ci` and `npm run build
--w satchel-nft`); without it they are skipped, not failed.
+check, one case after another with a 3 s pause, and prints each case's result and run time, then the
+total: 8 min 51 s and 9 min 9 s in two runs on 2026-11-14, so start it in the background. A check
+that fails only because a public node didn't answer, or that runs past 10 min, runs once more a
+minute later and says so; a claim the chain answers against fails at once. `--list` prints the cases
+and their pages without running anything. Cases 2, 3 and 8 read the built package (`npm ci` and
+`npm run build -w satchel-nft`); without it they are skipped, not failed, and `check-scan-start.mjs`
+run alone says so and exits 2.
 
 | # | Use | What ran | Open | Check |
 | --- | --- | --- | --- | --- |
@@ -262,19 +266,24 @@ the record changed).
    every claim holds; [AGENTS.md](AGENTS.md#1-the-deployment-and-its-history-one-command) says what
    each line reads. `check-claims.mjs`, `check-dao.mjs`, `check-dao-bounty.mjs` and
    `check-estate.mjs` keep asking a busy node: a read a node answers with HTTP 408, 429 or 5xx, or
-   whose connection fails, is sent up to 3 more times, 1, 2 and 4 s apart, or longer if the node's
-   Retry-After asks, up to 8 s; any other failed read is tried once more. With `BASE_RPC` unset, a
-   Base read the default node fails goes to Base's own node, `https://mainnet.base.org`. A claim
+   whose connection fails, is sent up to 6 more times, 1, 2 and 4 s apart and then 8 s, or longer if
+   the node's Retry-After asks, up to 8 s, and not again if it asks for more than 30 s; any other
+   failed read is tried once more. Their archival reads go out one at a time: on 2026-11-14
+   FastNEAR's archival node let about 8 reads through at once and then about one every 5 s. With
+   `BASE_RPC` unset, a Base read the default node fails goes to Base's own node,
+   `https://mainnet.base.org`. A claim
    that fails only because a node or 1Click didn't answer says it is not a change to any satchel,
    and what to do. With `NEAR_ARCHIVAL_RPC` unset, an archival read FastNEAR's node still doesn't
    answer goes to NEAR's own, `https://archival-rpc.<network>.near.org`, and once FastNEAR's has
-   failed a read that NEAR's answered, later archival reads go to NEAR's node first; on 2026-11-12
-   FastNEAR's answered HTTP 429 to every retry when `check-dao.mjs` ran right after
-   `check-claims.mjs`. With `SEPOLIA_RPC` unset, a Sepolia read the default node
+   failed a read that NEAR's answered, later archival reads go to NEAR's node first, until NEAR's
+   fails one that FastNEAR's answers (on 2026-11-14 NEAR's answered HTTP 429 with a Retry-After of
+   329 s); on 2026-11-12 FastNEAR's answered HTTP 429 to every retry when `check-dao.mjs` ran right
+   after `check-claims.mjs`. With `SEPOLIA_RPC` unset, a Sepolia read the default node
    fails, or answers with null, goes to `https://1rpc.io/sepolia`, then
    `https://sepolia.gateway.tenderly.co`; on 2026-11-12 the default node returned the DAO's Sepolia
    transaction but a null receipt for it.
-   GitHub runs the three commands every day until judging ends on 2026-11-25
+   GitHub runs the three commands every day until the demo freeze ends on 2026-11-25, after judging
+   (2026-11-16 to 11-18)
    ([`watch.yml`](.github/workflows/watch.yml)), with a request to satchelnft.xyz and `/mainnet`.
 
 3. **Ask the chain without our scripts.** Two reads with curl, from the same directory:
@@ -849,9 +858,12 @@ panel is a line that points to satchel #2.
 - **A quote is not a swap.** A swap needs a deposit address from a quote that isn't dry, which the
   app never asks for. Satchel #2's came from the script, and its deposit went out from the Send
   panel.
-- **The history marks the swap.** On mainnet pages, a satchel's history asks 1Click's `/v0/status`
-  about the recipients of its latest 5 native-coin sends. Satchel #2's send on Base gets a second
-  line, `1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One`, linked to 1Click's
+- **The history marks the swap.** On mainnet pages, a satchel's history can ask 1Click's
+  `/v0/status` about the recipients of its latest 5 native-coin sends: on its own for a deposit
+  address the app knows (satchel #2's, from `showcase.ts`), and for any other when you click
+  **Check with 1Click** on its row, since 1Click answers 404 for an address it has no quote for and
+  the browser logs that as an error. Satchel #2's send on Base gets a second line,
+  `1Click swap · SUCCESS · 5.280549 USDC to this satchel on Arbitrum One`, linked to 1Click's
   status. "To this satchel" appears when 1Click's copy of the quote names the satchel's address as
   the recipient. The line is 1Click's word, read live; the record and the report don't use it, and a
   1Click outage leaves the row as it was.
@@ -1700,7 +1712,7 @@ all of this with the near CLI's key, checking each step
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
 | [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 235 unit tests, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 100 unit tests. The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
-| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs), [`check-dao-bounty.mjs`](scripts/check-dao-bounty.mjs), [`check-estate.mjs`](scripts/check-estate.mjs), [`check-use-cases.mjs`](scripts/check-use-cases.mjs) (each use case's checks in one run) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain, and [`check-scan-start.mjs`](scripts/check-scan-start.mjs) the Received card's start blocks; both read the built package, so run `npm ci` and `npm run build -w satchel-nft` first. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
+| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs), [`check-dao-bounty.mjs`](scripts/check-dao-bounty.mjs), [`check-estate.mjs`](scripts/check-estate.mjs), [`check-use-cases.mjs`](scripts/check-use-cases.mjs) (each use case's checks in one run) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain, and [`check-scan-start.mjs`](scripts/check-scan-start.mjs) the Received card's start blocks; both read the built package, so run `npm ci` and `npm run build -w satchel-nft` first; without it, each says so and exits 2. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package), [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes), [`dao-bounty-run.mjs`](tools/dao-bounty-run.mjs) and [`estate-run.mjs`](tools/estate-run.mjs) (the testnet bounty and estate runs, step by step, resumable) and [`mainnet-sale-record.mjs`](tools/mainnet-sale-record.mjs) (reads a mainnet sale back from NEAR and its EVM chain, checks each step and records it; it signs nothing) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
 | [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
@@ -1746,7 +1758,8 @@ CI runs on GitHub Actions (ubuntu). Every pull request runs [`ci.yml`](.github/w
 which calls the contract, web and package workflows, then `verify`: the one check `main` and `dev`
 require before a merge, and it passes only when all three pass. Pushes to `main` and `dev` run the
 three workflows directly, each when its paths change. [`watch.yml`](.github/workflows/watch.yml)
-re-checks the demo every day until judging ends; `verify` doesn't wait for it.
+re-checks the demo every day until the demo freeze ends on 2026-11-25, after judging (2026-11-16 to
+11-18); `verify` doesn't wait for it.
 
 | Workflow | Job | What it does | When |
 | --- | --- | --- | --- |
@@ -1755,7 +1768,7 @@ re-checks the demo every day until judging ends; `verify` doesn't wait for it.
 | Web | Typecheck, unit tests, build | `npm ci` at the root, then in `web` `npm run typecheck`, `npm test`, `npm run build`, on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/`, `packages/`, the root `package.json` or lockfile, or the workflow |
 | Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
-| Watch | Claims and site | From 2026-11-25, when judging and the demo freeze end, nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
+| Watch | Claims and site | From 2026-11-25, when the demo freeze ends (judging runs 2026-11-16 to 11-18), nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
 The tests, as of 2026-11-12: 64 Rust unit tests in
 [`tests.rs`](contracts/satchel/src/tests.rs); 235 package tests in 18 files: `clean.test.ts` 31, `evm.test.ts` 26,

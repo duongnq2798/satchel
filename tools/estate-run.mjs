@@ -45,6 +45,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { builtPackage } from "../scripts/built.mjs";
 import {
   AMOUNTS,
   EARLY_MARGIN_NS,
@@ -88,8 +89,8 @@ const {
   tokenAddress,
   view,
   viewAccount,
-} = await import("../packages/satchel-nft/dist/index.js");
-const { OutcomeUnknown, resolveNearCli, signAndSend, signedFromOutput } = await import("../packages/satchel-nft/dist/near-cli.js");
+} = await builtPackage();
+const { OutcomeUnknown, resolveNearCli, signAndSend, signedFromOutput } = await builtPackage("near-cli.js");
 
 const NEAR = 10n ** 24n;
 const GAS_ROOM = NEAR / 10n;

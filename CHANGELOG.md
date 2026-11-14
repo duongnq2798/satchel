@@ -859,6 +859,35 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- `node scripts/check-use-cases.mjs` exited 1 on a clean machine after 10 min: case 6's
+  `check-dao-bounty.mjs` ran past the 5 min limit printing its bounty board after its claims had
+  passed, and case 7 failed once on a public node that didn't answer. The bounty case now runs
+  `check-dao-bounty.mjs --claims-only`, the claims without the board (run alone, the script still
+  prints it); cases run 3 s apart; and a check that fails only because a node or the network didn't
+  answer (HTTP 408, 429 or 5xx, a timeout, `fetch failed`), or that runs past the limit, now 10 min,
+  runs once more a minute later, while a claim the chain answers against fails at once. Each case
+  prints its run time and the last line the total: 8 min 51 s and 9 min 9 s in two runs in a row on
+  2026-11-14. `check-claims.mjs`, `check-dao.mjs`, `check-dao-bounty.mjs` and `check-estate.mjs`
+  kept asking NEAR's archival node first once it had answered one read FastNEAR's didn't, even while
+  it answered HTTP 429 with a Retry-After of 329 s, which took the bounty claims 416 s; they now ask
+  first the node that answered the last read, and don't ask a node again for a read when its
+  Retry-After asks for more than 30 s. With FastNEAR's archival node alone answering, which let
+  about 8 reads through at once and then about one every 5 s that day, reads sent together raced for
+  those and the bounty claims still failed one on HTTP 429: archival reads now go out one at a time,
+  and a busy node is asked up to 6 more times instead of 3, the last ones 8 s apart. The bounty
+  claims' 54 archival reads then took 3 to 5 min. `check-scan-start.mjs`, `check-tokens.mjs` and the
+  `tools/` scripts that import the built package print
+  `run npm ci and npm run build -w satchel-nft first` and exit 2 when it can't be loaded
+  (`scripts/built.mjs`), instead of a stack trace, and `check-use-cases` counts that as skipped. A
+  mainnet satchel's history no longer asks 1Click about every send's recipient as the page loads:
+  1Click answers 404 for an address it has no quote for, which the browser logged as a red console
+  error on `/mainnet/satchel/1`. It asks on its own only about the deposit address the app knows
+  (satchel #2's, from `showcase.ts`), and any other send gets a **Check with 1Click** button on its
+  row; a screen reader hears 1Click's answer, and focus moves to it when it replaces the button.
+  The README, AGENTS.md, `watch.yml` and `frozen.ts` now say the daily watch and the demo freeze
+  run until 2026-11-25, after judging (2026-11-16 to 11-18), not that judging ends then, and
+  AGENTS.md gives the slow commands' run times and today's test counts (238 and 380). 2 new web
+  tests, 380 in all.
 - The clean transfer report printed an approval line twice once Make it clean had revoked it:
   `approve(spender, 0)` is itemized as a row of its own, and both rows read the same allowance
   (testnet satchel #9: "Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0", twice).

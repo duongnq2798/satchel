@@ -30,8 +30,10 @@ one. [SECURITY.md](SECURITY.md) says how to report a problem.
 
 ## Check the claims
 
-Steps 1 and 2 take about five minutes. Steps 3 and 4 install and build Rust, so they take longer
-the first time. Step 5 needs step 2's install and curl. Run every command from the repository root.
+Step 1's `check-claims.mjs` takes 15 s to a minute per network, and step 2's install 3 to 9 min the
+first time. Steps 3 and 4 install and build Rust, so they take longer the first time: a cold
+`cargo test` took about 7 min. Step 5 needs step 2's install and curl. The slow commands below say how
+long they took. Run every command from the repository root.
 
 ### 1. The deployment and its history: one command
 
@@ -39,8 +41,9 @@ the first time. Step 5 needs step 2's install and curl. Run every command from t
 node scripts/check-claims.mjs
 ```
 
-You should see 13 `[PASS]` lines, then `13 of 13 claims hold`, with exit code 0. It reads NEAR
-testnet over JSON-RPC and checks:
+You should see 13 `[PASS]` lines, then `13 of 13 claims hold`, with exit code 0, in about 20 s, or up
+to a minute right after another check has read FastNEAR's archival node (58 s on 2026-11-14).
+It reads NEAR testnet over JSON-RPC and checks:
 
 | Claim (README) | What the script reads |
 |---|---|
@@ -71,7 +74,7 @@ The mainnet deployment has its own record, `deployments/mainnet.json`:
 node scripts/check-claims.mjs --network mainnet
 ```
 
-You should see `20 of 20 claims hold`. The first seven are the rows above for `v1.satchel-nft.near`
+You should see `20 of 20 claims hold`, in about 20 s. The first seven are the rows above for `v1.satchel-nft.near`
 (signer `v1.signer`, its root key, satchel #1's derived key, deploy-and-init tx `3cbRdh9W…`). The eighth reads `nft_total_supply()` at the
 block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
 satchel was minted while the key existed. The table's refused calls are testnet only; the mainnet
@@ -179,29 +182,54 @@ the nodes that answered; on 2026-11-12 the default node returned the transaction
 for it. `NEAR_ARCHIVAL_RPC` replaces the archival NEAR node; with it unset, a read that
 `https://archival-rpc.testnet.fastnear.com` still doesn't answer goes to
 `https://archival-rpc.testnet.near.org`. Once FastNEAR's node has failed a read that NEAR's
-answered, later archival reads go to NEAR's node first, and a last line names the archival nodes
-that answered. In a copy of the script whose default archival node was a closed local port, a run
-took 35 s and printed `5 of 5 claims hold`; two runs of the script itself took 8 s and 6 s. A read
-a node answers with HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 3 more times, 1,
-2 and 4 s apart, or longer if the node's Retry-After asks, up to 8 s; any other read
-that fails, one that timed out after 30 s included, is tried once more, 2 s later. A claim that
-fails only because a NEAR or Sepolia node didn't answer says it is not a change to any satchel, and
-which variable to set. One that fails because every Sepolia node asked answered without the
-transaction says so instead.
+answered, later archival reads go to NEAR's node first, until NEAR's fails one that FastNEAR's
+answers, and a last line names the archival nodes that answered. In a copy of the script whose
+default archival node was a closed local port, a run took 35 s and printed `5 of 5 claims hold`; two
+runs of the script itself took 8 s and 6 s. A read a node answers with HTTP 408, 429 or 5xx, or
+whose connection fails, is sent up to 6 more times, 1, 2 and 4 s apart and then 8 s, or longer if
+the node's Retry-After asks, up to 8 s, and not again if it asks for more than 30 s; any other read
+that fails, one that timed out after 30 s included, is tried once more, 2 s later. Archival reads go
+out one at a time: on 2026-11-14 FastNEAR's archival node let about 8 reads through at once and
+then about one every 5 s, and reads sent together only raced for them. A claim that fails only
+because a NEAR or Sepolia node didn't answer says it is not a change to any satchel, and which
+variable to set. One that fails because every Sepolia node asked answered without the transaction
+says so instead.
 
-GitHub runs the three commands every day until judging ends, in
+Every use case in the README's [Use cases you can run](README.md#use-cases-you-can-run), with the
+checks behind it, in one run:
+
+```bash
+node scripts/check-use-cases.mjs
+```
+
+It runs `check-claims.mjs` on both networks, `check-dao.mjs`, `check-dao-bounty.mjs --claims-only`,
+`check-estate.mjs`, `check-scan-start.mjs` and this checkout's `satchel-nft verify` for testnet #5,
+#3 and #9, one case after another with a 3 s pause, and asks the holder room's route to refuse a
+signature that doesn't verify. You should see
+`9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed, in …` and exit code 0 after about 9 min
+(8 min 51 s and 9 min 9 s in two runs on 2026-11-14), longer than a 2-minute tool timeout: start it
+in the background with its output going to a file. Each case prints its own run time; the bounty
+and estate checks took about 4 min and 3 min, most of it waiting on FastNEAR's archival node, which
+answered about one read every 5 s that day. A check that fails only because a node or the network
+didn't answer, or that runs past 10 min, runs once more a minute later and says so; a claim the
+chain answers against fails at once. Without step 2's build, cases 2, 3 and 8 read `skipped`, not
+failed.
+
+GitHub runs the three commands every day until the demo freeze ends on 2026-11-25, after judging
+(2026-11-16 to 11-18), in
 [`watch.yml`](.github/workflows/watch.yml): `check-claims.mjs` on both networks, `check-dao.mjs`,
 then `curl -fsS` on <https://satchelnft.xyz> and <https://satchelnft.xyz/mainnet>, on Node 22 with no
 install and no secrets. A check that fails runs once more a minute later before the run fails. From
-2026-11-25, when judging and the demo freeze end, the run checks nothing. Its runs are in the
+2026-11-25, when the demo freeze ends, the run checks nothing. Its runs are in the
 repository's Actions tab.
 
 ### 2. The clean transfer report for each demo satchel
 
 Run step 1's `node scripts/check-claims.mjs` before this step: it needs no install and ends in
 seconds. This step installs or downloads the package before it runs, which takes longer than a
-2-minute tool timeout: the root `npm ci` below installs the package and the web app, and the
-package alone (`npm ci -w satchel-nft`) took 2 min 54 s here; `npx -y satchel-nft@0.2.0 verify 1`
+2-minute tool timeout: the root `npm ci` below installs the package and the web app, which took
+3 to 9 min on a fresh clone (8 min 43 s on Windows), and the package alone (`npm ci -w
+satchel-nft`) took 2 min 54 s here; `npx -y satchel-nft@0.2.0 verify 1`
 in an empty folder took 142 s and 230 s in two runs. An agent should
 start the install or the `npx` run in the background, with its output going to a file, and read the
 file once it ends. To redo one verdict with no install at all, the README's
@@ -254,8 +282,9 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  235 passed (235)` for `satchel-nft`, then
-`Tests  309 passed (309)` for the app, then no type errors.
+Each runs in both workspaces. You should see `Tests  238 passed (238)` for `satchel-nft`, then
+`Tests  380 passed (380)` for the app, then no type errors. Each command took under a minute on a
+fresh clone (41 s and 37 s).
 
 ```bash
 cd contracts/satchel
@@ -263,8 +292,9 @@ cargo test
 cd ../..
 ```
 
-You should see `test result: ok. 64 passed`. Rust 1.99.1 is pinned in `rust-toolchain.toml`, and
-rustup installs it on first use. On Windows, a dependency (`aws-lc-sys`) needs NASM unless you set
+You should see `test result: ok. 64 passed`. With Rust already installed, the first run builds the
+dependencies and took 6 min 45 s; start it in the background. Rust 1.99.1 is pinned in
+`rust-toolchain.toml`, and rustup installs it on first use. On Windows, a dependency (`aws-lc-sys`) needs NASM unless you set
 `AWS_LC_SYS_PREBUILT_NASM=1` first: `$env:AWS_LC_SYS_PREBUILT_NASM=1` in PowerShell, `export
 AWS_LC_SYS_PREBUILT_NASM=1` in Git Bash.
 
