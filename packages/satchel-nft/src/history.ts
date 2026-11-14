@@ -9,7 +9,8 @@ import { indexPost } from "./tx-index.js";
 export type HistoryEvent =
   | { kind: "mint"; owner: string }
   | { kind: "transfer"; from: string; to: string }
-  | { kind: "sign_evm"; chainId: string; nonce: string; to: string; value: string; class: string }
+  // `revoke`: the call was `approve(spender, 0)` (see `approvesZero`).
+  | { kind: "sign_evm"; chainId: string; nonce: string; to: string; value: string; class: string; revoke?: true }
   | { kind: "sign_raw"; payload: string }
   | { kind: "list"; price: string }
   | { kind: "delist" }
@@ -187,7 +188,8 @@ function eventFrom(standard: string, name: string, data: unknown, tokenId: strin
     case "sign_evm": {
       const [chainId, nonce, value] = [d.chain_id, d.nonce, d.value].map(digits);
       const [to, cls] = [d.to, d.class].map(str);
-      return chainId && nonce && to && value && cls ? { kind: "sign_evm", chainId, nonce, to, value, class: cls } : null;
+      if (!(chainId && nonce && to && value && cls)) return null;
+      return { kind: "sign_evm", chainId, nonce, to, value, class: cls, ...(approvesZero(d.approval) ? { revoke: true as const } : {}) };
     }
     case "sign_raw":
       return str(d.payload) ? { kind: "sign_raw", payload: d.payload as string } : null;
@@ -202,6 +204,17 @@ function eventFrom(standard: string, name: string, data: unknown, tokenId: strin
     default:
       return null;
   }
+}
+
+/**
+ * Whether a logged approval row is `approve(spender, 0)`. The contract itemizes it as an approval,
+ * since on an ERC-721 contract the same call approves token id 0, but on a token it sets the
+ * allowance to 0: Make it clean's Revoke sends it. The report reads the allowance either way.
+ */
+function approvesZero(row: unknown): boolean {
+  if (typeof row !== "object" || row === null) return false;
+  const { kind, arg } = row as Record<string, unknown>;
+  return kind === "Approve" && typeof arg === "string" && /^0x0+$/.test(arg);
 }
 
 /** What the contract logged `class` as, in words. */
@@ -224,7 +237,9 @@ export function describeEntry(e: HistoryEntry): string {
       const what =
         e.class === "value_transfer"
           ? `a send of ${formatBalance(BigInt(e.value))}${chain ? ` ${chain.symbol}` : ""} to ${e.to}`
-          : (SIGNED[e.class] ?? `an unclassified call to ${e.to}`);
+          : e.revoke
+            ? "a revoke (approve of 0)"
+            : (SIGNED[e.class] ?? `an unclassified call to ${e.to}`);
       return `${e.caller} had ${what} signed on ${where}, nonce ${e.nonce}`;
     }
     case "sign_raw":

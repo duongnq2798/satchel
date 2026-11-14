@@ -16,8 +16,9 @@ Node 22 or later; the contract tests also need Rust.
   version they checked: `buy` names it. The report and the transactions are one package,
   `satchel-nft` in `packages/satchel-nft`: the web app runs on it, and it is also a library and a
   CLI.
-- **Who it's for.** An address that must keep receiving after a sale: a fee or royalty receiver a
-  contract fixes for good, a DAO treasury, an estate.
+- **Who it's for.** An address that must keep receiving after a sale: a DAO treasury, passed on by a
+  vote, or an estate, handed to a named heir (both ran on testnet, builder-held). A fee or royalty
+  receiver a contract fixes for good fits too (not yet demonstrated).
 - **Why NEAR.** No one holds the key. NEAR's MPC network (Chain Signatures) derives each token's
   secp256k1 key from the contract's account and the path `satchel/<token_id>`, and signs with it
   only when the contract asks; the contract asks only for the token's owner. So one NEAR transaction
@@ -29,17 +30,17 @@ Node 22 or later; the contract tests also need Rust.
   end to end (a self-sale between two of the builder's accounts, not a market price).
 
 Three commands check the core of it, with Node 22 or later and no wallet, from the repository root
-(times and lines from runs on 2026-11-13; [Check the claims](#check-the-claims) has the details):
+(times and lines from runs on 2026-11-13 and 11-14; [Check the claims](#check-the-claims) has the details):
 
 ```bash
-# 1. No install, about 15 s. Last line, exit 0: 20 of 20 claims hold (…)
+# 1. No install, 10 to 20 s. Last line, exit 0: 20 of 20 claims hold (…)
 node scripts/check-claims.mjs --network mainnet
-# 2. The npm release, run in an empty folder (inside a clone, after npm ci,
-#    npx runs the clone's own build): 49 s to 4 min the first time (download),
-#    4 to 15 s after. Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
+# 2. The npm release, from any folder (inside a clone too): 49 s to 4 min the
+#    first time (download), 4 to 15 s after.
+#    Verdict line, exit 0: PROVABLY CLEAN (checked <time>)
 npx -y satchel-nft@0.2.0 verify --network mainnet 3
 # 3. About 8 to 10 min (8 min 26 s on 2026-11-13); prints each of 9 use cases.
-#    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed
+#    Last line, exit 0: 9 use cases: 9 hold, 0 not run yet, 0 skipped, 0 failed, in <time>
 #    (before npm ci and npm run build -w satchel-nft: 6 hold, 3 skipped)
 node scripts/check-use-cases.mjs
 ```
@@ -52,10 +53,11 @@ one. [SECURITY.md](SECURITY.md) says how to report a problem.
 
 ## Check the claims
 
-Step 1's `check-claims.mjs` takes 15 s to a minute per network, and step 2's install 3 to 9 min the
-first time. Steps 3 and 4 install and build Rust, so they take longer the first time: a cold
-`cargo test` took about 7 min. Step 5 needs step 2's install and curl. The slow commands below say how
-long they took. Run every command from the repository root.
+Step 1's `check-claims.mjs` takes 10 to 20 s per network (up to a minute right after another check
+has read FastNEAR's archival node), and step 2's install 3 to 9 min the first time. Steps 3 and 4
+install and build Rust, so they take longer the first time: a cold `cargo test` took about 7 min.
+Step 5 needs step 2's install and curl. The slow commands below say how long they took. Run every
+command from the repository root.
 
 ### 1. The deployment and its history: one command
 
@@ -63,7 +65,7 @@ long they took. Run every command from the repository root.
 node scripts/check-claims.mjs
 ```
 
-You should see 13 `[PASS]` lines, then `13 of 13 claims hold`, with exit code 0, in about 20 s, or up
+You should see 13 `[PASS]` lines, then `13 of 13 claims hold`, with exit code 0, in 10 to 20 s, or up
 to a minute right after another check has read FastNEAR's archival node (58 s on 2026-11-14).
 It reads NEAR testnet over JSON-RPC and checks:
 
@@ -96,7 +98,7 @@ The mainnet deployment has its own record, `deployments/mainnet.json`:
 node scripts/check-claims.mjs --network mainnet
 ```
 
-You should see `20 of 20 claims hold`, in about 20 s. The first seven are the rows above for `v1.satchel-nft.near`
+You should see `20 of 20 claims hold`, in 10 to 20 s, or up to a minute right after another archival read. The first seven are the rows above for `v1.satchel-nft.near`
 (signer `v1.signer`, its root key, satchel #1's derived key, deploy-and-init tx `3cbRdh9W…`). The eighth reads `nft_total_supply()` at the
 block that ran the `DeleteKey` of tx `Dw29Zbe…` and expects 0: the supply only grows, so no
 satchel was minted while the key existed. The table's refused calls are testnet only; the mainnet
@@ -167,10 +169,22 @@ so a later signature or sale doesn't change any of them:
   saved after the refusal reads `PROVABLY CLEAN` for the buyer. The reports are checked for what
   they read, and the first for when it was saved, not for which program wrote them.
 
-The script tries each read that fails once more, 2 s later. When a node or 1Click still doesn't
-answer, the claim fails with a line that says this is not a change to any satchel and what to do:
-set `BASE_RPC` to another Base node (an archive node for satchel #2's funding claim), or, for 1Click,
-run the check again later. If a Base read came from `https://mainnet.base.org`, the last line says so.
+`check-claims.mjs`, `check-dao.mjs`, `check-dao-bounty.mjs` and `check-estate.mjs` keep asking a
+busy node: a read a node answers with HTTP 408, 429 or 5xx, or whose connection fails, is sent up to
+6 more times, 1, 2 and 4 s apart and then 8 s, or longer if the node's Retry-After asks, up to 8 s,
+and not again if it asks for more than 30 s; any other failed read is tried once more, 2 s later.
+Their archival reads go out one at a time. With `BASE_RPC` unset, a Base read the default node
+fails goes to Base's own node, `https://mainnet.base.org`. With `NEAR_ARCHIVAL_RPC` unset, an
+archival read FastNEAR's node still doesn't answer goes to NEAR's own,
+`https://archival-rpc.<network>.near.org`, and once FastNEAR's has failed a read that NEAR's
+answered, later archival reads go to NEAR's node first, until NEAR's fails one that FastNEAR's
+answers (on 2026-11-14 NEAR's answered HTTP 429 with a Retry-After of 329 s; on 2026-11-12
+FastNEAR's answered HTTP 429 to every retry when `check-dao.mjs` ran right after
+`check-claims.mjs`). `NEAR_RPC`, `NEAR_ARCHIVAL_RPC`, `BASE_RPC`, `ARBITRUM_RPC` and `SEPOLIA_RPC`
+pick your own nodes. When a node or 1Click still doesn't answer, the claim fails with a line that
+says this is not a change to any satchel and what to do: set `BASE_RPC` to another Base node (an
+archive node for satchel #2's funding claim), or, for 1Click, run the check again later. If a Base
+read came from `https://mainnet.base.org`, the last line says so.
 
 A Sputnik DAO owned satchel #8 on testnet. That run has its own record,
 `deployments/testnet-dao.json`, and its own script:
@@ -266,10 +280,10 @@ npm run build -w satchel-nft
 npx satchel-nft verify 1
 ```
 
-Outside a clone, `npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from
-commit `2dd4209` ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). Inside the
-repository that pinned command runs this checkout's build instead, because the checkout's package
-is also 0.2.0. On its initial run the release downloads the package (timed above); later runs take
+`npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from commit `2dd4209`
+([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). It does inside the repository
+too: the checkout's package is 0.3.0-dev, unreleased, so only `npx satchel-nft`, with no version,
+runs this checkout's build. On its initial run the release downloads the package (timed above); later runs take
 6 to 11 s.
 
 `npm ci` at the root installs the package `satchel-nft` (in `packages/satchel-nft`) and the web app
@@ -304,7 +318,7 @@ npm test
 npm run typecheck
 ```
 
-Each runs in both workspaces. You should see `Tests  238 passed (238)` for `satchel-nft`, then
+Each runs in both workspaces. You should see `Tests  239 passed (239)` for `satchel-nft`, then
 `Tests  387 passed (387)` for the app, then no type errors. Each command took under a minute on a
 fresh clone (41 s and 37 s).
 

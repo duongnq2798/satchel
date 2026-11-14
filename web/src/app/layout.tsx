@@ -13,7 +13,7 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrai
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://satchelnft.xyz"),
-  title: { default: "Satchel: an NFT that is one wallet on 16 EVM chains", template: "%s · Satchel" },
+  title: { default: "Satchel: sell a wallet, prove nothing stayed behind", template: "%s · Satchel" },
   description:
     "Each Satchel NFT controls one address on 16 EVM chains through NEAR Chain Signatures. Only its owner can have anything new signed; a public record shows a buyer what was signed before.",
   // With icons set here, Next.js links no icon file by itself: apple-icon.png beside this file is named
