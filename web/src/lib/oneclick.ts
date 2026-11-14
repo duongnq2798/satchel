@@ -1,5 +1,6 @@
 import { type Address, formatUnits, getAddress, isAddress, parseUnits } from "viem";
 import { type ChainContents, type ChainInfo, type HistoryEntry, MAINNET, TOKENS, type TokenInfo, chainInfo, sendChains } from "satchel-nft";
+import { ONECLICK_EXIT } from "./showcase";
 
 /*
  * NEAR Intents' 1Click API, for dry quotes and for a deposit address's status. The quote logic is
@@ -26,7 +27,7 @@ export const SLIPPAGE_BPS = 100;
 /** The slippage limits, in basis points, the panel offers: 0.5 %, 1 % (the default) and 3 %. */
 export const SLIPPAGE_CHOICES: readonly number[] = [50, SLIPPAGE_BPS, 300];
 export const QUOTE_MINUTES = 60;
-/** How many of a satchel's latest sends its history asks 1Click about. */
+/** How many of a satchel's latest sends its history can ask 1Click about. */
 export const STATUS_LOOKUPS = 5;
 const TIMEOUT_MS = 20_000;
 
@@ -392,8 +393,10 @@ export async function statusOf(depositAddress: string): Promise<SwapStatus | nul
 type SignEvmEntry = Extract<HistoryEntry, { kind: "sign_evm" }>;
 
 /**
- * The sends whose recipient the history asks 1Click about: the latest native-coin transfers on a
+ * The sends whose recipient the history can ask 1Click about: the latest native-coin transfers on a
  * chain 1Click lists, newest to oldest, at most STATUS_LOOKUPS. A deposit into a 1Click swap is one.
+ * It asks about those that paid a known deposit address (paysKnownDeposit) as the page loads, and
+ * about the others when the reader clicks "Check with 1Click".
  */
 export function sendsToLookUp(entries: readonly HistoryEntry[]): SignEvmEntry[] {
   return entries
@@ -407,6 +410,27 @@ export function sendsToLookUp(entries: readonly HistoryEntry[]): SignEvmEntry[] 
     )
     .slice(-STATUS_LOOKUPS)
     .reverse();
+}
+
+/**
+ * The 1Click deposit addresses this app knows, lowercased: those of the swaps it shows (showcase.ts),
+ * so far mainnet satchel #2's. A page asks 1Click on its own only about these: for an address it has
+ * no quote for, 1Click answers 404, which a browser logs as an error even though the history expects
+ * it. Any other recipient is asked about on the reader's click.
+ */
+export const KNOWN_DEPOSITS: ReadonlySet<string> = new Set([ONECLICK_EXIT.depositAddress].map((a) => a.toLowerCase()));
+
+/** Whether `send` paid one of KNOWN_DEPOSITS. */
+export const paysKnownDeposit = (send: SignEvmEntry) => KNOWN_DEPOSITS.has(send.to.toLowerCase());
+
+/**
+ * The history's sends to ask 1Click about (sendsToLookUp), newest first: `known`, those that paid a
+ * known deposit address, which the page asks about as it loads, and `onClick`, the rest, which it
+ * asks about when the reader clicks "Check with 1Click" on their row.
+ */
+export function historyLookups(entries: readonly HistoryEntry[]): { known: SignEvmEntry[]; onClick: SignEvmEntry[] } {
+  const sends = sendsToLookUp(entries);
+  return { known: sends.filter(paysKnownDeposit), onClick: sends.filter((s) => !paysKnownDeposit(s)) };
 }
 
 /** The key a history row and its 1Click line share. */
@@ -466,6 +490,14 @@ export interface SwapMark {
   payout: boolean;
 }
 
+/** `send`'s mark from 1Click's `status` for its recipient, or null when that isn't a swap from this send (swapLine). */
+function markOf(send: SignEvmEntry, status: SwapStatus, tokens: readonly OneClickToken[], satchel: Address): SwapMark | null {
+  const line = swapLine(send, status, tokens, satchel);
+  if (!line) return null;
+  const payout = payoutUrl(status, tokens);
+  return { line, url: payout ?? statusUrl(send.to), payout: payout !== null };
+}
+
 /**
  * 1Click's line for each send it knows the recipient of, by `sendKey`. A send 1Click doesn't know, or
  * can't be asked about, gets none: this never throws, since the history doesn't depend on it.
@@ -478,10 +510,17 @@ export async function swapMarks(sends: readonly SignEvmEntry[], satchel: Address
   if (!tokens) return marks;
   sends.forEach((send, i) => {
     const status = statuses[i];
-    const line = status && swapLine(send, status, tokens, satchel);
-    if (!status || !line) return;
-    const payout = payoutUrl(status, tokens);
-    marks.set(sendKey(send), { line, url: payout ?? statusUrl(send.to), payout: payout !== null });
+    const mark = status && markOf(send, status, tokens, satchel);
+    if (mark) marks.set(sendKey(send), mark);
   });
   return marks;
+}
+
+/**
+ * 1Click's line for one send, asked on the reader's click: null when 1Click doesn't know its recipient
+ * (404) or knows no swap from this send. Throws a OneClickError when 1Click doesn't answer.
+ */
+export async function swapMark(send: SignEvmEntry, satchel: Address): Promise<SwapMark | null> {
+  const status = await statusOf(send.to);
+  return status && markOf(send, status, await oneClickTokens(), satchel);
 }
