@@ -1814,8 +1814,8 @@ re-checks the demo every day until the demo freeze ends on 2026-11-25, after jud
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 | Watch | Claims and site | From 2026-11-25, when the demo freeze ends (judging runs 2026-11-16 to 11-18), nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
-The tests, as of 2026-11-14: 64 Rust unit tests in
-[`tests.rs`](contracts/satchel/src/tests.rs), and 63 in the estate contract's [`tests.rs`](contracts/estate/src/tests.rs);
+The tests, as of 2026-11-14: 64 Rust unit tests, in near-sdk's mocked environment, in
+[`tests.rs`](contracts/satchel/src/tests.rs) (no sandbox test runs the wasm; see [Limits](#limits-stated-plainly)), and 63 in the estate contract's [`tests.rs`](contracts/estate/src/tests.rs);
 239 package tests in 18 files: `clean.test.ts` 31, `dao.test.ts` 29, `evm.test.ts` 26, `report.test.ts` 26,
 `holder.test.ts` 15, `history.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13, `cli-args.test.ts` 11,
 `kit.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8, `guard.test.ts` 7, `nep413.test.ts` 7,
@@ -1895,8 +1895,12 @@ What the tests pin down:
   could move the token without `buy`, around the record version the buyer checked. A marketplace
   sends its buyers to `buy`, or takes the satchel in escrow with `nft_transfer_call` and then owns
   it, the right to sign included, until it hands it on.
-- **The seller's payment can fail** if the seller deletes their account before it lands; the NEAR then
-  stays in the contract, which has no admin to return it.
+- **A payout can strand.** `buy` moves the token, then sends the seller's payment and the buyer's
+  refund as two transfer receipts with no callback (`buy` in [`lib.rs`](contracts/satchel/src/lib.rs)).
+  If the seller deletes their account before the payment lands, or the buyer before the refund does,
+  that transfer fails and the NEAR stays in the contract, which has no admin and no keys to return it.
+  The sale itself stands: the buyer has the token either way. Mainnet satchel #3's payment ran
+  (receipt `EbK3MHAk…`, [`mainnet-sale.json`](deployments/mainnet-sale.json)).
 - `listings` pages can shift between calls, because removing a listing moves the last one into its slot.
   A page can also come back short, or empty, with more listings after it, because the view drops stale
   listings after it pages. `satchel(net).allListings()` in `satchel-nft` reads pages up to
@@ -1964,6 +1968,20 @@ What the tests pin down:
   row. It offers Spend nonce buttons for up to 10 open nonces on a chain; with more, it gives a
   terminal command instead. It has no button for an `approve` row that both the ERC-20 and the
   ERC-721 read find live: it shows both calls instead. Nothing fixes check 4.
+- **No test runs the built wasm.** The 64 contract tests are unit tests in near-sdk's mocked
+  environment (`testing_env!`). They check the receipts each method creates, read with
+  `get_created_receipts`: the MPC `sign` call's receiver, path, `payload_v2` and `domain_id`, its
+  1 yoctoNEAR and at least 15 TGas (`sign_evm_calls_mpc_with_the_token_path_and_records_the_nonce`,
+  `evm_signing_hash_view_matches_the_hash_sign_evm_sends`), and `buy`'s payment to the seller and
+  refund to the buyer (`buy_moves_the_token_pays_the_seller_and_refunds_the_rest`,
+  `buy_with_the_exact_price_sends_no_refund`). They don't run those receipts, and
+  `nft_resolve_transfer` gets a mocked promise result. No sandbox test runs the wasm in CI. The
+  receipts have run only on chain: the end-to-end run against the real MPC network
+  ([`testnet-e2e.json`](deployments/testnet-e2e.json)), a refused `buy` whose buyer kept the NEAR
+  ([`7HQPu9qe…`](https://testnet.nearblocks.io/txns/7HQPu9qeJauNrJLaMNCUuMJVska3u3uYsoGyp7gsCfWv)),
+  and mainnet satchel #3's sale, whose receipt `EbK3MHAk…` paid the seller
+  ([`mainnet-sale.json`](deployments/mainnet-sale.json)). No recorded buy attached more than the
+  price, so the refund of the rest has only its unit test.
 - **Not audited** by anyone outside the project. Internal reviews only: two of the contract (one
   adversarial) found two ways to slip an approval past the first version of the record, then two
   smaller gaps in the fix, all fixed and tested; the web app and the mainnet path had two each, one of

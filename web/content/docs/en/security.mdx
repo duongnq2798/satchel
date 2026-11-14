@@ -31,6 +31,9 @@ tests. On mainnet a satchel holds real funds: keep in one only what you can affo
 | The holder room's gate | A NEP-413 signature over a message the server writes itself, at most 5 minutes old; a full-access key of the account and the account as the satchel's owner, both read at one final NEAR block, on every request | `checkHolder` in `holder.ts`, `verifyNep413` in `nep413.ts`, `web/src/app/api/room/route.ts` | `holder.test.ts`, `nep413.test.ts` (against vectors near-cli-rs signed), `room-request.test.ts` |
 
 The contract's tests are in `contracts/satchel/src/tests.rs` (64), the package's next to each file (239).
+The contract's are unit tests in near-sdk's mocked environment: they check the receipts each method creates,
+such as the MPC `sign` call and `buy`'s payment, but don't run them, and no test runs the built wasm. Those
+receipts have run on chain, on testnet and in mainnet satchel #3's sale.
 [Check every claim](/docs/security/check-every-claim#where-each-rule-lives) maps each rule to its code and tests,
 and says which rules have no unit test and how they were checked instead.
 
