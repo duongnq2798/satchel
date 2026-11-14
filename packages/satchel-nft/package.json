@@ -32,7 +32,19 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./near-rpc": {
+      "types": "./dist/near-rpc.d.ts",
+      "default": "./dist/near-rpc.js"
+    },
+    "./chain-signatures": {
+      "types": "./dist/chain-signatures.d.ts",
+      "default": "./dist/chain-signatures.js"
+    },
+    "./account-proof": {
+      "types": "./dist/account-proof.d.ts",
+      "default": "./dist/account-proof.js"
+    }
   },
   "files": [
     "bin",

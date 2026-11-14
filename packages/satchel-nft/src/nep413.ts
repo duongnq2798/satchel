@@ -1,6 +1,6 @@
 import { ed25519 } from "@noble/curves/ed25519";
 import { sha256 } from "@noble/hashes/sha2";
-import { base58Decode } from "./evm.js";
+import { base58Decode } from "./base58.js";
 
 /**
  * NEP-413 signed messages: what a NEAR wallet signs when a site asks it to prove it holds an

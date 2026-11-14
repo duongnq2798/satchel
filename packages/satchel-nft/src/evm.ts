@@ -12,37 +12,14 @@ import {
   serializeTransaction,
   toHex,
 } from "viem";
-import { secp256k1 } from "@noble/curves/secp256k1";
-import { sha3_256 } from "@noble/hashes/sha3";
+import { base58Decode } from "./base58.js";
 import { type ChainInfo, type Network, chainInfo } from "./config.js";
+import { deriveKey } from "./mpc-kdf.js";
 
-const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+// The base58 codec lives in base58.ts; it stays exported here, so the package root keeps both names.
+export { base58Decode, base58Encode } from "./base58.js";
+
 const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
-
-export function base58Decode(text: string): Uint8Array {
-  let n = 0n;
-  for (const c of text) {
-    const digit = BASE58.indexOf(c);
-    if (digit < 0) throw new Error(`not base58: ${c}`);
-    n = n * 58n + BigInt(digit);
-  }
-  let hex = n === 0n ? "" : n.toString(16);
-  if (hex.length % 2) hex = `0${hex}`;
-  const body = (hex.match(/../g) ?? []).map((byte) => Number.parseInt(byte, 16));
-  const lead = text.match(/^1*/)?.[0].length ?? 0;
-  return Uint8Array.from([...new Array(lead).fill(0), ...body]);
-}
-
-export function base58Encode(bytes: Uint8Array): string {
-  let n = bytes.length ? BigInt(toHex(bytes)) : 0n;
-  let text = "";
-  while (n > 0n) {
-    text = BASE58[Number(n % 58n)] + text;
-    n /= 58n;
-  }
-  const lead = bytes.findIndex((byte) => byte !== 0);
-  return "1".repeat(lead === -1 ? bytes.length : lead) + text;
-}
 
 /** The 64 bytes (x then y) of a NEAR `secp256k1:<base58>` public key. */
 function mpcKeyBytes(publicKey: string): Uint8Array {
@@ -57,22 +34,15 @@ export function addressFromMpcKey(publicKey: string): Address {
   return getAddress(`0x${keccak256(toHex(mpcKeyBytes(publicKey))).slice(-40)}`);
 }
 
-/** What NEAR's MPC network hashes, with the caller's account and the path, to tweak its root key. */
-const TWEAK_PREFIX = "near-mpc-recovery v0.1.0 epsilon derivation:";
-
 /**
  * The key NEAR's MPC network holds for `path` when `predecessor` asks it to sign, as a NEAR
  * `secp256k1:` key: the root key plus t·G, where t is sha3-256 of the prefix, `predecessor`, a comma
  * and `path`. This is the MPC contract's `derived_public_key` view, computed here instead of read
- * through an RPC. A root key that is not a point on the curve, or a hash that is not a valid scalar,
- * throws: no address is better than a wrong one.
+ * through an RPC, by mpc-kdf.ts's deriveKey for domain 0. A root key that is not a point on the curve,
+ * or a hash that is not a valid scalar, throws: no address is better than a wrong one.
  */
 export function deriveMpcKey(rootKey: string, predecessor: string, path: string): string {
-  const root = secp256k1.ProjectivePoint.fromHex(`04${toHex(mpcKeyBytes(rootKey)).slice(2)}`);
-  const tweak = BigInt(toHex(sha3_256(`${TWEAK_PREFIX}${predecessor},${path}`)));
-  if (tweak === 0n || tweak >= SECP256K1_N) throw new Error(`the tweak for ${path} is not a valid scalar`);
-  const key = root.add(secp256k1.ProjectivePoint.BASE.multiply(tweak)).toRawBytes(false);
-  return `secp256k1:${base58Encode(key.subarray(1))}`;
+  return deriveKey(rootKey, predecessor, path, 0);
 }
 
 /**

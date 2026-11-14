@@ -1,0 +1,134 @@
+{
+  "provenance": {
+    "network": "base",
+    "rpc": "https://base-rpc.publicnode.com",
+    "source": "deployments/mainnet-first-send.json baseTx; node from config.ts chainInfo(8453).rpc",
+    "block": {
+      "height": 55178996,
+      "hash": "0x93085106f66e28b50b9e7bfcec38e629563ee65221eb633a0370d5d6f04ee880",
+      "why": "the block that included the transaction"
+    },
+    "notes": "mainnet satchel #1's Base send; the finalized block was 57332109 at capture",
+    "capturedAt": "2026-11-14T12:04:51.116Z",
+    "capturedBy": "scripts/capture-primitive-fixtures.mjs",
+    "modified": false
+  },
+  "calls": [
+    {
+      "method": "eth_chainId",
+      "params": [],
+      "result": "0x2105"
+    },
+    {
+      "method": "eth_getTransactionByHash",
+      "params": [
+        "0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532"
+      ],
+      "result": {
+        "type": "0x2",
+        "chainId": "0x2105",
+        "nonce": "0x0",
+        "gas": "0x5208",
+        "maxFeePerGas": "0xa7d8c0",
+        "maxPriorityFeePerGas": "0xf4240",
+        "to": "0x537409db5d90c0b1f4a8d0b087c8427a7c955981",
+        "value": "0x5af3107a4000",
+        "accessList": [],
+        "input": "0x",
+        "r": "0x2af968283477c9f3a3d5c7803bdb6caf9871b59a18a8ecf058a7eff0e7c2aae7",
+        "s": "0x64374e193e31ac7a5879eaf6869d7dfbc2eec2f031ce5852fc0254cfc9b66125",
+        "yParity": "0x0",
+        "v": "0x0",
+        "hash": "0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532",
+        "blockHash": "0x93085106f66e28b50b9e7bfcec38e629563ee65221eb633a0370d5d6f04ee880",
+        "blockNumber": "0x349f6f4",
+        "transactionIndex": "0x30",
+        "blockTimestamp": "0x6af1b7fe",
+        "blockTimestampMs": "0x1a1c036bb50",
+        "from": "0xdc269ead17b522d49db2cefd38cef0c5413868f9",
+        "gasPrice": "0x5b8d80"
+      }
+    },
+    {
+      "method": "eth_getTransactionReceipt",
+      "params": [
+        "0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532"
+      ],
+      "result": {
+        "type": "0x2",
+        "status": "0x1",
+        "cumulativeGasUsed": "0x5f8a57",
+        "logs": [],
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "transactionHash": "0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532",
+        "transactionIndex": "0x30",
+        "blockHash": "0x93085106f66e28b50b9e7bfcec38e629563ee65221eb633a0370d5d6f04ee880",
+        "blockNumber": "0x349f6f4",
+        "gasUsed": "0x5208",
+        "effectiveGasPrice": "0x5b8d80",
+        "blobGasUsed": "0x39d0",
+        "from": "0xdc269ead17b522d49db2cefd38cef0c5413868f9",
+        "to": "0x537409db5d90c0b1f4a8d0b087c8427a7c955981",
+        "contractAddress": null,
+        "l1GasPrice": "0x99587cb",
+        "l1GasUsed": "0x640",
+        "l1Fee": "0x59182774",
+        "l1BaseFeeScalar": "0x8dd",
+        "l1BlobBaseFee": "0x83aaa5",
+        "l1BlobBaseFeeScalar": "0x101c12",
+        "daFootprintGasScalar": "0x94"
+      }
+    },
+    {
+      "method": "eth_getBlockByNumber",
+      "params": [
+        "finalized",
+        false
+      ],
+      "result": {
+        "hash": "0xa7afdb27849577b2213d6f018839736b707f2bf01e634f0421446995d813f7a4",
+        "parentHash": "0x944010cfb3ef3c1bda2bc694044864bc433dd9377d9074bad1d0564490bea156",
+        "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+        "miner": "0x4200000000000000000000000000000000000011",
+        "stateRoot": "0xc6c902f915be2dea2c93459fb3a5c6defb0cc81e059fccd2cf5e87ad4743c422",
+        "transactionsRoot": "0x241153a4efc1e22cfce12d50f5eb6d019e245a139fa07251ed19ed5e919c328a",
+        "receiptsRoot": "0xe649476a52d89cb7911d34c8da7056bb686e3fada836ecee2dbe4bf67dabf999",
+        "logsBloom": "0x04006480404008500200001002020400004c64004014300000261040050004002008011110208800000a825100021010000c10010004200042450a839824000c1400220004c00008110204480001820000000000104c1000000200002000400000810201020020200200000144600a002000400a1005000000808012008a0402041000c40400008080000000016020100000d2000429580050140000200000208202000000001000024000001000000820140002000100280013020802010882080000020001006100411080040810000080008010002000000201101000602002103c004406000020040000400a90802802080002240000c080000003080020",
+        "difficulty": "0x0",
+        "number": "0x36ad18d",
+        "gasLimit": "0x2625a00",
+        "gasUsed": "0x247bc4",
+        "timestamp": "0x6af84a1d",
+        "extraData": "0x01000003e80000000500000000004c4b40",
+        "mixHash": "0x4baab6a02cecd699da1a808375f90811220ab3dc72129f614747a3894dedb087",
+        "nonce": "0x0000000000000000",
+        "baseFeePerGas": "0x4c4b40",
+        "withdrawalsRoot": "0x698f77fbcd6aaab30d47c31516b39d8a7a7a32fa1d569a22e9ede130687767ba",
+        "blobGasUsed": "0x52998",
+        "excessBlobGas": "0x0",
+        "parentBeaconBlockRoot": "0xa4505e2f92c2fe050eabed0202b04dbe8d238334dbb57fa590a00f8d4d95abd0",
+        "requestsHash": "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": "0x19ac",
+        "timestampMs": "0x1a1d9e182d8",
+        "uncles": [],
+        "transactions": [
+          "0x24faebd2bf057169d601b0c2952d14c482aa470c8c695278a7a31bdf3ac3304c",
+          "0xcfec13f65cf4f341bbd0799e3a26d90c564ab9fb17c9b86b503a547b7204640d",
+          "0x96a66d6d941995590bb042580dc7446bcb2cc61582fcb3c14f1fd90062bd23a6",
+          "0x54f1e7f1fa01e1016c6461d32ca6aeab12070ee1da0912a20fb11f9c06ec9747",
+          "0x5d43de63583430e40f7480a667e1541341739899fa2e0767f072d80f4e5b5783",
+          "0x95a77196eec8525c17cd9d4b7c63c315f6de2a07a99d23fbb4293f59cbed66cf",
+          "0x3684b5a5634608f8c2a4ea58e380fe48014ba1848ad02fb07feb69bf06f683c0",
+          "0xb2a4c9a168cf11659d92fbace67ac76bf364746d068e5d9ea1a0742a3a64656c",
+          "0x2a78379fba368d67ee9f1836e1d642cb2294934599113fd6b8178cd3e4f64c54",
+          "0x25c84c539132396b8dc1757563657d942ca5c39a372b5e5b849450ff3560cad9",
+          "0xf4eb523bc4c157ab30de064e0c3b8880941ad0a1d6b609b7033965dc0b9f125b",
+          "0xbd01f05a5c86bb52fd75d1843bc1a9d4539e07ef6ad6790f0bb4df379092a37f",
+          "0xc59b67b6b143e3daa5c7c4f478d1c11305c68b9f79cba7a2f40ba3106370b35c",
+          "0x6d0895d7adfd9757f78ee2f50fd78a2e6ff60a38f040ef20b0d58aba4d862d06"
+        ],
+        "withdrawals": []
+      }
+    }
+  ]
+}

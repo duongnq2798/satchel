@@ -172,6 +172,7 @@ account, mainnet #3's buyer included, so these show each use working, not people
 - [A swap through NEAR Intents that keeps the proof](#a-swap-through-near-intents-that-keeps-the-proof)
 - [Safety architecture](#safety-architecture)
 - [Built on NEAR](#built-on-near)
+- [Primitives for NEAR Builders](#primitives-for-near-builders)
 - [On-chain proof](#on-chain-proof)
 - [Contract interface](#contract-interface)
 - [Web app](#web-app)
@@ -475,7 +476,7 @@ the record changed).
    now if you skipped it):
 
    ```bash
-   npm test -w satchel-nft             # 239 tests in 18 files: 6 s
+   npm test -w satchel-nft             # 453 tests in 25 files (and 25 live tests, skipped): 8 s
    npm run typecheck -w satchel-nft    # 7 s
    ```
 
@@ -981,6 +982,300 @@ them is a partner or endorses it.
 | **Sputnik DAO** (`sputnikdao2` 2.3.1, from the `sputnikv2.testnet` factory) | A DAO can own a satchel: a FunctionCall proposal has the DAO call `sign_evm` (1 yoctoNEAR, 150 Tgas, attached as is) or `nft_transfer`, and the vote that passes it makes the call in the same transaction. The contract checks the DAO owns the token, hashes the transaction from the proposal's arguments and records it before the MPC network signs. The DAO keeps no signature and the vote returns none, so `signatureFromReceipts` reads every receipt of the vote and takes the one `v1.signer-prod.testnet` ran | [`dao.ts`](packages/satchel-nft/src/dao.ts), [`testnet-dao.json`](deployments/testnet-dao.json) |
 | **NEAR Intents** (the 1Click API, `1click.chaindefuser.com`) | Mainnet satchel #2 swapped ETH on Base for USDC on Arbitrum One through it. `tools/oneclick-exit.mjs` reads `/v0/tokens` for the two assets, asks `/v0/quote` for an `EXACT_INPUT` quote with the satchel as `recipient` and `refundTo`, checks that 1Click echoed the assets, amount, slippage, deadline, recipient and refund address it asked for and charged at most 25 bps, tells `/v0/deposit/submit` the Base transaction, then polls `/v0/status` and reads the USDC on Arbitrum One. No API key. The deposit itself is a `sign_evm` value transfer from the app, so the record classifies it. On mainnet pages the app asks the same API for dry quotes and reads `/v0/status` for the history's swap lines, from the browser ([Quote an exit](#quote-an-exit-in-the-app)) | [`oneclick-exit.mjs`](tools/oneclick-exit.mjs), [`mainnet-1click-exit.json`](deployments/mainnet-1click-exit.json), [`oneclick.ts`](web/src/lib/oneclick.ts) |
 | **FastNEAR transaction index** | A satchel's history, on its page and from `satchel-nft history`: the contract's transactions and their event logs, from `tx.test.fastnear.com` or `tx.main.fastnear.com`. It keeps only the contract's own events from receipts that succeeded, and links each one's transaction. Display only: the report never reads it. `satchel-nft dao finish` asks it for one thing, a vote's signer, which `EXPERIMENTAL_tx_status` needs. The index limits how often it is asked: on 2026-11-11 `tx.main.fastnear.com` answered 429 to about half the requests. So a read it answers with 408, 429 or a 5xx is sent again, up to 5 sends in all, as FastNEAR's own client does, and so is one that got no answer at all, but not one that timed out after 20 s. The waits between sends are random, up to 0.5, 1, 2 and 4 s, or the index's Retry-After, up to 8 s. On npm since `satchel-nft` 0.3.0; 0.2.0 sends each read once | [`history.ts`](packages/satchel-nft/src/history.ts), [`tx-index.ts`](packages/satchel-nft/src/tx-index.ts) |
+
+## Primitives for NEAR Builders
+
+Read-only TypeScript modules for any NEAR app, taken out of the checks Satchel runs on itself. Each
+is tested on transactions and state recorded from mainnet and testnet, re-checked against the live
+chains, and has an example you can run. None of them signs or sends anything: the examples and the
+live tests read through a guard that refuses any method that is not a read before the node is called.
+
+They are subpaths of `satchel-nft` in this repository (version 0.4.0-dev). They ship in the next
+release of `satchel-nft` on npm, which the owner publishes; the published 0.3.1 does not have them.
+Until then, build them from a checkout (below), or run `npm pack -w satchel-nft` and install the
+tarball in your own project. The source links below point at `main`, where the files will be once
+`dev` is promoted; until then they are on the
+[`dev` branch](https://github.com/duongnq2798/satchel/tree/dev/packages/satchel-nft/src), and the
+`main` links do not open yet.
+
+| Primitive | What it checks | Use it for | Status | Source | Docs |
+| --- | --- | --- | --- | --- | --- |
+| `satchel-nft/near-rpc` | Retrying JSON-RPC that names rate limiting; reads pinned to one block, refusing an answer, or an error read as one, about another block; key lists paged on nearcore 2.14; a transaction with every receipt; read-only guards | any NEAR backend | Implemented (`httpGetJson`, gas keys, nodes before 2.14: Experimental) | [`near-rpc.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/near-rpc.ts) | [near-rpc.md](docs/primitives/near-rpc.md) |
+| `satchel-nft/chain-signatures` | Which MPC sign requests a NEAR transaction made, what each got back, whether each answer is a valid signature by the key derived for its caller, path and domain, and whether an EVM transaction is exactly the one an answer signed | bridges, wallets, treasury audits, debugging a request | Implemented (legacy requests, domains 4 and 5, failed, timed-out, pending and inconsistent requests, EVM types 0 and 1: Experimental) | [`chain-signatures.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/chain-signatures.ts), [`mpc-kdf.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/mpc-kdf.ts) | [chain-signatures.md](docs/primitives/chain-signatures.md) |
+| `satchel-nft/account-proof` | A NEP-413 sign-in plus an on-chain condition (owns an NFT, holds a token, is in a DAO role) at one final block, with freshness bound to the signed text and a replay guard; a NEP-641 leaf resolver | login, token-gated pages and files | Implemented (`verifyNep641Leaf`, function-call and gas keys, Everyone roles: Experimental) | [`account-proof.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/account-proof.ts), [`nep641.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/nep641.ts), [`nep413.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/nep413.ts) | [account-proof.md](docs/primitives/account-proof.md) |
+
+**Try them.** At the root of a checkout (the `dev` branch until it is promoted), with Node 22 or
+later:
+
+```bash
+npm ci -w satchel-nft && npm run build -w satchel-nft
+node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo
+node packages/satchel-nft/examples/prove-evm-tx.mjs mainnet 2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4 8453 0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532
+node packages/satchel-nft/examples/account-proof.mjs testnet 9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM
+node packages/satchel-nft/examples/nep641-leaf.mjs testnet v1.satchel-nft.testnet
+```
+
+You should see, in order: one MPC request with `verify       ok` and `verdict        all-verified`
+(below); 11 lines starting `ok` and `verdict        proven` for mainnet satchel #1's send on Base;
+`403 predicate predicate-refused (not-owner)` for the previous owner and `result       ok` for the
+buyer (below); and a key made in the process, its leaf for its own implicit account `ok` and its leaf
+for `v1.satchel-nft.testnet` `refused at step 6: key-not-on-account`. Each exits 0, whatever the
+verdict.
+
+**The final check**, on 2026-11-14 from 14:31 to 14:42 UTC, on the code of commit `f7b0f4a` (Node
+24.12.0, Windows 10):
+
+- `npm test -w satchel-nft`: `Tests  453 passed | 25 skipped (478)`; the 25 skipped are the live
+  tests.
+- `SATCHEL_LIVE=1 SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live chain-signatures.live account-proof.live nep641.live`:
+  `Tests  25 passed (25)` in 100.6 s, reading mainnet, testnet, Base and Sepolia through public nodes
+  with no API key set. No read was rate-limited. Each file also ran on its own with each flag,
+  and passed (nep641's file has no archival group); [AGENTS.md](AGENTS.md#6-the-primitives-for-near-builders)
+  has the commands.
+- The four examples, on both networks, each exiting 0: every output the docs pages quote is from
+  this run.
+
+Where an existing library already covers a step (chainsig.js, near-ca, near-mpc-signature-verifier,
+near-sign-verify, @fastnear/api), each docs page says which one and what these add.
+
+### chain-signatures
+
+**What it is.** NEAR Chain Signatures lets a NEAR account or contract ask the MPC network
+(`v1.signer` on mainnet, `v1.signer-prod.testnet` on testnet) to sign with a key derived from its
+account, a path and a domain. `satchel-nft/chain-signatures` takes a finished NEAR transaction and
+tells you what it asked the MPC network to sign, what came back, whether each answer is a valid
+signature by the derived key, and whether a given EVM transaction is exactly the one an answer signed.
+
+**Use it for.** A bridge or an indexer that ties a foreign transaction to its NEAR request; a wallet
+that shows which NEAR transaction moved your ETH; an audit of a treasury the MPC network signs for; a
+contract developer debugging a request that failed or timed out.
+
+**How it works.** It walks the receipts from `sign` to the MPC contract's callback (and on to
+`fail_on_timeout` when a request times out), never the logs, and checks that the callback's tweak,
+payload and domain match the request. It derives the key locally, from root keys pinned in the
+package with the block they were read at, for the four signing domains both MPC contracts list (0 and
+4 secp256k1, 1 and 5 ed25519). It verifies strictly: low-s, no identity or small-order keys, strict
+RFC 8032 for ed25519. For an EVM transaction it rebuilds the signing hash and checks the chain id, r,
+s, y-parity, the sender, the receipt and finality, and reports every check. `crossCheckDerivation`
+compares the local derivation with the MPC contract's `derived_public_key` at one block. EVM reads go
+through `readOnlyEvmClient`, which refuses `eth_sendRawTransaction` and every signing method before
+any fetch.
+
+**Source.** [`chain-signatures.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/chain-signatures.ts),
+and the key derivation in [`mpc-kdf.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/mpc-kdf.ts)
+(on `dev` until it is promoted).
+
+**Usage.** Audit mainnet satchel #1's `sign_evm`, then prove its Base transaction against it:
+
+```ts
+import { MPC_CONTRACTS, MPC_ROOT_KEYS, auditSignTx, proveEvmTx, readOnlyEvmClient } from "satchel-nft/chain-signatures";
+import { ENDPOINTS, fastnearSenderLookup, httpRpc, readOnlyRpc, withFallback } from "satchel-nft/near-rpc";
+import { base } from "viem/chains";
+
+const { archival, nearArchival, txApi } = ENDPOINTS.mainnet;
+const rpc = readOnlyRpc(withFallback(httpRpc(archival), httpRpc(nearArchival)));
+const audit = await auditSignTx(rpc, "2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4", {
+  mpcContract: MPC_CONTRACTS.mainnet, rootKeys: MPC_ROOT_KEYS.mainnet, senderLookup: fastnearSenderLookup(txApi) });
+const proof = await proveEvmTx({ audit, client: readOnlyEvmClient(base, "https://base-rpc.publicnode.com"),
+  hash: "0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532", expectedChainId: 8453 });
+console.log(audit.verdict, proof.verdict);
+```
+
+For this pair the example `prove-evm-tx.mjs` printed `audit all-verified` and `verdict        proven`,
+with 11 checks ok, on 2026-11-14 at 14:39:20 UTC.
+
+**Output.** `examples/mpc-audit.mjs` on testnet satchel #1's `sign_evm`, run on 2026-11-14 at
+14:38:17 UTC. The EVM address it derives is the one the end-to-end run recovered
+(`deployments/testnet-e2e.json` `steps[1].recovered`):
+
+```
+$ node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo
+network        testnet, MPC contract v1.signer-prod.testnet
+read from      https://archival-rpc.testnet.fastnear.com (fallback https://archival-rpc.testnet.near.org), FINAL
+tx             EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo
+signer         satchel-nft.testnet
+block          DwxSFWD4zV7VbX35oWDXajhNyiSXnM56AjVBNE9mimdb
+requests       1
+request 0
+  receipt      DPZUErJtm9JMBFX9aTccZvow5TZERKYYv2WqvXQySkCz
+  predecessor  v1.satchel-nft.testnet
+  path         "satchel/1"
+  domain       0 (secp256k1 ECDSA)
+  form         payload_v2
+  payload      ecdsa db23d1f97d37db73f8043be1db8d96ec494e5711fc845fab444b8f91e0601154
+  deposit      1 yoctoNEAR
+  status       signed
+  hops         DPZUErJtm9JMBFX9aTccZvow5TZERKYYv2WqvXQySkCz -> Ckp54UmUjQZ4MYnXnBNymMh84ghyF1o74kfVaHn22RcH
+  callback     Ckp54UmUjQZ4MYnXnBNymMh84ghyF1o74kfVaHn22RcH
+  derived key  secp256k1:uB6uEeQBAQdZZ4mTgDpaSSfyBXUWcNixrep15KX8UwSGa9iUkfywL1xQQog9MZ76YbKQWe5hiMbuDhXVJnuBykT
+  verify       ok
+  r, s, parity 0x3bfe67004fdf62d18335201b3dd21dbc587de22beb526876fc0c4950fda0c1e3, 0x4f94162cec29837b574fedef2af0825ab0a890c1c66667cd8940f38f98098cae, 1
+  evm address  0x96DA1468E95Ab31A698891f0150095f86b5a282B
+orphan answers 0
+verdict        all-verified
+```
+
+**Status.** Implemented: the derivation in domains 0, 1, 4 and 5 (`deriveTweak`, `deriveKey`,
+`evmAddress`, `crossCheckDerivation`), with the pinned contracts and root keys; the audit of
+`payload_v2` requests that were signed, and of a `sign_evm` refused before it reached the MPC contract
+(`no-requests`); `verifySignature` and `normalizeEcdsa`; and EVM type-2 proofs (`proveEvmTx`,
+`proveRawTx`) with the read-only EVM client. Its live tests passed on 2026-11-14 at 14:32:39 UTC
+(final blocks) and 14:34:40 UTC (archival). Experimental: the legacy request form (in use on mainnet,
+and audited `all-verified` by the example, but not recorded as a fixture yet); requests on domains 4
+and 5; the `failed`, `timed-out`, `pending` and `inconsistent` statuses, which only labelled in-test
+changes of recorded outcomes cover; and EVM types 0 and 1. A Sepolia proof needs a node that serves
+the transaction's receipt: [the docs](docs/primitives/chain-signatures.md#live-tests) say which.
+
+### account-proof
+
+**What it is.** A NEP-413 signature proves only that some key signed some text.
+`satchel-nft/account-proof`'s `verifyAccountProof` turns one into a decision at one final block: the
+signature, the key on the account, an optional on-chain condition, freshness and a replay guard. The
+same subpath resolves a NEP-641 access-key authorization (the leaf) in TypeScript. The NEP's reference
+implementation section reads "TypeScript resolver (wallet-selector / NEAR Connect integration): TBD."
+This one resolves the leaf only, and is not a wallet integration.
+
+**Use it for.** A backend that signs users in with their NEAR wallet; pages, files or APIs only the
+holder of an NFT, a token balance or a DAO role may open.
+
+**How it works.** The checks run cheapest first, and no RPC call happens before the signature
+verifies. Every input is size-capped before it is decoded. The issued-at time must be in the signed
+message and inside the window, so freshness is part of what was signed. The signature is strict
+ed25519 over the message and recipient your server built. Then, at one final block: the key must be
+on the account with full access (a function-call key, the kind a site you signed in to keeps, is
+refused unless you name its receiver), and an optional condition is read at that same block:
+`nftOwner` (NEP-171 `nft_token`), `ftBalanceAtLeast` (NEP-141 `ft_balance_of`), `sputnikRole` (a
+Sputnik DAO's policy) or `all` of them. Last comes a replay guard on what the signature binds, so a
+failing proof never uses up a nonce. Every outcome is a value with an HTTP status, and nothing a
+client sends makes it throw, so it is safe to call on unauthenticated input. `verifyNep641Leaf`
+follows the NEP's verification steps, with the implicit-account rule of near/intents' reference
+resolver.
+
+**Source.** [`account-proof.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/account-proof.ts),
+the NEP-641 leaf in [`nep641.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/nep641.ts),
+and the NEP-413 code it re-exports from Satchel's
+[`nep413.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/nep413.ts),
+which the holder room already uses (on `dev` until it is promoted).
+
+**Usage.** A sign-in that only the holder of mainnet satchel #1 passes:
+
+```ts
+import { ENDPOINTS, httpRpc, readOnlyRpc } from "satchel-nft/near-rpc";
+import { memoryNonceStore, nftOwner, verifyAccountProof } from "satchel-nft/account-proof";
+
+const rpc = readOnlyRpc(httpRpc(ENDPOINTS.mainnet.rpc));
+const nonces = memoryNonceStore();   // one server instance; behind several, use a shared store
+// The server builds the message: the account on its own line, and the issued-at time it checks.
+const message = `Sign in to example.app\nAccount: ${body.accountId}\nIssued: ${body.issuedAt}`;
+const result = await verifyAccountProof({ rpc, proof: body, expect: { recipient: "example.app", message },
+  predicate: nftOwner("v1.satchel-nft.near", "1"), freshness: { issuedAt: body.issuedAt }, nonceStore: nonces });
+if (!result.ok) return reply(result.status, result.reason);   // 400, 401, 403, 404, 409 or 502
+```
+
+**Output.** `examples/account-proof.mjs`: two NEP-413 signatures near-cli-rs made, decided at the
+block where Satchel's contract ran the buyer's `sign_evm` for testnet satchel #1, run on 2026-11-14
+at 14:40:06 UTC:
+
+```
+$ node packages/satchel-nft/examples/account-proof.mjs testnet 9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM
+network        testnet
+read from      https://archival-rpc.testnet.fastnear.com (fallback https://archival-rpc.testnet.near.org)
+tx             9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM, signed by buyer.satchel-nft.testnet
+receipt        FS7g9f4cmPyHQQCogNkpVJipLT9oNCFd9x72bPpmQ8TV: v1.satchel-nft.testnet ran sign_evm for satchel #1
+pinned to      that receipt's block CNRhq6Ac5izeA9qkW8Cshrw6sr9zqozqo6B69kRPGwEd
+predicate      nftOwner(v1.satchel-nft.testnet, "1")
+proof by       satchel-nft.testnet
+  key          ed25519:FqmLsnuhrwC7jFqzHCiNzUcZ6qQ1a23y4jasFJwRpS8w
+  message      "Satchel test vector", for satchelnft.xyz
+  block        276856730 (CNRhq6Ac5izeA9qkW8Cshrw6sr9zqozqo6B69kRPGwEd), 2026-11-09T01:52:57.998Z
+  result       403 predicate predicate-refused (not-owner)
+  reason       buyer.satchel-nft.testnet owns token 1 on v1.satchel-nft.testnet at block 276856730, not satchel-nft.testnet
+proof by       buyer.satchel-nft.testnet
+  key          ed25519:4UKgqHFuJtHVSMUD6nsvxGsByuBPVLN8WRdigoqaYoEU
+  message      "Open the holder room of Satchel #4\nNetwork: testnet\nNote: café — a multi-line UTF-8 vector", for satchelnft.xyz
+  block        276856730 (CNRhq6Ac5izeA9qkW8Cshrw6sr9zqozqo6B69kRPGwEd), 2026-11-09T01:52:57.998Z
+  permission   full-access
+  owner        buyer.satchel-nft.testnet owns #1
+  result       ok
+```
+
+**Status.** Implemented: `verifyAccountProof`, `nftOwner`, `ftBalanceAtLeast` (its live read was a
+minimum of 0 against a balance of 0, so the below-minimum refusal rests on unit tests), `sputnikRole`
+on a Group role, `all`, `memoryNonceStore`, the NEP-413 helpers and the NEP-641 codec. Its live tests
+passed on 2026-11-14 at 14:32:58 UTC (final block) and 14:35:10 UTC (the receipt block above), and
+the NEP-641 ones at 14:33:12 UTC. Experimental: `verifyNep641Leaf` (its live tests and its example
+pass, but no full-access leaf signed by a real on-chain key is recorded yet: one near-cli-rs signature
+committed as a fixture would move it), function-call keys under `functionCallReceiver`, gas keys, and
+Everyone roles.
+
+### near-rpc
+
+**What it is.** The JSON-RPC transport and pinned reads the other two share, usable on its own with
+any NEAR node: FastNEAR's, NEAR's or your own.
+
+**Use it for.** A NEAR backend that must not mix two blocks in one decision, must page an account's
+access keys on nearcore 2.14, must read old transactions with an archival fallback, or must be sure it
+cannot send a transaction.
+
+**How it works.** `httpRpc` retries HTTP 408, 429 and 5xx, network failures and its own timeout,
+never a JSON-RPC error (that is an answer), and says "rate-limited" when that is why it gave up; an
+API key goes only in headers, and errors show only the node's origin. `pinnedReader` reads every query
+at one block's hash and refuses an answer, or an error it would read as one (an `UNKNOWN_ACCOUNT`,
+say), about another block. `accessKeys` follows nearcore 2.14's `after_key` and `last_key` paging
+without stopping on a short page. `readTx` reads a transaction with every receipt, takes the sender
+from FastNEAR's transaction index when you have only the hash, and falls back to an archival node.
+`readOnlyRpc` refuses `broadcast_tx_commit`, `send_tx` and every other method that is not a read
+before the node is called.
+
+**Source.** [`near-rpc.ts`](https://github.com/duongnq2798/satchel/blob/main/packages/satchel-nft/src/near-rpc.ts)
+(on `dev` until it is promoted).
+
+**Usage.**
+
+```ts
+import { ENDPOINTS, httpRpc, pinnedReader, readOnlyRpc } from "satchel-nft/near-rpc";
+
+const rpc = readOnlyRpc(httpRpc(ENDPOINTS.mainnet.rpc));               // send_tx and broadcast_tx_* throw ReadOnlyError here
+const reader = await pinnedReader(rpc);                                 // one final block; every read below is at its hash
+const contract = await reader.account("v1.satchel-nft.near");           // null if it does not exist at that block
+const { keys, pages } = await reader.accessKeys("satchel-nft.near");    // every page of its keys, at that block
+console.log(reader.block.height, contract?.code_hash, keys.length, pages);
+```
+
+**Output.** near-rpc has no example of its own: every example above reads through it. Its live tests
+at final blocks, on 2026-11-14 at 14:32:20 UTC, read Satchel's contract code hash on both networks
+equal to `deployments/mainnet.json` and `testnet.json`, by `view_account` and by sha256 of
+`view_code`, and saw both networks' nodes name the pinned block in their `UNKNOWN_ACCOUNT` and
+`NO_CONTRACT_CODE` errors (mainnet 224526997, testnet 277669682). Its archival group, at 14:33:50
+UTC, saw the regular node give `timeout: no answer in 15 s` on an old testnet transaction, and
+`readTx`'s archival fallback read it.
+
+**Status.** Implemented: the transport (`httpRpc`, `withFallback`, `readOnlyRpc`, `redactUrl`,
+`fastnearSenderLookup`), the pinned reads (`blockAt`, `pinnedReader`), key paging on nearcore 2.14,
+`readTx`, `receiptsOf`, `functionCalls`, `parsePermission` for full-access and function-call keys,
+and `isAccountId`, `encodeArgs` and `decodeBase64`. Its live tests passed on 2026-11-14 at 14:32:20 UTC (final blocks) and 14:33:50 UTC
+(archival). Experimental: `httpGetJson` (unit tests only: no live test, example or caller yet),
+gas-key permissions, and nodes older than nearcore 2.14.
+
+### Planned
+
+Designed, not shipped. None has a subpath or a usage example yet.
+
+- `satchel-nft/account-audit`: the authorities an account has granted at one block (access keys, NFT
+  approvals, NEAR Intents keys and mutable code), with what it did not cover, and a contract lock
+  attested from its deploy and lock transactions.
+- `satchel-nft/sputnik`: typed Sputnik DAO v2 reads at any block, and vote math that follows the
+  contract's `policy.rs`.
+- NEP-641 resolution through contract authorizations (`w_resolve_auth`), secp256k1 NEP-413, the
+  Member role and token-weighted DAO counting, and NEAR Intents' ACL role holders.
+- `verify_foreign_transaction` (MPC domains 3 and 7), a second-RPC "opinion" mode, CLI commands such
+  as `satchel-nft mpc-audit`, and a standalone package.
+- Satchel's own checks calling these modules, each keeping today's outputs and texts, with golden
+  tests first: the holder room's `checkHolder` through `verifyAccountProof`, `readTxStatus` through
+  `readTx`, `signatureFromReceipts` through `scanMpcResponses`, `sputnikDao` through the Sputnik
+  reader, `contractCheck` through the account audit's code check, the DAO board's votes needed
+  through the Sputnik vote math, `contractFacts` read at one pinned block with paged key counts, and
+  near.ts's helpers re-exported from near-rpc.
 
 ## On-chain proof
 
@@ -1780,12 +2075,12 @@ all of this with the near CLI's key, checking each step
 | Path | What it holds |
 | --- | --- |
 | [`contracts/satchel`](contracts/satchel) | The contract (Rust, near-sdk 5.29.1): [`lib.rs`](contracts/satchel/src/lib.rs) has the NFT, the record, the sale and the MPC call; [`evm.rs`](contracts/satchel/src/evm.rs) the EIP-1559 encoding, call classification and `SUPPORTED_CHAINS`; [`tests.rs`](contracts/satchel/src/tests.rs) the 64 unit tests; [`evm_vectors.json`](contracts/satchel/src/evm_vectors.json) the test vectors viem wrote |
-| [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, with 239 unit tests in 18 files, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). Its [README](packages/satchel-nft/README.md) is the page npm shows |
+| [`packages/satchel-nft`](packages/satchel-nft) | The npm package `satchel-nft`: the report, the guards, the send flow, the holder room's check and the contract's reads and transactions as a library, and the `satchel-nft` command ([`cli.ts`](packages/satchel-nft/src/cli.ts), [`near-cli.ts`](packages/satchel-nft/src/near-cli.ts)). The [Primitives for NEAR Builders](#primitives-for-near-builders) are its subpaths `satchel-nft/near-rpc` ([`near-rpc.ts`](packages/satchel-nft/src/near-rpc.ts)), `satchel-nft/chain-signatures` ([`chain-signatures.ts`](packages/satchel-nft/src/chain-signatures.ts), [`mpc-kdf.ts`](packages/satchel-nft/src/mpc-kdf.ts)) and `satchel-nft/account-proof` ([`account-proof.ts`](packages/satchel-nft/src/account-proof.ts), [`nep641.ts`](packages/satchel-nft/src/nep641.ts)), with their runnable [`examples`](packages/satchel-nft/examples) and the chain data their tests replay, each file with its provenance, in [`src/__fixtures__/primitives`](packages/satchel-nft/src/__fixtures__/primitives). 453 unit tests in 25 files, and 25 live tests in 4 files. Its [README](packages/satchel-nft/README.md) is the page npm shows |
 | [`web`](web) | The Next.js 16 app, built on `satchel-nft`, with one stateless server route, [`api/room`](web/src/app/api/room/route.ts). [`src/lib`](web/src/lib) holds the wallet connection, the network routes, the holder room's request reader, the docs loader, the 1Click quote reader, the demo satchels' guard and the guided path for judges and buyers, with their 169 unit tests (the app's other 218, in `src/app/contrast.test.ts`, check the colors' contrast). The root [`package.json`](package.json) makes both one npm workspace with one lockfile |
-| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs), [`check-dao-bounty.mjs`](scripts/check-dao-bounty.mjs), [`check-estate.mjs`](scripts/check-estate.mjs), [`check-use-cases.mjs`](scripts/check-use-cases.mjs) (each use case's checks in one run) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain, and [`check-scan-start.mjs`](scripts/check-scan-start.mjs) the Received card's start blocks; both read the built package, so run `npm ci` and `npm run build -w satchel-nft` first; without it, each says so and exits 2. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
+| [`scripts`](scripts) | [`check-claims.mjs`](scripts/check-claims.mjs), [`check-dao.mjs`](scripts/check-dao.mjs), [`check-dao-bounty.mjs`](scripts/check-dao-bounty.mjs), [`check-estate.mjs`](scripts/check-estate.mjs), [`check-use-cases.mjs`](scripts/check-use-cases.mjs) (each use case's checks in one run) and [`code-hash.mjs`](scripts/code-hash.mjs): Node only, no install. [`check-tokens.mjs`](scripts/check-tokens.mjs) checks the token list against each chain, and [`check-scan-start.mjs`](scripts/check-scan-start.mjs) the Received card's start blocks; both read the built package, so run `npm ci` and `npm run build -w satchel-nft` first; without it, each says so and exits 2. [`check-demo-kit.mjs`](scripts/check-demo-kit.mjs) checks the demo kit's lengths, tags, timing and pages, with no network. [`capture-primitive-fixtures.mjs`](scripts/capture-primitive-fixtures.mjs) records the primitives' fixtures from the chains, through the read-only guards. [`a11y-audit.mjs`](scripts/a11y-audit.mjs) audits the live site or a local build for WCAG 2.2 text and type; it needs `playwright-core` and `axe-core`, which its header says how to install |
 | [`tools`](tools) | [`e2e-testnet.mjs`](tools/e2e-testnet.mjs), [`demo-gallery.mjs`](tools/demo-gallery.mjs), [`gen-vectors.mjs`](tools/gen-vectors.mjs) (viem as the independent reference), [`deploy-mainnet.sh`](tools/deploy-mainnet.sh), [`oneclick-exit.mjs`](tools/oneclick-exit.mjs) (a satchel's swap through 1Click; it reads the built package), [`make-clean-demo.mjs`](tools/make-clean-demo.mjs) (leaves a testnet satchel in the state Make it clean fixes), [`dao-bounty-run.mjs`](tools/dao-bounty-run.mjs) and [`estate-run.mjs`](tools/estate-run.mjs) (the testnet bounty and estate runs, step by step, resumable) and [`mainnet-sale-record.mjs`](tools/mainnet-sale-record.mjs) (reads a mainnet sale back from NEAR and its EVM chain, checks each step and records it; it signs nothing) |
 | [`deployments`](deployments) | The record of each deployment ([`testnet.json`](deployments/testnet.json), [`mainnet.json`](deployments/mainnet.json)) and the evidence of every run, on testnet and mainnet |
-| [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
+| [`docs`](docs) | [`THREAT_MODEL.md`](docs/THREAT_MODEL.md), [`RELEASING.md`](docs/RELEASING.md) (how the owner publishes `satchel-nft` and checks what npm holds), [`primitives`](docs/primitives) (a page per primitive: its API, behaviour, fixtures, live-test record and status), and [`assets`](docs/assets): this README's images, with the HTML and scripts that render them in [`assets/src`](docs/assets/src) |
 | [`.github/workflows`](.github/workflows) | [`ci.yml`](.github/workflows/ci.yml), the pull request gate, which calls [`contract.yml`](.github/workflows/contract.yml), [`web.yml`](.github/workflows/web.yml) and [`package.yml`](.github/workflows/package.yml) |
 
 ## Documentation
@@ -1794,6 +2089,7 @@ all of this with the near CLI's key, checking each step
 | --- | --- |
 | **Documentation center** | [satchelnft.xyz/docs](https://satchelnft.xyz/docs): a quickstart, the concepts, a guide for each thing the app does, tutorials, the library, CLI and contract reference, troubleshooting and a glossary. Its source is [`web/content/docs`](web/content/docs), and [`web/content/README.md`](web/content/README.md) says how to add a page |
 | **Checking the claims** | [AGENTS.md](AGENTS.md), for AI agents and humans: every claim with the command that checks it, and where each rule lives in the code |
+| **Primitives for NEAR builders** | [near-rpc](docs/primitives/near-rpc.md) · [chain-signatures](docs/primitives/chain-signatures.md) · [account-proof](docs/primitives/account-proof.md): for each, what exists already, the full API, its behaviour and edge cases, security notes, fixtures with provenance, every live run with its date and command, the example output and each function's status |
 | **Security** | [Threat model](docs/THREAT_MODEL.md) (42 attacks, what stops each, what is left) · [Security policy](SECURITY.md) (private reporting, scope) |
 | **Demo and submission** | [Demo kit](docs/DEMO.md): the 2:00 video script, the recording checklist, the X post, the "What did you build?" text, the form's values and tracks, and what to leave unchanged until judging ends |
 | **Evidence** | [Testnet deployment](deployments/testnet.json) · [Mainnet deployment](deployments/mainnet.json) · [End-to-end run](deployments/testnet-e2e.json) · [Sepolia send](deployments/testnet-sepolia-send.json) · [Demo satchels](deployments/testnet-gallery.json) · [CLI run](deployments/testnet-cli.json) · [DAO run](deployments/testnet-dao.json) · [Make it clean run](deployments/testnet-make-clean.json) · [Mainnet first send](deployments/mainnet-first-send.json) · [Mainnet 1Click swap](deployments/mainnet-1click-exit.json) |
@@ -1813,10 +2109,26 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 239 package tests, 466 app tests
+npm run typecheck && npm test              # both workspaces: 453 package tests (25 live tests skipped), 466 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
+
+The primitives' 25 live tests read the real chains, and are skipped unless one of two variables is
+set: `SATCHEL_LIVE=1` for the final-block group (regular nodes) and `SATCHEL_LIVE_ARCHIVAL=1` for the
+recorded history (archival nodes). With both, all four files:
+
+```bash
+SATCHEL_LIVE=1 SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live chain-signatures.live account-proof.live nep641.live
+```
+
+On 2026-11-14 at 14:36:01 UTC this gave `Tests  25 passed (25)` in 100.6 s. In PowerShell, set
+`$env:SATCHEL_LIVE='1'; $env:SATCHEL_LIVE_ARCHIVAL='1'` first. One file and one group at a time is,
+say, `SATCHEL_LIVE=1 npm test -w satchel-nft -- near-rpc.live`, with `chain-signatures.live`,
+`account-proof.live` or `nep641.live` in its place. The archival group proves a Sepolia transaction
+through `sepolia.gateway.tenderly.co`, which serves its receipt; `SATCHEL_LIVE_SEPOLIA_RPC=<url>`
+replaces that node ([chain-signatures](docs/primitives/chain-signatures.md#live-tests) says why).
+Each run is recorded, with its date and command, in [docs/primitives](docs/primitives).
 
 On Windows, set `AWS_LC_SYS_PREBUILT_NASM=1` first: a dependency of near-sdk's test runtime builds
 `aws-lc-sys`, which otherwise needs NASM. Also add `--no-abi` to the build: the ABI step links a host
@@ -1842,10 +2154,14 @@ re-checks the demo every day until the demo freeze ends on 2026-11-25, after jud
 
 The tests, as of 2026-11-14: 64 Rust unit tests, in near-sdk's mocked environment, in
 [`tests.rs`](contracts/satchel/src/tests.rs) (no sandbox test runs the wasm; see [Limits](#limits-stated-plainly)), and 63 in the estate contract's [`tests.rs`](contracts/estate/src/tests.rs);
-239 package tests in 18 files: `clean.test.ts` 31, `dao.test.ts` 29, `evm.test.ts` 26, `report.test.ts` 26,
-`holder.test.ts` 15, `history.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13, `cli-args.test.ts` 11,
-`kit.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8, `guard.test.ts` 7, `nep413.test.ts` 7,
-`tx-index.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;
+453 package tests in 25 files: `chain-signatures.test.ts` 62, `near-rpc.test.ts` 58, `account-proof.test.ts` 33,
+`clean.test.ts` 31, `dao.test.ts` 29, `evm.test.ts` 26, `report.test.ts` 26, `nep641.test.ts` 21,
+`primitives.boundary.test.ts` 19, `mpc-kdf.test.ts` 16, `history.test.ts` 15, `holder.test.ts` 15, `satchel.test.ts` 14,
+`near-cli.test.ts` 13, `cli-args.test.ts` 11, `kit.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
+`guard.test.ts` 7, `nep413.test.ts` 7, `tx-index.test.ts` 7, `base58.test.ts` 5, `contents.test.ts` 4,
+`config.test.ts` 3 and `limit.test.ts` 2, and 25 live tests in 4 files, skipped unless `SATCHEL_LIVE=1` or
+`SATCHEL_LIVE_ARCHIVAL=1`: `chain-signatures.live.test.ts` 10, `near-rpc.live.test.ts` 8,
+`account-proof.live.test.ts` 4 and `nep641.live.test.ts` 3;
 and 466 app tests in 18 files: 222 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline, the form fields' borders and the footer's link arrow in `globals.css`,
 42 in `oneclick.test.ts`, 39 in `received.test.ts`, 34 in `showcase.test.ts`,
 which checks the mainnet showcase, the deed of sale, the landing page's four cards and the demo satchels' lines against `deployments/`,
