@@ -20,7 +20,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 - `web/scripts/loading-check.mjs`, run against `next start`, checks the 404 and 200 answers and
   the server HTML's order. It measures layout shift in a headless Edge with the network and CPU
   throttled, and holds every NEAR request on `/satchel/1` to check the slow and timeout states and
-  the route fallback. On 2026-11-14 every check passed; the largest shift was 0.052.
+  the route fallback. On 2026-11-14 every check passed; the largest shift was 0.050.
 - Inter loads with `display: "optional"`: it is used if it arrives in the first ~100 ms (it is
   preloaded), and otherwise its size-matched fallback stays for that page load. A late swap
   rewrapped the DAO board's heading on a phone and shifted the page by 0.123 on slow 4G.

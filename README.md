@@ -1493,9 +1493,9 @@ preloaded, and cached after the first visit); otherwise Arial, sized to match, s
 load. A late swap rewrapped the DAO board's heading on a phone and moved the page by 0.123.
 
 Measured on 2026-11-14 against `next start`, with the network and CPU throttled: layout shift at
-most 0.052 on `/`, a satchel's page, `/market`, `/satchels` and the DAO board, at 1280×900 and
+most 0.050 on `/`, a satchel's page, `/market`, `/satchels` and the DAO board, at 1280×900 and
 390×844 (the bar is 0.1). With every NEAR request held on `/satchel/1`, "Still reading" showed at
-4.2 s and "No answer in 15 s." at 15.3 s. To check it yourself, build the app, run
+4.2 s and "No answer in 15 s." at 15.2 s. To check it yourself, build the app, run
 `npm run start --prefix web -- -p 3100`, then
 `node web/scripts/loading-check.mjs --base http://localhost:3100`. It needs Microsoft Edge, prints a
 JSON report, and exits 1 on a failed check.
