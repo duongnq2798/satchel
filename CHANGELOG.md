@@ -595,6 +595,9 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The README and AGENTS.md give the test counts as they run on 2026-11-14: 238 package tests in 18
+  files and 387 app tests in 11 files (they said 235 and 309), each file's count, and the estate
+  contract's 63 Rust tests beside the satchel contract's 64.
 - "Satchel in 60 seconds" opens with five lines, the same as AGENTS.md's "Satchel in five lines"
   and the top of `/llms.txt`: which Satchel this is (site, repository, `v1.satchel-nft.near` with 0
   access keys), what the contract records and how a buyer checks it, who it is for, why NEAR, and
