@@ -46,7 +46,7 @@ pull request.
   answers at once. Mainnet satchel #1's page took about 7 s on 2026-11-10; cut the wait for the
   quote in the edit.
 - **Terminal.** bash (Git Bash on Windows), Node 22 or later, font size 18 or larger. Run
-  `npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"` once before recording: the first run downloads
+  `npx -y satchel-nft@0.3.0 verify 5; echo "exit $?"` once before recording: the first run downloads
   the package (142 s and 230 s in two runs here), later ones take 6 to 11 s. The CLI doesn't print its
   exit code, so the `echo` shows it. In the edit, cut the wait.
 - **A wallet for the 1:18 and 1:30 scenes, in a window of its own.** The 1:18 take ran on #9 on
@@ -97,7 +97,7 @@ cell against its time.
 | 1:18–1:30 | satchelnft.xyz/satchel/9, in the wallet's window, connected as `satchel-nft.testnet` (this take ran on 2026-11-12; a new one needs a new satchel set up the same way) | Point at "Not provable". Under **Make it clean**, click **Revoke** and approve in the wallet, then **Spend nonce** and approve. Cut the wait until Sepolia finalizes (about 13 minutes), click **Check again** in the report and point at "Provably clean" | Not clean? Its owner fixes it from the page | When a report isn't clean, the owner fixes it from the page: revoke the approval, spend the open nonce, and once Sepolia finalizes, it reads provably clean. |
 | 1:30–1:42 | The holder room of a satchel your wallet owns, `/satchel/<id>/room` (see "Before you record") | Scroll to **Open the room**, click it and approve the message in the wallet; cut the wait. Scroll to "Checked at" in the card "You hold satchel #…", point at it, then scroll to "Handover kit" | Only the current holder gets in, checked at a final NEAR block | Only the current holder opens this room: the wallet signs a message, the server checks the owner at a final NEAR block. Sell it, and the buyer gets in. |
 | 1:42–1:52 | satchelnft.xyz/mainnet/satchel/2 | Point at Arbitrum One, 5.28054 USDC, then "Provably clean". Click **Quote an exit**, then **Get a quote**; cut the wait and point at "Out" | Live on mainnet: swapped through NEAR Intents, still provably clean | Live on mainnet: this satchel swapped its ETH through NEAR Intents and still reads provably clean. Anyone can get a dry quote, no wallet. |
-| 1:52–2:00 | A terminal: `npx -y satchel-nft@0.2.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
+| 1:52–2:00 | A terminal: `npx -y satchel-nft@0.3.0 verify 5; echo "exit $?"`, then an end card: "Sell a wallet. Prove nothing stayed behind. satchelnft.xyz · github.com/duongnq2798/satchel · Built at NEAR HACKATHON" | Run it; cut to the output: `NOT PROVABLE`, then `exit 1` | Same check, any terminal | The same check runs in any terminal. Satchel: sell a wallet, prove nothing stayed behind. |
 
 What each scene shows, so the edit can't drift from the chain:
 
@@ -237,8 +237,8 @@ Until 2026-11-25:
   #1 and #2, and `duongnq2798.near` owns #3, unlisted, at record version 0, as its sale ended.
 - Keep satchelnft.xyz up (Q-012), and the repository public (Q-014).
 
-If one of these has to change, run `npx -y satchel-nft@0.2.0 verify <id>` for testnet #1, #3, #4,
-#5, #6, #7 and #9, `npx -y satchel-nft@0.2.0 verify --network mainnet <id>` for mainnet #1 to #3,
+If one of these has to change, run `npx -y satchel-nft@0.3.0 verify <id>` for testnet #1, #3, #4,
+#5, #6, #7 and #9, `npx -y satchel-nft@0.3.0 verify --network mainnet <id>` for mainnet #1 to #3,
 `node scripts/check-dao-bounty.mjs` and `node scripts/check-estate.mjs` for #10 and #11, and the
 README's quick-start `satchel` view for #1. Then update the README's quoted outputs,
 AGENTS.md's table, `web/src/lib/copy.ts`, `VERIFY_OUTPUT` in `web/src/app/page.tsx`, the landing
