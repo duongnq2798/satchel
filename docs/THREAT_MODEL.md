@@ -66,18 +66,21 @@ transaction on testnet that shows it working.
   (`checkQuote` in `web/src/lib/oneclick.ts`), and never asks for a deposit address. The report reads
   none of it.
 - **The npm release, for anyone who runs `npx satchel-nft` instead of this repository's code.**
-  Version 0.3.0 was published on 2026-11-14 from the owner's npm account and a clean Windows clone
-  of commit `63f1fd7`, which npm records as its `gitHead`, without npm provenance. Packing that
-  commit on the same machine before the publish gave the same shasum,
-  `ddbb4a26b3b5f6b77237faa9a9ad47c0155f6025` (`npm view satchel-nft@0.3.0 dist.shasum`). On
-  another machine, where the launcher's file mode can differ, compare files instead: unpack
-  `npm pack satchel-nft@0.3.0`. Its files are LF. `bin/`, `package.json`, `README.md` and
-  `LICENSE` are byte for byte the commit's, and `dist/`, the code the launcher runs, is byte for
-  byte what `npm run build -w satchel-nft` builds from it. npm also lists 0.2.0 (2026-11-10, commit
+  Version 0.3.1 was published on 2026-11-14 from the owner's npm account and a clean Windows clone
+  of commit `cfa0d29`, which npm records as its `gitHead`, without npm provenance. Its code is
+  0.3.0's except for the version its printed commands pin (`@0.3.0`, where 0.3.0's pin `@0.2.0`);
+  its README and its version changed too. Packing that commit on the same machine before the
+  publish gave the same shasum, `1e8db4a1dca27b452a90179347332cb97e1c1896`
+  (`npm view satchel-nft@0.3.1 dist.shasum`). On another machine, where the launcher's file mode
+  can differ, compare files instead: unpack `npm pack satchel-nft@0.3.1`. Its files are LF.
+  `bin/`, `package.json`, `README.md` and `LICENSE` are byte for byte the commit's, and `dist/`,
+  the code the launcher runs, is byte for byte what `npm run build -w satchel-nft` builds from it.
+  npm also lists 0.3.0 (2026-11-14, commit `63f1fd7`, shasum
+  `ddbb4a26b3b5f6b77237faa9a9ad47c0155f6025`, checked the same way), 0.2.0 (2026-11-10, commit
   `2dd4209`), 0.1.0 (2026-11-09, commit `728ed74`, packed with Windows line endings) and
   `0.0.0-stage`, a two-file, 333-byte "Temporary package placeholder for staged publishing" that
-  npm made two minutes before 0.1.0. A later version holds whatever its publisher put in it: pin
-  `@0.3.0` to run this one.
+  npm made two minutes before 0.1.0. A later version holds whatever its publisher put in it: the
+  README and the docs pin `@0.3.0`, and `@0.3.1` runs this one.
 
 ## Attacks and what stops them
 
