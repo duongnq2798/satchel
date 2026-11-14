@@ -1138,6 +1138,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Security
 
+- The test runner vitest, a devDependency of the package and the app, goes from 3.2.7 to 4.1.12.
+  `npm audit` flagged 3.2.7, the tinypool 1.1.1 it pulled in and its @vitest/mocker 3.2.7 (2 critical,
+  1 moderate). None of them ships in `satchel-nft` or the site. A fresh `npm ci` now reports 0
+  vulnerabilities, and the package's 239 tests and the app's 387 pass on it.
+
 - From an adversarial review of the CLI's signing, which found no way to make it send a transaction
   other than the one it shows: it runs the near CLI by its absolute path, from `--near-cli`,
   `$NEAR_CLI` or PATH's absolute folders only, since Windows runs a `near.exe` from the current

@@ -1780,7 +1780,7 @@ all of this with the near CLI's key, checking each step
 Rust 1.99.1 (pinned in [`rust-toolchain.toml`](contracts/satchel/rust-toolchain.toml), target
 `wasm32-unknown-unknown`), near-sdk and near-contract-standards 5.29.1, cargo-near 0.22.0. The
 package and the web app: Node.js 22 or later (CI uses 22 for the package, 24 for the app), viem
-2.57, TypeScript 5.9 and Vitest 3; the app adds Next.js 16.4, React 19.3 and Tailwind 4.
+2.57, TypeScript 5.9 and Vitest 4; the app adds Next.js 16.4, React 19.3 and Tailwind 4.
 
 ```bash
 cd contracts/satchel
@@ -2068,7 +2068,7 @@ projects.
 | Contract | near-sdk and near-contract-standards 5.29.1; the NFT core, metadata and enumeration (NEP-171, 177, 181) are near-contract-standards' implementation. cargo-near 0.22.0 builds it, in the `sourcescan/cargo-near:0.22.0-rust-1.99.1` image for the reproducible build. [`Cargo.toml`](contracts/satchel/Cargo.toml) is the file cargo-near's `cargo near new` template writes, comments included: its `[package]` layout, `[lib]`, `[package.metadata.near.reproducible_build]`, `[profile.release]` and lints blocks. Satchel's own are its name, description, `rust-version`, repository link and pinned dependencies |
 | `satchel-nft` package | viem 2.57 (transaction encoding, hashing, signature recovery, RPC calls to the EVM chains), `@noble/curves` and `@noble/hashes` (the MPC key derivation) |
 | Web app | `satchel-nft` and viem 2.57, Next.js 16.4, React 19.3, Tailwind CSS 4, `@hot-labs/near-connect` 0.11.4 (wallet selection), `@mdx-js/mdx` with `remark-gfm` and Shiki (the docs pages), and the Fraunces, Inter and JetBrains Mono fonts through `next/font/google` |
-| Tests and tools | Vitest 3 and TypeScript 5.9. viem 2.21, pinned in [`tools/package.json`](tools/package.json), is the independent reference for the contract's EIP-1559 test vectors ([`gen-vectors.mjs`](tools/gen-vectors.mjs)). A headless Edge or Chrome renders the README's banner and buttons, the Open Graph and Twitter images, the Apple icon and the favicon ([`render.mjs`](docs/assets/src/render.mjs)) |
+| Tests and tools | Vitest 4 and TypeScript 5.9. viem 2.21, pinned in [`tools/package.json`](tools/package.json), is the independent reference for the contract's EIP-1559 test vectors ([`gen-vectors.mjs`](tools/gen-vectors.mjs)). A headless Edge or Chrome renders the README's banner and buttons, the Open Graph and Twitter images, the Apple icon and the favicon ([`render.mjs`](docs/assets/src/render.mjs)) |
 | CI | GitHub Actions with `actions/checkout`, `actions/setup-node` and `actions/upload-artifact` (v4), and cargo-near 0.22.0's release binary, checked against its sha256 |
 | Services | The MPC signer contracts, NEAR Intents' 1Click API for satchel #2's swap and the app's dry quotes, a Sputnik DAO (`sputnikdao2` 2.3.1, from the `sputnikv2.testnet` factory) for the satchel a DAO owned on testnet, FastNEAR's RPC and transaction index, and Vercel for hosting, as [Built on NEAR](#built-on-near) and [Web app](#web-app) describe |
 
