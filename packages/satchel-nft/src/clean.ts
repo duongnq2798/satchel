@@ -462,7 +462,7 @@ export function fixPlan({ report, record, chains, approvals }: FixInputs): FixPl
       chain.notes.push(`${open} signed nonce(s) are open on ${name}.`);
     } else if (open > BigInt(MAX_NONCE_SPENDS)) {
       chain.notes.push(
-        `${open} nonces are open on ${name}, more than the app sends one by one (${MAX_NONCE_SPENDS}), so they can't be fixed from here. From a terminal, send 0 to the satchel's own address ${revoking > 0n ? "once for each open nonce the revokes on this chain don't take" : "once per open nonce"}, with npx -y satchel-nft@0.2.0 send ${report.tokenId} --chain ${chainId} --to ${report.address} --value 0 --as <you>${mainnet ? " --network mainnet" : ""}: each send takes the next one.`,
+        `${open} nonces are open on ${name}, more than the app sends one by one (${MAX_NONCE_SPENDS}), so they can't be fixed from here. From a terminal, send 0 to the satchel's own address ${revoking > 0n ? "once for each open nonce the revokes on this chain don't take" : "once per open nonce"}, with npx -y satchel-nft@0.3.0 send ${report.tokenId} --chain ${chainId} --to ${report.address} --value 0 --as <you>${mainnet ? " --network mainnet" : ""}: each send takes the next one.`,
       );
     } else if (open > 0n) {
       for (let k = revoking; k < open; k++) {
