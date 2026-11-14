@@ -245,8 +245,9 @@ goes to Base's own `https://mainnet.base.org`). Satchel #2's funding claim reads
 55857952, which both nodes served on 2026-11-11 and a pruned node can't. Satchel #2's last claim reads
 Arbitrum One through `ARBITRUM_RPC` (default `https://arb1.arbitrum.io/rpc`) and 1Click's public
 status at `https://1click.chaindefuser.com`, which no variable replaces. A read a node answers with
-HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 3 more times with backoff; any other
-failed read is tried once more, 2 s later. With `NEAR_ARCHIVAL_RPC` unset, an archival read
+HTTP 408, 429 or 5xx, or whose connection fails, is sent up to 6 more times, 1, 2 and 4 s apart and
+then 8 s, or longer if the node's Retry-After asks, up to 8 s, and not again if it asks for more than
+30 s; any other failed read is tried once more, 2 s later. With `NEAR_ARCHIVAL_RPC` unset, an archival read
 FastNEAR's node doesn't answer goes to NEAR's own, `https://archival-rpc.<network>.near.org`.
 
 The app's quote panel and the 1Click lines in a mainnet satchel's history read the same address,
