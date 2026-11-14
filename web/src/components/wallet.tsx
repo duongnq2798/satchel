@@ -2,9 +2,11 @@
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { type NetworkId, type WalletTx, accountOnNetwork, assertDeployment, assertTxFor } from "satchel-nft";
-import { fromSameWallet, restoreAccount } from "@/lib/restore";
-import { connectedAccount, connector, runTx, savedWallet, signIn as connect } from "@/lib/wallet";
+import { UserRejected, errorText } from "@/lib/errors";
+import { fromSameWallet, needsRestore, restoreAccount } from "@/lib/restore";
+import { type TxPhase, connectedAccount, connector, onIdle, runTx, savedWallet, signIn as connect } from "@/lib/wallet";
 import { useNetwork } from "./network";
+import { Button, Placeholder } from "./ui";
 
 interface WalletState {
   accountId: string | null;
@@ -13,10 +15,13 @@ interface WalletState {
   signOut: () => Promise<void>;
   /**
    * Signs and sends with the connected account; resolves once every receipt is final. Only for this
-   * network's contract, and only once that contract passes its check.
+   * network's contract, and only once that contract passes its check. `onPhase` hears when the
+   * wallet opens and when it returns the hash.
    */
-  send: <T>(tx: WalletTx) => Promise<{ hash: string; value: T | null }>;
+  send: <T>(tx: WalletTx, onPhase?: (p: TxPhase) => void) => Promise<{ hash: string; value: T | null }>;
 }
+
+type Connector = Awaited<ReturnType<typeof connector>>;
 
 const WalletContext = createContext<WalletState | null>(null);
 
@@ -38,9 +43,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let live = true;
     const set = (accountId: string | null) => live && setSession({ net: net.id, accountId, ready: true });
-    setSession({ net: net.id, accountId: null, ready: false });
+    // No wallet saved and no parent frame to hold one: "Connect wallet" at once, near-connect once idle.
+    const restore = needsRestore(savedWallet(net), window.parent !== window);
+    setSession({ net: net.id, accountId: null, ready: !restore });
     // A locked extension wallet may not answer until it is unlocked: offer "Connect wallet" meanwhile.
-    const stop = restoreAccount(() => fromSameWallet(() => savedWallet(net), () => connectedAccount(net)), set);
+    const stop = restore
+      ? restoreAccount(() => fromSameWallet(() => savedWallet(net), () => connectedAccount(net)), set)
+      : () => {};
     stopRestore.current = stop;
     const onSignIn = (e: { accounts: { accountId: string }[] }) => {
       stop();
@@ -51,17 +60,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       stop();
       set(null);
     };
-    const made = connector(net);
-    made
-      .then((c) => {
-        c.on("wallet:signIn", onSignIn);
-        c.on("wallet:signOut", onSignOut);
-      })
-      .catch(() => set(null));
+    let made: Promise<Connector> | null = null;
+    const wire = () => {
+      made = connector(net);
+      made
+        .then((c) => {
+          c.on("wallet:signIn", onSignIn);
+          c.on("wallet:signOut", onSignOut);
+        })
+        .catch(() => set(null));
+    };
+    const cancel = restore ? (wire(), () => {}) : onIdle(wire);
     return () => {
       live = false;
       stop();
-      made.then(
+      cancel();
+      made?.then(
         (c) => {
           c.off("wallet:signIn", onSignIn);
           c.off("wallet:signOut", onSignOut);
@@ -87,10 +101,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [net]);
   const send = useCallback(
-    async <T,>(tx: WalletTx) => {
+    async <T,>(tx: WalletTx, onPhase?: (p: TxPhase) => void) => {
       assertTxFor(net, tx, accountId);
       await assertDeployment(net);
-      return runTx<T>(net, tx, accountId);
+      return runTx<T>(net, tx, accountId, onPhase);
     },
     [accountId, net],
   );
@@ -104,48 +118,75 @@ export function useWallet(): WalletState {
   return state;
 }
 
+/** The connect running on each network, so a second Connect button joins it instead of opening another picker. */
+const connecting = new Map<NetworkId, Promise<void>>();
+
+/** Connect through near-connect's picker. One connect per network at a time; a closed picker is no error. */
+export function useConnect(): { connect: () => Promise<void>; error: unknown; dismiss: () => void } {
+  const { signIn } = useWallet();
+  const net = useNetwork();
+  const [error, setError] = useState<unknown>(null);
+  const connect = useCallback(async () => {
+    setError(null);
+    let run = connecting.get(net.id);
+    if (run === undefined) {
+      run = signIn().finally(() => connecting.delete(net.id));
+      connecting.set(net.id, run);
+    }
+    try {
+      await run;
+    } catch (err) {
+      if (!(err instanceof UserRejected)) setError(err);
+    }
+  }, [net.id, signIn]);
+  const dismiss = useCallback(() => setError(null), []);
+  return { connect, error, dismiss };
+}
+
 /** `align` is the side the sign-in error opens toward: right in the header, left where the button starts a line. */
 export function ConnectButton({ align = "right" }: { align?: "left" | "right" }) {
-  const { accountId, ready, signIn, signOut } = useWallet();
+  const { accountId, ready, signOut } = useWallet();
+  const { connect, error, dismiss } = useConnect();
   const net = useNetwork();
-  const [error, setError] = useState<string | null>(null);
-  if (!ready) return <span className="h-9 w-32 animate-pulse rounded-full bg-paper-2" aria-hidden="true" />;
+  if (!ready) {
+    return (
+      <>
+        <Placeholder className="h-9 w-32 rounded-full!" />
+        <span className="sr-only">Looking for your wallet…</span>
+      </>
+    );
+  }
   if (accountId === null) {
     return (
       <span className="relative">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            signIn().catch((err: unknown) => {
-              const text = err instanceof Error ? err.message : String(err);
-              // Closing the picker is not an error worth showing.
-              if (!/rejected/i.test(text)) setError(text);
-            });
-          }}
-          className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-leather"
-        >
+        <Button variant="primary" onClick={connect} busyText="Connecting to your wallet…">
           Connect wallet
-        </button>
-        {error && (
+        </Button>
+        {error !== null && error !== undefined && (
           <span
             role="alert"
-            className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-bad-soft px-3 py-2 text-xs text-bad`}
+            className={`absolute top-full ${align === "left" ? "left-0" : "right-0"} z-50 mt-2 flex w-72 max-w-[calc(100vw-2rem)] items-start gap-2 rounded-xl bg-bad-soft px-3 py-2 text-xs text-bad`}
           >
-            {error}
+            <span className="min-w-0 flex-1">{errorText(error)}</span>
+            <button type="button" aria-label="Dismiss" onClick={dismiss} className="-my-0.5 shrink-0 rounded-full px-1 text-sm leading-none hover:underline">
+              ×
+            </button>
           </span>
         )}
       </span>
     );
   }
   return (
-    <button
-      type="button"
-      onClick={() => signOut().catch(() => {})}
-      title={`Disconnect from NEAR ${net.id}. Some wallets also sign out on the other network.`}
-      className="max-w-56 truncate rounded-full border border-line bg-card px-4 py-2 text-sm text-ink-2 transition hover:border-ink"
-    >
-      {accountId}
-    </button>
+    <span className={`flex min-w-32 ${align === "left" ? "" : "justify-end"}`}>
+      <button
+        type="button"
+        onClick={() => signOut().catch(() => {})}
+        aria-label={`Disconnect ${accountId}`}
+        title={`Disconnect from NEAR ${net.id}. Some wallets also sign out on the other network.`}
+        className="max-w-56 truncate rounded-full border border-line bg-card px-4 py-2 text-sm text-ink-2 transition hover:border-ink"
+      >
+        {accountId}
+      </button>
+    </span>
   );
 }

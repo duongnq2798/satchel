@@ -31,8 +31,8 @@ describe("where a visitor tries the app instead", () => {
     expect(SALE_DEED_PATH).toBe("/mainnet/satchel/3#deed");
     const deed = readFileSync(new URL("../components/landing/deed/deed-of-sale.tsx", import.meta.url), "utf8");
     expect(deed).toContain('<section id="deed"');
-    // The mainnet token page renders that section for the sale's token, so the anchor lands.
-    const page = readFileSync(new URL("../app/mainnet/satchel/[id]/page.tsx", import.meta.url), "utf8");
+    // The mainnet token page's layout renders that section for the sale's token, so the anchor lands.
+    const page = readFileSync(new URL("../app/mainnet/satchel/[id]/(token)/layout.tsx", import.meta.url), "utf8");
     expect(page).toMatch(/\{id === MAINNET_SALE\.tokenId && \([\s\S]*?<DeedOfSale \/>[\s\S]*?\)\}/);
   });
 

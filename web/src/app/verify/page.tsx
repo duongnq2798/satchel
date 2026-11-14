@@ -1,21 +1,24 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useEffect, useId, useState } from "react";
 import { useNetwork } from "@/components/network";
 import { NetLink } from "@/components/site-header";
 import { Button, Card } from "@/components/ui";
+import { useNavigate } from "@/components/use-navigate";
 import { MAINNET, NETWORKS, TESTNET } from "satchel-nft";
 import { appPath } from "@/lib/routes";
 import { CHECKS } from "@/lib/copy";
 import { DEMO_SATCHELS, SITE_HOSTS, parseSatchelInput, refNetwork } from "@/lib/showcase";
 
 export default function Verify() {
-  const router = useRouter();
+  const { go, pending } = useNavigate();
   const net = useNetwork();
   // Empty, so a pasted link isn't appended to a default id.
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  // The id being opened, and whether the other network's page is loading in its place.
+  const [opening, setOpening] = useState("");
+  const [leaving, setLeaving] = useState(false);
   const inputId = useId();
   const hintId = useId();
   const errorId = useId();
@@ -24,6 +27,15 @@ export default function Verify() {
     net: n,
     picks: DEMO_SATCHELS.filter((d) => d.pick && d.network === n.id),
   }));
+
+  // Back from the other network's page through the back/forward cache: this page is no longer leaving.
+  useEffect(() => {
+    const back = (e: PageTransitionEvent) => {
+      if (e.persisted) setLeaving(false);
+    };
+    window.addEventListener("pageshow", back);
+    return () => window.removeEventListener("pageshow", back);
+  }, []);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -35,9 +47,12 @@ export default function Verify() {
     }
     const to = refNetwork(ref, net);
     const href = appPath(to, `/satchel/${ref.tokenId}`);
+    setOpening(ref.tokenId);
     // The other network's page loads fresh, as the header's switch does, so nothing carries over.
-    if (to.id !== net.id) window.location.assign(href);
-    else router.push(href);
+    if (to.id !== net.id) {
+      setLeaving(true);
+      window.location.assign(href);
+    } else go(href);
   }
 
   return (
@@ -68,7 +83,7 @@ export default function Verify() {
               aria-describedby={error ? `${errorId} ${hintId}` : hintId}
               className="min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 py-2 sm:max-w-sm"
             />
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="primary" busy={pending || leaving} busyText={`Opening satchel #${opening}…`}>
               Check it
             </Button>
           </div>

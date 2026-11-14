@@ -147,6 +147,8 @@ body {
 
 html {
   scroll-behavior: smooth;
+  /* A page that grows past the fold as it loads keeps its centred layout where it was. */
+  scrollbar-gutter: stable;
 }
 
 /* Landing page motion. Every animation here stops under prefers-reduced-motion. */

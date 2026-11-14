@@ -4,13 +4,23 @@ import Link from "next/link";
 import type { Report } from "satchel-nft";
 import { utcDateTime, verifyCommand } from "@/lib/showcase";
 import { useNetwork } from "./network";
-import { Badge, Button, Card, ErrorNote, ExternalLink, Placeholder, StatusIcon, VERDICT } from "./ui";
+import type { WaitPhase } from "@/lib/timing";
+import { Badge, Button, Card, ErrorNote, ExternalLink, Placeholder, Stack, StatusIcon, VERDICT } from "./ui";
 
-/** Four rows where the checks will be, about their height, so the card moves less when they arrive. */
-function Reading() {
+/** Four rows where the checks will be, about their height, so the card moves less when they arrive; the caption says when it is slow. */
+function Reading({ wait }: { wait?: WaitPhase }) {
   return (
     <div className="mt-4">
-      <p className="text-sm text-muted">Reading the record and every chain it lists…</p>
+      <p className="text-sm text-muted">
+        <Stack
+          show={wait === "timeout" ? 2 : wait === "slow" ? 1 : 0}
+          items={[
+            "Reading the record and every chain it lists…",
+            "Still reading. A public node is slow; an unanswered chain read gives up after about 30 s.",
+            "No answer in 45 s. Check again starts a new read.",
+          ]}
+        />
+      </p>
       <ol className="mt-4 space-y-4" aria-hidden="true">
         {[0, 1, 2, 3].map((i) => (
           <li key={i} className="flex gap-3">
@@ -31,11 +41,14 @@ export function ReportCard({
   loading,
   error,
   onRecheck,
+  wait,
 }: {
   report: Report | null | undefined;
   loading: boolean;
   error: unknown;
   onRecheck: () => void;
+  /** The read's phase: the caption says when it is slow, and at its timeout Check again works again. */
+  wait?: WaitPhase;
 }) {
   const net = useNetwork();
   const verdict = report ? VERDICT[report.verdict] : null;
@@ -53,7 +66,7 @@ export function ReportCard({
               </Badge>
             )}
           </span>
-          <Button onClick={onRecheck} busy={loading}>
+          <Button onClick={onRecheck} busy={loading && wait !== "timeout"}>
             Check again
           </Button>
         </div>
@@ -73,9 +86,9 @@ export function ReportCard({
         </Link>
       </p>
       <ErrorNote error={error} />
-      {!report && loading && <Reading />}
+      {!report && loading && <Reading wait={wait} />}
       {report && (
-        <ol className="mt-4 space-y-4">
+        <ol className="mt-4 space-y-4" aria-busy={loading || undefined}>
           {report.checks.map((check) => (
             <li key={check.id} className="flex max-w-[40em] gap-3">
               <StatusIcon status={check.status} />

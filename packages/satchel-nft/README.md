@@ -189,6 +189,66 @@ if (report?.verdict === "clean") {
 | `fixPlan(inputs)`, `readFixInputs(report, record)`, `revokeCalldata` | Make it clean: the sends of 0 from the satchel that would make its report read clean, a revoke for each live approval and a send to its own address for each open nonce, and what each costs in approval slots. `fixPlan` reads nothing; `readFixInputs` reads each chain's latest block (new in 0.3.0) |
 | `accountTransactions(net, accountId, maxTransactions?)` | Any account's transactions from FastNEAR's transaction index, newest first; a read the index rate-limits is sent again (new in 0.3.0) |
 
+## Primitives
+
+Three read-only modules for any NEAR app, imported by subpath. **New after 0.3.1:** they ship in the
+next release of `satchel-nft` on npm, which the owner publishes; the published 0.3.1 and earlier do
+not have them. Until then, run `npm pack -w satchel-nft` in a checkout of the repository and install
+the tarball. None of them signs or sends anything. Each is tested on transactions and state recorded
+from mainnet and testnet and re-checked against the live chains; each docs page gives the full API,
+the behaviour, the fixtures, every live run with its date and command, and each function's status
+(Implemented or Experimental). The links below point at the repository's `main` branch; until the
+next promotion, these files are on `dev`.
+
+**`satchel-nft/near-rpc`**: a JSON-RPC transport that retries what is worth retrying and names rate
+limiting, reads pinned to one block that refuse an answer about another block, access-key lists paged
+on nearcore 2.14, a transaction with every receipt, and `readOnlyRpc`, which refuses any method that
+is not a read. Implemented; `httpGetJson`, gas-key permissions and nodes before nearcore 2.14 are
+Experimental. [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/near-rpc.md).
+
+```ts
+import { ENDPOINTS, httpRpc, pinnedReader, readOnlyRpc } from "satchel-nft/near-rpc";
+
+const reader = await pinnedReader(readOnlyRpc(httpRpc(ENDPOINTS.mainnet.rpc))); // one final block
+const { keys } = await reader.accessKeys("satchel-nft.near");                    // every page, at that block
+```
+
+**`satchel-nft/chain-signatures`**: for any NEAR transaction, which MPC sign requests it made, what
+each got back, whether each answer is a valid signature by the key derived for its caller, path and
+domain, and whether an EVM transaction is exactly the one an answer signed. Implemented for signed
+`payload_v2` requests, refused calls, verification and EVM type-2 proofs; legacy requests, domains 4
+and 5, the failed, timed-out, pending and inconsistent statuses, and EVM types 0 and 1 are
+Experimental. [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/chain-signatures.md).
+
+```ts
+import { ENDPOINTS, fastnearSenderLookup, httpRpc, readOnlyRpc } from "satchel-nft/near-rpc";
+import { MPC_CONTRACTS, MPC_ROOT_KEYS, auditSignTx } from "satchel-nft/chain-signatures";
+
+const audit = await auditSignTx(readOnlyRpc(httpRpc(ENDPOINTS.testnet.archival)), "EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo", {
+  mpcContract: MPC_CONTRACTS.testnet, rootKeys: MPC_ROOT_KEYS.testnet, senderLookup: fastnearSenderLookup(ENDPOINTS.testnet.txApi) });
+// audit.verdict === "all-verified"; audit.requests[0].evmAddress === "0x96DA1468E95Ab31A698891f0150095f86b5a282B"
+```
+
+**`satchel-nft/account-proof`**: a NEP-413 sign-in decided at one final block: the signature, a
+full-access key on the account, an optional on-chain condition (`nftOwner`, `ftBalanceAtLeast`,
+`sputnikRole`, `all`), freshness bound to the signed text and a replay guard. Every outcome is a
+value with an HTTP status. It also resolves a NEP-641 access-key authorization (`verifyNep641Leaf`).
+Implemented; `verifyNep641Leaf`, function-call and gas keys, and Everyone roles are Experimental.
+[Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/account-proof.md).
+
+```ts
+import { memoryNonceStore, nftOwner, verifyAccountProof } from "satchel-nft/account-proof";
+
+const result = await verifyAccountProof({ rpc, proof, expect: { recipient: "example.app", message },
+  predicate: nftOwner("v1.satchel-nft.near", "1"), freshness: { issuedAt }, nonceStore: memoryNonceStore() });
+if (!result.ok) return reply(result.status, result.reason); // 400, 401, 403, 404, 409 or 502
+```
+
+The repository's [examples](https://github.com/duongnq2798/satchel/tree/main/packages/satchel-nft/examples)
+run each one against the live chains: after `npm run build -w satchel-nft`, for instance,
+`node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo`
+prints one request whose signature verifies, and the verdict `all-verified`.
+
 ## What changed in 0.3.1
 
 A patch. The only code change is the version in the commands the package prints.

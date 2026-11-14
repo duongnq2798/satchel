@@ -154,11 +154,14 @@ describe("text contrast, WCAG 2.2 AAA", () => {
 });
 
 describe("non-text contrast, WCAG 2.2 1.4.11", () => {
+  // The focus ring and a field's border on every surface, and the footer's external-link arrow: muted at
+  // 70% on paper-2 (components/site-footer.tsx).
+  const GRAPHICS = [...SURFACES.flatMap((s) => [["focus", s], ["field", s]]), ["muted/70", "paper-2"]];
   for (const [name, theme] of [
     ["light", LIGHT],
     ["dark", DARK],
   ] as const) {
-    it.each(SURFACES.flatMap((s) => [["focus", s], ["field", s]]))(`${name}: %s on %s is at least 3:1`, (fg, bg) => {
+    it.each(GRAPHICS)(`${name}: %s on %s is at least 3:1`, (fg, bg) => {
       expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
     });
   }
@@ -172,5 +175,23 @@ describe("the test reads the stylesheet", () => {
     }
     expect(DARK["color-paper"]).not.toBe(LIGHT["color-paper"]);
     expect(SHIKI.length).toBeGreaterThan(10);
+  });
+});
+
+describe("busy buttons keep their text's contrast", () => {
+  const ui = readFileSync(new URL("../components/ui.tsx", import.meta.url), "utf8");
+  /** The source from `start` to `end`, or "" when `start` isn't there. */
+  const from = (start: string, end: string) => {
+    const at = ui.indexOf(start);
+    return at < 0 ? "" : ui.slice(at, ui.indexOf(end, at));
+  };
+
+  it.each([
+    ["the BUTTON constant", from("const BUTTON = {", "} as const;")],
+    ["the Button function", from("export function Button(", "\n}\n")],
+  ])("%s dims nothing with opacity", (_, code) => {
+    expect(code.length).toBeGreaterThan(50);
+    expect(code).not.toMatch(/opacity-[1-9]/);
+    expect(code).not.toMatch(/aria-busy:opacity/);
   });
 });

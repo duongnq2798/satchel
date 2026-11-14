@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { MAINNET } from "satchel-nft";
+import { NetLink } from "@/components/site-header";
 import { appPath } from "@/lib/routes";
 import { MAINNET_SALE, formatSpan, utcDate, utcTime } from "@/lib/showcase";
 import { CleanStamp, Declaration, DeedSheet, Flourish, Kicker, Medallion, README_SALE, Stamp, TxHash, WaxSeal } from "./marks";
@@ -108,18 +108,19 @@ export function DeedTeaser() {
       <SaleRuler note={`Six steps, I to VI, all on ${utcDate(sale.mint.at)}`} />
 
       <div className="deed-tz-foot">
-        <Link
+        {/* NetLink: from the testnet landing, a mainnet page loads fresh, so no wallet or read carries over. */}
+        <NetLink
           href={`${appPath(MAINNET, `/satchel/${sale.tokenId}`)}#deed`}
           className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper transition hover:bg-leather"
         >
           Read the full deed <span aria-hidden="true">→</span>
-        </Link>
+        </NetLink>
         <a className="deed-link" href={README_SALE} target="_blank" rel="noreferrer">
           Every step, in the README<span aria-hidden="true">&nbsp;↗</span>
         </a>
-        <Link className="deed-link" href={appPath(MAINNET, `/satchel/${sale.tokenId}`)}>
+        <NetLink className="deed-link" href={appPath(MAINNET, `/satchel/${sale.tokenId}`)}>
           Satchel #{sale.tokenId}&apos;s live page<span aria-hidden="true"> →</span>
-        </Link>
+        </NetLink>
       </div>
     </DeedSheet>
   );

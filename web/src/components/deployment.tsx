@@ -1,14 +1,25 @@
 "use client";
 
-import { assertDeployment } from "satchel-nft";
+import { type NetworkId, assertDeployment } from "satchel-nft";
 import { useNetwork } from "./network";
-import { Button, errorMessage } from "./ui";
+import { ErrorNote, WaitLine } from "./ui";
 import { useAsync } from "./use-async";
+
+/** The networks whose contract passed its check on this page, so later satchels show their address at once. */
+const passed = new Set<NetworkId>();
 
 /** Whether this network's contract passes its check: true once it does, an error saying why not. */
 export function useDeployment() {
   const net = useNetwork();
-  return useAsync(() => assertDeployment(net).then(() => true as const), net.id);
+  return useAsync(
+    () =>
+      assertDeployment(net).then(() => {
+        passed.add(net.id);
+        return true as const;
+      }),
+    net.id,
+    { initial: passed.has(net.id) ? true : undefined },
+  );
 }
 
 /**
@@ -17,17 +28,16 @@ export function useDeployment() {
  */
 export function DeploymentNote({ deployment }: { deployment: ReturnType<typeof useDeployment> }) {
   if (deployment.data) return null;
-  if (deployment.error) {
+  if (deployment.lastError !== null && deployment.lastError !== undefined) {
     return (
-      <div className="space-y-2">
-        <div className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
-          <p>
-            {errorMessage(deployment.error)}. The app shows no address to fund and signs nothing until it does.
-          </p>
-        </div>
-        <Button onClick={deployment.reload}>Check again</Button>
-      </div>
+      <ErrorNote error={deployment.lastError} onRetry={deployment.reload}>
+        <p className="mt-1">The app shows no address to fund and signs nothing until it passes.</p>
+      </ErrorNote>
     );
   }
-  return <p className="text-sm text-muted">Checking the contract before showing an address…</p>;
+  return (
+    <WaitLine wait={deployment.wait} slow="Still checking. Public RPC nodes can be slow.">
+      Checking the contract before showing an address…
+    </WaitLine>
+  );
 }

@@ -111,16 +111,29 @@ check(rows.length > 0 && rushed.length === 0, "No scene has more than 2.5 spoken
 
 // Every page the kit opens is a route under web/src/app: each satchelnft.xyz link, and each path
 // written alone in backticks, as `/satchel/<id>/room` for a satchel the recorder picks. A dynamic
-// folder takes only what its page takes: a satchel id is digits, or the placeholder `<id>`.
+// folder takes only what its page takes: a satchel id is digits, or the placeholder `<id>`. A route
+// group, a folder named in parentheses such as satchel/[id]/(token), adds no segment to the address:
+// its folders and its page.tsx count as its parent's.
+function withGroups(dir) {
+  const groups = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && /^\(.+\)$/.test(e.name));
+  return [dir, ...groups.flatMap((g) => withGroups(new URL(`${g.name}/`, dir)))];
+}
 function routeExists(path) {
   let dir = new URL("web/src/app/", root);
   for (const segment of path.split("/").filter(Boolean)) {
-    const entries = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory());
-    const next = entries.find((e) => e.name === segment) ?? (/^(?:\d{1,19}|<id>)$/.test(segment) ? entries.find((e) => e.name === "[id]") : undefined);
-    if (!next) return false;
-    dir = new URL(`${next.name}/`, dir);
+    let found;
+    for (const d of withGroups(dir)) {
+      const entries = readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory());
+      const next = entries.find((e) => e.name === segment) ?? (/^(?:\d{1,19}|<id>)$/.test(segment) ? entries.find((e) => e.name === "[id]") : undefined);
+      if (next) {
+        found = new URL(`${next.name}/`, d);
+        break;
+      }
+    }
+    if (!found) return false;
+    dir = found;
   }
-  return existsSync(new URL("page.tsx", dir));
+  return withGroups(dir).some((d) => existsSync(new URL("page.tsx", d)));
 }
 const linked = [...demo.matchAll(/satchelnft\.xyz(\/[\w\-/]*)?/gi)].map((m) => m[1]?.replace(/\/$/, "") || "/");
 const named = [...demo.matchAll(/`(\/[\w\-/<>]*)`/g)].map((m) => m[1].replace(/\/$/, "") || "/");
