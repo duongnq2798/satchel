@@ -32,7 +32,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./near-rpc": {
+      "types": "./dist/near-rpc.d.ts",
+      "default": "./dist/near-rpc.js"
+    }
   },
   "files": [
     "bin",
