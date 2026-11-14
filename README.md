@@ -1130,8 +1130,9 @@ the transaction's receipt: [the docs](docs/primitives/chain-signatures.md#live-t
 **What it is.** A NEP-413 signature proves only that some key signed some text.
 `satchel-nft/account-proof`'s `verifyAccountProof` turns one into a decision at one final block: the
 signature, the key on the account, an optional on-chain condition, freshness and a replay guard. The
-same subpath resolves a NEP-641 access-key authorization (the leaf), for the NEP's "TypeScript
-resolver: TBD".
+same subpath resolves a NEP-641 access-key authorization (the leaf) in TypeScript. The NEP's reference
+implementation section reads "TypeScript resolver (wallet-selector / NEAR Connect integration): TBD."
+This one resolves the leaf only, and is not a wallet integration.
 
 **Use it for.** A backend that signs users in with their NEAR wallet; pages, files or APIs only the
 holder of an NFT, a token balance or a DAO role may open.

@@ -193,7 +193,7 @@ export function proveRawTx(input: { audit: SignTxAudit; requestIndex?: number; r
 | | `signed`: the callback answered. `failed`: the sign receipt or the callback failed, with the failure text in `detail`. `timed-out`: the callback handed on to `fail_on_timeout`, which failed. `pending`: an outcome is missing or unknown. `inconsistent`: a hop left the MPC contract, the callback does not match the request (the field is named), the answer is not a signature of the payload's kind, the sign receipt returned a value with no callback, the request names no readable domain, or its payload does not fit a known signing domain | |
 | `scanMpcResponses` | The loop of dao.ts's `signatureFromReceipts`: every receipt the MPC contract ran whose `SuccessValue` parses as a secp256k1 answer, with or without `scheme` | nothing |
 | `verifySignature` | secp256k1: the key decodes and is not the identity; `big_r` is `02`/`03` plus 32 bytes on the curve with 1 ≤ x(R) < n (refused, not reduced); s in [1, n-1]; `recovery_id` 0 or 1; the payload 32 bytes and below n; s normalized to low-s, flipping the parity; verified with `prehash: false`, and the key recovered from (r, s, yParity) must be the key. ed25519: 64 numbers each 0-255; the key decodes and has no small order; strict RFC 8032 (`zip215: false`) over the payload bytes | never: each failure is a `reason` |
-| `normalizeEcdsa` | s and yParity with s flipped to n - s (and the parity flipped) when s > n/2, as evm.ts's `toEvmSignature` does | on a malformed s |
+| `normalizeEcdsa` | s and yParity with s flipped to n - s (and the parity flipped) when s > n/2, as evm.ts's `toEvmSignature` does | on a `recovery_id` that is not 0 or 1 (`recovery_id must be 0 or 1`) or an s that is not 1 to 64 hex digits (`s is not a hex scalar`) |
 | `crossCheckDerivation` | At one pinned block, the contract's `public_key({domain_id})` for each domain the cases use (in numeric order) and its `derived_public_key({path, predecessor, domain_id})` for each case, beside `deriveKey` from that block's root key. A `match: false` means the contract and this code derive differently, whether or not `MPC_ROOT_KEYS` is still current | `RpcError` and `ViewError` from the reads |
 | `auditSignTx` | `readTx` (FINAL by default), then `mpcRequests`. A request on a signing domain whose root key the caller passed gets `derivedKey`, `verify` and, for secp256k1, `evmAddress`. No root key is fetched to verify against; a request on any other domain gets `verify: null`. The verdict is the first that applies: `no-requests`, `has-inconsistent`, `has-failed` (failed or timed out), `has-pending`, `some-unverified` (a signed request whose `verify` is null or not ok), `all-verified` | `RpcError`, `ReadTxError` |
 | `proveEvmTx` | Reads the transaction, its receipt and the node's `finalized` block through `client`, and reports every check, none skipping another: node-chain-id, tx-chain-id, tx-type (type 2 Implemented; types 0 and 1 accepted, Experimental; 3 and 4 refused), tx-hash (rebuilt with viem `serializeTransaction` plus the signature, keccak equal to `hash`), signing-hash (keccak of the unsigned serialization equals the request's payload), r, s, y-parity, sender (`evmAddress(derivedKey)` and the node's `from`), receipt (success), finalized (the block at or below `finalized`). `proven` only when all pass | viem's errors for a read the node fails |
@@ -286,13 +286,16 @@ Each has a unit test in `chain-signatures.test.ts` (62 tests) or `mpc-kdf.test.t
 
 ## Fixtures
 
-Folder: `packages/satchel-nft/src/__fixtures__/primitives/chain-signatures/`. Each file's
-`provenance` names the network, the node, the JSON path its id was read from, the block, the node
-version and the capture time; `modified` is false for every one. They were captured on 2026-11-14 by
+Folder: `packages/satchel-nft/src/__fixtures__/primitives/chain-signatures/`. `modified` is false
+for every file. All but `upstream-tweaks.json` were captured on 2026-11-14 by
 `node scripts/capture-primitive-fixtures.mjs --only chain-signatures`, which reads through
-`readOnlyRpc` and `readOnlyEvm`. tx-bench.testnet is a third-party account, found through FastNEAR's
-transaction index of `v1.signer-prod.testnet`; its transactions are public traffic, allowed here and in
-fixtures, never in the README.
+`readOnlyRpc` and `readOnlyEvm`; each of their `provenance` names the network, the node, the JSON path
+its id was read from, the block and the capture time, and for the NEAR reads the node version (the
+`evm-*.json` cassettes record none). `upstream-tweaks.json` was copied from near/mpc, not read from a
+chain: its `provenance` names the upstream file and commit, with no node or block (see its row below).
+tx-bench.testnet is a third-party account, found through FastNEAR's transaction index of
+`v1.signer-prod.testnet`; its transactions are public traffic, allowed here and in fixtures, never in
+the README.
 
 | File | What it holds | Source |
 |---|---|---|

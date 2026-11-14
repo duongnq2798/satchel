@@ -179,7 +179,7 @@ read at its block's `prevHash`.
 
 | Read | Gives |
 |---|---|
-| `view(account, method, args)` | `result.result` decoded as JSON, or null for an empty result. A `result.error` text (how a view panic usually comes back) is a `ViewError`, kind method-not-found or panic, with near.ts's `viewErrorMessage` text. `UNKNOWN_ACCOUNT` is kind account-missing, `NO_CONTRACT_CODE` no-code, `CONTRACT_EXECUTION_ERROR` method-not-found or panic; the `RpcError` is its `cause` |
+| `view(account, method, args)` | `result.result` decoded as JSON, or null for an empty result. A `result.error` text (how a view panic usually comes back) is a `ViewError`, kind method-not-found, no-code (a `CodeDoesNotExist` text) or panic, with near.ts's `viewErrorMessage` text. `UNKNOWN_ACCOUNT` is kind account-missing, `NO_CONTRACT_CODE` no-code, `CONTRACT_EXECUTION_ERROR` method-not-found or panic; the `RpcError` is its `cause` |
 | `account(id)` | the account, or null on `UNKNOWN_ACCOUNT` |
 | `accessKey(id, key)` | the key and its permission, or null on `UNKNOWN_ACCESS_KEY`, `UNKNOWN_ACCOUNT` or a `result.error` that says "does not exist", as near.ts does. Call `account()` first to tell a missing account from a missing key |
 | `accessKeys(id, { pageSize, max })` | every key, page by page (below) |
@@ -213,7 +213,7 @@ none, and asking after the last key answers an empty page with no `last_key`.
 So `accessKeys` (`pageSize` default 100, `max` default 10 000) never stops on a short page (a
 clamped node sends short pages with more after them), stops when `last_key` is absent, and also stops
 on an empty page, for a node that always sends `last_key`. It refuses paging that repeats a key
-(`paging repeated a key`) or does not advance (`paging did not advance`), and stops past `max` keys
+(`paging repeated a key`) or does not advance (`paging did not advance`), and fails past `max` keys
 (`more than ${max} keys`). A node older than 2.14 that refuses the paging fields (an `rpc-error` naming
 `REQUEST_VALIDATION_ERROR` or "unknown field") gets one unpaged call (`paged: false`); that path is
 Experimental until such a node is seen.
@@ -232,17 +232,20 @@ refuses an answer about another transaction (`wrong-tx`). nearcore 2.14 renamed
 name, which older nodes serve.
 
 `receiptsOf(tx)` joins each `receipts_outcome` entry with the `receipts` entry of the same id, in
-`receipts_outcome` order. A data receipt, or a trimmed answer with no `receipts`, gives `actions: []`
-and null predecessor and receiver; an outcome with no `block_hash` gives `blockHash: null`.
+`receipts_outcome` order. A receipt with no `Action` actions (a data receipt) gives `actions: []` with
+its predecessor and receiver; an outcome with no `receipts` entry of its id (a trimmed answer with no
+`receipts`, say) gives `actions: []` and null predecessor and receiver; an outcome with no
+`block_hash` gives `blockHash: null`.
 `functionCalls(receipt)` lists its FunctionCall actions.
 
 ## A regular node and a transaction it has dropped
 
 Regular nodes keep a transaction for a day or two. On 2026-11-14, `rpc.testnet.fastnear.com` answered
 `EXPERIMENTAL_tx_status` for testnet `EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo` (included at block
-276856696) with HTTP 408, `TIMEOUT_ERROR` / `NOT_OBSERVED`, after waiting 10 to 30 s. `httpRpc`
-retries a 408 and its own timeout (10 s by default, 5 tries), so with the defaults that first read can
-take a minute or more before `readTx` tries `archival`. Read old transactions through the archival
+276856696) with HTTP 408, `TIMEOUT_ERROR` / `NOT_OBSERVED`, after 30.6 s (a read at 15:21:33 UTC).
+`httpRpc` retries a 408 and its own timeout (10 s by default, 5 tries), so with the defaults each try
+times out first, and that first read takes about a minute (five 10 s tries and 7.5 to 15 s of backoff)
+before `readTx` tries `archival`. Read old transactions through the archival
 node first:
 
 ```ts

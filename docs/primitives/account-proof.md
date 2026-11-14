@@ -13,9 +13,11 @@ decision, at one final block:
 It is for a backend login, token-gated pages or files, and "prove you hold this NFT" APIs. Satchel's
 holder room (`holder.ts`) does this today for one condition; moving it onto this module is Planned.
 
-The same subpath ships a NEP-641 leaf resolver
-([nep-0641.md](https://github.com/near/NEPs/blob/master/neps/nep-0641.md), status Final), for the
-"TypeScript resolver: TBD" line in the NEP (line 598 of the copy read on 2026-11-14). Source:
+The same subpath ships a NEP-641 leaf resolver in TypeScript
+([nep-0641.md](https://github.com/near/NEPs/blob/master/neps/nep-0641.md), status Final). The NEP's
+reference implementation section reads "TypeScript resolver (wallet-selector / NEAR Connect
+integration): TBD." (line 598 of the copy read on 2026-11-14). This one resolves the leaf only, and is
+not a wallet-selector or NEAR Connect integration. Source:
 [account-proof.ts](../../packages/satchel-nft/src/account-proof.ts) and
 [nep641.ts](../../packages/satchel-nft/src/nep641.ts).
 
@@ -238,16 +240,17 @@ Only ed25519 keys are in scope. NEP-413 secp256k1 signatures are Planned, and gi
 
 ## Fixtures
 
-Folder: `packages/satchel-nft/src/__fixtures__/primitives/account-proof/`, captured on 2026-11-14 by
-`node scripts/capture-primitive-fixtures.mjs --only account-proof` (12:32:21Z) through `readOnlyRpc`.
-Each file's `provenance` names the node, the source of every id, the block and why it was chosen, the
-node version (2.14.1) and the capture time.
+Folder: `packages/satchel-nft/src/__fixtures__/primitives/account-proof/`. The chain reads were
+captured on 2026-11-14 by `node scripts/capture-primitive-fixtures.mjs --only account-proof`
+(12:32:21Z) through `readOnlyRpc`; each of their `provenance` names the node, the source of every id,
+the block and why it was chosen, the node version (2.14.1) and the capture time.
+`nep641-vectors.json` was copied from near/intents instead (see its row), with no node or block.
 
 | File | What it holds |
 |---|---|
 | `src/__fixtures__/nep413-near-cli.json` (existing, read only) | Two real signatures made with near-cli-rs 0.30.1 on 2026-11-10, by satchel-nft.testnet (key `ed25519:FqmLsnuhrwC7jFqzHCiNzUcZ6qQ1a23y4jasFJwRpS8w`, message "Satchel test vector") and buyer.satchel-nft.testnet (key `ed25519:4UKgqHFuJtHVSMUD6nsvxGsByuBPVLN8WRdigoqaYoEU`, a multi-line UTF-8 message), both for the recipient satchelnft.xyz, with no issued-at time |
-| `holder-at-buyer-sign.json` | Testnet archival, pinned to block 276856730 (`CNRhq6Ac5izeA9qkW8Cshrw6sr9zqozqo6B69kRPGwEd`), the block of receipt FS7g9f4c…, in which `v1.satchel-nft.testnet` ran the buyer's `sign_evm` (`deployments/testnet-e2e.json` `steps[5].tx`, 9GYTuZJo…). The buyer owned #1 then, since the sign was accepted. It holds the transaction, the block, both keys on both accounts, `nft_token("1")`, `ft_balance_of` on wrap.testnet for both accounts, and `get_policy` of `satchel-club.sputnikv2.testnet`, which did not exist yet (`UNKNOWN_ACCOUNT`, naming that block) |
-| `proof-testnet-final.json` | The same reads at a final block, 277657341 (`8tmYagwC…`), after the DAO was created, read through the archival node so it can be read again |
+| `holder-at-buyer-sign.json` | Testnet archival, pinned to block 276856730 (`CNRhq6Ac5izeA9qkW8Cshrw6sr9zqozqo6B69kRPGwEd`), the block of receipt FS7g9f4c…, in which `v1.satchel-nft.testnet` ran the buyer's `sign_evm` (`deployments/testnet-e2e.json` `steps[5].tx`, 9GYTuZJo…). The buyer owned #1 then, since the sign was accepted. It holds the transaction, the block, both keys on both accounts, `nft_token("1")`, `nft_token("1000000")` (null: no such token), `nft_token` on wrap.testnet (`MethodNotFound`), `ft_balance_of` on wrap.testnet for both accounts, and `get_policy` of `satchel-club.sputnikv2.testnet`, which did not exist yet (`UNKNOWN_ACCOUNT`, naming that block) |
+| `proof-testnet-final.json` | At a final block, 277657341 (`8tmYagwC…`), after the DAO was created, read through the archival node so it can be read again: the block, each account's own key, `nft_token("1")`, `ft_balance_of` on wrap.testnet for both accounts, and `get_policy` of `satchel-club.sputnikv2.testnet` |
 | `nep641-testnet-final.json` | At block 277657345 (`DNdfzeH9…`): `view_account` of the unit tests' key's implicit account `3e66629b…a72f` (`UNKNOWN_ACCOUNT`), of `v1.satchel-nft.testnet` (exists, no keys) and of `missing.v1.satchel-nft.testnet`, and `view_access_key` of that key on `v1.satchel-nft.testnet` |
 | `nep641-vectors.json` | The two doc-test vectors of `OffchainMessage::hash` and `into_nep413_payload` in near/intents `crates/signatures/nep641/src/message.rs` at `75d2976949f2b05693133b123e8eefb3f14add05` (committed 2026-10-20), copied as data: the hash `ac9fc5df…62ae`, and the NEP-413 mapping with nonce `039f8afb…f72c`, recipient `mainnet: extension.near -> wallet.near -> v1.signer @ 2026-08-05T07:28:00Z` and callback `https://wallet.com/callback` |
 
@@ -319,7 +322,7 @@ What they check, with the blocks the final check's 14:32:58, 14:33:12 and 14:35:
     at block 277669750). That balance read had a minimum of 0, so the `below-min` refusal is covered by
     the unit tests only;
   - NEP-641 with an ephemeral in-process key (no transaction, no real key): the key's implicit
-    account, which does not exist, is accepted (block 277669768); the same leaf for
+    account, which does not exist, is accepted (block 277669768); a leaf of the same kind for
     `v1.satchel-nft.testnet` (exists, no keys) is refused at step 6; a leaf timestamped an hour ahead is
     refused at step 5.
 - the sign_evm receipt block (SATCHEL_LIVE_ARCHIVAL): at block 276856730, the block of receipt
