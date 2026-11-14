@@ -16,6 +16,8 @@ import {
 import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import type { RoomResponse } from "@/lib/room-request";
 import { appPath } from "@/lib/routes";
+import { utcDateTime, utcTime } from "@/lib/showcase";
+import { MINT_PATH } from "@/lib/try-it";
 import { NoMessageSigning, signMessage } from "@/lib/wallet";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, Mono, VERDICT, errorMessage } from "./ui";
@@ -144,7 +146,16 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
             <p className="text-sm text-muted">Looking for your wallet…</p>
           ) : accountId === null ? (
             <div className="space-y-3">
-              <p className="text-sm">Connect the NEAR {net.id} account that owns satchel #{tokenId}.</p>
+              <div>
+                <p className="text-sm">Connect the NEAR {net.id} account that owns satchel #{tokenId}.</p>
+                <p className="mt-1 text-sm text-muted">
+                  Not yours?{" "}
+                  <Link href={MINT_PATH} className="underline decoration-line underline-offset-4 hover:decoration-ink">
+                    Mint a testnet satchel
+                  </Link>{" "}
+                  to open a room of your own.
+                </p>
+              </div>
               <ConnectButton align="left" />
             </div>
           ) : (
@@ -225,7 +236,7 @@ function HolderCard({
       "Checked at",
       <span key="b">
         block <ExternalLink href={nearBlockUrl(net, holder.block.hash)}>{holder.block.height.toLocaleString("en")}</ExternalLink>,{" "}
-        {new Date(holder.block.timestamp).toLocaleString()}
+        <time dateTime={holder.block.timestamp}>{utcDateTime(holder.block.timestamp)}</time>
       </span>,
     ],
     ["Key", <Mono key="k">{holder.publicKey}</Mono>],
@@ -246,7 +257,8 @@ function HolderCard({
       </dl>
       <p className="mt-3 text-xs text-muted">
         Checked again on every request; no cookie. Check again sends this signature until{" "}
-        {new Date(reuseUntil).toLocaleTimeString()}; after that, it asks your wallet to sign again.
+        <time dateTime={new Date(reuseUntil).toISOString()}>{utcTime(reuseUntil)}</time>; after that, it asks your wallet
+        to sign again.
       </p>
       <div className="mt-3">
         <Button onClick={onCheckAgain} busy={busy}>

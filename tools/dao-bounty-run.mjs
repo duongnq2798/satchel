@@ -36,6 +36,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { builtPackage } from "../scripts/built.mjs";
 import {
   AMOUNTS,
   CONTRIBUTOR_PATH,
@@ -99,8 +100,8 @@ const {
   verifiedClient,
   view,
   viewAccount,
-} = await import("../packages/satchel-nft/dist/index.js");
-const { OutcomeUnknown, resolveNearCli, signAndSend, signedFromOutput } = await import("../packages/satchel-nft/dist/near-cli.js");
+} = await builtPackage();
+const { OutcomeUnknown, resolveNearCli, signAndSend, signedFromOutput } = await builtPackage("near-cli.js");
 
 const CLI_BIN = fileURLToPath(new URL("../packages/satchel-nft/bin/satchel-nft.js", import.meta.url));
 const ACTION_VOTE = { VoteApprove: "Approve", VoteReject: "Reject" };
