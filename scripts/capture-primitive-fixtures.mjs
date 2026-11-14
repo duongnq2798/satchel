@@ -3,9 +3,10 @@
 // which network and node answered, which deployments file and JSON path named the value, the block,
 // when, and the node's version. A fixture is frozen once captured: an existing file is kept unless
 // --force is given.
-// Node 22 or later, no install, no wallet, no key. Run `npm run build -w satchel-nft` first: the
-// reads go through the built satchel-nft/near-rpc and satchel-nft/chain-signatures
-// (packages/satchel-nft/dist/near-rpc.js and chain-signatures.js).
+// Node 22 or later, no install, no wallet, no account key. Run `npm run build -w satchel-nft` first:
+// the reads go through the built satchel-nft/near-rpc and satchel-nft/chain-signatures
+// (packages/satchel-nft/dist/near-rpc.js and chain-signatures.js). The one key it makes is the unit
+// tests' fixed ed25519 key (TEST_KEY_TEXT), only to name its public key in reads; it signs nothing.
 // Usage: node scripts/capture-primitive-fixtures.mjs [--only <primitive>] [--force]
 //        node scripts/capture-primitive-fixtures.mjs --check-guards   (offline: both guards refuse writes)
 //
@@ -26,8 +27,23 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { builtPackage } from "./built.mjs";
 
-const { ENDPOINTS, READ_METHODS, READ_QUERY_TYPES, ReadOnlyError, RpcError, blockAt, fastnearSenderLookup, httpRpc, pinnedReader, readOnlyRpc, readTx, redactUrl, withFallback } =
-  await builtPackage("near-rpc.js");
+const {
+  ENDPOINTS,
+  READ_METHODS,
+  READ_QUERY_TYPES,
+  ReadOnlyError,
+  RpcError,
+  blockAt,
+  fastnearSenderLookup,
+  functionCalls,
+  httpRpc,
+  pinnedReader,
+  readOnlyRpc,
+  readTx,
+  receiptsOf,
+  redactUrl,
+  withFallback,
+} = await builtPackage("near-rpc.js");
 const { chainInfo } = await builtPackage("index.js");
 
 const args = process.argv.slice(2);
@@ -68,7 +84,27 @@ const THIRD_PARTY = {
   // 2026-11-14 config.ts's publicnode Sepolia node (and 1rpc.io's) answered that transaction but a
   // null receipt for it, while this one answered the receipt (status 0x1). Reads only, as the others.
   sepoliaReceipts: "https://sepolia.gateway.tenderly.co",
+  // Wrapped NEAR, the NEP-141 token NEAR's own docs use on testnet: the FT whose ft_balance_of the
+  // account-proof cassettes read for Satchel's two testnet accounts (both held 0 of it on 2026-11-14).
+  wnear: "wrap.testnet",
 };
+
+/**
+ * The unit tests' ed25519 key: made in process from this fixed text, it signs test messages only and
+ * never a transaction, and no account holds it. The account-proof cassettes record what testnet
+ * answers about it (its implicit account does not exist; Satchel's contract does not hold it), so
+ * the NEP-641 tests refuse and accept on real answers. account-proof.test.ts and nep641.test.ts make
+ * the same key from the same text.
+ */
+const TEST_KEY_TEXT = "satchel-nft primitives: unit-test key; it signs test messages, never a transaction";
+
+async function testKey() {
+  const { ed25519 } = await import("@noble/curves/ed25519");
+  const { sha256 } = await import("@noble/hashes/sha2");
+  const { base58Encode } = await builtPackage("base58.js");
+  const publicKey = ed25519.getPublicKey(sha256(new TextEncoder().encode(TEST_KEY_TEXT)));
+  return { publicKey: `ed25519:${base58Encode(publicKey)}`, implicit: Buffer.from(publicKey).toString("hex") };
+}
 
 /** Satchel tokens minted on each network (testnet #1-#11, mainnet #1-#3), whose keys the derived-key fixtures read. */
 const SATCHEL_TOKENS = { testnet: 11, mainnet: 3 };
@@ -312,7 +348,157 @@ const JOBS = {
     evmJob("evm-base-8044", "base", 8453, () => fromDeployment("mainnet-first-send.json", "baseTx"), "mainnet satchel #1's Base send"),
     evmJob("evm-base-2d9b", "base", 8453, () => fromDeployment("mainnet-1click-exit.json", "deposit.tx"), "mainnet satchel #2's 1Click deposit on Base"),
   ],
+  "account-proof": [
+    {
+      name: "holder-at-buyer-sign",
+      /**
+       * At the block of the receipt in which Satchel's testnet contract ran the buyer's sign_evm
+       * (testnet-e2e.json steps[5].tx): the state after that receipt, when the buyer owned #1, since
+       * the sign was accepted. The transaction itself is in the cassette, so a test finds the block
+       * from it.
+       */
+      async run() {
+        const contract = fromDeployment("testnet.json", "contract");
+        const tx = fromDeployment("testnet-e2e.json", "steps[5].tx");
+        const token = fromDeployment("testnet-e2e.json", "steps[0].tokenId");
+        const dao = fromDeployment("testnet-dao.json", "dao");
+        const { answered, archival } = transports("testnet");
+        const rec = recorder(archival);
+        const read = await readTx(rec, tx.value, { senderLookup: fastnearSenderLookup(ENDPOINTS.testnet.txApi, { fetch: guardedFetch }) });
+        const receipt = receiptsOf(read).find((r) => r.executorId === contract.value && functionCalls(r).some((c) => c.method === "sign_evm"));
+        if (!receipt?.blockHash) throw new Error(`${tx.value} has no receipt in which ${contract.value} ran sign_evm`);
+        const reader = await pinnedReader(rec, { blockHash: receipt.blockHash });
+        const vectors = nep413Vectors();
+        for (const v of vectors) await reader.accessKey(v.accountId, v.publicKey);
+        // Each account with the other's key: neither holds it.
+        await reader.accessKey(vectors[0].accountId, vectors[1].publicKey);
+        await reader.accessKey(vectors[1].accountId, vectors[0].publicKey);
+        await reader.view(contract.value, "nft_token", { token_id: token.value });
+        // A token id far above any minted (SATCHEL_TOKENS): the contract answers null.
+        await reader.view(contract.value, "nft_token", { token_id: "1000000" });
+        for (const v of vectors) await reader.view(THIRD_PARTY.wnear, "ft_balance_of", { account_id: v.accountId });
+        // A contract that is not an NFT contract, asked for a token.
+        await expectAnswer(reader.view(THIRD_PARTY.wnear, "nft_token", { token_id: token.value }));
+        // The DAO did not exist yet at this block: recorded as the node answered.
+        await expectAnswer(reader.view(dao.value, "get_policy"));
+        return {
+          provenance: provenance({
+            network: "testnet",
+            rpc: [...answered].join(", "),
+            source: `${tx.source} (its sign_evm receipt); ${contract.source}; ${token.source}; ${dao.source}; src/__fixtures__/nep413-near-cli.json (the two accounts and keys); THIRD_PARTY.wnear (${THIRD_PARTY.wnear})`,
+            block: {
+              height: reader.block.height,
+              hash: reader.block.hash,
+              why: `the block of receipt ${receipt.receiptId}, in which ${contract.value} ran the buyer's sign_evm; state after it`,
+            },
+            nodeVersion: await nodeVersions(answered),
+          }),
+          calls: rec.calls,
+        };
+      },
+    },
+    {
+      name: "proof-testnet-final",
+      /** At one final testnet block, read through archival so it can be read again: the same reads, once the DAO existed. */
+      async run() {
+        const contract = fromDeployment("testnet.json", "contract");
+        const token = fromDeployment("testnet-e2e.json", "steps[0].tokenId");
+        const dao = fromDeployment("testnet-dao.json", "dao");
+        const { answered, archival } = transports("testnet");
+        const final = await blockAt(archival, "final");
+        const rec = recorder(archival);
+        const reader = await pinnedReader(rec, { blockHash: final.hash });
+        const vectors = nep413Vectors();
+        for (const v of vectors) await reader.accessKey(v.accountId, v.publicKey);
+        await reader.view(contract.value, "nft_token", { token_id: token.value });
+        for (const v of vectors) await reader.view(THIRD_PARTY.wnear, "ft_balance_of", { account_id: v.accountId });
+        await reader.view(dao.value, "get_policy");
+        return {
+          provenance: provenance({
+            network: "testnet",
+            rpc: [...answered].join(", "),
+            source: `${contract.source}; ${token.source}; ${dao.source}; src/__fixtures__/nep413-near-cli.json (the two accounts and keys); THIRD_PARTY.wnear (${THIRD_PARTY.wnear})`,
+            block: { height: final.height, hash: final.hash, why: "a final block at capture, after the DAO was created, read through the archival node so it can be read again later" },
+            nodeVersion: await nodeVersions(answered),
+          }),
+          calls: rec.calls,
+        };
+      },
+    },
+    {
+      name: "nep641-testnet-final",
+      /**
+       * At one final testnet block: the unit tests' key (TEST_KEY_TEXT) against three accounts: its
+       * implicit account (does not exist), Satchel's contract (exists, holds no key), and a sub-account
+       * of the contract (the contract has no key, so it can never be created).
+       */
+      async run() {
+        const contract = fromDeployment("testnet.json", "contract");
+        const key = await testKey();
+        const missing = `missing.${contract.value}`;
+        const { answered, archival } = transports("testnet");
+        const final = await blockAt(archival, "final");
+        const rec = recorder(archival);
+        const reader = await pinnedReader(rec, { blockHash: final.hash });
+        await reader.account(key.implicit);
+        await reader.account(contract.value);
+        await reader.accessKey(contract.value, key.publicKey);
+        await reader.account(missing);
+        return {
+          provenance: provenance({
+            network: "testnet",
+            rpc: [...answered].join(", "),
+            source: `${contract.source}; the unit tests' key ${key.publicKey} (TEST_KEY_TEXT), implicit account ${key.implicit}; ${missing} (no key can create it)`,
+            block: { height: final.height, hash: final.hash, why: "a final block at capture, read through the archival node so it can be read again later" },
+            nodeVersion: await nodeVersions(answered),
+          }),
+          calls: rec.calls,
+        };
+      },
+    },
+    {
+      name: "function-call-key",
+      /**
+       * The first FunctionCall key in the key lists of satchel-nft.testnet, buyer.satchel-nft.testnet
+       * and satchel-council-1112.testnet, in that order, at one final block. When none has one, no
+       * fixture is written: the unit tests change a recorded permission in-test instead, and say so.
+       */
+      async run() {
+        const accounts = [nep413Vectors()[0].accountId, nep413Vectors()[1].accountId];
+        const council = fromDeployment("testnet-dao-bounty.json", "council[2]");
+        accounts.push(council.value);
+        const { answered, archival } = transports("testnet");
+        const final = await blockAt(archival, "final");
+        for (const account of accounts) {
+          const rec = recorder(archival);
+          const reader = await pinnedReader(rec, { blockHash: final.hash });
+          const { keys } = await reader.accessKeys(account);
+          console.log(`${account} at block ${final.height}: ${keys.length} key(s), ${keys.map((k) => k.permission.kind).join(", ") || "none"}`);
+          const found = keys.find((k) => k.permission.kind === "function-call");
+          if (!found) continue;
+          return {
+            provenance: provenance({
+              network: "testnet",
+              rpc: [...answered].join(", "),
+              source: `the first FunctionCall key of ${account} (accounts in order: ${accounts.join(", ")}; ${council.source})`,
+              block: { height: final.height, hash: final.hash, why: "a final block at capture" },
+              nodeVersion: await nodeVersions(answered),
+            }),
+            calls: rec.calls,
+          };
+        }
+        console.log(`no FunctionCall key on ${accounts.join(", ")} at block ${final.height}: no fixture written; the unit tests change a recorded permission in-test`);
+        return null;
+      },
+    },
+  ],
 };
+
+/** The accounts and keys near-cli-rs signed the NEP-413 vectors with (src/__fixtures__/nep413-near-cli.json). */
+function nep413Vectors() {
+  const file = new URL("packages/satchel-nft/src/__fixtures__/nep413-near-cli.json", ROOT);
+  return JSON.parse(readFileSync(file, "utf8")).vectors.map((v) => ({ accountId: v.accountId, publicKey: v.publicKey }));
+}
 
 /** A third-party value by its path in THIRD_PARTY, with that path as its source. */
 function thirdParty(path) {
@@ -504,7 +690,9 @@ for (const [primitive, jobs] of Object.entries(JOBS)) {
       continue;
     }
     try {
-      write(primitive, job.name, await job.run());
+      const fixture = await job.run();
+      if (fixture === null) console.log(`no ${primitive}/${job.name}.json: nothing to record`);
+      else write(primitive, job.name, fixture);
     } catch (err) {
       failed++;
       const kind = err instanceof RpcError ? ` (${err.kind})` : "";

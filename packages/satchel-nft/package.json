@@ -40,6 +40,10 @@
     "./chain-signatures": {
       "types": "./dist/chain-signatures.d.ts",
       "default": "./dist/chain-signatures.js"
+    },
+    "./account-proof": {
+      "types": "./dist/account-proof.d.ts",
+      "default": "./dist/account-proof.js"
     }
   },
   "files": [
