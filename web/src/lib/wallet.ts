@@ -4,9 +4,13 @@ import {
   type NetworkId,
   type WalletTx,
   accountOnNetwork,
-  finalOutcome,
   outcomeValue,
+  rpcFor,
 } from "satchel-nft";
+import { UserRejected, walletRefused } from "./errors";
+import { waitFinal } from "./final";
+import { rememberTx } from "./last-tx";
+import { deadline } from "./timing";
 import manifest from "./wallet-manifest.json";
 
 /**
@@ -63,7 +67,7 @@ const pending = new Map<NetworkId, Promise<Connector>>();
 export function connector(net: Network): Promise<Connector> {
   let made = pending.get(net.id);
   if (made === undefined) {
-    made = import("@hot-labs/near-connect").then(({ NearConnector }) => {
+    made = deadline(import("@hot-labs/near-connect"), 20_000, "the wallet picker").then(({ NearConnector }) => {
       const options = { network: net.id, manifest, footerBranding: null, storage: networkStorage(net) };
       return new NearConnector(options as unknown as ConstructorParameters<typeof NearConnector>[0]) as unknown as Connector;
     });
@@ -90,7 +94,11 @@ export async function connectedAccount(net: Network): Promise<string | null> {
  */
 export async function signIn(net: Network): Promise<string> {
   const c = await connector(net);
-  await c.connect();
+  try {
+    await c.connect();
+  } catch (err) {
+    throw walletRefused(err) ? new UserRejected("connect", { cause: err }) : err;
+  }
   const { accounts } = await c.getConnectedWallet();
   const id = accounts[0]?.accountId;
   if (id === undefined) throw new Error("The wallet didn't connect an account");
@@ -101,18 +109,35 @@ export async function signIn(net: Network): Promise<string> {
   return id;
 }
 
+/** Where a transaction is: in the wallet, or sent with its hash. */
+export type TxPhase = { phase: "wallet" } | { phase: "sent"; hash: string };
+
 /**
  * Has the wallet sign and send `tx`, then waits until every receipt is final and returns the value
  * the call resolved to. Wallets often return before a promise chain finishes, as with `sign_evm`,
- * which resolves only when the MPC network answers.
+ * which resolves only when the MPC network answers. A refusal in the wallet throws UserRejected, and
+ * a sent transaction NEAR hasn't finished in time throws PendingTx with its hash.
  */
-export async function runTx<T>(net: Network, tx: WalletTx, signer: string): Promise<{ hash: string; value: T | null }> {
+export async function runTx<T>(
+  net: Network,
+  tx: WalletTx,
+  signer: string,
+  onPhase: (p: TxPhase) => void = () => {},
+): Promise<{ hash: string; value: T | null }> {
   const wallet = await (await connector(net)).wallet();
-  const sent = await wallet.signAndSendTransaction({ signerId: signer, receiverId: tx.receiverId, actions: tx.actions });
+  onPhase({ phase: "wallet" });
+  let sent: ExecutionOutcome;
+  try {
+    sent = await wallet.signAndSendTransaction({ signerId: signer, receiverId: tx.receiverId, actions: tx.actions });
+  } catch (err) {
+    throw walletRefused(err) ? new UserRejected("tx", { cause: err }) : err;
+  }
   const hash = sent?.transaction?.hash;
   if (!hash) throw new Error("The wallet did not return a transaction hash");
+  rememberTx(net, hash);
+  onPhase({ phase: "sent", hash });
   const settled =
-    sent.final_execution_status === "FINAL" ? sent : await finalOutcome(net, hash, sent.transaction.signer_id ?? signer);
+    sent.final_execution_status === "FINAL" ? sent : await waitFinal(rpcFor(net), hash, sent.transaction.signer_id ?? signer);
   return { hash, value: outcomeValue<T>(settled) };
 }
 
@@ -138,9 +163,19 @@ export async function signMessage(
   } catch (err) {
     const text = err instanceof Error ? err.message : String(err);
     if (/not (supported|implemented)|unsupported/i.test(text)) throw cannot();
-    throw err;
+    throw walletRefused(err) ? new UserRejected("sign", { cause: err }) : err;
   }
   if (typeof signed?.signature !== "string" || typeof signed.publicKey !== "string") throw new Error("The wallet didn't return a signature");
   if (signed.accountId !== signer) throw new Error(`The wallet signed as ${signed.accountId}, not ${signer}, the account this page is connected to`);
   return { publicKey: signed.publicKey, signature: signed.signature };
+}
+
+/** `cb` once the browser is idle (within 2 s), or on the next tick where it has no requestIdleCallback (Safari); returns the cancel. */
+export function onIdle(cb: () => void): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(cb, { timeout: 2000 });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = setTimeout(cb, 1);
+  return () => clearTimeout(id);
 }

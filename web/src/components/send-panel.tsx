@@ -6,6 +6,7 @@ import { type Address, type Hex, formatEther, isAddress, isHex, parseEther } fro
 import {
   type ChainInfo,
   type MpcSignature,
+  type SendDeps,
   type SendResult,
   type SendStep,
   liveSendDeps,
@@ -13,10 +14,13 @@ import {
   sendChains,
   sendFromSatchel,
 } from "satchel-nft";
+import { TimeoutError, errorKind } from "@/lib/errors";
 import { FROZEN_NOTE } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
+import { TIMING, deadline } from "@/lib/timing";
 import { useNetwork } from "./network";
 import { Button, Card, ErrorNote, ExternalLink } from "./ui";
+import { useWait } from "./use-async";
 import { useWallet } from "./wallet";
 
 const STEPS: { id: SendStep; label: string }[] = [
@@ -34,6 +38,20 @@ const STEPS: { id: SendStep; label: string }[] = [
  * running on one satchel's page doesn't block another satchel after the app navigates.
  */
 const sending = new Set<string>();
+
+/** How long the contract's own hash of the transaction may take before the send stops, unsigned. */
+const HASH_MS = 15_000;
+
+/** `deps` with the contract's hash bounded, so a hung NEAR view fails step 2 and frees the lock. */
+function bounded(deps: SendDeps): SendDeps {
+  return {
+    ...deps,
+    contractHash: (tx) =>
+      deadline(deps.contractHash(tx), HASH_MS, "NEAR RPC").catch((err: unknown) => {
+        throw err instanceof TimeoutError ? new TimeoutError(`${err.message} Nothing was signed.`) : err;
+      }),
+  };
+}
 
 export interface SendInput {
   chain: ChainInfo;
@@ -91,13 +109,16 @@ export function useSatchelSend(tokenId: string, address: Address) {
         return { started: false, result: null, reached };
       }
       const signWithWallet = async (tx: Parameters<typeof send>[0]) => {
-        const { hash, value: signature } = await send<MpcSignature>(tx);
+        const { hash, value: signature } = await send<MpcSignature>(tx, (p) => {
+          // The NEAR call's link as soon as the wallet returns it, before MPC answers.
+          if (p.phase === "sent") setLinks((l) => ({ ...l, nearTx: p.hash }));
+        });
         return { hash, signature };
       };
       setLinks({ chain: input.chain });
       const done = await sendFromSatchel(
         { net, tokenId, from: address, ...input },
-        liveSendDeps(net, signWithWallet),
+        bounded(liveSendDeps(net, signWithWallet)),
         (s, detail) => {
           reached = s;
           setStep(s);
@@ -129,10 +150,15 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
   const { step, error, result, links } = sender;
   const reached = step ? STEPS.findIndex((s) => s.id === step) : -1;
   const running = reached >= 0 && !result && !error ? `Step ${reached + 1} of ${STEPS.length}: ${STEPS[reached].label}` : "";
+  const slow = useWait(sender.busy && step === "wallet", TIMING.wallet) === "slow";
+  // A cancel in the wallet, or a sign_evm NEAR hasn't finished: maybe signed, so not "failed".
+  const kind = errorKind(error);
+  const unsure = kind === "rejected" || kind === "pending";
+  const ended = unsure ? "Stopped" : "Failed";
   return (
     <div>
       <p role="status" className="sr-only">
-        {running || (error && reached >= 0 ? `Failed at step ${reached + 1}: ${STEPS[reached].label}` : "")}
+        {running || (error && reached >= 0 ? `${ended} at step ${reached + 1}: ${STEPS[reached].label}` : "")}
       </p>
       {step && (
         <ol className="mt-4 space-y-1 text-sm">
@@ -141,13 +167,19 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
             const current = i === reached && !done;
             return (
               <li key={s.id} className={i <= reached ? "text-ink" : "text-muted"}>
-                <span aria-hidden="true">{done ? "✓" : current ? (error ? "✗" : "…") : "·"}</span>{" "}
-                <span className="sr-only">{done ? "Done: " : current ? (error ? "Failed: " : "Running: ") : "Next: "}</span>
+                <span aria-hidden="true">{done ? "✓" : current ? (error ? (unsure ? "!" : "✗") : "…") : "·"}</span>{" "}
+                <span className="sr-only">{done ? "Done: " : current ? (error ? `${ended}: ` : "Running: ") : "Next: "}</span>
                 {s.label}
                 {s.id === "wallet" && links.fee !== undefined && links.chain && (
                   <span className="text-muted">
                     {" "}
                     (fees up to {formatEther(links.fee)} {links.chain.symbol}, paid by the satchel)
+                  </span>
+                )}
+                {s.id === "wallet" && current && !error && slow && (
+                  <span className="mt-1 block text-muted">
+                    Still waiting for your wallet or NEAR&apos;s MPC network. Reloading stops the wait; if you approved, check
+                    History before sending again.
                   </span>
                 )}
               </li>
@@ -157,7 +189,7 @@ export function SendSteps({ sender }: { sender: ReturnType<typeof useSatchelSend
       )}
       <div aria-live="polite">
         <div className="mt-3">
-          <ErrorNote error={error} />
+          <ErrorNote error={error}>{unsure && <p className="mt-1">Check History before you send again.</p>}</ErrorNote>
         </div>
         {result &&
           (result.status === "success" ? (

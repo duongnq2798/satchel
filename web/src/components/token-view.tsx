@@ -18,6 +18,7 @@ import { BuyPanel, OwnerSale, checkedListing } from "./sale-panel";
 import { SendPanel } from "./send-panel";
 import { Badge, Button, Card, CopyButton, ErrorNote, ExternalLink, Mono, Placeholder, VERDICT } from "./ui";
 import { useAsync } from "./use-async";
+import type { TxResult } from "./use-tx";
 import { useWallet } from "./wallet";
 
 /** The page's heading, the same while the satchel loads and after, so it never moves. */
@@ -92,20 +93,24 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       const view = await satchel(net).get(tokenId);
       return view ? { view, address: await tokenAddress(net, view.path) } : null;
     },
-    `${net.id}:${tokenId}:${refresh}`,
+    `${net.id}:${tokenId}`,
   );
   const report = useAsync(() => buildReport(net, tokenId), `${net.id}:${tokenId}:${refresh}`);
   // The balances "What's inside" shows, for the Received card: they and the record choose its chains.
   const [held, setHeld] = useState<Readonly<Record<number, ChainContents | null>>>({});
   // The last transaction a panel finished. Kept here, since a sale or delist unmounts its panel.
   const [lastTx, setLastTx] = useState<string | null>(null);
+  /** Reads everything again; settles once the satchel itself has been read again. */
   const reloadAll = (hash?: string) => {
     setLastTx(hash ?? null);
     // Cleared with the refresh, so the Received card waits for the new balances instead of
     // starting a scan from the old ones that it would drop once "What's inside" reads again.
     setHeld({});
     setRefresh((n) => n + 1);
+    return token.reload();
   };
+  // After a sale panel's transaction: everything again once it went through, else the satchel only.
+  const afterTx = (r: TxResult | null) => (r ? reloadAll(r.hash) : token.reload());
   // The sections render only once the satchel loads, after the browser and the router looked for the
   // URL's #fragment (the holder room links to #report, satchel #3's page to #deed): scroll to it then,
   // once. Instantly, not smoothly: the report can still grow above the target, and the browser's scroll
@@ -188,11 +193,11 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           report={report.data}
           loading={report.loading || token.loading}
           error={report.error}
-          onRecheck={() => reloadAll()}
+          onRecheck={() => void reloadAll()}
         />
       </div>
       {deployment.data && (
-        <FixPanel token={view} address={address} report={report.data ?? undefined} frozen={frozen} onRecheck={() => reloadAll()} />
+        <FixPanel token={view} address={address} report={report.data ?? undefined} frozen={frozen} onRecheck={() => void reloadAll()} />
       )}
 
       {listing && !isOwner && (
@@ -232,7 +237,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
               <Contents address={address} refresh={refresh} onRead={setHeld} />
             </div>
           </>
-        ) : deployment.error ? (
+        ) : deployment.lastError !== null && deployment.lastError !== undefined ? (
           <div className="mt-3">
             <DeploymentNote deployment={deployment} />
           </div>
@@ -244,18 +249,28 @@ export function TokenView({ tokenId }: { tokenId: string }) {
       {/* A dry 1Click quote for what the satchel holds, once the contract passed check 1. A refresh closes it, so it reads the balances again. */}
       {deployment.data && <QuotePanel key={refresh} address={address} />}
 
-      {lastTx && (
-        <p className="text-sm text-ok">
-          Done. <ExternalLink href={nearTxUrl(net, lastTx)}>View the transaction</ExternalLink>
-        </p>
-      )}
+      {/* Always in the page, so a screen reader hears the line; out of the flow while it is empty. */}
+      <div role="status" className={lastTx ? undefined : "sr-only"}>
+        {lastTx && (
+          <p className="text-sm text-ok">
+            Done. <ExternalLink href={nearTxUrl(net, lastTx)}>View the transaction</ExternalLink>
+          </p>
+        )}
+      </div>
       {view.listing && !isOwner && (
         <div id="buy" className="scroll-mt-24">
-          <BuyPanel token={view} report={report.data ?? undefined} onDone={reloadAll} frozen={frozen} />
+          <BuyPanel
+            token={view}
+            report={report.data ?? undefined}
+            reportError={report.lastError}
+            afterTx={afterTx}
+            onRecheck={reloadAll}
+            frozen={frozen}
+          />
         </div>
       )}
       {isOwner && !view.listing && deployment.data && <SendPanel tokenId={view.token_id} address={address} onDone={reloadAll} frozen={frozen} />}
-      {isOwner && <OwnerSale token={view} onDone={reloadAll} frozen={frozen} />}
+      {isOwner && <OwnerSale token={view} afterTx={afterTx} frozen={frozen} />}
 
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 max-w-2xl">
