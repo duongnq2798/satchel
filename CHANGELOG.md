@@ -616,6 +616,19 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   folder, `npx -y satchel-nft@0.3.1 verify --network mainnet 1` printed `PROVABLY CLEAN`.
   [docs/RELEASING.md](docs/RELEASING.md) and the threat model's npm entry list 0.3.1, and the
   checkout's package is `0.4.0-dev` again.
+- The site footer (`web/src/components/site-footer.tsx`, out of the root layout): a 12-column grid
+  on wider screens, the brand column on 4 and the Product, Proof and Developers columns sharing the
+  rest, two columns of links on a phone. Column titles are semibold ink; links are muted (7.1:1 on
+  paper-2, 7.0:1 in the docs' dark theme, inside the AAA contrast test) and turn ink on hover. Every
+  link in the Product, Proof and Developers columns that leaves the site ends in a small up-right
+  arrow (muted at 70%, 3.5:1, now in the contrast test), kept on the line of the label's last word;
+  every footer link that opens a new tab, the NEAR badge included, tells a screen reader so. The
+  Product column's "Satchel on mainnet" now reads "Satchels with real funds", after the page it
+  opens (/mainnet, "Satchels that hold real funds"), so it no longer echoes the Proof column's
+  "Mainnet contract on NearBlocks". A bottom bar under a thin line carries "© 2026 Satchel. Built
+  for NEAR Hackathon 2026." and 44px links to Satchel's X account (@satchelnfthq) and repository,
+  drawn as thin-stroke glyphs. Satchel has no Discord or Telegram, so neither is linked.
+
 - README:7 and the site's default title lead with "Sell a wallet, prove nothing stayed behind",
   then say what Satchel adds: the record the contract builds of what it signs, checked against each
   chain's finalized nonces and approvals, and the buy pinned to the version checked.

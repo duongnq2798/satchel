@@ -479,7 +479,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s
    ```
 
-   The web app's own 387 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 389 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    <details>
@@ -960,7 +960,8 @@ What is left (the MPC network itself, the RPCs the report reads, powers built in
 On [satchelnft.xyz](https://satchelnft.xyz), the landing page's "Built with" section names eight things
 Satchel is built with, most of them from this table, and links each to where it ran: a transaction, a
 satchel's holder room, the CI run or the npm release. The site's footer shows NEAR's "Built on NEAR"
-badge, NEAR's own file, linked to near.org. The other projects are named in text, without their logos: Satchel uses them, and none of
+badge, NEAR's own file, linked to near.org; its bottom bar links Satchel's own X account and repository
+with small X and GitHub glyphs. The other projects are named in text, without their logos: Satchel uses them, and none of
 them is a partner or endorses it.
 
 | NEAR technology | How Satchel uses it | Where |
@@ -1787,7 +1788,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 239 package tests, 387 app tests
+npm run typecheck && npm test              # both workspaces: 239 package tests, 389 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1820,7 +1821,7 @@ The tests, as of 2026-11-14: 64 Rust unit tests, in near-sdk's mocked environmen
 `holder.test.ts` 15, `history.test.ts` 15, `satchel.test.ts` 14, `near-cli.test.ts` 13, `cli-args.test.ts` 11,
 `kit.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8, `guard.test.ts` 7, `nep413.test.ts` 7,
 `tx-index.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;
-and 387 app tests in 11 files: 218 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
+and 389 app tests in 11 files: 220 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline, the form fields' borders and the footer's link arrow in `globals.css`,
 42 in `oneclick.test.ts`, 39 in `received.test.ts`, 34 in `showcase.test.ts`,
 which checks the mainnet showcase, the deed of sale, the landing page's four cards and the demo satchels' lines against `deployments/`,
 18 in `dao-board.test.ts`, 14 in `docs.test.ts`,
@@ -2088,4 +2089,5 @@ names the other. The other entry is **Probarion**, a mandate layer for AI agents
 
 [MIT](LICENSE). NEAR, Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche, Aurora and USDC
 are trademarks of their respective owners; their names say what Satchel is built on and signs for,
-not an endorsement.
+not an endorsement. X and GitHub are trademarks of their owners too; the footer's two glyphs only
+link to Satchel's own accounts there.
