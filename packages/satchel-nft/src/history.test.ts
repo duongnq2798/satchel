@@ -60,6 +60,34 @@ describe("eventsIn", () => {
     expect(TXS.flatMap((tx) => eventsIn(TESTNET, tx, "70"))).toEqual([]);
   });
 
+  it("calls an approve of 0 a revoke, and any other approval an approval", () => {
+    // Satchel #9's Revoke on 2026-11-12 was approve(spender, 0) on Sepolia USDC. The contract logs it
+    // as an approval row, since on an ERC-721 contract the same call approves token id 0.
+    const signed = (approval: unknown) => {
+      const tx = structuredClone(of(SIGN));
+      for (const r of tx.receipts) {
+        const o = r.execution_outcome.outcome;
+        o.logs = o.logs.map((l) => l.replace('"class":"value_transfer","approval":null', `"class":"approval","approval":${JSON.stringify(approval)}`));
+      }
+      return eventsIn(TESTNET, tx, "7").map(describeEntry);
+    };
+    const row = (kind: string, arg: bigint) => ({
+      chain_id: "11155111",
+      contract: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      kind,
+      spender: "0x65c6a1cae6e1ecde8d1d8d6a9d3a8ff8e1db9c8e",
+      token: null,
+      arg: `0x${arg.toString(16).padStart(64, "0")}`,
+    });
+    expect(signed(row("Approve", 0n))).toEqual(["satchel-nft.testnet had a revoke (approve of 0) signed on Sepolia, nonce 0"]);
+    expect(signed(row("Approve", 2n ** 256n - 1n))).toEqual(["satchel-nft.testnet had an approval signed on Sepolia, nonce 0"]);
+    expect(signed(row("Approve", 5n))).toEqual(["satchel-nft.testnet had an approval signed on Sepolia, nonce 0"]);
+    expect(signed(row("Permit2Approve", 0n))).toEqual(["satchel-nft.testnet had an approval signed on Sepolia, nonce 0"]);
+    // A row the log doesn't carry, or one it carries malformed, reads as the approval the class says.
+    expect(signed(null)).toEqual(["satchel-nft.testnet had an approval signed on Sepolia, nonce 0"]);
+    expect(signed({ kind: "Approve", arg: 0 })).toEqual(["satchel-nft.testnet had an approval signed on Sepolia, nonce 0"]);
+  });
+
   it("ignores a failed receipt, another contract's logs, and the other network's contract", () => {
     const delist = of(DELIST);
     const rolledBack = structuredClone(delist);

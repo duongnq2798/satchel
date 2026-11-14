@@ -6,6 +6,17 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- README: an "After the hackathon" section, with a Contents entry. What keeps running without us
+  (both contracts locked, with no keys and no admin; the report and the app need no server of ours),
+  who maintains the app, the package and the repository, "Funding: none", and what changes when the
+  demo freeze ends on 2026-11-25: the app's guard on the demo satchels lifts and `watch.yml` stops
+  checking the demo claims.
+- README, Limits: "No test runs the built wasm." The 64 contract tests run in near-sdk's mocked
+  environment and check the receipts each method creates (the MPC `sign` call, `buy`'s payment and
+  refund) without running them. Those receipts ran only on chain: the end-to-end testnet run, the
+  refused `buy` `7HQPu9qe…` and mainnet #3's payment `EbK3MHAk…`; the refund of an excess deposit has
+  only its unit test. The tests line and the docs center's security page say the same.
+
 - The landing page's opening section now says who a satchel is for (an address that must keep
   receiving after a sale, such as a royalty receiver a contract fixes, a DAO treasury or an estate)
   and why it runs on NEAR (no one holds the key; NEAR's MPC network signs only when the contract
@@ -595,7 +606,28 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
-- The README and AGENTS.md give the test counts as they run on 2026-11-14: 238 package tests in 18
+- README:7 and the site's default title lead with "Sell a wallet, prove nothing stayed behind",
+  then say what Satchel adds: the record the contract builds of what it signs, checked against each
+  chain's finalized nonces and approvals, and the buy pinned to the version checked.
+- "Who it's for" (the README, AGENTS.md, `/llms.txt` and the landing page) leads with the DAO
+  treasury and the estate, which ran on testnet with builder-held accounts, and marks the fee or
+  royalty receiver as not yet demonstrated.
+- The README's "How to evaluate Satchel in 5 minutes" is shorter: a first line on what steps 1 to 3
+  take, a shorter intro, the long blocks (the mainnet run's output, hashing the wasm, the PowerShell
+  reads, this checkout's build, the Rust tests) folded in `<details>`, and the RPC retry policy moved
+  to AGENTS.md's [Check the claims](AGENTS.md#check-the-claims), which now gives it for all four
+  check scripts. Every heading stays, so every link to the README still lands.
+- The package in this repository is `0.3.0-dev`, where it said 0.2.0 while holding unreleased code.
+  Inside a clone, `npx -y satchel-nft@0.2.0` now runs the npm release, as it does anywhere else, and
+  `npx satchel-nft` with no version runs the checkout. The README, AGENTS.md, `/llms.txt`, the docs'
+  run-the-app page and `docs/RELEASING.md` say so.
+- The README's Make it clean run and the report concept page say why `satchel-nft@0.2.0 verify 9`
+  prints the revoke's line twice where the page prints one line ending "(2 record rows)": that
+  change, like Make it clean, is on `main` and not yet on npm.
+- README, Limits: "The seller's payment can fail" is now "A payout can strand": `buy`'s payment and
+  refund are two transfer receipts with no callback, so either stays in the contract if its account
+  is deleted first, and no one can return it.
+- The README and AGENTS.md give the test counts as they run on 2026-11-14: 239 package tests in 18
   files and 387 app tests in 11 files (they said 235 and 309), each file's count, and the estate
   contract's 63 Rust tests beside the satchel contract's 64.
 - "Satchel in 60 seconds" opens with five lines, the same as AGENTS.md's "Satchel in five lines"
@@ -917,6 +949,16 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- A satchel's history called a revoke an approval: `approve(spender, 0)`, which Make it clean's
+  Revoke sends and the contract logs as an approval row, read "had an approval signed". It now
+  reads "had a revoke (approve of 0) signed"; every other approval keeps its line. One new package
+  test. The web app shows it from its next deploy; the CLI's `history` from the next npm release.
+- Docs that drifted from the scripts: the docs center's RPC page said a busy read is sent "up to 3
+  more times" (it is 6); `check-claims.mjs`'s run time was given as about 15 s, about 20 s and 15 s
+  to a minute, and is now "10 to 20 s" everywhere, up to a minute right after another archival read;
+  the quoted last line of `check-use-cases.mjs` gains its ", in <time>"; the README's repository
+  table said 235 package tests and 100 in the app's `src/lib`, which have 239 and 169.
+
 - `node scripts/check-use-cases.mjs` exited 1 on a clean machine after 10 min: case 6's
   `check-dao-bounty.mjs` ran past the 5 min limit printing its bounty board after its claims had
   passed, and case 7 failed once on a public node that didn't answer. The bounty case now runs
@@ -1095,6 +1137,11 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   the same way printed `5 of 5 claims hold`, one of them through NEAR's node.
 
 ### Security
+
+- The test runner vitest, a devDependency of the package and the app, goes from 3.2.7 to 4.1.12.
+  `npm audit` flagged 3.2.7, the tinypool 1.1.1 it pulled in and its @vitest/mocker 3.2.7 (2 critical,
+  1 moderate). None of them ships in `satchel-nft` or the site. A fresh `npm ci` now reports 0
+  vulnerabilities, and the package's 239 tests and the app's 387 pass on it.
 
 - From an adversarial review of the CLI's signing, which found no way to make it send a transaction
   other than the one it shows: it runs the near CLI by its absolute path, from `--near-cli`,

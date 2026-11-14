@@ -296,7 +296,8 @@ export default function Home() {
               <ul className="mt-4 max-w-xl space-y-1.5 leading-relaxed text-ink-2">
                 <li>
                   <strong className="font-semibold text-ink">Who it&apos;s for:</strong> an address that must keep receiving after
-                  a sale, such as a royalty receiver a contract fixes, a DAO treasury or an estate.
+                  a sale, such as a DAO treasury or an estate (both ran on testnet, builder-held), or a royalty receiver a
+                  contract fixes (not yet demonstrated).
                 </li>
                 <li>
                   <strong className="font-semibold text-ink">Why NEAR:</strong> no one holds the key. NEAR&apos;s MPC network signs

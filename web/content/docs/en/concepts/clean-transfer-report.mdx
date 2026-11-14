@@ -128,6 +128,9 @@ the row it revoked, so satchel #9 reads:
        Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0 (2 record rows)
 ```
 
+`satchel-nft` 0.2.0 on npm, the release these pages pin, still prints that line once per row, so twice, with
+the same verdict. The joined line is in the app and in the repository's unreleased package.
+
 Every row still counts: a live one fails the check, whichever line it shares. Rows of one pair that read differently,
 such as ERC-721 approvals of two token ids of which one is still approved, keep a line each.
 
