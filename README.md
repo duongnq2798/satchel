@@ -468,11 +468,11 @@ the record changed).
    now if you skipped it):
 
    ```bash
-   npm test -w satchel-nft             # 235 tests in 18 files: 6 s here
+   npm test -w satchel-nft             # 238 tests in 18 files: 6 s here
    npm run typecheck -w satchel-nft    # 7 s here
    ```
 
-   The web app's own 309 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 387 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    The contract's 64 unit tests need Rust (rustup installs the pinned 1.99.1 from
@@ -1773,7 +1773,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 235 package tests, 309 app tests
+npm run typecheck && npm test              # both workspaces: 238 package tests, 387 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -1800,17 +1800,18 @@ re-checks the demo every day until the demo freeze ends on 2026-11-25, after jud
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 | Watch | Claims and site | From 2026-11-25, when the demo freeze ends (judging runs 2026-11-16 to 11-18), nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 
-The tests, as of 2026-11-12: 64 Rust unit tests in
-[`tests.rs`](contracts/satchel/src/tests.rs); 235 package tests in 18 files: `clean.test.ts` 31, `evm.test.ts` 26,
-`dao.test.ts` 26, `report.test.ts` 26, `holder.test.ts` 15, `satchel.test.ts` 14, `history.test.ts` 14,
-`near-cli.test.ts` 13, `kit.test.ts` 11, `cli-args.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8,
-`tx-index.test.ts` 7, `guard.test.ts` 7, `nep413.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and
-`limit.test.ts` 2;
-and 309 app tests: 209 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
-40 in `oneclick.test.ts`, 3 in `routes.test.ts`, 5 in `room-request.test.ts`, 7 in `restore.test.ts`,
-2 in `frozen.test.ts`, 29 in `showcase.test.ts`,
-which checks the mainnet showcase and the landing page's four cards against `deployments/`, and 14 in `docs.test.ts`,
-which compile every docs page, check its links and anchors, and check that no page names two tables alike. Some rules have no
+The tests, as of 2026-11-14: 64 Rust unit tests in
+[`tests.rs`](contracts/satchel/src/tests.rs), and 63 in the estate contract's [`tests.rs`](contracts/estate/src/tests.rs);
+238 package tests in 18 files: `clean.test.ts` 31, `dao.test.ts` 29, `evm.test.ts` 26, `report.test.ts` 26,
+`holder.test.ts` 15, `history.test.ts` 14, `satchel.test.ts` 14, `near-cli.test.ts` 13, `cli-args.test.ts` 11,
+`kit.test.ts` 11, `send.test.ts` 10, `approvals.test.ts` 8, `guard.test.ts` 7, `nep413.test.ts` 7,
+`tx-index.test.ts` 7, `contents.test.ts` 4, `config.test.ts` 3 and `limit.test.ts` 2;
+and 387 app tests in 11 files: 218 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
+42 in `oneclick.test.ts`, 39 in `received.test.ts`, 34 in `showcase.test.ts`,
+which checks the mainnet showcase, the deed of sale, the landing page's four cards and the demo satchels' lines against `deployments/`,
+18 in `dao-board.test.ts`, 14 in `docs.test.ts`,
+which compile every docs page, check its links and anchors, and check that no page names two tables alike,
+7 in `restore.test.ts`, 5 in `room-request.test.ts`, 5 in `try-it.test.ts`, 3 in `routes.test.ts` and 2 in `frozen.test.ts`. Some rules have no
 unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, the sale panel's use of the report's version and price was
 checked by hand on testnet, and nothing tests that a finished connect or a disconnect ends the
