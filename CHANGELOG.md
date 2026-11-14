@@ -625,6 +625,16 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- `satchel-nft` 0.3.1, a patch, is on npm, published on 2026-11-14 from a clean clone of commit
+  `cfa0d29` (shasum `1e8db4a1dca27b452a90179347332cb97e1c1896`, the same as a pack of that commit;
+  its 46 files match the commit and its build byte for byte). Its README, which npm shows, lists the
+  library as it is, and the commands the package prints pin `satchel-nft@0.3.0` where they pinned
+  `@0.2.0`: the handover kit's, so the holder room on satchelnft.xyz prints the release the docs
+  pin, and the terminal command in Make it clean's note for a chain with more open nonces than the
+  app sends. The docs keep pinning `@0.3.0`, since 0.3.1 changes no command's output. In an empty
+  folder, `npx -y satchel-nft@0.3.1 verify --network mainnet 1` printed `PROVABLY CLEAN`.
+  [docs/RELEASING.md](docs/RELEASING.md) and the threat model's npm entry list 0.3.1, and the
+  checkout's package is `0.4.0-dev` again.
 - README:7 and the site's default title lead with "Sell a wallet, prove nothing stayed behind",
   then say what Satchel adds: the record the contract builds of what it signs, checked against each
   chain's finalized nonces and approvals, and the buy pinned to the version checked.
@@ -988,6 +998,12 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- The README's npm package row said the package shipped as 0.2.0; it now names 0.3.1 and the
+  releases before it. Make it clean's row said its code isn't in npm 0.2.0, and the FastNEAR row
+  that 0.2.0 sends each read once; each row now says its change has been on npm since 0.3.0.
+- The docs' library page said the handover kit's commands pin `satchel-nft@0.1.0`. 0.2.0 and 0.3.0
+  pinned the release before them, and the repository's kit, which the holder room runs, now pins
+  `@0.3.0`.
 - `satchel-nft`'s README, which npm shows, listed `indexPost` among 0.3.0's new exports, though
   the package doesn't export it, and named only three of its eight new Sputnik DAO reads. It now
   lists `accountTransactions` with its real signature and all eight reads. npm shows 0.3.0's README
