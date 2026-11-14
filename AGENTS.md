@@ -282,7 +282,7 @@ npx satchel-nft verify 1
 
 `npx -y satchel-nft@0.2.0 verify 1` runs the release on npm, published from commit `2dd4209`
 ([how to check that](docs/THREAT_MODEL.md#what-satchel-trusts)). It does inside the repository
-too: the checkout's package is 0.3.0-dev, unreleased, so only `npx satchel-nft`, with no version,
+too: the checkout's package has another version, so only `npx satchel-nft`, with no version,
 runs this checkout's build. On its initial run the release downloads the package (timed above); later runs take
 6 to 11 s.
 

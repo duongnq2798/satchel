@@ -12,8 +12,10 @@ This is the checklist 0.2.0 went through. The package's README, which npm shows,
 under "What changed in 0.2.0". For a later version, bump `packages/satchel-nft/package.json` and its
 lockfile entry in a pull request, then follow the same steps with that version in place of 0.2.0,
 and 0.2.0 in place of 0.1.0. Until the new version is on npm, every pinned command keeps the version
-npm serves. Between releases the checkout's package says `0.3.0-dev`, so no clone calls unreleased
-code by a released version; the release's pull request sets it to `0.3.0`.
+npm serves. Between releases the checkout's package carries a `-dev` version (`0.3.0-dev` before
+0.3.0), so no clone calls unreleased code by a released version: the release's pull request drops
+the `-dev`, and the pull request that moves the pins after the publish sets the next one
+(`0.4.0-dev`).
 
 ## 1. Pick the commit
 

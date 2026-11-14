@@ -463,11 +463,12 @@ the record changed).
    npx satchel-nft verify 1
    ```
 
-   Inside the repository, `npx satchel-nft` runs this checkout's build, never a download: version
-   0.3.0-dev, unreleased, with the changes under Unreleased in the [CHANGELOG](CHANGELOG.md) (Make
-   it clean, FastNEAR retries, one line for matching approval rows). The pinned
-   `npx -y satchel-nft@0.2.0` runs the npm release here too. For the satchels above both print the
-   same lines; for #9 this checkout prints one line where 0.2.0 prints two
+   Inside the repository, `npx satchel-nft` runs this checkout's build, never a download. It has
+   the changes 0.2.0 doesn't, listed under Unreleased in the [CHANGELOG](CHANGELOG.md) (Make it
+   clean, FastNEAR retries, one line for matching approval rows). The pinned
+   `npx -y satchel-nft@0.2.0` runs the npm release here too, since the checkout's version differs.
+   For the satchels above both print the same lines; for #9 this checkout prints one line where
+   0.2.0 prints two
    ([Make it clean on testnet satchel #9](#make-it-clean-on-testnet-satchel-9)).
 
    </details>
