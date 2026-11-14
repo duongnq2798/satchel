@@ -76,7 +76,7 @@ curl -s https://rpc.mainnet.near.org -H 'Content-Type: application/json' -d '{"j
 ```
 
 **Check it yourself** from a clone (`git clone https://github.com/duongnq2798/satchel.git && cd satchel`),
-with Node 22 or later and no wallet. Times and lines are from runs on 2026-11-13:
+with Node 22 or later and no wallet. Times and lines are from runs on 2026-11-13 and 11-14:
 
 ```bash
 # 1. No install, 10 to 20 s. Last line, exit 0: 20 of 20 claims hold (…)

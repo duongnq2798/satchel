@@ -30,7 +30,7 @@ Node 22 or later; the contract tests also need Rust.
   end to end (a self-sale between two of the builder's accounts, not a market price).
 
 Three commands check the core of it, with Node 22 or later and no wallet, from the repository root
-(times and lines from runs on 2026-11-13; [Check the claims](#check-the-claims) has the details):
+(times and lines from runs on 2026-11-13 and 11-14; [Check the claims](#check-the-claims) has the details):
 
 ```bash
 # 1. No install, 10 to 20 s. Last line, exit 0: 20 of 20 claims hold (…)

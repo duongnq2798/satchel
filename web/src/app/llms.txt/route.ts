@@ -22,7 +22,7 @@ export function GET() {
     "",
     "## Check it yourself",
     "",
-    "Node 22 or later and no wallet, from a clone of https://github.com/duongnq2798/satchel. Times and lines are from runs on 2026-11-13.",
+    "Node 22 or later and no wallet, from a clone of https://github.com/duongnq2798/satchel. Times and lines are from runs on 2026-11-13 and 11-14.",
     "",
     "- `node scripts/check-claims.mjs --network mainnet`: no install, 10 to 20 s. Last line, exit 0: `20 of 20 claims hold (…)`.",
     "- `npx -y satchel-nft@0.2.0 verify --network mainnet 3`: the npm release, from any folder (inside a clone too; `npx satchel-nft` with no version runs the clone's unreleased 0.3.0-dev build): 49 s to 4 min the first time (download), 4 to 15 s after. Verdict line, exit 0: `PROVABLY CLEAN (checked <time>)`.",
