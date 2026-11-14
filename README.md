@@ -962,7 +962,8 @@ What is left (the MPC network itself, the RPCs the report reads, powers built in
 On [satchelnft.xyz](https://satchelnft.xyz), the landing page's "Built with" section names eight things
 Satchel is built with, most of them from this table, and links each to where it ran: a transaction, a
 satchel's holder room, the CI run or the npm release. The site's footer shows NEAR's "Built on NEAR"
-badge, NEAR's own file, linked to near.org. The other projects are named in text, without their logos: Satchel uses them, and none of
+badge, NEAR's own file, linked to near.org; its bottom bar links Satchel's own X account and repository
+with small X and GitHub glyphs. The other projects are named in text, without their logos: Satchel uses them, and none of
 them is a partner or endorses it.
 
 | NEAR technology | How Satchel uses it | Where |
@@ -2091,4 +2092,5 @@ names the other. The other entry is **Probarion**, a mandate layer for AI agents
 
 [MIT](LICENSE). NEAR, Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche, Aurora and USDC
 are trademarks of their respective owners; their names say what Satchel is built on and signs for,
-not an endorsement.
+not an endorsement. X and GitHub are trademarks of their owners too; the footer's two glyphs only
+link to Satchel's own accounts there.
