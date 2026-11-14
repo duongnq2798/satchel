@@ -274,7 +274,8 @@ or give `readTx` a first transport that does not retry, such as
   error.
 - **Archival nodes.** docs.near.org's provider list (https://docs.near.org/api/rpc/providers) marks
   FastNEAR's archival nodes as needing a key; on 2026-11-14 they answered the fixture capture's reads
-  without one. `withFallback` sends a read FastNEAR's archival node fails to NEAR's own
+  without one, and the final check's reads too: at 14:33:30 UTC, FastNEAR's and NEAR's archival nodes
+  on both networks answered a `block` read by height with HTTP 200 and no key. `withFallback` sends a read FastNEAR's archival node fails to NEAR's own
   (`ENDPOINTS.*.nearArchival`). A key goes only in `headers: { Authorization: "Bearer <key>" }`.
 - **Read-only.** `readOnlyRpc` refuses every method that could send a transaction before the node is
   called. The examples, the live tests and the capture script all read through it.
@@ -324,8 +325,13 @@ In PowerShell: `$env:SATCHEL_LIVE='1'; npm test -w satchel-nft -- near-rpc.live`
 | 2026-11-14 13:53:52 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- near-rpc.live` | 5 passed, 3 skipped |
 | 2026-11-14 13:55:50 | `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live --reporter=verbose --silent=false` | 3 passed, 5 skipped |
 | 2026-11-14 13:58:06 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- near-rpc.live --reporter=verbose --silent=false` | 5 passed, 3 skipped |
+| 2026-11-14 14:32:20 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- near-rpc.live --reporter=verbose` | 5 passed, 3 skipped |
+| 2026-11-14 14:33:50 | `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live --reporter=verbose` | 3 passed, 5 skipped |
+| 2026-11-14 14:36:01 | `SATCHEL_LIVE=1 SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live chain-signatures.live account-proof.live nep641.live --reporter=verbose` | 25 passed in 4 files, near-rpc's 8 among them |
 
-The runs from 13:53 on include the test for errors read as answers, added that afternoon.
+The runs from 13:53 on include the test for errors read as answers, added that afternoon. The runs
+from 14:32 on are the final check, on the code of commit `f7b0f4a` (Node 24.12.0, Windows 10), with
+no API key set: no read was rate-limited and no test timed out.
 
 What they check:
 
@@ -337,15 +343,15 @@ What they check:
     `view_account` and by sha256 of `view_code`;
   - under `strictBlock`, `missing.<contract>` reads null, `codeSha256` of `satchel-nft.near` and of
     `satchel-nft.testnet` (accounts with no code) reads null, and the nodes' `UNKNOWN_ACCOUNT` and
-    `NO_CONTRACT_CODE` errors name the pinned block (mainnet 224523419, testnet 277666094 in the 13:58
-    run);
+    `NO_CONTRACT_CODE` errors name the pinned block (mainnet 224526997, testnet 277669682 in the
+    14:32:20 run);
   - `blockAt` pins the same block by finality, hash and height.
 - historical blocks:
   - `intents.near`'s pages at the recorded block match the fixture's keys and permissions;
   - testnet `EZLX…` read through the archival node matches its fixture receipt by receipt (ids,
     executors, blocks, status kinds, method names), with its sender from FastNEAR's transaction index;
   - with the regular node first (no retries), the regular node fails (`timeout: no answer in 15 s` in
-    the 13:55 run) and `readTx`'s archival fallback gives the same transaction.
+    the 14:33:50 run) and `readTx`'s archival fallback gives the same transaction.
 
 ## Status
 
@@ -356,11 +362,14 @@ changing. Planned means designed, not shipped.
 
 | Function | Status | Why |
 |---|---|---|
-| `httpRpc`, `httpGetJson`, `withFallback`, `readOnlyRpc`, `redactUrl`, `ENDPOINTS` | Implemented | the transport tests, and every live test reads through them (the 11:29 and 13:53 runs) |
-| `blockAt`, `pinnedReader`: `view`, `account`, `accessKey`, `codeSha256`, and `strictBlock` on results and errors | Implemented | `views-mainnet.json`, and the live tests |
-| `accessKeys` on nearcore 2.14 | Implemented | `intents-keys-paged.json`, and the live re-read |
-| `accessKeys` on a node older than 2.14 (`paged: false`) | Experimental | no such node seen |
-| `parsePermission` for full-access and function-call keys | Implemented | the recorded keys |
+| `ENDPOINTS`, `READ_METHODS`, `READ_QUERY_TYPES`, `RpcError`, `ReadOnlyError`, `ReadTxError`, `ViewError` | Implemented | parity and unit tests; every live test and every example run of the final check read through `ENDPOINTS` and `readOnlyRpc` |
+| `httpRpc`, `withFallback`, `readOnlyRpc`, `redactUrl` | Implemented | the transport tests (a fake fetch, labelled), and every live test and example reads through them: the 25 live tests and the examples of the final check, the archival ones through `withFallback`; the examples print `redactUrl`'s origins |
+| `httpGetJson` | Experimental | fake-fetch unit tests only: it has no live test, no example and no caller in shipped code yet (its use is FastNEAR's REST API, for the Planned account audit). It shares its send and retry code with `fastnearSenderLookup`, which passed live |
+| `blockAt`, `pinnedReader`: `view`, `account`, `accessKey`, `codeSha256`, and `strictBlock` on results and errors | Implemented | `views-mainnet.json`, and the live tests: 5 of 5 at final blocks and 3 of 3 archival in the final check |
+| `accessKeys` on nearcore 2.14 | Implemented | `intents-keys-paged.json` (node 2.14.1), and the live paging and re-read |
+| `accessKeys` on a node older than 2.14 (`paged: false`) | Experimental | no such node seen: every recorded node is 2.14.1 |
+| `parsePermission` for full-access and function-call keys | Implemented | the recorded keys: intents.near's 9 function-call keys in `intents-keys-paged.json` and satchel-nft.near's full-access key in `views-mainnet.json`; the live archival re-read matched intents.near's |
 | `parsePermission` for gas keys | Experimental | no real gas-key answer recorded |
-| `readTx`, `receiptsOf`, `functionCalls`, `fastnearSenderLookup` | Implemented | `tx-EZLX.json`, and the live re-read and fallback |
-| `isAccountId`, `encodeArgs`, `decodeBase64` | Implemented | parity with config.ts and near.ts on every fixture's ids and args |
+| `readTx`, `receiptsOf`, `functionCalls`, `fastnearSenderLookup` | Implemented | `tx-EZLX.json`, the live EZLX re-read, the live fallback, and the nine recorded transactions chain-signatures' archival group re-read |
+| `isAccountId`, `encodeArgs`, `decodeBase64` | Implemented | parity with config.ts and near.ts on every fixture's ids and args; `encodeArgs` runs in every live view call |
+| near.ts's helpers re-exported from near-rpc, and Satchel's own reads delegated to it | Planned | designed only |

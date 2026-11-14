@@ -47,9 +47,10 @@ on 2026-11-14.
 
 The MPC contract's `sign` takes a `domain_id`. Each domain has its own root key, and the purpose of
 the domain decides whether `sign` takes it. Both contracts list the same eight domains. Read with
-`state()` by the live test on 2026-11-14 (only the domain list is printed, not the participants):
-`v1.signer` at block 224523397 (`95CrYc7pMFtXfHyAVU2jFv8PoG5CwYDc4DoeBAuZtuyg`) and
-`v1.signer-prod.testnet` at block 277666070 (`44s5CPFyAQQCoUVXjuYuvepzuXyaU4kNQWo2WnGSrmLZ`).
+`state()` by the live test in the final check on 2026-11-14 at 14:32:39 UTC (only the domain list is
+printed, not the participants): `v1.signer` at block 224527028
+(`53bMjayAu6UMKphgT1221EDQaQXgfn1vsp8J1Qt4yGJd`) and `v1.signer-prod.testnet` at block 277669714
+(`mATytD8vu9MEkXVrcoiCvUcAu6KLSLs6iSRLwnxTQr8`).
 
 | id | protocol | purpose | What this module does with it |
 |---|---|---|---|
@@ -86,37 +87,19 @@ The legacy form is in use. In the 200 newest transactions of each MPC contract i
 transaction index, read on 2026-11-14 at 14:07Z, `v1.signer` had 85 legacy requests
 (`key_version: 0` with a 32-byte `payload`), 15 on `domain_id` 1 and 3 on `domain_id` 0;
 `v1.signer-prod.testnet` had 55 on `domain_id` 0 and 41 on `domain_id` 1, none legacy. One of the
-mainnet legacy requests, audited with the example on 2026-11-14 at 14:08:00Z:
+mainnet legacy requests, in transaction `FgZVNRSeVg8tJNp3farGUM36QoenCmHQyjiAt4zmRx9P`, was audited
+with the example on 2026-11-14 at 14:08:00Z and again in the final check at 14:39:02Z:
 
 ```
-$ node packages/satchel-nft/examples/mpc-audit.mjs mainnet FgZVNRSeVg8tJNp3farGUM36QoenCmHQyjiAt4zmRx9P
-network        mainnet, MPC contract v1.signer
-read from      https://archival-rpc.mainnet.fastnear.com (fallback https://archival-rpc.mainnet.near.org), FINAL
-tx             FgZVNRSeVg8tJNp3farGUM36QoenCmHQyjiAt4zmRx9P
-signer         omni-relayer.bridge.near
-block          9WDU9gPjpDCM754nAKyQur3hzaAeqYnjxGWhomybgqbq
-requests       1
-request 0
-  receipt      7zRBwL5uAiLKaisa7EmJRLBRc3HGftPDXahYvLWtkDYy
-  predecessor  omni.bridge.near
-  path         "bridge-1"
-  domain       0 (secp256k1 ECDSA)
-  form         legacy
-  payload      ecdsa d69f47cb8bca388f20a6218cd00633df35ae701e1fe8e3585c13f9e888ea568b
-  deposit      1 yoctoNEAR
-  status       signed
-  hops         7zRBwL5uAiLKaisa7EmJRLBRc3HGftPDXahYvLWtkDYy -> 3GtbFJeW7SyUkAutXTra4AAvwaRRG963xrnu2KhYLx3m
-  callback     3GtbFJeW7SyUkAutXTra4AAvwaRRG963xrnu2KhYLx3m
-  derived key  secp256k1:4Wmge96s73r6jHqgy1rMPqSzRXTEXHRMTXy44LcMQJ8K2dQHdpxopSS4JMXLasXZhUYjoGhhBeDwaZ94oXfm9Fh6
-  verify       ok
-  r, s, parity 0x4e70f6d87c838ec0cf61221c1bf965ea124cbb82e8f6011939385bda7cfdcf9c, 0x6b850ec6ea32a33b8a78449c3cb131a26326d57ca5d3e02ecb50875705c3bb09, 0
-  evm address  0x22EB4d37677eD931d9dE2218cecE1A832a147490
-orphan answers 0
-verdict        all-verified
+node packages/satchel-nft/examples/mpc-audit.mjs mainnet FgZVNRSeVg8tJNp3farGUM36QoenCmHQyjiAt4zmRx9P
 ```
+
+It printed one request in the legacy form, on domain 0 (secp256k1 ECDSA), with the path "bridge-1",
+status signed and verify ok, and the verdict all-verified. Its signer and its caller are third-party
+accounts that this page does not name, so the output is not quoted; the command above prints it.
 
 No legacy transaction is recorded as a fixture yet, so the legacy form stays Experimental (see
-[Status](#status)); recording this one, with a unit and a live test, would move it.
+[Status](#status)); recording one, with a unit and a live test, would move it.
 
 ## API
 
@@ -248,7 +231,8 @@ Each has a unit test in `chain-signatures.test.ts` (62 tests) or `mpc-kdf.test.t
 - An ed25519 request and a secp256k1 request with an empty path (tx-bench.testnet's FgbW… and 9FsA…).
 - A refused `sign_evm` that never reaches the MPC contract (testnet GqFsnm…, mainnet 33UTwy…):
   `no-requests`.
-- A failed sign receipt, and a request whose callback has not run (`pending`).
+- A failed sign receipt, and a request whose callback has not run (`pending`): labelled in-test
+  changes of EZLX…'s outcome, since no recorded transaction has either. Experimental.
 - A timed-out request: HthQSVE… turned out to be a second signed ed25519 request, so the timeout
   chain (callback, then `fail_on_timeout`, which fails) is an in-test change to FgbW…'s outcome,
   labelled. Experimental.
@@ -344,31 +328,37 @@ In PowerShell: `$env:SATCHEL_LIVE='1'; npm test -w satchel-nft -- chain-signatur
 
 **The Sepolia node.** The archival group proves satchel #8's Sepolia send, 0x27e3…5ba3, which needs a
 node that serves its receipt. `config.ts`'s Sepolia node, `ethereum-sepolia-rpc.publicnode.com`,
-answers the transaction but a null receipt for it: seen on 2026-11-14 at 12:20Z and again at 13:59:14Z
-(the example run below). `sepolia.gateway.tenderly.co` serves it, and is the node the fixture was
-captured from. So the live tests' Sepolia node defaults to tenderly, where the spec had config.ts's
-node, and `SATCHEL_LIVE_SEPOLIA_RPC=<url>` replaces it. The assertion is unchanged: the receipt check
-must pass.
+answers the transaction but a null receipt for it: seen on 2026-11-14 at 12:20Z, at 13:59:14Z, and in
+the final check at 14:39:51Z (the example run below). `sepolia.gateway.tenderly.co` serves it, and is
+the node the fixture was captured from. So the live tests' Sepolia node defaults to tenderly, where the
+design had config.ts's node, and `SATCHEL_LIVE_SEPOLIA_RPC=<url>` replaces it. The assertion is
+unchanged: the receipt check must pass.
 
 | Run (UTC) | Command | Result |
 |---|---|---|
 | 2026-11-14 13:54:01 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live` | 4 passed, 6 skipped |
 | 2026-11-14 13:56:28 | `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- chain-signatures.live --reporter=verbose --silent=false` | 6 passed, 4 skipped |
 | 2026-11-14 13:57:53 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live --reporter=verbose --silent=false` | 4 passed, 6 skipped |
+| 2026-11-14 14:32:39 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live --reporter=verbose` | 4 passed, 6 skipped |
+| 2026-11-14 14:34:40 | `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- chain-signatures.live --reporter=verbose` | 6 passed, 4 skipped |
+| 2026-11-14 14:36:01 | `SATCHEL_LIVE=1 SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live chain-signatures.live account-proof.live nep641.live --reporter=verbose` | 25 passed in 4 files, chain-signatures' 10 among them |
 
-What they check, with the blocks the 13:57:53 run read:
+The runs from 14:32 on are the final check, on the code of commit `f7b0f4a` (Node 24.12.0, Windows
+10), with no API key set: no read was rate-limited and no test timed out.
+
+What they check, with the blocks the final check's 14:32:39 run read:
 
 - final blocks:
   - `public_key` for domains 0, 1, 4 and 5 on both contracts equals `MPC_ROOT_KEYS` (mainnet block
-    224523393, testnet 277666066);
+    224527024, testnet 277669711);
   - each contract's `state()` lists exactly the signing domains `MPC_SIGN_DOMAINS` lists, each root
-    key on its curve (mainnet 224523397, testnet 277666070; the table in
+    key on its curve (mainnet 224527028, testnet 277669714; the table in
     [Signing domains](#signing-domains));
   - `crossCheckDerivation` on testnet for satchels #1-#8 (domain 0) and tx-bench.testnet's "" (domain
     1) matches the contract, satchel #1 equals `derived-keys.json`, and the tx-bench key is
-    `ed25519:pJisEEQe9mw8Ew2faGNAHzu6wijjtUhjorKGReGTkpi` (277666071);
+    `ed25519:pJisEEQe9mw8Ew2faGNAHzu6wijjtUhjorKGReGTkpi` (277669715);
   - satchel #1 in domains 4 and 5 on both networks, and tx-bench.testnet's "" in 4 and 5 on testnet,
-    match the contract (mainnet 224523405, testnet 277666080).
+    match the contract (mainnet 224527037, testnet 277669724).
 - historical transactions, through the archival nodes with a fallback to NEAR's own:
   - EZLX…: one signed domain-0 request by `v1.satchel-nft.testnet` for `satchel/1`, verified, EVM
     address `0x96DA1468E95Ab31A698891f0150095f86b5a282B`, and `proveRawTx` proves `steps[2].raw` for
@@ -388,10 +378,12 @@ Both read only, through `readOnlyRpc(withFallback(httpRpc(archival), httpRpc(nea
 `readOnlyEvmClient`. Run `npm run build -w satchel-nft` first. They exit 0 whatever the verdict, and 1
 only when a read fails, printing the error's kind.
 
-`examples/mpc-audit.mjs` on testnet EZLX… (its default), 2026-11-14 at 13:59:36Z:
+The outputs below are from the final check on 2026-11-14, at the code of commit `f7b0f4a`.
+
+`examples/mpc-audit.mjs` on testnet EZLX… (also its default), at 14:38:17Z:
 
 ```
-$ node packages/satchel-nft/examples/mpc-audit.mjs testnet
+$ node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo
 network        testnet, MPC contract v1.signer-prod.testnet
 read from      https://archival-rpc.testnet.fastnear.com (fallback https://archival-rpc.testnet.near.org), FINAL
 tx             EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo
@@ -417,11 +409,11 @@ orphan answers 0
 verdict        all-verified
 ```
 
-`examples/prove-evm-tx.mjs` on mainnet 2xqwe8… and Base 0x8044…9532 (its defaults), 2026-11-14 at
-13:59:11Z. The EVM node is `chainInfo(8453).rpc` from the package root:
+`examples/prove-evm-tx.mjs` on mainnet 2xqwe8… and Base 0x8044…9532 (also its defaults), at
+14:39:20Z. The EVM node is `chainInfo(8453).rpc` from the package root:
 
 ```
-$ node packages/satchel-nft/examples/prove-evm-tx.mjs
+$ node packages/satchel-nft/examples/prove-evm-tx.mjs mainnet 2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4 8453 0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532
 near           mainnet 2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4, audit all-verified
 request        HbiReFfuC2MpPjkntyhuNQX8c5RjW279v8gZq27XyFiv, predecessor v1.satchel-nft.near, path "satchel/1"
 evm            chain 8453 (Base), tx 0x8044dd8cd53ea5aa7165b031098450d64a6c6910fc0cc9c3e138a480e6ac9532
@@ -436,13 +428,13 @@ ok   s             0x64374e193e31ac7a5879eaf6869d7dfbc2eec2f031ce5852fc0254cfc9b
 ok   y-parity      0 as the MPC answer gives it
 ok   sender        0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9, the derived key's address and the node's from field
 ok   receipt       the receipt says success
-ok   finalized     block 55178996; the node has finalized up to 57364949
+ok   finalized     block 55178996; the node has finalized up to 57378343
 from           0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9, nonce 0, block 55178996, status success
 verdict        proven
 ```
 
 The same example on testnet 2ryQps… and Sepolia 0x27e3…5ba3, with `sepolia.gateway.tenderly.co` as the
-fifth argument, 2026-11-14 at 13:59:18Z:
+fifth argument, at 14:39:28Z:
 
 ```
 $ node packages/satchel-nft/examples/prove-evm-tx.mjs testnet 2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M 11155111 0x27e3262bb3208da84ab3332b018f9f88210b69ec4d85ed5b5299238a38945ba3 https://sepolia.gateway.tenderly.co
@@ -460,15 +452,28 @@ ok   s             0x3ed34a39284c4cf937801c91bb2e91eafc8de9b443ed3d12cb05c2a652e
 ok   y-parity      0 as the MPC answer gives it
 ok   sender        0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0, the derived key's address and the node's from field
 ok   receipt       the receipt says success
-ok   finalized     block 12102812; the node has finalized up to 12133463
+ok   finalized     block 12102812; the node has finalized up to 12133685
 from           0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0, nonce 0, block 12102812, status success
 verdict        proven
 ```
 
-Without the fifth argument it reads `chainInfo(11155111).rpc`, publicnode, at 13:59:14Z: every check
+Without the fifth argument it reads `chainInfo(11155111).rpc`, publicnode, at 14:39:51Z: every check
 passed but `FAIL receipt       no receipt: the node puts the transaction in block 12102812 but answers
-no receipt for it`, the verdict was `not-proven`, and the example printed `note           this node
+no receipt for it`, the verdict was `not-proven`, the example exited 0, and its note said `this node
 gave no receipt; pass https://sepolia.gateway.tenderly.co as the fifth argument`.
+
+The examples on the other recorded transactions, in the same final check (14:38:38Z to 14:39:28Z),
+each exiting 0:
+
+| Command | The transaction | What it printed |
+|---|---|---|
+| `mpc-audit.mjs testnet 2ryQpsJRq8zQwxCdHzJszi5dBBxjECF4Jt59J1NmPG4M` | the DAO vote that had satchel #8 sign | signer satchel-nft.testnet; request FWa3axK2… by `v1.satchel-nft.testnet` for `"satchel/8"`, callback 5Y8LFFZm…, `verify ok`, EVM address `0x2aA82C50d1E0C0e9872Fe45A6C1e1DA673bcA5F0`; `all-verified` |
+| `mpc-audit.mjs testnet GqFsnmFLcpDjJVC1b4qUPYxHRTP1Rw2vcVKxga3PVRvU` | the previous owner's refused `sign_evm` | `requests 0`; `no-requests` |
+| `mpc-audit.mjs testnet FgbWCHbK6AAYAJ31tBNZHph3M7V3Ltt4aGrX7mvGtKWm` | tx-bench.testnet's ed25519 request | domain 1, path `""`, payload `eddsa 7e2b493e…dbd4829`, derived key `ed25519:pJisEEQe9mw8Ew2faGNAHzu6wijjtUhjorKGReGTkpi`, `verify ok`; `all-verified` |
+| `mpc-audit.mjs mainnet 2xqwe8AAWwvssHNCMUioME2SCJeYAKcneV8iVCpa1Cj4` | satchel #1's `sign_evm` for its Base send | `v1.satchel-nft.near` for `"satchel/1"`, `verify ok`, EVM address `0xdC269Ead17B522d49db2ceFD38CEF0C5413868F9`; `all-verified` |
+| `mpc-audit.mjs mainnet FnFSMSh1dpjkYC6fMT2aSgvFNYUjyuc6xVLGAymcupEA` | satchel #2's `sign_evm` for its 1Click deposit | `v1.satchel-nft.near` for `"satchel/2"`, `verify ok`, EVM address `0xf5383275EFedde8B90F59de8E8D15b1E23B4965f`; `all-verified` |
+| `mpc-audit.mjs mainnet 33UTwyVyAf6CQY5a953rtdmAyF98WZKVwAnqAdY3Vk6X` | the seller's refused `sign_evm` after the sale | `requests 0`; `no-requests` |
+| `prove-evm-tx.mjs mainnet FnFSMSh1dpjkYC6fMT2aSgvFNYUjyuc6xVLGAymcupEA 8453 0x2d9b1a1c1b25c4443390af46dd176af24b93ebbb9e59d602bec76d585b607d74` | that deposit on Base | 11 of 11 checks `ok`; from `0xf5383275EFedde8B90F59de8E8D15b1E23B4965f`, nonce 0, block 55860595, status success; `proven` |
 
 ## Status
 
@@ -479,13 +484,15 @@ changing. Planned means designed, not shipped.
 
 | Function | Status | Why |
 |---|---|---|
-| `deriveTweak`, `deriveKey` (domains 0, 1, 4, 5), `evmAddress`, `MPC_SIGN_DOMAINS` | Implemented | near/mpc's tweak vectors, recorded `derived_public_key` answers in all four domains, and the live equality on 2026-11-14 |
-| `mpcRequests`, `auditSignTx`, `scanMpcResponses` (payload_v2; signed, failed, refused) | Implemented | nine recorded transactions, the live audits, and the mpc-audit example |
-| `verifySignature` (`payload-not-scalar` included), `normalizeEcdsa` | Implemented | every recorded answer, plus labelled mutations for each reason; sign.rs refuses an ECDSA payload that is not a scalar |
-| `crossCheckDerivation` | Implemented | the live tests in domains 0, 1, 4 and 5 |
-| `proveEvmTx`, `proveRawTx` for type 2; `readOnlyEvm`, `readOnlyEvmClient`, `evmJsonRpc` | Implemented | three recorded EVM cassettes, the live Base and Sepolia proofs, and the prove-evm-tx example |
+| `MPC_CONTRACTS`, `MPC_ROOT_KEYS`, `MPC_SIGN_DOMAINS`, `signDomainCurve`, `TWEAK_PREFIX` | Implemented | the live tests of the final check: `public_key` for domains 0, 1, 4 and 5 equals `MPC_ROOT_KEYS` on both networks, and `state()` lists exactly the signing domains 0, 1, 4 and 5 |
+| `deriveTweak`, `deriveKey` (domains 0, 1, 4, 5), `evmAddress` | Implemented | near/mpc's tweak vectors, recorded `derived_public_key` answers in all four domains, the live equality on 2026-11-14, and the EVM addresses of EZLX…, 2ryQps…, 2xqwe8… and FnFSMSh1… equal to the ones `deployments/` records |
+| `mpcRequests`, `auditSignTx`, `scanMpcResponses`: `payload_v2` requests that were signed, and a `sign_evm` refused before it reached the MPC contract (`no-requests`) | Implemented | nine recorded transactions, the live archival audits (6 of 6 in the final check), and the mpc-audit example: `all-verified` on EZLX…, 2ryQps…, FgbW…, 2xqwe8… and FnFSMSh1…, `no-requests` on GqFsnm… and 33UTwy… |
+| `verifySignature` (`payload-not-scalar` included), `normalizeEcdsa` | Implemented | every recorded secp256k1 and ed25519 answer verifies, plus labelled mutations for each reason; sign.rs refuses an ECDSA payload that is not a scalar |
+| `crossCheckDerivation` | Implemented | the live tests in domains 0 and 1 on testnet, and 4 and 5 on both networks |
+| `proveEvmTx`, `proveRawTx` for type 2; `readOnlyEvm`, `readOnlyEvmClient`, `evmJsonRpc`, `EVM_READ_METHODS`; the `ReadOnlyError` re-export | Implemented | three recorded EVM cassettes, the live Base and Sepolia proofs, `proveRawTx` live on `steps[2].raw`, and the prove-evm-tx example (11 of 11 checks on three pairs) |
+| The `failed`, `pending` and `inconsistent` statuses (and the verdicts `has-failed`, `has-pending`, `has-inconsistent`) | Experimental | each is tested only through a labelled in-test change of a recorded outcome: none of the nine recorded transactions has such a request |
 | Requests on domains 4 and 5 | Experimental | derivation and root keys are recorded and live-checked, but no real request on 4 or 5 was found to record (none in the samples above) |
-| The legacy request form (`key_version`, `payload`) | Experimental | seen on mainnet and audited all-verified by the example (FgZVNRSe… above), but not recorded as a fixture yet |
+| The legacy request form (`key_version`, `payload`) | Experimental | seen on mainnet and audited all-verified by the example (FgZVNRSe… above, in the final check too), but not recorded as a fixture yet |
 | `timed-out` | Experimental | HthQSVE… was signed, not a timeout; the timeout chain is a labelled in-test change |
 | `proveEvmTx` for types 0 and 1 | Experimental | no real transaction of those types recorded |
-| `verify_foreign_transaction` (domains 3 and 7), a `satchel-nft mpc-audit` CLI command, a second-RPC "opinion" mode | Planned | designed only |
+| `verify_foreign_transaction` (domains 3 and 7), a `satchel-nft mpc-audit` CLI command, a second-RPC "opinion" mode, and dao.ts's `signatureFromReceipts` calling `scanMpcResponses` | Planned | designed only |

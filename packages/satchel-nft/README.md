@@ -191,16 +191,20 @@ if (report?.verdict === "clean") {
 
 ## Primitives
 
-Three read-only modules for any NEAR app, imported by subpath. They are not in 0.3.1 or earlier. None
-of them signs or sends anything. Each is tested on transactions and state recorded from mainnet and
-testnet and re-checked against the live chains; each docs page gives the full API, the behaviour, the
-fixtures, every live run with its date and command, and each function's status (Implemented or
-Experimental).
+Three read-only modules for any NEAR app, imported by subpath. **New after 0.3.1:** they ship in the
+next release of `satchel-nft` on npm, which the owner publishes; the published 0.3.1 and earlier do
+not have them. Until then, run `npm pack -w satchel-nft` in a checkout of the repository and install
+the tarball. None of them signs or sends anything. Each is tested on transactions and state recorded
+from mainnet and testnet and re-checked against the live chains; each docs page gives the full API,
+the behaviour, the fixtures, every live run with its date and command, and each function's status
+(Implemented or Experimental). The links below point at the repository's `main` branch; until the
+next promotion, these files are on `dev`.
 
 **`satchel-nft/near-rpc`**: a JSON-RPC transport that retries what is worth retrying and names rate
 limiting, reads pinned to one block that refuse an answer about another block, access-key lists paged
 on nearcore 2.14, a transaction with every receipt, and `readOnlyRpc`, which refuses any method that
-is not a read. [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/near-rpc.md).
+is not a read. Implemented; `httpGetJson`, gas-key permissions and nodes before nearcore 2.14 are
+Experimental. [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/near-rpc.md).
 
 ```ts
 import { ENDPOINTS, httpRpc, pinnedReader, readOnlyRpc } from "satchel-nft/near-rpc";
@@ -211,7 +215,10 @@ const { keys } = await reader.accessKeys("satchel-nft.near");                   
 
 **`satchel-nft/chain-signatures`**: for any NEAR transaction, which MPC sign requests it made, what
 each got back, whether each answer is a valid signature by the key derived for its caller, path and
-domain, and whether an EVM transaction is exactly the one an answer signed. [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/chain-signatures.md).
+domain, and whether an EVM transaction is exactly the one an answer signed. Implemented for signed
+`payload_v2` requests, refused calls, verification and EVM type-2 proofs; legacy requests, domains 4
+and 5, the failed, timed-out, pending and inconsistent statuses, and EVM types 0 and 1 are
+Experimental. [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/chain-signatures.md).
 
 ```ts
 import { ENDPOINTS, fastnearSenderLookup, httpRpc, readOnlyRpc } from "satchel-nft/near-rpc";
@@ -226,6 +233,7 @@ const audit = await auditSignTx(readOnlyRpc(httpRpc(ENDPOINTS.testnet.archival))
 full-access key on the account, an optional on-chain condition (`nftOwner`, `ftBalanceAtLeast`,
 `sputnikRole`, `all`), freshness bound to the signed text and a replay guard. Every outcome is a
 value with an HTTP status. It also resolves a NEP-641 access-key authorization (`verifyNep641Leaf`).
+Implemented; `verifyNep641Leaf`, function-call and gas keys, and Everyone roles are Experimental.
 [Docs](https://github.com/duongnq2798/satchel/blob/main/docs/primitives/account-proof.md).
 
 ```ts
@@ -237,7 +245,9 @@ if (!result.ok) return reply(result.status, result.reason); // 400, 401, 403, 40
 ```
 
 The repository's [examples](https://github.com/duongnq2798/satchel/tree/main/packages/satchel-nft/examples)
-run each one against the live chains.
+run each one against the live chains: after `npm run build -w satchel-nft`, for instance,
+`node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo`
+prints one request whose signature verifies, and the verdict `all-verified`.
 
 ## What changed in 0.3.1
 

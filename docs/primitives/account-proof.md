@@ -297,30 +297,45 @@ In PowerShell: `$env:SATCHEL_LIVE='1'; npm test -w satchel-nft -- account-proof.
 | 2026-11-14 14:04:01 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- account-proof.live --reporter=verbose --silent=false` | 2 passed, 2 skipped |
 | 2026-11-14 14:04:07 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- nep641.live --reporter=verbose --silent=false` | 3 passed |
 | 2026-11-14 14:20:18 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- account-proof.live nep641.live` | 5 passed, 2 skipped |
+| 2026-11-14 14:32:58 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- account-proof.live --reporter=verbose` | 2 passed, 2 skipped |
+| 2026-11-14 14:33:12 | `SATCHEL_LIVE=1 npm test -w satchel-nft -- nep641.live --reporter=verbose` | 3 passed |
+| 2026-11-14 14:35:10 | `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- account-proof.live --reporter=verbose` | 2 passed, 2 skipped |
+| 2026-11-14 14:35:52 | `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- nep641.live --reporter=verbose` | 3 skipped (no archival group) |
+| 2026-11-14 14:36:01 | `SATCHEL_LIVE=1 SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live chain-signatures.live account-proof.live nep641.live --reporter=verbose` | 25 passed in 4 files, account-proof's 4 and nep641's 3 among them |
 
-What they check, with the blocks the verbose runs read:
+The runs from 14:32 on are the final check, on the code of commit `f7b0f4a` (Node 24.12.0, Windows
+10), with no API key set: no read was rate-limited and no test timed out.
+
+What they check, with the blocks the final check's 14:32:58, 14:33:12 and 14:35:10 runs read:
 
 - final block (SATCHEL_LIVE):
   - satchel-nft.testnet's near-cli-rs vector, with no predicate and no freshness, passes with a
-    full-access key (block 277666720). This assumes the builder keeps that key; if it is removed, the
+    full-access key (block 277669743). This assumes the builder keeps that key; if it is removed, the
     test is updated with the date and the reason;
-  - the predicates at a final block: the buyer owns #1, satchel-nft.testnet is in the DAO's council,
-    and wrap.testnet balances read (the buyer held 0 at block 277666726);
+  - the predicates at a final block: the buyer's vector with `nftOwner` passes, owner
+    `buyer.satchel-nft.testnet`; satchel-nft.testnet's with `sputnikRole(satchel-club.sputnikv2.testnet,
+    "council")` passes, a Group role; the buyer's with the same role is 403 `predicate-refused`
+    (`not-in-role`); and the buyer's with `ftBalanceAtLeast(wrap.testnet, 0)` passes (the buyer held 0
+    at block 277669750). That balance read had a minimum of 0, so the `below-min` refusal is covered by
+    the unit tests only;
   - NEP-641 with an ephemeral in-process key (no transaction, no real key): the key's implicit
-    account, which does not exist, is accepted (block 277666730); the same leaf for
+    account, which does not exist, is accepted (block 277669768); the same leaf for
     `v1.satchel-nft.testnet` (exists, no keys) is refused at step 6; a leaf timestamped an hour ahead is
     refused at step 5.
-- the sign_evm receipt block (SATCHEL_LIVE_ARCHIVAL): at block 276856730, the buyer's vector with
-  `nftOwner` passes with full access and owner `buyer.satchel-nft.testnet`, satchel-nft.testnet's is
-  403 `predicate-refused`; and every call of the recorded cassettes, re-read, gives the answer it holds.
+- the sign_evm receipt block (SATCHEL_LIVE_ARCHIVAL): at block 276856730, the block of receipt
+  FS7g9f4c…, the buyer's vector with `nftOwner` passes with full access and owner
+  `buyer.satchel-nft.testnet`, satchel-nft.testnet's is 403 `predicate-refused` (`not-owner`); and
+  every call of the three recorded cassettes, re-read, gives the answer it holds.
 
 ## Examples
 
+The outputs below are from the final check on 2026-11-14, at the code of commit `f7b0f4a`.
+
 `examples/account-proof.mjs` runs the two recorded vectors at the 9GYTuZJo… receipt block through
-testnet's archival node, 2026-11-14 at 13:59:31Z:
+testnet's archival node, at 14:40:06Z:
 
 ```
-$ node packages/satchel-nft/examples/account-proof.mjs
+$ node packages/satchel-nft/examples/account-proof.mjs testnet 9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM
 network        testnet
 read from      https://archival-rpc.testnet.fastnear.com (fallback https://archival-rpc.testnet.near.org)
 tx             9GYTuZJoQAKcYib8NCEKXtcqDkRjGfy9nLavajkGaLnM, signed by buyer.satchel-nft.testnet
@@ -343,35 +358,41 @@ proof by       buyer.satchel-nft.testnet
 ```
 
 `examples/nep641-leaf.mjs` makes an ephemeral key in the process (it signs these two messages and
-nothing else), prints the NEP-413 mapping and resolves each leaf on testnet at a final block,
-2026-11-14 at 13:59:33Z:
+nothing else), prints the NEP-413 mapping and resolves each leaf on testnet at a final block, at
+14:40:10Z. Its second argument, the account that exists without the key, is the contract
+`deployments/testnet.json` records (also its default):
 
 ```
-$ node packages/satchel-nft/examples/nep641-leaf.mjs
+$ node packages/satchel-nft/examples/nep641-leaf.mjs testnet v1.satchel-nft.testnet
 network        testnet, read from https://rpc.testnet.fastnear.com at a final block
-key            ed25519:J7QeZCKTi8U19hAMfjXQfo9s17YDi17GErz5U9mmaa4q (made in this process; it signs these two messages only)
-implicit id    fe3ae6a28a384ea55ee9e380260c90a1457009a2df72216cdd3b1eb2b79b5f6a
+key            ed25519:FMFjz4m2GCGoigG9mDcSGrsuZDQ2d1kGRyZ72xHV7VYL (made in this process; it signs these two messages only)
+implicit id    d533e6a5c3053df59b7a157ab07d9c8b96193828b0c7e698d3a1ae57a693f3f9
 leaf 1: the key's implicit account
-  signer_id    fe3ae6a28a384ea55ee9e380260c90a1457009a2df72216cdd3b1eb2b79b5f6a
-  timestamp    2026-11-14T13:58:34.587Z
+  signer_id    d533e6a5c3053df59b7a157ab07d9c8b96193828b0c7e698d3a1ae57a693f3f9
+  timestamp    2026-11-14T14:39:10.944Z
   payload      {"domain":"example.app","action":"Login","msg":"nep641-leaf.mjs"}
   NEP-413 payload the wallet signs:
     message    the payload above
-    nonce      f80204dadfe02d93694560413a010a583b415b2002efee5db707ce2c94a847c9 (sha3_256 of NEAR_NEP641_OFFCHAIN_MESSAGE/V1 and borsh(msg))
-    recipient  testnet: fe3ae6a28a384ea55ee9e380260c90a1457009a2df72216cdd3b1eb2b79b5f6a @ 2026-11-14T13:58:34Z
-  block        277666245 (DZi1TADgdnEtiEuyenTSQ17Fzetsw6zdZx2742uyhe49), 2026-11-14T13:59:32.811Z
-  result       ok: the payload is authorized by fe3ae6a28a384ea55ee9e380260c90a1457009a2df72216cdd3b1eb2b79b5f6a (an implicit account, not created yet)
+    nonce      8cf68f1b5e57d0370ef5ff9737451ad7e56ee5b30426e6d323a59a8669a0940c (sha3_256 of NEAR_NEP641_OFFCHAIN_MESSAGE/V1 and borsh(msg))
+    recipient  testnet: d533e6a5c3053df59b7a157ab07d9c8b96193828b0c7e698d3a1ae57a693f3f9 @ 2026-11-14T14:39:10Z
+  block        277670485 (A2qZHPW4tJjL4fhSQeqQ6L7v7v2mpzaTMu4gu4yX3Qon), 2026-11-14T14:40:09.304Z
+  result       ok: the payload is authorized by d533e6a5c3053df59b7a157ab07d9c8b96193828b0c7e698d3a1ae57a693f3f9 (an implicit account, not created yet)
 leaf 2: v1.satchel-nft.testnet, an account that exists without this key
   signer_id    v1.satchel-nft.testnet
-  timestamp    2026-11-14T13:58:35.370Z
+  timestamp    2026-11-14T14:39:12.875Z
   payload      {"domain":"example.app","action":"Login","msg":"nep641-leaf.mjs"}
   NEP-413 payload the wallet signs:
     message    the payload above
-    nonce      ac66109a7c957057f2dd6a53125b779c7ab4981de60c458c7fecd564bbf9963f (sha3_256 of NEAR_NEP641_OFFCHAIN_MESSAGE/V1 and borsh(msg))
-    recipient  testnet: v1.satchel-nft.testnet @ 2026-11-14T13:58:35Z
+    nonce      a18c039082bbd9f76176962973d27a9fbf903f66abe4950c79b12df174352e37 (sha3_256 of NEAR_NEP641_OFFCHAIN_MESSAGE/V1 and borsh(msg))
+    recipient  testnet: v1.satchel-nft.testnet @ 2026-11-14T14:39:12Z
   result       refused at step 6: key-not-on-account
-  reason       ed25519:J7QeZCKTi8U19hAMfjXQfo9s17YDi17GErz5U9mmaa4q is not a key of v1.satchel-nft.testnet at block 277666246
+  reason       ed25519:FMFjz4m2GCGoigG9mDcSGrsuZDQ2d1kGRyZ72xHV7VYL is not a key of v1.satchel-nft.testnet at block 277670488
 ```
+
+The key is new on every run, so its id, nonces and blocks differ each time. On mainnet,
+`node packages/satchel-nft/examples/nep641-leaf.mjs mainnet v1.satchel-nft.near` at 14:40:13Z gave
+the same two results: leaf 1, the key's implicit account, `ok` at block 224527831, and leaf 2,
+`v1.satchel-nft.near`, `refused at step 6: key-not-on-account`.
 
 Both exit 0 whatever the result, and 1 only when a read fails. Run `npm run build -w satchel-nft`
 first.
@@ -385,11 +406,14 @@ changing. Planned means designed, not shipped.
 
 | Function | Status | Why |
 |---|---|---|
-| `verifyAccountProof`, `nftOwner`, `all`, `memoryNonceStore` | Implemented | the near-cli-rs vectors and the cassettes, the live tests, and the account-proof example |
-| `ftBalanceAtLeast`, `sputnikRole` for a Group role | Implemented | their cassette entries (wrap.testnet balances; the council of `satchel-club.sputnikv2.testnet`), and the live read at a final block on 2026-11-14 |
+| `verifyAccountProof`, `nftOwner` | Implemented | the near-cli-rs vectors and the `holder-at-buyer-sign` cassette; the live tests at a final block and at the receipt block 276856730 (the buyer ok, the previous owner 403 `not-owner`); the three cassettes re-read live; and the account-proof example, whose output above is quoted from the final check |
+| `all`, `memoryNonceStore` | Implemented | unit tests on the cassettes. Both are local logic with no chain read of their own, so no live test calls them directly |
+| `ftBalanceAtLeast` | Implemented | its cassette entries (wrap.testnet balances), and the live read at a final block on 2026-11-14. That read had a minimum of 0 against a balance of 0, so the `below-min` refusal rests on the unit tests |
+| `sputnikRole` for a Group role | Implemented | its cassette entries (the council of `satchel-club.sputnikv2.testnet`), and the live read at a final block on 2026-11-14: satchel-nft.testnet in the council, the buyer 403 `not-in-role` |
 | `sputnikRole` for an Everyone role | Experimental | the recorded DAO has no Everyone role; a labelled in-test change of its policy |
 | Function-call keys under `functionCallReceiver` | Experimental | no real FunctionCall key recorded; a labelled in-test permission change |
 | Gas-key acceptance | Experimental | no real gas-key answer recorded |
-| The codec: `encodeOffchainMessage`, `nep641Hash`, `nep641ToNep413`, `parseAccessKeyAuthorization` | Implemented | near/intents' vectors |
-| `verifyNep641Leaf` | Experimental | no full-access path signed by a real on-chain key yet. One OWNER action would fix it: sign one NEP-641-mapped NEP-413 message with near-cli-rs, then commit it as a fixture with its provenance |
-| Recursion (`w_resolve_auth`), secp256k1 NEP-413, the Member-role predicate, `checkHolder` calling `verifyAccountProof` | Planned | designed only |
+| The NEP-413 helpers re-exported from nep413.ts: `NEP413_TAG`, `nep413Hash`, `verifyNep413`, `base64ToBytes`, `bytesToBase64` | Implemented | nep413.ts, whose only change is its base58 import, with its 7 tests unchanged, on real near-cli-rs signatures; every live proof goes through them |
+| The codec: `encodeOffchainMessage`, `nep641Hash`, `nep641ToNep413`, `parseAccessKeyAuthorization`, `NEP641_DOMAIN`, `NEP641_LIMITS` | Implemented | near/intents' vectors; the NEP-641 live tests go through them |
+| `verifyNep641Leaf` | Experimental | its live tests (3 of 3 in the final check) and its example on both networks pass, but no full-access path signed by a real on-chain key is recorded yet. One owner action would fix it: sign one NEP-641-mapped NEP-413 message with near-cli-rs, then commit it as a fixture with its provenance |
+| Recursion (`w_resolve_auth`), secp256k1 NEP-413, the Member-role predicate (`member-role-unsupported` today), `checkHolder` calling `verifyAccountProof` | Planned | designed only |

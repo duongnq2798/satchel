@@ -390,24 +390,38 @@ of these checks.
 ### 6. The primitives for NEAR builders
 
 Claim: `satchel-nft/near-rpc`, `satchel-nft/chain-signatures` and `satchel-nft/account-proof` hold
-against the real chains, not only against their recorded fixtures. Each primitive's live tests read
-mainnet and testnet through the public nodes and the read-only guards, and sign nothing. They need
-step 2's install; in PowerShell set `$env:SATCHEL_LIVE='1'` (or `$env:SATCHEL_LIVE_ARCHIVAL='1'`) first.
+against the real chains, not only against their recorded fixtures. Their live tests read mainnet and
+testnet (and, for chain-signatures, Base and Sepolia) through public nodes and the read-only guards,
+and sign nothing. They need step 2's install; in PowerShell set `$env:SATCHEL_LIVE='1'` (or
+`$env:SATCHEL_LIVE_ARCHIVAL='1'`) first. In brackets, what each printed in the final check on
+2026-11-14, at the code of commit `f7b0f4a`:
 
 - **near-rpc:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- near-rpc.live` (`Tests  5 passed | 3 skipped (8)`),
-  then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live` (`3 passed | 5 skipped`; it
-  waits about 30 s on purpose for a regular node to give up on an old transaction).
-- **chain-signatures:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live` (`4 passed | 6
-  skipped`), then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- chain-signatures.live` (`6 passed | 4
-  skipped`). The archival group's Sepolia proof reads `sepolia.gateway.tenderly.co`, which serves the
+  then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live` (`Tests  3 passed | 5 skipped (8)`;
+  it waits about 30 s on purpose for a regular node to give up on an old transaction).
+- **chain-signatures:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- chain-signatures.live`
+  (`Tests  4 passed | 6 skipped (10)`), then
+  `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- chain-signatures.live` (`Tests  6 passed | 4 skipped (10)`).
+  The archival group's Sepolia proof reads `sepolia.gateway.tenderly.co`, which serves the
   transaction's receipt; set `SATCHEL_LIVE_SEPOLIA_RPC=<url>` to use another node that does.
-- **account-proof:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- account-proof.live nep641.live` (`5 passed
-  | 2 skipped`), then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- account-proof.live` (`2 passed | 2
-  skipped`).
+- **account-proof:** `SATCHEL_LIVE=1 npm test -w satchel-nft -- account-proof.live`
+  (`Tests  2 passed | 2 skipped (4)`) and `SATCHEL_LIVE=1 npm test -w satchel-nft -- nep641.live`
+  (`Tests  3 passed (3)`), then `SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- account-proof.live`
+  (`Tests  2 passed | 2 skipped (4)`). nep641's file has no archival group, so with only
+  `SATCHEL_LIVE_ARCHIVAL=1` its 3 tests are skipped.
+- **All four files, both groups:**
+  `SATCHEL_LIVE=1 SATCHEL_LIVE_ARCHIVAL=1 npm test -w satchel-nft -- near-rpc.live chain-signatures.live account-proof.live nep641.live`
+  (`Tests  25 passed (25)`, in 100.6 s).
 
-Each took under 40 s on 2026-11-14. A run that ends in `rate-limited` is the public node limiting
-requests, not a failed claim: wait and run that file again. Every run, with its date, command and the
-blocks it read, is recorded in [docs/primitives](docs/primitives).
+Each of those one-file runs took under 40 s by vitest's count (2.45 s to 39.8 s). A run that ends
+in `rate-limited` is the public node limiting requests, not a failed claim: wait and run that file
+again (no read was rate-limited in the final check). The four examples read the same way and sign
+nothing; they exit 0 whatever the verdict, 1 when a read fails and 2 on wrong arguments. After
+`npm run build -w satchel-nft`,
+`node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo`
+ends with `verdict        all-verified`, and the README's
+[Primitives for NEAR Builders](README.md#primitives-for-near-builders) lists the other three. Every
+run, with its date, command and the blocks it read, is recorded in [docs/primitives](docs/primitives).
 
 ## Where each rule lives
 
