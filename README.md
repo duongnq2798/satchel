@@ -480,7 +480,7 @@ the record changed).
    npm run typecheck -w satchel-nft    # 7 s
    ```
 
-   The web app's own 387 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
+   The web app's own 466 tests need the whole install: `npm ci`, then `npm test` runs both workspaces
    ([Development](#development)).
 
    <details>
@@ -961,7 +961,8 @@ What is left (the MPC network itself, the RPCs the report reads, powers built in
 On [satchelnft.xyz](https://satchelnft.xyz), the landing page's "Built with" section names eight things
 Satchel is built with, most of them from this table, and links each to where it ran: a transaction, a
 satchel's holder room, the CI run or the npm release. The site's footer shows NEAR's "Built on NEAR"
-badge, NEAR's own file, linked to near.org. The other projects are named in text, without their logos: Satchel uses them, and none of
+badge, NEAR's own file, linked to near.org; its bottom bar links Satchel's own X account and repository
+with small X and GitHub glyphs. The other projects are named in text, without their logos: Satchel uses them, and none of
 them is a partner or endorses it.
 
 | NEAR technology | How Satchel uses it | Where |
@@ -1769,6 +1770,31 @@ the page. If the seller delists, signs and relists before your transaction lands
 refuses the sale and you keep your NEAR. A satchel that is not provably clean can still be bought,
 after you tick a box that says so.
 
+**Waiting, errors and retries** behave the same on every page.
+- A wait shows nothing for its first 150 ms, and once shown stays at least 400 ms, so nothing
+  flashes. Each placeholder has the shape of what replaces it, so the page holds still.
+- A NEAR read says "Still reading" after 4 s. At 15 s it says "No answer in 15 s." and offers Try
+  again, which keeps focus while it retries. A report has 45 s, since it reads every chain.
+- A wallet wait never times out; after 45 s it says it is still waiting for your wallet. Closing
+  the wallet is not shown as an error: the page says nothing was signed or connected, or, for a
+  transaction, that it can still go through if you approved it. A transaction that is sent but not
+  final yet says so and offers Check again, which asks NEAR for that transaction. An error after a
+  send may have gone out says it may already be on chain, and to check History before sending again.
+- A satchel id or DAO name that can't exist (`/satchel/abc`) answers 404. A part of a page that
+  fails to render shows an error with Try again, while the header, the wallet and the footer stay.
+
+Body text never swaps fonts mid-page: Inter is used if it arrives in the first ~100 ms (it is
+preloaded, and cached after the first visit); otherwise Arial, sized to match, stays for that page
+load. A late swap rewrapped the DAO board's heading on a phone and moved the page by 0.123.
+
+Measured on 2026-11-14 against `next start`, with the network and CPU throttled: layout shift at
+most 0.050 on `/`, a satchel's page, `/market`, `/satchels` and the DAO board, at 1280×900 and
+390×844 (the bar is 0.1). With every NEAR request held on `/satchel/1`, "Still reading" showed at
+4.2 s and "No answer in 15 s." at 15.2 s. To check it yourself, build the app, run
+`npm run start --prefix web -- -p 3100`, then
+`node web/scripts/loading-check.mjs --base http://localhost:3100`. It needs Microsoft Edge, prints a
+JSON report, and exits 1 on a failed check.
+
 **Sending** from a satchel: pick a chain (a testnet, or a mainnet under `/mainnet`), a recipient and
 an amount (or raw calldata, under Advanced). The app estimates gas, reads the nonce and fees, checks
 that the contract hashes the same transaction, has your wallet call `sign_evm`, recovers the signer
@@ -2083,7 +2109,7 @@ cargo near build non-reproducible-wasm       # target/near/satchel.wasm
 
 cd ../..
 npm ci                                     # the package and the app, one lockfile
-npm run typecheck && npm test              # both workspaces: 453 package tests (25 live tests skipped), 387 app tests
+npm run typecheck && npm test              # both workspaces: 453 package tests (25 live tests skipped), 466 app tests
 npm run build -w satchel-web               # the app; it builds the package first
 npm pack -w satchel-nft --dry-run          # what npm publish would publish
 ```
@@ -2136,12 +2162,13 @@ The tests, as of 2026-11-14: 64 Rust unit tests, in near-sdk's mocked environmen
 `config.test.ts` 3 and `limit.test.ts` 2, and 25 live tests in 4 files, skipped unless `SATCHEL_LIVE=1` or
 `SATCHEL_LIVE_ARCHIVAL=1`: `chain-signatures.live.test.ts` 10, `near-rpc.live.test.ts` 8,
 `account-proof.live.test.ts` 4 and `nep641.live.test.ts` 3;
-and 387 app tests in 11 files: 218 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline and the form fields' borders in `globals.css`,
+and 466 app tests in 18 files: 222 in `contrast.test.ts`, which computes the contrast of the text colors, the focus outline, the form fields' borders and the footer's link arrow in `globals.css`,
 42 in `oneclick.test.ts`, 39 in `received.test.ts`, 34 in `showcase.test.ts`,
 which checks the mainnet showcase, the deed of sale, the landing page's four cards and the demo satchels' lines against `deployments/`,
-18 in `dao-board.test.ts`, 14 in `docs.test.ts`,
+29 in `errors.test.ts`, which sorts each kind of failure and checks its sentence, 18 in `dao-board.test.ts`, 14 in `docs.test.ts`,
 which compile every docs page, check its links and anchors, and check that no page names two tables alike,
-7 in `restore.test.ts`, 5 in `room-request.test.ts`, 5 in `try-it.test.ts`, 3 in `routes.test.ts` and 2 in `frozen.test.ts`. Some rules have no
+11 in `final.test.ts`, 11 in `restore.test.ts`, 10 in `timing.test.ts`, 7 in `async-state.test.ts`, 6 in `wallet.test.ts`,
+5 in `room-request.test.ts`, 5 in `send-failure.test.ts`, 5 in `try-it.test.ts`, 3 in `route-files.test.ts`, 3 in `routes.test.ts` and 2 in `frozen.test.ts`. Some rules have no
 unit test, among them: `verifiedClient` (each EVM RPC must report the chain id it is configured for) and
 `finalizedAt` read live chains, the sale panel's use of the report's version and price was
 checked by hand on testnet, and nothing tests that a finished connect or a disconnect ends the
@@ -2404,4 +2431,5 @@ names the other. The other entry is **Probarion**, a mandate layer for AI agents
 
 [MIT](LICENSE). NEAR, Ethereum, Base, Arbitrum, OP, Polygon, BNB Chain, Avalanche, Aurora and USDC
 are trademarks of their respective owners; their names say what Satchel is built on and signs for,
-not an endorsement.
+not an endorsement. X and GitHub are trademarks of their owners too; the footer's two glyphs only
+link to Satchel's own accounts there.

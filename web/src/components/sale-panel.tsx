@@ -1,59 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  type Network,
-  type Report,
-  type SatchelView,
-  type WalletTx,
-  assertReceiver,
-  formatNear,
-  parseNear,
-  satchelTx,
-} from "satchel-nft";
+import { useEffect, useId, useRef, useState } from "react";
+import { type Network, type Report, type SatchelView, assertReceiver, formatNear, parseNear, satchelTx } from "satchel-nft";
+import { deadline } from "@/lib/timing";
 import { useNetwork } from "./network";
 import { FrozenNote } from "./send-panel";
 import { Button, Card, ErrorNote } from "./ui";
-import { useWallet } from "./wallet";
+import { type TxResult, TxStatus, useTxAction } from "./use-tx";
+import { useConnect, useWallet } from "./wallet";
 
-/** Runs one wallet transaction at a time and hands its hash to `onDone`, which shows it. */
-function useTx(onDone: (hash?: string) => void) {
-  const { send } = useWallet();
-  const running = useRef(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  async function run(build: () => WalletTx | Promise<WalletTx>) {
-    if (running.current) return;
-    running.current = true;
-    setError(null);
-    setBusy(true);
-    let hash: string | undefined;
-    try {
-      hash = (await send(await build())).hash;
-    } catch (err) {
-      setError(err);
-    } finally {
-      running.current = false;
-      setBusy(false);
-      onDone(hash);
-    }
-  }
-  return { busy, error, run };
-}
+/** How long a receiver check may take before it says NEAR didn't answer. */
+const RECEIVER_MS = 15_000;
 
 /** The owner's side: list, delist, or transfer the NFT. */
 export function OwnerSale({
   token,
-  onDone,
+  afterTx,
   frozen = false,
 }: {
   token: SatchelView;
-  onDone: (hash?: string) => void;
+  /** Shows a transaction's outcome on the page: everything again after one went through, the satchel after any other end. */
+  afterTx: (result: TxResult | null) => Promise<unknown> | void;
   /** A demo satchel: list, delist and transfer are off (`lib/frozen.ts`). */
   frozen?: boolean;
 }) {
-  const tx = useTx(onDone);
+  const action = useTxAction(afterTx);
   const net = useNetwork();
+  const other = useId();
   const [price, setPrice] = useState("");
   const [receiver, setReceiver] = useState("");
   // The receiver the owner is asked to confirm, once it passed the receiver check.
@@ -67,12 +40,18 @@ export function OwnerSale({
     if (confirming !== null) question.current?.focus();
   }, [confirming]);
 
+  /** Busy on the button whose transaction runs; off, with the reason, on the others meanwhile. */
+  const txButton = (id: string) => {
+    const off = action.busy && action.running !== id;
+    return { busy: action.running === id, disabled: off, describedBy: off ? other : undefined };
+  };
+
   async function askToTransfer() {
     setReceiverError(null);
     setChecking(true);
     try {
       // The contract takes any name, and an NFT sent to one that doesn't exist is lost.
-      await assertReceiver(net, receiver);
+      await deadline(assertReceiver(net, receiver), RECEIVER_MS, "NEAR RPC");
       setConfirming(receiver);
     } catch (err) {
       setReceiverError(err);
@@ -82,11 +61,13 @@ export function OwnerSale({
   }
 
   function transfer(to: string) {
-    tx.run(async () => {
-      // Checked again: the account could have changed since the owner asked.
-      await assertReceiver(net, to);
-      return satchelTx(net).transfer(token.token_id, to);
-    }).then(() => setConfirming(null));
+    action
+      .run("transfer", async () => {
+        // Checked again: the account could have changed since the owner asked.
+        await deadline(assertReceiver(net, to), RECEIVER_MS, "NEAR RPC");
+        return satchelTx(net).transfer(token.token_id, to);
+      })
+      .then(() => setConfirming(null));
   }
 
   return (
@@ -101,7 +82,7 @@ export function OwnerSale({
           {frozen ? (
             <FrozenNote />
           ) : (
-            <Button busy={tx.busy} onClick={() => tx.run(() => satchelTx(net).delist(token.token_id))}>
+            <Button {...txButton("delist")} onClick={() => action.run("delist", () => satchelTx(net).delist(token.token_id))}>
               Delist
             </Button>
           )}
@@ -127,8 +108,8 @@ export function OwnerSale({
             </label>
             <Button
               variant="primary"
-              busy={tx.busy}
-              onClick={() => tx.run(() => satchelTx(net).list(token.token_id, parseNear(price)))}
+              {...txButton("list")}
+              onClick={() => action.run("list", () => satchelTx(net).list(token.token_id, parseNear(price)))}
             >
               List for sale
             </Button>
@@ -141,7 +122,7 @@ export function OwnerSale({
                   ref={receiverField}
                   value={receiver}
                   // Fixed while the receiver is checked or the wallet is open: the question names this receiver.
-                  readOnly={checking || tx.busy}
+                  readOnly={checking || action.busy}
                   onChange={(e) => {
                     setReceiver(e.target.value.trim());
                     setConfirming(null);
@@ -151,7 +132,7 @@ export function OwnerSale({
                 />
               </label>
               {confirming === null && (
-                <Button busy={checking || tx.busy} onClick={askToTransfer}>
+                <Button busy={checking} disabled={action.busy} describedBy={action.busy ? other : undefined} onClick={askToTransfer}>
                   Transfer the NFT
                 </Button>
               )}
@@ -163,10 +144,10 @@ export function OwnerSale({
                   A transfer can&apos;t be undone: only {confirming} can send it back.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button variant="primary" busy={tx.busy} onClick={() => transfer(confirming)}>
+                  <Button variant="primary" {...txButton("transfer")} onClick={() => transfer(confirming)}>
                     Yes, transfer it
                   </Button>
-                  {!tx.busy && (
+                  {!action.busy && (
                     <Button
                       onClick={() => {
                         setConfirming(null);
@@ -184,8 +165,11 @@ export function OwnerSale({
         </div>
       )}
       <div className="mt-3">
-        <ErrorNote error={tx.error} />
+        <TxStatus action={action} />
       </div>
+      <span id={other} className="sr-only">
+        Another transaction is running.
+      </span>
     </Card>
   );
 }
@@ -209,18 +193,27 @@ export function checkedListing(token: SatchelView, report: Report | undefined, n
 export function BuyPanel({
   token,
   report,
-  onDone,
+  reportError,
+  afterTx,
+  onRecheck,
   frozen = false,
 }: {
   token: SatchelView;
   report: Report | undefined;
-  onDone: (hash?: string) => void;
+  /** Why the report couldn't be read, kept while it is read again. */
+  reportError?: unknown;
+  /** Shows a purchase's outcome on the page: everything again after it went through, the satchel after any other end. */
+  afterTx: (result: TxResult | null) => Promise<unknown> | void;
+  /** Reads the satchel and its report again. */
+  onRecheck: () => unknown;
   /** A demo satchel: buying from the app is off (`lib/frozen.ts`). */
   frozen?: boolean;
 }) {
-  const { accountId, signIn } = useWallet();
-  const tx = useTx(onDone);
+  const { accountId } = useWallet();
+  const { connect, error: connectError } = useConnect();
+  const action = useTxAction(afterTx);
   const net = useNetwork();
+  const waiting = useId();
   // The version whose risk the buyer accepted, so a new version asks again.
   const [accepted, setAccepted] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -250,7 +243,15 @@ export function BuyPanel({
           </>
         )}
       </p>
-      {!checked && <p className="mt-3 text-sm text-muted">Waiting for the report on this listing…</p>}
+      {!checked && (
+        <div id={waiting} className="mt-3">
+          {reportError !== null && reportError !== undefined ? (
+            <ErrorNote error={reportError} title="Couldn't read the report" onRetry={onRecheck} />
+          ) : (
+            <p className="text-sm text-muted">Waiting for the report on this listing…</p>
+          )}
+        </div>
+      )}
       {checked && !agrees && !frozen && (
         <p className="mt-3 text-sm text-warn">
           The listing or its record changed while this page loaded. Check again before you buy.
@@ -273,19 +274,28 @@ export function BuyPanel({
       ) : (
         <div className="mt-3">
           {accountId === null ? (
-            <Button variant="primary" onClick={() => signIn().catch(() => {})}>
-              Connect to buy
-            </Button>
+            <>
+              <Button variant="primary" onClick={connect} busyText="Connecting to your wallet…">
+                Connect to buy
+              </Button>
+              {connectError !== null && connectError !== undefined && (
+                <div className="mt-3">
+                  <ErrorNote error={connectError} />
+                </div>
+              )}
+            </>
           ) : (
             <Button
               variant="gold"
-              busy={tx.busy}
+              busy={action.running === "buy"}
+              disabled={!checked}
+              describedBy={checked ? undefined : waiting}
               onClick={() => {
-                if (!checked) return setNote("Wait for the report on this listing first");
+                if (!checked) return;
                 if (!agrees) return setNote("Check again: the page and the report read different listings or record versions");
                 if (!clean && !accept) return setNote("Tick the box above to buy a satchel that is not provably clean");
                 setNote("");
-                tx.run(() => satchelTx(net).buy(token.token_id, checked.report.recordVersion, BigInt(checked.listing.price)));
+                action.run("buy", () => satchelTx(net).buy(token.token_id, checked.report.recordVersion, BigInt(checked.listing.price)));
               }}
             >
               Buy for {formatNear(listing.price)} NEAR
@@ -294,8 +304,10 @@ export function BuyPanel({
         </div>
       )}
       <div className="mt-3 space-y-2">
-        {note && <p className="text-sm text-warn">{note}</p>}
-        <ErrorNote error={tx.error} />
+        <p role="status" className={note ? "text-sm text-warn" : "sr-only"}>
+          {note}
+        </p>
+        <TxStatus action={action} />
       </div>
     </Card>
   );

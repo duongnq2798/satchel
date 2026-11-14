@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RESTORE_TIMEOUT_MS, fromSameWallet, restoreAccount } from "./restore";
+import { RESTORE_TIMEOUT_MS, fromSameWallet, needsRestore, restoreAccount } from "./restore";
 
 /** A wallet that answers only when the test says so, like a locked extension. */
 function pending() {
@@ -78,5 +78,19 @@ describe("fromSameWallet", () => {
     saved = "intear-wallet";
     wallet.resolve("satchel-nft.near");
     await expect(answer).resolves.toBeNull();
+  });
+});
+
+describe("needsRestore", () => {
+  it("skips the restore when nothing is saved and the page isn't framed", () => {
+    expect(needsRestore(null, false)).toBe(false);
+  });
+
+  it.each([
+    [null, true],
+    ["meteor", false],
+    ["meteor", true],
+  ] as const)("restores with saved %s, framed %s", (saved, framed) => {
+    expect(needsRestore(saved, framed)).toBe(true);
   });
 });

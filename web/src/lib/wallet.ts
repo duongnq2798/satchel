@@ -4,9 +4,13 @@ import {
   type NetworkId,
   type WalletTx,
   accountOnNetwork,
-  finalOutcome,
   outcomeValue,
+  rpcFor,
 } from "satchel-nft";
+import { UserRejected, WalletUnsure, walletRefused } from "./errors";
+import { waitFinal } from "./final";
+import { rememberTx } from "./last-tx";
+import { deadline } from "./timing";
 import manifest from "./wallet-manifest.json";
 
 /**
@@ -50,11 +54,22 @@ function networkStorage(net: Network) {
   };
 }
 
-const local = () => (typeof window === "undefined" ? null : window.localStorage);
+/** The page's localStorage, or null on the server and where site data is blocked (its getter then throws a SecurityError). */
+function local(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
-/** The id of the wallet near-connect has saved for `net` (in `networkStorage`), if any. */
+/** The id of the wallet near-connect has saved for `net` (in `networkStorage`), if any; null where storage is blocked. */
 export function savedWallet(net: Network): string | null {
-  return local()?.getItem(`satchel:${net.id}:selected-wallet`) ?? null;
+  try {
+    return local()?.getItem(`satchel:${net.id}:selected-wallet`) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const pending = new Map<NetworkId, Promise<Connector>>();
@@ -63,7 +78,7 @@ const pending = new Map<NetworkId, Promise<Connector>>();
 export function connector(net: Network): Promise<Connector> {
   let made = pending.get(net.id);
   if (made === undefined) {
-    made = import("@hot-labs/near-connect").then(({ NearConnector }) => {
+    made = deadline(import("@hot-labs/near-connect"), 20_000, "the wallet picker").then(({ NearConnector }) => {
       const options = { network: net.id, manifest, footerBranding: null, storage: networkStorage(net) };
       return new NearConnector(options as unknown as ConstructorParameters<typeof NearConnector>[0]) as unknown as Connector;
     });
@@ -90,7 +105,11 @@ export async function connectedAccount(net: Network): Promise<string | null> {
  */
 export async function signIn(net: Network): Promise<string> {
   const c = await connector(net);
-  await c.connect();
+  try {
+    await c.connect();
+  } catch (err) {
+    throw walletRefused(err) ? new UserRejected("connect", { cause: err }) : err;
+  }
   const { accounts } = await c.getConnectedWallet();
   const id = accounts[0]?.accountId;
   if (id === undefined) throw new Error("The wallet didn't connect an account");
@@ -101,19 +120,42 @@ export async function signIn(net: Network): Promise<string> {
   return id;
 }
 
+/** Where a transaction is: in the wallet, or sent with its hash. */
+export type TxPhase = { phase: "wallet" } | { phase: "sent"; hash: string };
+
 /**
  * Has the wallet sign and send `tx`, then waits until every receipt is final and returns the value
  * the call resolved to. Wallets often return before a promise chain finishes, as with `sign_evm`,
- * which resolves only when the MPC network answers.
+ * which resolves only when the MPC network answers. A refusal in the wallet, or a failure with no
+ * reason, throws UserRejected; any other wallet error throws WalletUnsure, since it may have sent; a
+ * sent transaction NEAR hasn't finished in time throws PendingTx with its hash.
  */
-export async function runTx<T>(net: Network, tx: WalletTx, signer: string): Promise<{ hash: string; value: T | null }> {
+export async function runTx<T>(
+  net: Network,
+  tx: WalletTx,
+  signer: string,
+  onPhase: (p: TxPhase) => void = () => {},
+): Promise<{ hash: string; value: T | null }> {
   const wallet = await (await connector(net)).wallet();
-  const sent = await wallet.signAndSendTransaction({ signerId: signer, receiverId: tx.receiverId, actions: tx.actions });
+  onPhase({ phase: "wallet" });
+  let sent: ExecutionOutcome;
+  try {
+    sent = await wallet.signAndSendTransaction({ signerId: signer, receiverId: tx.receiverId, actions: tx.actions });
+  } catch (err) {
+    // A wallet that fails without saying why (reject(), reject(undefined)) must not read as success.
+    throw err === null || err === undefined || walletRefused(err) ? new UserRejected("tx", { cause: err }) : new WalletUnsure(err);
+  }
   const hash = sent?.transaction?.hash;
   if (!hash) throw new Error("The wallet did not return a transaction hash");
-  const settled =
-    sent.final_execution_status === "FINAL" ? sent : await finalOutcome(net, hash, sent.transaction.signer_id ?? signer);
-  return { hash, value: outcomeValue<T>(settled) };
+  rememberTx(net, hash);
+  onPhase({ phase: "sent", hash });
+  if (sent.final_execution_status === "FINAL") return { hash, value: outcomeValue<T>(sent) };
+  return settleTx<T>(net, hash, sent.transaction.signer_id ?? signer);
+}
+
+/** Waits for sent transaction `hash` to finish (`attempts` polls), then its value; PendingTx if it hasn't, its Failure if it failed. */
+export async function settleTx<T>(net: Network, hash: string, signer: string, attempts = 30): Promise<{ hash: string; value: T | null }> {
+  return { hash, value: outcomeValue<T>(await waitFinal(rpcFor(net), hash, signer, { attempts })) };
 }
 
 /** Thrown when the connected wallet can't sign NEP-413 messages at all. */
@@ -138,9 +180,19 @@ export async function signMessage(
   } catch (err) {
     const text = err instanceof Error ? err.message : String(err);
     if (/not (supported|implemented)|unsupported/i.test(text)) throw cannot();
-    throw err;
+    throw walletRefused(err) ? new UserRejected("sign", { cause: err }) : err;
   }
   if (typeof signed?.signature !== "string" || typeof signed.publicKey !== "string") throw new Error("The wallet didn't return a signature");
   if (signed.accountId !== signer) throw new Error(`The wallet signed as ${signed.accountId}, not ${signer}, the account this page is connected to`);
   return { publicKey: signed.publicKey, signature: signed.signature };
+}
+
+/** `cb` once the browser is idle (within 2 s), or on the next tick where it has no requestIdleCallback (Safari); returns the cancel. */
+export function onIdle(cb: () => void): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(cb, { timeout: 2000 });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = setTimeout(cb, 1);
+  return () => clearTimeout(id);
 }
