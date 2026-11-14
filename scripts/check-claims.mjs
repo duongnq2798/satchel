@@ -8,12 +8,14 @@
 // Usage: node scripts/check-claims.mjs [--network testnet|mainnet]   (testnet by default)
 // NEAR_RPC and NEAR_ARCHIVAL_RPC replace the default nodes; old transactions need an archival one.
 // With NEAR_ARCHIVAL_RPC unset, an archival read FastNEAR's node doesn't answer goes to NEAR's own,
-// and once that answers, later reads ask it first; the last line then says so.
+// and once that answers, later reads ask it first, until FastNEAR's answers one it didn't; the last
+// line then says so. A node whose Retry-After asks for more than 30 s isn't asked again for that read.
 // BASE_RPC and ARBITRUM_RPC replace the Base and Arbitrum One nodes the mainnet run reads; with
 // BASE_RPC unset, a Base read the default node fails goes to Base's own public node. The last claim
 // about satchel #2 also reads 1Click's public status for its deposit. A node read that fails because
-// the node is busy (HTTP 408, 429 or 5xx, or a failed connection) is sent up to 4 times with backoff;
-// any other failed read is tried once more, 2 s later, before its claim fails.
+// the node is busy (HTTP 408, 429 or 5xx, or a failed connection) is sent up to 7 times with backoff;
+// any other failed read is tried once more, 2 s later, before its claim fails. Archival reads go out
+// one at a time.
 import { existsSync, readFileSync } from "node:fs";
 
 const flag = process.argv.indexOf("--network");
@@ -115,8 +117,9 @@ async function rpcOnce(url, method, params) {
 }
 
 /**
- * Sends a read, and again while the node is busy: up to 4 sends, 1, 2 and 4 s apart, or longer if its
- * Retry-After asks, up to 8 s. Any other failure is tried once more, 2 s later.
+ * Sends a read, and again while the node is busy: up to 7 sends, 1, 2 and 4 s apart and then 8 s, or
+ * longer if its Retry-After asks, up to 8 s. A node whose Retry-After asks for more than 30 s isn't
+ * asked again for this read. Any other failure is tried once more, 2 s later.
  */
 async function rpc(url, method, params) {
   for (let sent = 1; ; sent += 1) {
@@ -124,7 +127,8 @@ async function rpc(url, method, params) {
       return await rpcOnce(url, method, params);
     } catch (err) {
       const busy = err instanceof NoAnswer && err.busy;
-      if (sent >= (busy ? 4 : 2)) throw err;
+      // NEAR's archival node asked for 329 s on 2026-11-14: more sends only met more 429s.
+      if (sent >= (busy ? 7 : 2) || (busy && (err.retryAfter ?? 0) > 30)) throw err;
       const backoff = 1_000 * 2 ** (sent - 1);
       // A Retry-After can only make the wait longer: FastNEAR's archival node sends `retry-after: 0`
       // with its 429s, and asking again at once only meets another 429.
@@ -138,15 +142,27 @@ const answeredBy = new Set();
 
 /**
  * The archival nodes in the order a read asks them: NEAR_ARCHIVAL_RPC alone or, with it unset,
- * FastNEAR's and then NEAR's own. Once a fallback answers a read, with a result or an error, later
- * reads ask it first and FastNEAR's last.
+ * FastNEAR's and then NEAR's own. The node that answered the last read, with a result or an error,
+ * is asked first: once a fallback answers a read FastNEAR's didn't, later reads ask it first and
+ * FastNEAR's last, until FastNEAR's answers one the fallback didn't.
  */
 let archivalNodes = process.env.NEAR_ARCHIVAL_RPC ? [ARCHIVAL] : [ARCHIVAL, ...ARCHIVAL_FALLBACKS];
 
 function answered(url) {
-  if (url !== ARCHIVAL && archivalNodes[0] !== url) {
-    archivalNodes = [url, ...ARCHIVAL_FALLBACKS.filter((u) => u !== url), ARCHIVAL];
-  }
+  if (archivalNodes[0] !== url) archivalNodes = [url, ...archivalNodes.filter((u) => u !== url)];
+}
+
+/**
+ * Archival reads go out one at a time, in the order they were asked for. On 2026-11-14 FastNEAR's
+ * archival node let about 8 reads through at once and then about one every 5 s: reads sent together
+ * only raced for the same few, and the one that lost every race used up its sends.
+ */
+let archivalTurn = Promise.resolve();
+
+function archival(method, params) {
+  const read = archivalTurn.then(() => archivalRead(method, params));
+  archivalTurn = read.catch(() => {});
+  return read;
 }
 
 /**
@@ -154,7 +170,7 @@ function answered(url) {
  * passed over. An error the first node asked answers with fails the claim. One a later node answers
  * with fails it too, and names the nodes before it that didn't answer: no other node checked it.
  */
-async function archival(method, params) {
+async function archivalRead(method, params) {
   const urls = archivalNodes;
   const errors = [];
   for (const [i, url] of urls.entries()) {
@@ -895,8 +911,8 @@ for (const { claim, check } of CLAIMS) {
   }
 }
 console.log(`\n${CLAIMS.length - failed} of ${CLAIMS.length} claims hold (${RPC}, archival ${ARCHIVAL})`);
-if (archivalNodes[0] !== ARCHIVAL && answeredBy.size) {
-  console.log(`Archival reads came from ${[...answeredBy].join(" and ")}: once ${ARCHIVAL} didn't answer one, later ones went to ${archivalNodes[0]} first`);
+if ([...answeredBy].some((u) => u !== ARCHIVAL)) {
+  console.log(`Archival reads came from ${[...answeredBy].join(" and ")}: a read one of them didn't answer went to the next, and later reads to the one that answered last first`);
 }
 if (fellBack) console.log(`Base reads that ${BASE_RPC} failed came from ${BASE_FALLBACK}`);
 process.exitCode = failed ? 1 : 0;

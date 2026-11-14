@@ -13,8 +13,9 @@
 // decoder that checks what the near CLI signed for the deploy and the lock. It reads nothing and
 // signs nothing. tools/estate-run.mjs runs the plan.
 import { createHash } from "node:crypto";
+import { builtPackage } from "../scripts/built.mjs";
 
-const { MINT_DEPOSIT, ONE_YOCTO, TESTNET, TGAS, base58Encode, isAccountId } = await import("../packages/satchel-nft/dist/index.js");
+const { MINT_DEPOSIT, ONE_YOCTO, TESTNET, TGAS, base58Encode, isAccountId } = await builtPackage();
 
 export const NEAR = 10n ** 24n;
 const NANOS_PER_MINUTE = 60_000_000_000n;

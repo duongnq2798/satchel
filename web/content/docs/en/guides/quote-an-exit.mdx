@@ -119,9 +119,11 @@ or the report enforces the quote, and the report doesn't count what is in flight
 
 ## Swaps in a satchel's history
 
-On mainnet pages, the **History** card asks 1Click about the recipients of the satchel's latest 5
-native-coin sends, `GET /v0/status?depositAddress=…`. When 1Click knows a recipient as a deposit
-address, and its copy of the quote starts from the native coin of the chain the satchel sent on, the
+On mainnet pages, the **History** card can ask 1Click about the recipients of the satchel's latest 5
+native-coin sends, `GET /v0/status?depositAddress=…`. It asks on its own only about a deposit
+address the app knows, satchel #2's; any other such send gets a **Check with 1Click** button that
+asks when you click it, since 1Click answers 404 for an address it has no quote for and the browser
+logs that as an error. When 1Click knows a recipient as a deposit address, and its copy of the quote starts from the native coin of the chain the satchel sent on, the
 row gets a second line in 1Click's words. When 1Click calls the swap `SUCCESS` and its status names
 the payout's transaction (`swapDetails.destinationChainTxHashes`), the line links that transaction on
 the destination chain's explorer; otherwise, `REFUNDED` and `FAILED` included, it links 1Click's

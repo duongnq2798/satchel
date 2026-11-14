@@ -6,6 +6,22 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- The landing page's opening section now says who a satchel is for (an address that must keep
+  receiving after a sale, such as a royalty receiver a contract fixes, a DAO treasury or an estate)
+  and why it runs on NEAR (no one holds the key; NEAR's MPC network signs only when the contract
+  asks, and the contract asks only for the token's owner), and links the 2-minute demo on X. Its
+  mainnet line now says what happened there: satchel #2 holds USDC from a NEAR Intents 1Click swap,
+  and #3 was listed and bought end to end, a self-sale between two of the builder's accounts. Under
+  it, "Check it in three steps" gives: try to cheat a buyer (about 30 s, no wallet), read the
+  mainnet sale's deed (about 1 min), and run `npx -y satchel-nft@0.2.0 verify --network mainnet 3`,
+  with a button that copies it (1 to 4 min with the npm download, seconds after). The deed section
+  below states the self-sale in its eyebrow and in the deed's declaration, no longer a third time in
+  between, and the verify page's pick for mainnet #3 now says it was a self-sale, not a market
+  price. "A satchel" says no one holds a key to copy; in "Why not just…" Satchel's answer on a
+  signature from before the sale says a signed transaction works only until its nonce is spent, and
+  that check 2 shows before you pay whether one is still pending. Chain counts on the landing page
+  now say how many are mainnets: 8 EVM mainnets and their testnets, or 16 EVM chains (8 mainnets and
+  their testnets).
 - "Try to cheat the buyer" on the landing page stamps each verdict the way the deed of sale does.
   When a report arrives, a stamp presses in beside the panel's title, or under it on a phone:
   **Provably clean** in green or **Not provable** in amber, with the record version the report
@@ -579,6 +595,48 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- The README and AGENTS.md give the test counts as they run on 2026-11-14: 238 package tests in 18
+  files and 387 app tests in 11 files (they said 235 and 309), each file's count, and the estate
+  contract's 63 Rust tests beside the satchel contract's 64.
+- "Satchel in 60 seconds" opens with five lines, the same as AGENTS.md's "Satchel in five lines"
+  and the top of `/llms.txt`: which Satchel this is (site, repository, `v1.satchel-nft.near` with 0
+  access keys), what the contract records and how a buyer checks it, who it is for, why NEAR, and
+  what ran on mainnet, #3's sale marked as a self-sale. Under them come one RPC call that shows the
+  0 access keys and three commands, each with its run time and last line from runs on 2026-11-13.
+  "Limits, stated plainly" adds that the locked code fixes the MPC `sign` request and its
+  1 yoctoNEAR deposit, that each token's on-chain description says more than holds, and why there
+  are no NEP-178 approvals. "Who it is for" now says what running the app costs, how a v2 would
+  ship and that a verify API is not built. The note on entries with the same name names no one, in
+  the README and the demo kit.
+- A satchel's page puts its verdict first: the clean transfer report sits right under the title,
+  with Make it clean under it when the report isn't clean, then the address and What's inside, Quote
+  an exit, the sale panels, History and Received, each as before; the README's pages table and the
+  buy guide say so, and the README's two shots of a satchel's page and the quick start's are taken
+  again (title and report; `screenshots.mjs` crops to `#report`). On a phone the verdict is on the
+  first or second screen. The report's "checked" time and the holder room's block time and signature
+  window are written in UTC, as the deed and the history write theirs: in the viewer's own time
+  zone, beside a UTC time, a check made today could read like the next day's. `/verify` offers
+  testnet #8, the DAO's satchel, and #9, made clean from its page, among its demo picks, and mainnet
+  #3's line there says its sale was a self-sale between two of the builder's accounts.
+- The demo satchels' notes give the reason in a visitor's terms: buying, and the owner's buttons,
+  are off in the app through judging (until 2026-11-25), to keep the state the README quotes for
+  them, on `/market`, the satchel pages, the holder room, the landing's listed example and the
+  use-cases page; each `/market` card says it in one line. When every listing is a demo satchel, `/market` links mainnet satchel #3's deed of sale (a
+  self-sale between two of the builder's accounts) and minting one's own on testnet; the check moved
+  to `allDemo` in `web/src/lib/try-it.ts`, with tests. Without a wallet, `/satchels` links NEAR's
+  docs for a testnet account and free testnet NEAR (docs.near.org's faucet page) and, once
+  connected with no satchel, says minting takes 0.1 testnet NEAR plus a little gas. The holder room's connect prompt
+  links minting a testnet satchel to open a room of one's own.
+- The demo satchels' guard covers testnet #10 and #11 too, the satchels behind the README's DAO
+  bounty and estate use cases (`check-dao-bounty.mjs`, `check-estate.mjs`): until 2026-11-25 the app
+  shows a note in place of send, list, delist, transfer, buy and the Make it clean buttons on them
+  (`frozen.ts`), so the app can't change their owner or signing record while judging runs. Both join
+  `DEMO_SATCHELS`, which the sitemap and `llms.txt` read (not as quick picks on the verify page), with
+  a line each that `showcase.test.ts` compares with `deployments/testnet-dao-bounty.json` and
+  `testnet-estate.json`. The README, AGENTS.md, the threat model's row 21h, the demo kit and the
+  buy, sell, send and transfer guides now say testnet #1 to #11, and `tools/make-clean-demo.mjs`
+  refuses #10 and #11 too, except with `--check`. The demo kit's Open Innovation and Social Money
+  rows no longer call the estate and the bounty board not built.
 - `check-claims.mjs` reads the way `check-dao.mjs` does: a read a node answers with HTTP 408, 429
   or 5xx, or whose connection fails, is sent up to 3 more times with backoff, and with
   `NEAR_ARCHIVAL_RPC` unset an archival read FastNEAR's node doesn't answer goes to NEAR's own,
@@ -859,6 +917,35 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- `node scripts/check-use-cases.mjs` exited 1 on a clean machine after 10 min: case 6's
+  `check-dao-bounty.mjs` ran past the 5 min limit printing its bounty board after its claims had
+  passed, and case 7 failed once on a public node that didn't answer. The bounty case now runs
+  `check-dao-bounty.mjs --claims-only`, the claims without the board (run alone, the script still
+  prints it); cases run 3 s apart; and a check that fails only because a node or the network didn't
+  answer (HTTP 408, 429 or 5xx, a timeout, `fetch failed`), or that runs past the limit, now 10 min,
+  runs once more a minute later, while a claim the chain answers against fails at once. Each case
+  prints its run time and the last line the total: 8 min 51 s and 9 min 9 s in two runs in a row on
+  2026-11-14. `check-claims.mjs`, `check-dao.mjs`, `check-dao-bounty.mjs` and `check-estate.mjs`
+  kept asking NEAR's archival node first once it had answered one read FastNEAR's didn't, even while
+  it answered HTTP 429 with a Retry-After of 329 s, which took the bounty claims 416 s; they now ask
+  first the node that answered the last read, and don't ask a node again for a read when its
+  Retry-After asks for more than 30 s. With FastNEAR's archival node alone answering, which let
+  about 8 reads through at once and then about one every 5 s that day, reads sent together raced for
+  those and the bounty claims still failed one on HTTP 429: archival reads now go out one at a time,
+  and a busy node is asked up to 6 more times instead of 3, the last ones 8 s apart. The bounty
+  claims' 54 archival reads then took 3 to 5 min. `check-scan-start.mjs`, `check-tokens.mjs` and the
+  `tools/` scripts that import the built package print
+  `run npm ci and npm run build -w satchel-nft first` and exit 2 when it can't be loaded
+  (`scripts/built.mjs`), instead of a stack trace, and `check-use-cases` counts that as skipped. A
+  mainnet satchel's history no longer asks 1Click about every send's recipient as the page loads:
+  1Click answers 404 for an address it has no quote for, which the browser logged as a red console
+  error on `/mainnet/satchel/1`. It asks on its own only about the deposit address the app knows
+  (satchel #2's, from `showcase.ts`), and any other send gets a **Check with 1Click** button on its
+  row; a screen reader hears 1Click's answer, and focus moves to it when it replaces the button.
+  The README, AGENTS.md, `watch.yml` and `frozen.ts` now say the daily watch and the demo freeze
+  run until 2026-11-25, after judging (2026-11-16 to 11-18), not that judging ends then, and
+  AGENTS.md gives the slow commands' run times and today's test counts (238 and 380). 2 new web
+  tests, 380 in all.
 - The clean transfer report printed an approval line twice once Make it clean had revoked it:
   `approve(spender, 0)` is itemized as a row of its own, and both rows read the same allowance
   (testnet satchel #9: "Sepolia: Approve on 0x1c7d…7238 for 0x65c6…9c8e: allowance is 0", twice).
