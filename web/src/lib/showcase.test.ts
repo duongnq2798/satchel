@@ -354,12 +354,45 @@ describe("the testnet demo stories match deployments/testnet-gallery.json", () =
 });
 
 describe("the demo satchels", () => {
-  it("offers testnet #1, #3 to #6, #8 (the DAO's) and #9 (Make it clean) and mainnet #1 to #3 as quick picks, and lists #7 too", () => {
+  it("offers testnet #1, #3 to #6, #8 (the DAO's) and #9 (Make it clean) and mainnet #1 to #3 as quick picks, and lists #7, #10 and #11 too", () => {
     const ids = (network: string, pick?: boolean) =>
       DEMO_SATCHELS.filter((d) => d.network === network && (pick === undefined || d.pick === pick)).map((d) => d.tokenId);
     expect(ids("testnet", true)).toEqual(["1", "3", "4", "5", "6", "8", "9"]);
     expect(ids("mainnet", true)).toEqual(["1", "2", "3"]);
-    expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8", "9"]);
+    expect(ids("testnet")).toEqual(["1", "3", "4", "5", "6", "7", "8", "9", "10", "11"]);
+  });
+
+  it("tells #10's and #11's runs as deployments/testnet-dao-bounty.json and testnet-estate.json record them", () => {
+    const story = (id: string) => DEMO_SATCHELS.find((d) => d.network === "testnet" && d.tokenId === id)?.story ?? "";
+    const run = (name: string) => {
+      const file = evidence(name);
+      const step = (key: string) => {
+        const found = file.steps.find((s: { key: string }) => s.key === key);
+        if (!found) throw new Error(`${name} has no step ${key}`);
+        return found;
+      };
+      return { file, step };
+    };
+
+    const bounty = run("testnet-dao-bounty.json");
+    expect(bounty.file.tokenId).toBe("10");
+    const paid = ["doneVote", "done2Vote"].map((key) => /pays \S+ ([\d.]+) NEAR/.exec(bounty.step(key).step)?.[1]);
+    expect(story("10")).toContain(`bounties of ${paid.join(" and ")} NEAR`);
+    const send = bounty.step("finish").sepolia;
+    expect([send.status, getAddress(send.from), getAddress(send.to)]).toEqual([
+      "success",
+      getAddress(bounty.file.address),
+      getAddress(bounty.file.contributorAddress.address),
+    ]);
+    expect(story("10")).toContain(`pay them ${formatEther(BigInt(send.valueWei))} Sepolia ETH`);
+    expect(bounty.step("giveVote2").step).toContain(`${bounty.file.contributor} owns satchel #10`);
+
+    const estate = run("testnet-estate.json");
+    expect(estate.file.tokenId).toBe("11");
+    expect([estate.file.guardians.length, estate.file.threshold]).toEqual([2, 2]);
+    expect(story("11")).toContain("two guardians' approvals");
+    expect(estate.step("cancel").step).toContain("cancels it");
+    expect(estate.step("finalize").step).toContain("satchel #11 moves to the heir");
   });
 
   it("says next to mainnet #3's sale that it was a self-sale", () => {

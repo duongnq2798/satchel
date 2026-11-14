@@ -3,9 +3,9 @@
 // NOT PROVABLE on check 2 (a signed nonce isn't spent) and check 3 (an approval is live). The owner
 // cleans it up in the app, and `--check` prints what Sepolia and the record say.
 //
-// The satchel must be new: the demo satchels #1 to #9 are quoted in the README and stay untouched
+// The satchel must be new: the demo satchels #1 to #11 are quoted in the README and stay untouched
 // until 2026-11-25 (#9 is the one this script set up on 2026-11-11, cleaned up in the app on
-// 2026-11-12; only `--check` runs on it). Each step is saved to --out before the next one starts,
+// 2026-11-12; only `--check` runs on it; #10 and #11 are the DAO bounty and estate runs'). Each step is saved to --out before the next one starts,
 // and a rerun skips every step the file already holds, so a run that stops can be run again.
 //
 //   NEAR_CLI=~/.cargo/bin/near.exe node make-clean-demo.mjs --token <new id> --out <file>
@@ -23,7 +23,7 @@ const ERC20 = parseAbi([
 // The seller's other satchel, owned by the same account: the approval a seller would leave behind.
 const SPENDER_SATCHEL = "7";
 const WITHDRAWAL = parseEther("0.01");
-const FROZEN = new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+const FROZEN = new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]);
 
 const tokenId = arg("--token");
 const out = arg("--out");

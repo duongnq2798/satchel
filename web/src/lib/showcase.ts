@@ -347,6 +347,18 @@ export const DEMO_SATCHELS: readonly DemoSatchel[] = [
     story: `Two Sepolia sends signed and never broadcast, and a live USDC approval; on ${MAKE_CLEAN.cleaned.date} its owner revoked the approval and spent both nonces from its page`,
     pick: true,
   },
+  {
+    network: "testnet",
+    tokenId: "10",
+    story: "Minted to a Sputnik DAO that paid a contributor bounties of 0.5 and 0.2 NEAR, then voted to have it pay them 0.001 Sepolia ETH and to give it to them",
+    pick: false,
+  },
+  {
+    network: "testnet",
+    tokenId: "11",
+    story: "Minted to an estate contract; after missed check-ins, two guardians' approvals and a waiting period the owner could cancel (and once did), it went to the heir",
+    pick: false,
+  },
   { network: "mainnet", tokenId: FIRST_SEND.tokenId, story: `Sent ${FIRST_SEND.sent} ETH on Base from this app`, pick: true },
   {
     network: "mainnet",
