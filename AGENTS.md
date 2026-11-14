@@ -319,7 +319,7 @@ npm run typecheck
 ```
 
 Each runs in both workspaces. You should see `Tests  239 passed (239)` for `satchel-nft`, then
-`Tests  389 passed (389)` for the app, then no type errors. Each command took under a minute on a
+`Tests  466 passed (466)` for the app, then no type errors. Each command took under a minute on a
 fresh clone (41 s and 37 s).
 
 ```bash

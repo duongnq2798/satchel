@@ -6,6 +6,9 @@
  */
 export const RESTORE_TIMEOUT_MS = 8_000;
 
+/** Whether a wallet could name an account at once: one is saved, or a parent frame may hold one. */
+export const needsRestore = (saved: string | null, framed: boolean) => saved !== null || framed;
+
 /**
  * `read`'s answer, or null if the saved wallet, as `saved` reads it, changed while `read` ran. A
  * connect that fails inside the wallet the user picked leaves that wallet saved, so a late answer from

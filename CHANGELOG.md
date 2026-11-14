@@ -6,6 +6,25 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Added
 
+- One loading system for the web app (`web/src/lib/timing.ts`, `errors.ts`, `async-state.ts`,
+  `final.ts`, `components/use-async.ts`, `use-tx.tsx` and the `ui.tsx` primitives). Every wait
+  shows after 150 ms and stays at least 400 ms. A NEAR read turns slow at 4 s and offers Try again
+  at 15 s (a report at 8 s and 45 s). A wallet wait never times out and says it is still waiting at
+  45 s. Errors are sorted into closed-the-wallet, sent-but-not-final, offline, timeout,
+  rate-limited, failed-to-load and unreachable, each with its own sentence. Closing the wallet is
+  not shown as an error. A send that may already be on chain says so, with History to check.
+  Placeholders keep each page's final shape. Buttons keep their width while busy and stay focused
+  through a retry. Bad satchel ids and DAO names answer 404 from `[id]` layouts. Route
+  `loading.tsx` files cover the token, room and DAO pages, and `error.tsx` and
+  `global-error.tsx` catch render failures.
+- `web/scripts/loading-check.mjs`, run against `next start`, checks the 404 and 200 answers and
+  the server HTML's order. It measures layout shift in a headless Edge with the network and CPU
+  throttled, and holds every NEAR request on `/satchel/1` to check the slow and timeout states and
+  the route fallback. On 2026-11-14 every check passed; the largest shift was 0.050.
+- Inter loads with `display: "optional"`: it is used if it arrives in the first ~100 ms (it is
+  preloaded), and otherwise its size-matched fallback stays for that page load. A late swap
+  rewrapped the DAO board's heading on a phone and shifted the page by 0.123 on slow 4G.
+
 - README: an "After the hackathon" section, with a Contents entry. What keeps running without us
   (both contracts locked, with no keys and no admin; the report and the app need no server of ours),
   who maintains the app, the package and the repository, "Funding: none", and what changes when the

@@ -13,15 +13,20 @@ import {
   nearBlockUrl,
   roomMessage,
 } from "satchel-nft";
+import { TimeoutError, errorKind } from "@/lib/errors";
 import { FROZEN_NOTE, isFrozen } from "@/lib/frozen";
 import type { RoomResponse } from "@/lib/room-request";
 import { appPath } from "@/lib/routes";
 import { utcDateTime, utcTime } from "@/lib/showcase";
+import { TIMING } from "@/lib/timing";
 import { MINT_PATH } from "@/lib/try-it";
 import { NoMessageSigning, signMessage } from "@/lib/wallet";
 import { useNetwork } from "./network";
-import { Badge, Button, Card, ErrorNote, ExternalLink, Mono, VERDICT, errorMessage } from "./ui";
+import { RoomIntro } from "./room-intro";
+import { Badge, Button, Card, ErrorNote, ExternalLink, Mono, VERDICT, WaitLine } from "./ui";
+import { useWait } from "./use-async";
 import { ConnectButton, useWallet } from "./wallet";
+import { WalletPending } from "./wallet-pending";
 
 const ACTION: Record<KitAction, { label: string; tone: "ok" | "warn" | "bad" | "plain" }> = {
   fix: { label: "Fix", tone: "warn" },
@@ -47,6 +52,7 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState<"sign" | "check" | null>(null);
   const running = useRef(false);
+  const busyWait = useWait(busy !== null, busy === "sign" ? TIMING.wallet : TIMING.action);
 
   // A proof belongs to one account on one network: switching either closes the room.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the reset should run when these change
@@ -59,12 +65,19 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
 
   async function submit(p: RoomProof) {
     setBusy("check");
-    const res = await fetch("/api/room", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ network: net.id, ...p }),
-      cache: "no-store",
-    });
+    let res: Response;
+    try {
+      // A little past the route's 60 s limit, so a hung function still ends in words.
+      res = await fetch("/api/room", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ network: net.id, ...p }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(65_000),
+      });
+    } catch (err) {
+      throw errorKind(err) === "timeout" ? new TimeoutError("The room didn't answer in 65 s.") : err;
+    }
     const body = (await res.json().catch(() => null)) as (RoomResponse & { error?: string }) | null;
     if (res.ok && body !== null) {
       setRoom(body);
@@ -82,8 +95,8 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
     try {
       await work();
     } catch (err) {
-      // Closing the wallet's prompt is not an error worth showing.
-      if (!/rejected|cancel/i.test(errorMessage(err))) setError(err);
+      // A cancel in the wallet shows as a neutral note (UserRejected, from lib/wallet).
+      setError(err);
     } finally {
       running.current = false;
       setBusy(null);
@@ -108,42 +121,15 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
   // The same proof while it is in its window, then a new signature. After a 401 the server called
   // this proof expired or wrong, whatever this device's clock says: sign again.
   const checkAgain = () => (proof && refusal?.status !== 401 && Date.now() < reuseUntil ? run(() => submit(proof)) : open());
-  const satchelPage = appPath(net, `/satchel/${tokenId}`);
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm text-muted">
-          <Link href={satchelPage} className="underline decoration-line underline-offset-4 hover:decoration-ink">
-            Satchel #{tokenId}
-          </Link>
-        </p>
-        <h1 className="font-display text-4xl font-semibold tracking-tight">Holder room</h1>
-        <p className="mt-2 text-ink-2">
-          Only the account that owns satchel #{tokenId} right now can open this room. Sell or transfer the satchel and it
-          opens for the new holder, not for you: the right to open it moves with the NFT.
-        </p>
-      </div>
-
-      <Card>
-        <h2 className="font-display text-xl font-semibold">How it checks</h2>
-        <ul className="mt-2 max-w-[36em] list-disc space-y-1 pl-5 text-sm text-ink-2">
-          <li>Your wallet signs a message (NEP-413) for {ROOM_RECIPIENT}. It is not a transaction and costs nothing.</li>
-          <li>
-            The server checks the signature, that the key is a full-access key of your account, and that your account owns
-            satchel #{tokenId} on {net.contract}, the last two read at one final NEAR block.
-          </li>
-          <li>It checks again on every request. No cookie, no session; nothing is stored.</li>
-          <li>
-            Nothing in the room is secret: the card and the kit come from public chain data. What the room shows is the gate.
-          </li>
-        </ul>
-      </Card>
+      <RoomIntro tokenId={tokenId} />
 
       {!room && (
         <Card>
           {!ready ? (
-            <p className="text-sm text-muted">Looking for your wallet…</p>
+            <WalletPending />
           ) : accountId === null ? (
             <div className="space-y-3">
               <div>
@@ -166,9 +152,23 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
               <pre className="overflow-x-auto rounded-xl bg-paper-2 p-3 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {roomMessage(net, tokenId, accountId, "the time you click")}
               </pre>
-              <Button variant="primary" onClick={open} busy={busy !== null}>
-                {busy === "sign" ? "Waiting for your wallet" : busy === "check" ? "Checking" : "Open the room"}
+              <Button
+                variant="primary"
+                onClick={open}
+                busy={busy !== null}
+                busyText={busy === "check" ? "Checking your key and the owner…" : "Waiting for your wallet…"}
+              >
+                Open the room
               </Button>
+              <WaitLine
+                className="min-h-10"
+                wait={busyWait}
+                slow={busy === "sign" ? "Still waiting for your wallet. Look for its window or extension." : undefined}
+              >
+                {busy === "check"
+                  ? "Checking your key and the owner at a final block, then reading the report: up to 20 s."
+                  : "Approve the message in your wallet."}
+              </WaitLine>
             </div>
           )}
         </Card>
@@ -190,10 +190,12 @@ export function HolderRoom({ tokenId }: { tokenId: string }) {
 
       {refusal && (
         <Card className="border-bad/40!">
-          <p className="text-sm font-medium text-bad">
-            {refusal.status === 403 ? "The room stays closed" : `The room answered ${refusal.status}`}
-          </p>
-          <p className="mt-1 text-sm [overflow-wrap:anywhere]">{refusal.error}</p>
+          <div role="alert">
+            <p className="text-sm font-medium text-bad">
+              {refusal.status === 403 ? "The room stays closed" : `The room answered ${refusal.status}`}
+            </p>
+            <p className="mt-1 text-sm [overflow-wrap:anywhere]">{refusal.error}</p>
+          </div>
           {proof && (
             <div className="mt-3">
               <Button onClick={checkAgain} busy={busy !== null}>
