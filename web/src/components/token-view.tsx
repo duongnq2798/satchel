@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CHAINS, type ChainContents, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, sendChains, tokenAddress } from "satchel-nft";
+import { CHAINS, type ChainContents, buildReport, chainInfo, formatNear, nearAccountUrl, nearTxUrl, satchel, tokenAddress } from "satchel-nft";
 import { isFrozen } from "@/lib/frozen";
 import { appPath } from "@/lib/routes";
+import { TIMING } from "@/lib/timing";
 import { Contents } from "./contents";
 import { DaoBoardLink } from "./dao-board";
 import { DeploymentNote, useDeployment } from "./deployment";
@@ -16,72 +17,11 @@ import { Received } from "./received";
 import { ReportCard } from "./report-card";
 import { BuyPanel, OwnerSale, checkedListing } from "./sale-panel";
 import { SendPanel } from "./send-panel";
-import { Badge, Button, Card, CopyButton, ErrorNote, ExternalLink, Mono, Placeholder, VERDICT } from "./ui";
+import { AddressPending, Heading, TokenSkeleton } from "./token-skeleton";
+import { Badge, Card, CopyButton, ErrorNote, ExternalLink, Mono, VERDICT } from "./ui";
 import { useAsync } from "./use-async";
 import type { TxResult } from "./use-tx";
 import { useWallet } from "./wallet";
-
-/** The page's heading, the same while the satchel loads and after, so it never moves. */
-function Heading({ tokenId }: { tokenId: string }) {
-  return (
-    <>
-      <h1 className="font-display text-4xl font-semibold tracking-tight [overflow-wrap:anywhere]">Satchel #{tokenId}</h1>
-      <p className="mt-2 text-ink-2">
-        A satchel is an NFT on NEAR that controls one address on {CHAINS.length} EVM chains, and this page checks, in
-        your browser, what its previous owners could have kept back.
-      </p>
-    </>
-  );
-}
-
-/**
- * The address card's shape before the address shows: while the satchel loads, and while the
- * contract's check runs (`deployment` then says so where the address goes). The chains are the ones
- * "What's inside" reads, each still to be read.
- */
-function AddressPending({ deployment }: { deployment?: ReturnType<typeof useDeployment> }) {
-  const net = useNetwork();
-  return (
-    <>
-      <div className="mt-1 flex min-h-14 items-center sm:min-h-7">
-        {deployment ? <DeploymentNote deployment={deployment} /> : <Placeholder className="h-6 w-full max-w-md" />}
-      </div>
-      <Placeholder className="mt-1 h-12 sm:h-8 lg:h-4" />
-      <h2 className="mt-5 font-display text-xl font-semibold">What&apos;s inside</h2>
-      <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {sendChains(net).map((chain) => (
-          <li key={chain.id} className="rounded-xl border border-line px-3 py-2">
-            <p className="text-xs text-muted">{chain.name}</p>
-            <p className="text-sm">…</p>
-          </li>
-        ))}
-      </ul>
-      <Placeholder className="mt-3 h-32 sm:h-16 lg:h-12" />
-    </>
-  );
-}
-
-/** The page while the satchel loads: its heading, then each card at about its loaded height. */
-function TokenSkeleton({ tokenId }: { tokenId: string }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Heading tokenId={tokenId} />
-        <p role="status" className="sr-only">
-          Reading satchel #{tokenId} from NEAR…
-        </p>
-        <Placeholder className="mt-2 h-5 w-full max-w-sm" />
-      </div>
-      <ReportCard report={undefined} loading error={null} onRecheck={() => {}} />
-      <Card>
-        <p className="text-xs text-muted">One address on {CHAINS.length} EVM chains, signed for only when this NFT's owner asks</p>
-        <AddressPending />
-      </Card>
-      <Placeholder className="h-36 rounded-2xl!" />
-      <Placeholder className="h-64 rounded-2xl!" />
-    </div>
-  );
-}
 
 export function TokenView({ tokenId }: { tokenId: string }) {
   const { accountId } = useWallet();
@@ -95,7 +35,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
     },
     `${net.id}:${tokenId}`,
   );
-  const report = useAsync(() => buildReport(net, tokenId), `${net.id}:${tokenId}:${refresh}`);
+  const report = useAsync(() => buildReport(net, tokenId), `${net.id}:${tokenId}:${refresh}`, { timing: TIMING.report });
   // The balances "What's inside" shows, for the Received card: they and the record choose its chains.
   const [held, setHeld] = useState<Readonly<Record<number, ChainContents | null>>>({});
   // The last transaction a panel finished. Kept here, since a sale or delist unmounts its panel.
@@ -125,14 +65,15 @@ export function TokenView({ tokenId }: { tokenId: string }) {
   }, [loaded]);
 
   if (token.data === undefined) {
-    if (!token.error) return <TokenSkeleton tokenId={tokenId} />;
+    if (token.lastError === null || token.lastError === undefined) {
+      return <TokenSkeleton tokenId={tokenId} wait={token.wait} onRetry={token.reload} />;
+    }
     return (
       <div className="space-y-3">
         <div>
           <Heading tokenId={tokenId} />
         </div>
-        <ErrorNote error={token.error} />
-        <Button onClick={token.reload}>Try again</Button>
+        <ErrorNote error={token.lastError} title="Couldn't read the satchel" onRetry={token.reload} />
       </div>
     );
   }
@@ -185,7 +126,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           )}
         </div>
       </div>
-      <ErrorNote error={token.error} />
+      <ErrorNote error={token.lastError} onRetry={token.reload} />
 
       {/* The verdict first, under the title, and Make it clean under it when it isn't clean; the rest of the page follows. */}
       <div id="report" className="scroll-mt-24">
@@ -194,6 +135,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
           loading={report.loading || token.loading}
           error={report.error}
           onRecheck={() => void reloadAll()}
+          wait={report.loading ? report.wait : token.wait}
         />
       </div>
       {deployment.data && (
@@ -242,7 +184,7 @@ export function TokenView({ tokenId }: { tokenId: string }) {
             <DeploymentNote deployment={deployment} />
           </div>
         ) : (
-          <AddressPending deployment={deployment} />
+          <AddressPending note={<DeploymentNote deployment={deployment} />} />
         )}
       </Card>
 

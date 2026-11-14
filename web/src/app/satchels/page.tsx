@@ -3,15 +3,33 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import { DeploymentNote, useDeployment } from "@/components/deployment";
-import { Badge, Button, Card, ErrorNote, ExternalLink, Mono } from "@/components/ui";
+import { Badge, Button, Card, ErrorNote, ExternalLink, LoadState, Mono, Placeholder } from "@/components/ui";
 import { useNetwork } from "@/components/network";
 import { useAsync } from "@/components/use-async";
 import { useNavigate } from "@/components/use-navigate";
 import { TxStatus, useTxAction } from "@/components/use-tx";
 import { useConnect, useWallet } from "@/components/wallet";
+import { WalletPending } from "@/components/wallet-pending";
 import { type Token, satchel, satchelTx, tokenAddress } from "satchel-nft";
 import { appPath } from "@/lib/routes";
 import { TESTNET_ACCOUNT_URL, TESTNET_FAUCET_URL } from "@/lib/try-it";
+
+/** Three satchel cards' shape: the id and its path badge in one row, then the address line. */
+function TokenCardsSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <Card key={i} className="h-full">
+          <div className="flex items-center justify-between">
+            <Placeholder className="h-8 w-12" />
+            <Placeholder className="h-5 w-24 rounded-full!" />
+          </div>
+          <Placeholder className="mt-3 h-4 w-full" />
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function YourSatchels() {
   const { accountId, ready } = useWallet();
@@ -22,11 +40,16 @@ export default function YourSatchels() {
   // The satchel just minted, whose page is opening: never reset, so Mint stays busy until this page goes.
   const [opening, setOpening] = useState<string | null>(null);
   const mintWaits = useId();
-  const tokens = useAsync(async () => {
-    if (accountId === null) return [];
-    const owned = await satchel(net).tokensFor(accountId);
-    return Promise.all(owned.map(async (t) => ({ ...t, address: await tokenAddress(net, `satchel/${t.token_id}`) })));
-  }, `${net.id}:${accountId ?? ""}`);
+  // Keyed and identified by the account, so another account's satchels never show under this one.
+  const tokens = useAsync(
+    async () => {
+      if (accountId === null) return [];
+      const owned = await satchel(net).tokensFor(accountId);
+      return Promise.all(owned.map(async (t) => ({ ...t, address: await tokenAddress(net, `satchel/${t.token_id}`) })));
+    },
+    `${net.id}:${accountId ?? ""}`,
+    { identity: accountId ?? "" },
+  );
 
   // A new satchel's page once its token id is known; otherwise the list, read again.
   const action = useTxAction(async (r) => {
@@ -66,6 +89,12 @@ export default function YourSatchels() {
       />
       <DeploymentNote deployment={deployment} />
 
+      {!ready && (
+        <Card>
+          <WalletPending />
+        </Card>
+      )}
+
       {ready && accountId === null && (
         <Card>
           <h2 className="font-display text-xl font-semibold">Connect a NEAR {net.id} wallet</h2>
@@ -93,37 +122,47 @@ export default function YourSatchels() {
         </Card>
       )}
 
-      {accountId && tokens.data?.length === 0 && !tokens.loading && (
-        <Card>
-          <h2 className="font-display text-xl font-semibold">Mint your first satchel</h2>
-          <p className="mt-1 text-sm text-muted">
-            You get an address derived for it by NEAR's MPC network. Fund it on any{" "}
-            {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for sale; only the
-            NFT's owner can have anything new signed for it.
-          </p>
-          {net.id === "testnet" && (
-            <p className="mt-1 text-sm text-muted">
-              Minting takes 0.1 testnet NEAR plus a little gas. Short of it? Get free testnet NEAR from{" "}
-              <ExternalLink href={TESTNET_FAUCET_URL}>NEAR&apos;s faucet</ExternalLink>.
-            </p>
-          )}
-        </Card>
-      )}
-      <ErrorNote error={tokens.error} />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tokens.data?.map((t) => (
-          <Link key={t.token_id} href={appPath(net, `/satchel/${t.token_id}`)}>
-            <Card className="h-full transition hover:border-ink">
-              <div className="flex items-center justify-between">
-                <p className="font-display text-2xl font-semibold">#{t.token_id}</p>
-                <Badge>satchel/{t.token_id}</Badge>
+      {accountId && (
+        <LoadState state={tokens} what="your satchels" skeleton={<TokenCardsSkeleton />}>
+          {(list) =>
+            list.length === 0 ? (
+              <Card>
+                <h2 className="font-display text-xl font-semibold">Mint your first satchel</h2>
+                <p className="mt-1 text-sm text-muted">
+                  You get an address derived for it by NEAR's MPC network. Fund it on any{" "}
+                  {net.id === "testnet" ? "testnet" : "chain"} the app lists, send from it here, or list it for sale; only the
+                  NFT's owner can have anything new signed for it.
+                </p>
+                {net.id === "testnet" && (
+                  <p className="mt-1 text-sm text-muted">
+                    Minting takes 0.1 testnet NEAR plus a little gas. Short of it? Get free testnet NEAR from{" "}
+                    <ExternalLink href={TESTNET_FAUCET_URL}>NEAR&apos;s faucet</ExternalLink>.
+                  </p>
+                )}
+              </Card>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {list.map((t) => (
+                  <Link key={t.token_id} href={appPath(net, `/satchel/${t.token_id}`)}>
+                    <Card className="h-full transition hover:border-ink">
+                      <div className="flex items-center justify-between">
+                        <p className="font-display text-2xl font-semibold">#{t.token_id}</p>
+                        <Badge>satchel/{t.token_id}</Badge>
+                      </div>
+                      {/* The address waits for the contract's check, in a line of its height, so the card doesn't grow. */}
+                      {deployment.data ? (
+                        <Mono className="mt-3 block text-xs text-ink-2">{t.address}</Mono>
+                      ) : (
+                        <Placeholder className="mt-3 h-4 w-full" />
+                      )}
+                    </Card>
+                  </Link>
+                ))}
               </div>
-              {deployment.data && <Mono className="mt-3 block text-xs text-ink-2">{t.address}</Mono>}
-            </Card>
-          </Link>
-        ))}
-      </div>
+            )
+          }
+        </LoadState>
+      )}
     </div>
   );
 }

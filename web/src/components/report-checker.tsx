@@ -2,6 +2,7 @@
 
 import { type ReactNode, createContext, useContext, useMemo, useRef } from "react";
 import { type ContractFacts, type Report, buildReport, contractFacts, limiter } from "satchel-nft";
+import { TIMING, deadline } from "@/lib/timing";
 import { useNetwork } from "./network";
 import { Badge, VERDICT, errorMessage } from "./ui";
 import { useAsync } from "./use-async";
@@ -10,7 +11,8 @@ type Checker = (tokenId: string) => Promise<Report | null>;
 
 /**
  * Checks many satchels on one page: one read of the contract's own facts shared by every report,
- * and a few reports at a time so the public RPCs don't throttle the page.
+ * and a few reports at a time so the public RPCs don't throttle the page. A report that hangs gives
+ * up after 45 s, so it frees its slot and its badge says "Couldn't check".
  */
 export function useReportChecker(): Checker {
   const net = useNetwork();
@@ -26,7 +28,7 @@ export function useReportChecker(): Checker {
         facts = read;
       }
       const shared = facts;
-      return limit(() => buildReport(net, tokenId, shared));
+      return limit(() => deadline(buildReport(net, tokenId, shared), TIMING.report.timeoutAfter, "the report"));
     };
   }, [net]);
 }

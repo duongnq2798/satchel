@@ -31,7 +31,12 @@ const BUTTON = {
 
 const SIZE = { md: "px-4 py-2 text-sm", sm: "px-3 py-1 text-xs" } as const;
 
-const OFF = "border border-line bg-paper-2 text-ink-2 cursor-not-allowed";
+/** Disabled, not busy: its line drawn inside where the variant has no border, so enabling it never resizes it. */
+const OFF = {
+  primary: "bg-paper-2 text-ink-2 ring-1 ring-line ring-inset cursor-not-allowed",
+  secondary: "border border-line bg-paper-2 text-ink-2 cursor-not-allowed",
+  gold: "bg-paper-2 text-ink-2 ring-1 ring-line ring-inset cursor-not-allowed",
+} as const satisfies Record<keyof typeof BUTTON, string>;
 
 const thenable = (value: unknown): value is PromiseLike<unknown> =>
   typeof value === "object" && value !== null && typeof (value as { then?: unknown }).then === "function";
@@ -80,7 +85,7 @@ export function Button({
         aria-busy={working || undefined}
         aria-disabled={working || disabled || undefined}
         aria-describedby={describedBy}
-        className={`relative inline-flex items-center justify-center rounded-full font-medium transition aria-busy:cursor-progress ${SIZE[size]} ${disabled && !working ? OFF : BUTTON[variant]}`}
+        className={`relative inline-flex items-center justify-center rounded-full font-medium transition aria-busy:cursor-progress ${SIZE[size]} ${disabled && !working ? OFF[variant] : BUTTON[variant]}`}
       >
         <span className={shown ? "opacity-0" : undefined}>{children}</span>
         {shown && (

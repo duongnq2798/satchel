@@ -12,7 +12,6 @@ import {
   accountTransactions,
   limiter,
   nearAccountUrl,
-  nearRpcUrl,
   nearTxUrl,
   satchel,
   sputnikDao,
@@ -42,6 +41,7 @@ import {
   utc,
 } from "@/lib/dao-board";
 import { appPath } from "@/lib/routes";
+import { DaoBoardSkeleton, DaoHeading } from "./dao-skeleton";
 import { useNetwork } from "./network";
 import { Badge, Button, Card, ErrorNote, ExternalLink, Mono, Placeholder, errorMessage } from "./ui";
 import { useAsync } from "./use-async";
@@ -155,44 +155,22 @@ export function DaoBoard({ daoId }: { daoId: string }) {
   const tokens = orElse(() => tokensIn(bounties.data?.bounties ?? [], proposals.data?.proposals ?? []), []);
   const metas = useAsync(() => readMetas(net, tokens), `${net.id}:${tokens.join(",")}`);
 
-  const rpc = new URL(nearRpcUrl(net)).host;
-  const heading = (
-    <div>
-      <p className="text-sm text-muted">Sputnik DAO on NEAR {net.id}</p>
-      <h1 className="font-display text-4xl font-semibold tracking-tight">Bounty board</h1>
-      <p className="mt-2 text-ink-2 [overflow-wrap:anywhere]">
-        <ExternalLink href={nearAccountUrl(net, daoId)}>{daoId}</ExternalLink>&apos;s open bounties, claims, payouts and each
-        contributor&apos;s record, read in your browser from NEAR {net.id} through {rpc}. Nothing on this page signs or sends
-        anything, and it needs no wallet.
-      </p>
-    </div>
-  );
-
   if (dao.data === undefined) {
+    if (!dao.error) return <DaoBoardSkeleton daoId={daoId} />;
     return (
       <div className="space-y-6">
-        {heading}
-        {dao.error ? (
-          <Card>
-            <h2 className="font-display text-xl font-semibold">No Sputnik DAO to show</h2>
-            <p className="mt-1 text-sm text-muted [overflow-wrap:anywhere]">
-              The board reads {daoId}&apos;s get_config and get_policy views, and they didn&apos;t answer, or not as a Sputnik
-              DAO&apos;s would.
-            </p>
-            <div className="mt-3 space-y-3 [overflow-wrap:anywhere]">
-              <ErrorNote error={dao.error} />
-              <Button onClick={dao.reload}>Try again</Button>
-            </div>
-          </Card>
-        ) : (
-          <>
-            <p role="status" className="sr-only">
-              Reading {daoId} from NEAR…
-            </p>
-            <Placeholder className="h-72 rounded-2xl!" />
-            <Placeholder className="h-48 rounded-2xl!" />
-          </>
-        )}
+        <DaoHeading daoId={daoId} />
+        <Card>
+          <h2 className="font-display text-xl font-semibold">No Sputnik DAO to show</h2>
+          <p className="mt-1 text-sm text-muted [overflow-wrap:anywhere]">
+            The board reads {daoId}&apos;s get_config and get_policy views, and they didn&apos;t answer, or not as a Sputnik
+            DAO&apos;s would.
+          </p>
+          <div className="mt-3 space-y-3 [overflow-wrap:anywhere]">
+            <ErrorNote error={dao.error} />
+            <Button onClick={dao.reload}>Try again</Button>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -206,7 +184,7 @@ export function DaoBoard({ daoId }: { daoId: string }) {
   // Every card shapes its own answers inside its boundary, so an odd answer takes down that card alone.
   return (
     <div className="space-y-6">
-      {heading}
+      <DaoHeading daoId={daoId} />
 
       <Contained title="The DAO">
         <DaoCard daoId={daoId} name={config.name} purpose={config.purpose} version={version} policy={dao.data.policy} />

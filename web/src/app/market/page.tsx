@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useNetwork } from "@/components/network";
 import { ReportBadge, useReportChecker } from "@/components/report-checker";
-import { Badge, Card, ErrorNote } from "@/components/ui";
+import { Badge, Card, LoadState, Placeholder } from "@/components/ui";
 import { useAsync } from "@/components/use-async";
 import { type Listing, type Report, formatNear, satchel } from "satchel-nft";
 import { FROZEN_UNTIL, isFrozen } from "@/lib/frozen";
@@ -45,11 +45,25 @@ function ListingCard({
   );
 }
 
+/** Three listing cards' shape: the id, the price and the seller line, at their loaded heights. */
+function ListingSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <Card key={i} className="h-full">
+          <Placeholder className="h-8 w-16" />
+          <Placeholder className="mt-3 h-7 w-28" />
+          <Placeholder className="mt-1 h-5 w-48" />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export default function Market() {
   const net = useNetwork();
   const listings = useAsync(() => satchel(net).allListings(), `${net.id}:listings`);
   const check = useReportChecker();
-  const onlyDemo = allDemo(net, (listings.data ?? []).map(([id]) => id));
   return (
     <div className="space-y-6">
       <div>
@@ -59,7 +73,19 @@ export default function Market() {
           purchase goes through only for the record version you checked.
         </p>
       </div>
-      <ErrorNote error={listings.error} />
+      <LoadState state={listings} what="the listings" skeleton={<ListingSkeleton />}>
+        {(data) => <Listings listings={data} check={check} />}
+      </LoadState>
+    </div>
+  );
+}
+
+/** The listings once read: the demo note when every one is a demo satchel, the empty card, then the grid. */
+function Listings({ listings, check }: { listings: [string, Listing][]; check: (tokenId: string) => Promise<Report | null> }) {
+  const net = useNetwork();
+  const onlyDemo = allDemo(net, listings.map(([id]) => id));
+  return (
+    <div className="space-y-6">
       {onlyDemo && (
         <p className="text-sm text-ink-2">
           Every satchel listed here is a demo satchel. Buying them is off in this app through judging (until{" "}
@@ -81,7 +107,7 @@ export default function Market() {
           , list it from its page and buy it from a second testnet wallet.
         </p>
       )}
-      {listings.data?.length === 0 && (
+      {listings.length === 0 && (
         <Card>
           <h2 className="font-display text-xl font-semibold">No satchels are listed yet</h2>
           <p className="mt-1 text-sm text-muted">List one from its page; it shows up here with its report.</p>
@@ -101,7 +127,7 @@ export default function Market() {
         </Card>
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {listings.data?.map(([id, listing]) => (
+        {listings.map(([id, listing]) => (
           <ListingCard key={id} tokenId={id} listing={listing} check={check} />
         ))}
       </div>
