@@ -34,7 +34,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 - `web/scripts/loading-check.mjs`, run against `next start`, checks the 404 and 200 answers and
   the server HTML's order. It measures layout shift in a headless Edge with the network and CPU
   throttled, and holds every NEAR request on `/satchel/1` to check the slow and timeout states and
-  the route fallback. On 2026-11-14 every check passed; the largest shift was 0.050.
+  the route fallback. On 2026-11-14 every check passed; the largest shift was 0.052.
 - Inter loads with `display: "optional"`: it is used if it arrives in the first ~100 ms (it is
   preloaded), and otherwise its size-matched fallback stays for that page load. A late swap
   rewrapped the DAO board's heading on a phone and shifted the page by 0.123 on slow 4G.
@@ -1024,6 +1024,20 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Fixed
 
+- A satchel id or DAO name that can't exist answered 404 with the not-found page, but the tab's
+  title still named it ("Satchel #abc · Satchel", "Bounty board, !! · Satchel"): the layout answers
+  404, and Next still streamed the page's own metadata, which replaced the not-found title. The six
+  pages under an `[id]` with their own metadata (a satchel's page and its holder room, and a DAO's
+  board, on testnet and mainnet) now give the not-found page's title and description for such an
+  id. `isSatchelId` and `NOT_FOUND` are shared from `web/src/lib/routes.ts`.
+- `web/scripts/loading-check.mjs` timed "Still reading" and "No answer in 15 s." from the moment the
+  page was opened, so a deployed site, whose scripts take about 1 s to arrive, failed its 4.5 s and
+  15.5 s bars while its timers were right. It now times them from the page's first request to NEAR:
+  4.0 s and 15.0 s on satchelnft.xyz on 2026-11-14. Its status step also checks that a bad id's
+  response carries no title but "Page not found · Satchel", the streamed one included.
+- The README said the primitives' `main` links do not open yet and that their files were on `dev`
+  until it was promoted. They are on `main` now, so those lines are gone: six in the README and one
+  in the package README.
 - The README's npm package row said the package shipped as 0.2.0; it now names 0.3.1 and the
   releases before it. Make it clean's row said its code isn't in npm 0.2.0, and the FastNEAR row
   that 0.2.0 sends each read once; each row now says its change has been on npm since 0.3.0.

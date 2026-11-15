@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { TESTNET } from "satchel-nft";
+import { TESTNET, isAccountId } from "satchel-nft";
 import { DaoBoard } from "@/components/dao-board";
 import { boardDescription } from "@/lib/dao-board";
+import { NOT_FOUND } from "@/lib/routes";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
+  if (!isAccountId(id)) return NOT_FOUND;
   return { title: `Bounty board, ${id}`, description: boardDescription(TESTNET, id) };
 }
 
