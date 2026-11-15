@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { TESTNET } from "satchel-nft";
 import { HolderRoom } from "@/components/holder-room";
+import { NOT_FOUND, isSatchelId } from "@/lib/routes";
 import { roomDescription } from "@/lib/showcase";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
+  if (!isSatchelId(id)) return NOT_FOUND;
   return { title: `Holder room, Satchel #${id}`, description: roomDescription(TESTNET, id) };
 }
 

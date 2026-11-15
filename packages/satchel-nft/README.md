@@ -197,8 +197,7 @@ not have them. Until then, run `npm pack -w satchel-nft` in a checkout of the re
 the tarball. None of them signs or sends anything. Each is tested on transactions and state recorded
 from mainnet and testnet and re-checked against the live chains; each docs page gives the full API,
 the behaviour, the fixtures, every live run with its date and command, and each function's status
-(Implemented or Experimental). The links below point at the repository's `main` branch; until the
-next promotion, these files are on `dev`.
+(Implemented or Experimental). The links below point at the repository's `main` branch.
 
 **`satchel-nft/near-rpc`**: a JSON-RPC transport that retries what is worth retrying and names rate
 limiting, reads pinned to one block that refuse an answer about another block, access-key lists paged
