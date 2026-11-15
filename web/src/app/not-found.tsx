@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { NetLink } from "@/components/site-header";
+import { NOT_FOUND } from "@/lib/routes";
 
-export const metadata: Metadata = {
-  title: "Page not found",
-  description: "Satchel has no page at this address. A satchel's page is /satchel/ and its id, and the verify page takes an id or a link.",
-};
+export const metadata: Metadata = NOT_FOUND;
 
 /** Any address the site has no page for, and a satchel page whose id isn't a number. */
 export default function NotFound() {

@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import { MAINNET, type Network, type NetworkId, TESTNET } from "satchel-nft";
+
+/** A satchel's id as its pages take it: up to 19 digits. Anything else answers 404 before any read. */
+export function isSatchelId(id: string): boolean {
+  return /^\d{1,19}$/.test(id);
+}
+
+/**
+ * The not-found page's title and description. A satchel's or a DAO's page whose id can't exist
+ * gives them too: its layout answers 404, but its own metadata would still name the id in the tab.
+ */
+export const NOT_FOUND: Metadata = {
+  title: "Page not found",
+  description: "Satchel has no page at this address. A satchel's page is /satchel/ and its id, and the verify page takes an id or a link.",
+};
 
 /** Where each network's pages live: the site's root for testnet, /mainnet for mainnet. */
 const BASE: Record<NetworkId, "" | "/mainnet"> = { testnet: "", mainnet: "/mainnet" };

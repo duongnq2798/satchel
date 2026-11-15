@@ -1,9 +1,10 @@
-// Checks the web app's loading system on a production server (`--help` says how to serve one): the
-// status and no-JavaScript HTML of the routes behind a loading fallback, layout shift at Slow 4G, the
-// token page's soft timeout with every NEAR request held, and the route fallback a demo pick on /verify
-// shows. It prints a JSON report and exits 1 when a check fails. It only reads pages and never connects
-// a wallet. Node 24 and Edge, no packages: it drives headless Edge over the DevTools protocol with
-// Node's own WebSocket, on a fresh profile under the OS temp dir, and ends Edge on every way out.
+// Checks the web app's loading system on a production build, served by `next start` (`--help` says how)
+// or deployed, such as https://satchelnft.xyz: the status and no-JavaScript HTML of the routes behind a
+// loading fallback, layout shift at Slow 4G, the token page's soft timeout with every NEAR request held,
+// and the route fallback a demo pick on /verify shows. It prints a JSON report and exits 1 when a check
+// fails. It only reads pages and never connects a wallet. Node 24 and Edge, no packages: it drives
+// headless Edge over the DevTools protocol with Node's own WebSocket, on a fresh profile under the OS
+// temp dir, and ends Edge on every way out.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,17 +16,19 @@ const EDGE = String.raw`C:\Program Files (x86)\Microsoft\Edge\Application\msedge
 const STEPS = ["status", "cls", "timeout"];
 const USAGE = `Usage: node web/scripts/loading-check.mjs [options]
 
-Checks the loading system on a production server and prints a JSON report.
-Serve production first (prefetching is production-only):
+Checks the loading system on a production build and prints a JSON report: a deployed site, or this
+checkout served locally (prefetching is production-only):
   npm run build --prefix web
   npm run start --prefix web -- -p 3100
 
 Options:
   --base <url>    the server (default http://localhost:3100)
   --steps <list>  comma-separated, default all three:
-                    status   404 for bad ids, 200 for good ones, the no-JS notes before React's streamed holders
+                    status   404 with the not-found title for bad ids, 200 for good ones, the no-JS notes
+                             before React's streamed holders
                     cls      layout shift at Slow 4G and 4x CPU, 1280x900 and 390x844, in headless Edge
-                    timeout  /satchel/1 with every NEAR request held, and /verify's route fallback
+                    timeout  /satchel/1 with every NEAR request held, timed from its first one, and
+                             /verify's route fallback
   --edge <path>   Edge (default ${EDGE})
   --port <n>      Edge's DevTools port (default 9333)
   -h, --help      this text
@@ -69,6 +72,9 @@ const log = (message) => process.stderr.write(`${message}\n`);
 const round = (n) => Math.round(n * 10_000) / 10_000;
 /** Whether a time is set and no later than `ms`. */
 const by = (at, ms) => at !== null && at <= ms;
+/** When a state showed, for a failure: after the first read, or from the navigation if no read was seen. */
+const shownAfter = (at, afterRead) =>
+  at === null ? "never" : afterRead === null ? `at ${at} ms, with no request to NEAR seen` : `${afterRead} ms after the first read`;
 
 // ---- Edge ----
 
@@ -309,6 +315,9 @@ function isTokenPage(path) {
 
 // ---- Checks ----
 
+/** app/not-found.tsx's title in app/layout.tsx's template. */
+const NOT_FOUND_TITLE = "Page not found · Satchel";
+
 /** Step 1: status codes, and each server-rendered note before any `<div hidden id="S:` (a streamed boundary's holder). */
 async function checkStatus(dao) {
   const bad = ["/satchel/abc", "/satchel/12345678901234567890", "/satchel/abc/room", "/mainnet/satchel/abc", "/mainnet/satchel/abc/room", "/dao/%21%21", "/mainnet/dao/%21%21"];
@@ -321,6 +330,15 @@ async function checkStatus(dao) {
     const html = await res.text();
     const row = { path, expect, status: res.status, ok: res.status === expect };
     if (!row.ok) fail(`status: ${path} answered ${res.status}, not ${expect}`);
+    if (expect === 404) {
+      // Every title the response carries: the <title>, its og: and twitter: copies, and the page's own
+      // metadata, which React streams after them and which then replaces the tab's title. Without a
+      // check in the page's generateMetadata, that one named the satchel or DAO the address can't hold.
+      row.titles = [...new Set(html.match(/[^"<>\\]{1,120} · Satchel/g) ?? [])];
+      const titled = row.titles.length === 1 && row.titles[0] === NOT_FOUND_TITLE;
+      if (!titled) fail(`status: ${path} carries the titles ${JSON.stringify(row.titles)}, not only ${JSON.stringify(NOT_FOUND_TITLE)}`);
+      row.ok &&= titled;
+    }
     if (expect === 404 && res.status === 200) report.hint = "A bad id answered 200: a proxy.ts can answer bad ids with a 404 (docs: loading.md:113-115).";
     const marker = markers[path];
     if (marker) {
@@ -378,21 +396,34 @@ async function checkCls(dao) {
   return rows;
 }
 
-/** Step 3a: /satchel/1 with every NEAR request held, then let through. */
+/**
+ * Step 3a: /satchel/1 with every NEAR request held, then let through. The 4 s and 15 s are timed from
+ * the page's first request to NEAR, when its read starts. Timed from the navigation, they would also
+ * hold the time the page's scripts took to arrive: about 0.2 s from `next start` here, and 0.9 s from
+ * satchelnft.xyz on 2026-11-14 (UTC).
+ */
 async function checkTimeout(nearHost) {
   log("timeout /satchel/1 with NEAR held");
   const page = await openPage();
   const held = [];
   let holding = true;
+  let firstRead = null;
   page.on("Fetch.requestPaused", ({ requestId }) => {
     if (holding) held.push(requestId);
     else page.send("Fetch.continueRequest", { requestId }).catch(() => {});
   });
+  // wallTime is the browser's clock in seconds, performance.timeOrigin the same clock in ms.
+  page.on("Network.requestWillBeSent", ({ request, wallTime }) => {
+    if (firstRead === null && request.url.includes(nearHost)) firstRead = wallTime * 1000;
+  });
   try {
     await page.send("Fetch.enable", { patterns: [{ urlPattern: `*${nearHost}*` }] });
     await page.goto(`${report.base}/satchel/1`);
-    const out = { path: "/satchel/1", nearHost, skeletonAtLoad: (await page.eval(probe)).skeleton, slowAt: null, timeoutAt: null };
-    for (let p = await page.eval(probe); p.t < 17_000; p = await page.eval(probe)) {
+    const origin = await page.eval(() => performance.timeOrigin);
+    // When the first read started, in ms from the navigation, like probe()'s t.
+    const readAt = () => (firstRead === null ? null : Math.round(firstRead - origin));
+    const out = { path: "/satchel/1", nearHost, skeletonAtLoad: (await page.eval(probe)).skeleton, readAt: null, slowAt: null, timeoutAt: null };
+    for (let p = await page.eval(probe); p.t < (readAt() ?? 0) + 17_000; p = await page.eval(probe)) {
       if (p.slow) out.slowAt ??= Math.round(p.t);
       if (p.timeout && p.tryAgain) {
         out.timeoutAt = Math.round(p.t);
@@ -400,6 +431,10 @@ async function checkTimeout(nearHost) {
       }
       await sleep(100);
     }
+    out.readAt = readAt();
+    const after = (at) => (at === null || out.readAt === null ? null : at - out.readAt);
+    out.slowAfterRead = after(out.slowAt);
+    out.timeoutAfterRead = after(out.timeoutAt);
     out.tryAgainFocusable = await page.eval(focusTryAgain);
     holding = false;
     out.held = held.length;
@@ -410,8 +445,8 @@ async function checkTimeout(nearHost) {
     const why = [
       out.held === 0 && `no request to ${nearHost} was held, so nothing was slow`,
       !out.skeletonAtLoad && "no skeleton at load",
-      !by(out.slowAt, 4_500) && `"Still reading" showed ${out.slowAt === null ? "never" : `at ${out.slowAt} ms`}, not by 4500 ms`,
-      !by(out.timeoutAt, 15_500) && `"No answer in 15 s." with Try again showed ${out.timeoutAt === null ? "never" : `at ${out.timeoutAt} ms`}, not by 15500 ms`,
+      !by(out.slowAfterRead, 4_500) && `"Still reading" showed ${shownAfter(out.slowAt, out.slowAfterRead)}, not by 4500 ms after it`,
+      !by(out.timeoutAfterRead, 15_500) && `"No answer in 15 s." with Try again showed ${shownAfter(out.timeoutAt, out.timeoutAfterRead)}, not by 15500 ms after it`,
       !out.tryAgainFocusable && "Try again took no focus",
       out.renderedAfterRelease === null && "the satchel didn't render in 30 s once NEAR answered",
     ].filter(Boolean);
