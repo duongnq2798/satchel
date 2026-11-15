@@ -191,13 +191,12 @@ if (report?.verdict === "clean") {
 
 ## Primitives
 
-Three read-only modules for any NEAR app, imported by subpath. **New after 0.3.1:** they ship in the
-next release of `satchel-nft` on npm, which the owner publishes; the published 0.3.1 and earlier do
-not have them. Until then, run `npm pack -w satchel-nft` in a checkout of the repository and install
-the tarball. None of them signs or sends anything. Each is tested on transactions and state recorded
-from mainnet and testnet and re-checked against the live chains; each docs page gives the full API,
-the behaviour, the fixtures, every live run with its date and command, and each function's status
-(Implemented or Experimental). The links below point at the repository's `main` branch.
+Three read-only modules for any NEAR app, imported by subpath. **New in 0.4.0:** 0.3.1 and
+earlier do not have them. None of them signs or sends anything. Each is tested on transactions and
+state recorded from mainnet and testnet and re-checked against the live chains; each docs page gives
+the full API, the behaviour, the fixtures, every live run with its date and command, and each
+function's status (Implemented or Experimental). The links below point at the repository's `main`
+branch.
 
 **`satchel-nft/near-rpc`**: a JSON-RPC transport that retries what is worth retrying and names rate
 limiting, reads pinned to one block that refuse an answer about another block, access-key lists paged
@@ -247,6 +246,21 @@ The repository's [examples](https://github.com/duongnq2798/satchel/tree/main/pac
 run each one against the live chains: after `npm run build -w satchel-nft`, for instance,
 `node packages/satchel-nft/examples/mpc-audit.mjs testnet EZLXcvf43jqHYFUJm7gt3Ris5yM1Ru2FPihiEqJW1GUo`
 prints one request whose signature verifies, and the verdict `all-verified`.
+
+## What changed in 0.4.0
+
+- **Three read-only subpaths for any NEAR app:** `satchel-nft/near-rpc`,
+  `satchel-nft/chain-signatures` and `satchel-nft/account-proof`, under [Primitives](#primitives)
+  above. Import them by subpath; the package root doesn't export them.
+- **The package root and the CLI are unchanged.** The root exports the same names as 0.3.1, and
+  every command prints what it printed in 0.3.1. `deriveMpcKey` now computes through the same
+  derivation as `satchel-nft/chain-signatures`, and gives the same keys. The tests compare that
+  derivation with the keys the MPC contract's `derived_public_key` gave for testnet satchels #1 to
+  #11 and mainnet #1 to #3, and `deriveMpcKey` itself with those for testnet #1 to #8 and mainnet
+  #1, as in 0.3.1. `base58Decode` and `base58Encode` moved to their own module, and the root still
+  exports both.
+- **The commands in the handover kit and in `fixPlan`'s note still pin `satchel-nft@0.3.0`**,
+  which has each of them.
 
 ## What changed in 0.3.1
 
