@@ -990,10 +990,10 @@ is tested on transactions and state recorded from mainnet and testnet, re-checke
 chains, and has an example you can run. None of them signs or sends anything: the examples and the
 live tests read through a guard that refuses any method that is not a read before the node is called.
 
-They are subpaths of `satchel-nft` in this repository (version 0.4.0-dev). They ship in the next
-release of `satchel-nft` on npm, which the owner publishes; the published 0.3.1 does not have them.
-Until then, build them from a checkout (below), or run `npm pack -w satchel-nft` and install the
-tarball in your own project. The source links below point at `main`.
+They are subpaths of `satchel-nft` 0.4.0, the version in this repository. Until the owner
+publishes 0.4.0 to npm, npm serves 0.3.1, which does not have them: build them from a checkout
+(below), or run `npm pack -w satchel-nft` and install the tarball in your own project. The source
+links below point at `main`.
 
 | Primitive | What it checks | Use it for | Status | Source | Docs |
 | --- | --- | --- | --- | --- | --- |
@@ -2146,7 +2146,7 @@ re-checks the demo every day until the demo freeze ends on 2026-11-25, after jud
 | Contract | Format, lint, unit tests, wasm build | `cargo fmt --check`, `cargo clippy --tests -- -D warnings`, `cargo test`, then `cargo near build non-reproducible-wasm --locked`; uploads `satchel-wasm` | Every pull request, every push to `main` or `dev` |
 | Contract | Reproducible build and code hash | `cargo near build reproducible-wasm` in the pinned Docker image, then writes the commit and the code hash to the run's summary; uploads `satchel-reproducible-wasm`, kept 90 days. cargo-near's release binary is checked against the sha256 its own installer pins | The same |
 | Web | Typecheck, unit tests, build | `npm ci` at the root, then in `web` `npm run typecheck`, `npm test`, `npm run build`, on Node 24 | Every pull request; pushes to `main` or `dev` that touch `web/`, `packages/`, the root `package.json` or lockfile, or the workflow |
-| Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs the 0.2.0 release from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
+| Package | Typecheck, unit tests, pack and run the tarball | `npm ci`, then for `satchel-nft`: typecheck, unit tests, `npm pack` (it fails if the tarball holds anything but the launcher, `dist`, the README, LICENSE and `package.json`), then installs the tarball in an empty project and runs `satchel-nft --version` and `--help`, imports the library, and checks that bad input exits 2, on Node 22. Last, it runs `satchel-nft@0.3.0 --version`, the release the docs pin, from npm | Every pull request; pushes to `main` or `dev` that touch `packages/`, the root `package.json` or lockfile, or the workflow |
 | CI | verify | Passes only when the contract, web and package workflows all succeeded; a skipped or cancelled one fails it | Every pull request |
 | Watch | Claims and site | From 2026-11-25, when the demo freeze ends (judging runs 2026-11-16 to 11-18), nothing. Until then `node scripts/check-claims.mjs`, the same with `--network mainnet`, and `node scripts/check-dao.mjs`, each run once more a minute later if it fails, then `curl -fsS` on satchelnft.xyz and `/mainnet`, on Node 22, with no install and no secrets | Every day at 05:23 UTC from `main` (GitHub runs a schedule only from the default branch, and may start it late); by hand; pull requests that change the workflow, `check-claims.mjs` or `check-dao.mjs` |
 

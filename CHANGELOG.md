@@ -13,7 +13,7 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
   `docs/primitives/` with its API, its fixtures' provenance, every live run with its date and
   command, and each function's status (Implemented or Experimental). `deriveMpcKey` now computes
   through the shared derivation, with the same keys and messages; the base58 helpers moved to their
-  own module and are still exported. The subpaths ship in the next npm release; the published 0.3.1
+  own module and are still exported. The subpaths are new in `satchel-nft` 0.4.0; the published 0.3.1
   does not have them. The README has a "Primitives for NEAR Builders" section, with a Contents
   entry, each primitive's use, workings, source, usage and status, the final check's outputs, and
   `satchel-nft/account-audit` and `satchel-nft/sputnik` under Planned; the package README has a
@@ -638,6 +638,13 @@ All notable changes to Satchel. The format follows [Keep a Changelog](https://ke
 
 ### Changed
 
+- `satchel-nft` 0.4.0 is ready to publish: the package says 0.4.0, and its README, which npm shows,
+  lists what changed since 0.3.1 (the three read-only subpaths `near-rpc`, `chain-signatures` and
+  `account-proof`; the package root and the CLI unchanged). Until the owner publishes it
+  ([docs/RELEASING.md](docs/RELEASING.md)), npm serves 0.3.1, and the commands that run the
+  package, in the docs, the app and the package's own output, keep `@0.3.0`. The README's
+  "Primitives for NEAR Builders" says the subpaths are in 0.4.0, and its CI table names the release
+  the package workflow runs from npm (`@0.3.0`), where it said 0.2.0.
 - `satchel-nft` 0.3.1, a patch, is on npm, published on 2026-11-14 from a clean clone of commit
   `cfa0d29` (shasum `1e8db4a1dca27b452a90179347332cb97e1c1896`, the same as a pack of that commit;
   its 46 files match the commit and its build byte for byte). Its README, which npm shows, lists the
